@@ -682,7 +682,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   });
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const { data: joinSettings } = useQuery<JoinHostSettings>({ queryKey: ["/api/join/settings"] });
+  const { data: joinSettings } = useQuery<JoinHostSettings>({ queryKey: ["/api/admin/join/settings"] });
   const { data: joinSubmissions } = useQuery<JoinSubmission[]>({ queryKey: ["/api/admin/join/submissions"] });
   const { data: hostSettings } = useQuery<JoinHostSettings>({ queryKey: ["/api/host/settings"] });
   const { data: hostSubmissions } = useQuery<HostSubmission[]>({ queryKey: ["/api/admin/host/submissions"] });
@@ -989,7 +989,7 @@ export default function AdminDashboard({ user }: { user: any }) {
       await apiRequest("PUT", "/api/admin/join/settings", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/join/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/join/settings"] });
       toast({ title: "Join settings updated!" });
     },
     onError: (err: Error) => {

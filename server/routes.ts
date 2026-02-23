@@ -2275,6 +2275,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/join/settings", firebaseAuth, requireAdmin, async (_req, res) => {
+    try {
+      const settings = await firestoreJoinSettings.get();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to load join settings" });
+    }
+  });
+
   app.put("/api/admin/join/settings", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const updated = await firestoreJoinSettings.update(req.body);
