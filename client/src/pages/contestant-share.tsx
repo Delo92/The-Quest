@@ -158,75 +158,29 @@ export default function ContestantSharePage() {
   const votePercentage = totalVotes > 0 ? Math.round((contestant.voteCount / totalVotes) * 100) : 0;
 
   const getShareData = () => {
-    const ownCode = myRefCode?.code;
-    const fallbackRef = localStorage.getItem("hfc_ref");
-    const refToUse = ownCode || fallbackRef;
-    const baseUrl = `${window.location.origin}/${categorySlug}/${compSlug}/${talentSlug}`;
-    const shareUrl = refToUse ? `${baseUrl}?ref=${refToUse}` : baseUrl;
-    let shareText = `Hey, I need your vote to win! Vote for ${profile.displayName} in ${competition.title} on HiFitComp!`;
-    if (refToUse) {
-      shareText += `\n\nUse promo code ${refToUse} when you sign up or vote for bonus rewards!`;
-    }
+    const shareUrl = `${window.location.origin}/${categorySlug}/${compSlug}/${talentSlug}`;
+    const shareText = `Vote for ${profile.displayName} in ${competition.title} on HiFitComp!`;
     return { shareUrl, shareText };
   };
 
-  const ensureRefCode = async () => {
-    if (myRefCode?.code) return;
-    if (!user) return;
-    try {
-      const token = await getAuthToken();
-      if (!token) return;
-      await fetch("/api/referral/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/referral/my-code"] });
-    } catch {}
-  };
-
   const handleShare = async () => {
-    await ensureRefCode();
-    await new Promise(r => setTimeout(r, 300));
-    const { shareUrl, shareText } = getShareData();
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Vote for ${profile.displayName}`,
-          text: shareText,
-          url: shareUrl,
-        });
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          fallbackCopy();
-        }
-      }
-    } else {
-      fallbackCopy();
-    }
-  };
-
-  const fallbackCopy = async () => {
     const { shareUrl, shareText } = getShareData();
     const fullText = `${shareText}\n${shareUrl}`;
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(fullText);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = fullText;
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-      setCopied(true);
-      toast({ title: "Link copied!", description: "Share link copied to clipboard. Paste it in a text or message." });
-      setTimeout(() => setCopied(false), 3000);
+      await navigator.clipboard.writeText(fullText);
     } catch {
-      toast({ title: "Copy failed", description: "Could not copy to clipboard", variant: "destructive" });
+      const textarea = document.createElement("textarea");
+      textarea.value = fullText;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
     }
+    setCopied(true);
+    toast({ title: "Link copied!", description: "Share link copied to clipboard. Paste it anywhere!" });
+    setTimeout(() => setCopied(false), 3000);
   };
 
   return (

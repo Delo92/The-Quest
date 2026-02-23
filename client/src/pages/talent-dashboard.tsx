@@ -490,16 +490,7 @@ export default function TalentDashboard({ user, profile }: Props) {
   };
 
   const handleNativeShare = async (contest: any) => {
-    const refCode = await ensureRefCode();
-    const url = buildShareUrl(contest, refCode);
-    const text = `Vote for ${displayName || profile?.displayName} on HiFitComp!${refCode ? ` Use promo code ${refCode} when you sign up or vote for bonus rewards!` : ""}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Vote for ${displayName || profile?.displayName}`, text, url });
-      } catch {}
-    } else {
-      handleCopyShareLink(contest);
-    }
+    await handleCopyShareLink(contest);
   };
 
   return (
