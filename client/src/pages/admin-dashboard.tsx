@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2 } from "lucide-react";
+import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2 } from "lucide-react";
 import { InviteDialog, CreateUserDialog } from "@/components/invite-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "wouter";
@@ -1943,19 +1943,84 @@ export default function AdminDashboard({ user }: { user: any }) {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-white/60">Free Nomination Promo Code</Label>
-                      <Input
-                        key={`promo-${joinSettings.freeNominationPromoCode}`}
-                        defaultValue={joinSettings.freeNominationPromoCode || ""}
-                        placeholder="e.g. HIFITFREE"
-                        onBlur={(e) => updateJoinSettingsMutation.mutate({ freeNominationPromoCode: e.target.value.trim().toUpperCase() })}
-                        className="bg-white/5 border-white/10 text-white uppercase"
-                        data-testid="input-promo-code"
-                      />
-                      <p className="text-xs text-white/30">Nominators who enter this code will skip the nomination fee. Leave blank to disable.</p>
-                    </div>
+                  <div className="mb-4">
+                    <Label className="text-white/60 mb-2 block">Free Nomination Promo Code</Label>
+                    {joinSettings.freeNominationPromoCode ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-green-400/70 uppercase tracking-wider mb-1">Active Promo Code</p>
+                            <p className="text-xl font-bold text-green-300 tracking-[4px] uppercase" data-testid="text-active-promo-code">{joinSettings.freeNominationPromoCode}</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-green-500/30 text-green-300 hover:bg-green-500/20 gap-1.5"
+                              data-testid="button-copy-promo"
+                              onClick={() => {
+                                navigator.clipboard.writeText(joinSettings.freeNominationPromoCode || "");
+                                toast({ title: "Copied!", description: "Promo code copied to clipboard." });
+                              }}
+                            >
+                              <Copy className="h-3.5 w-3.5" /> Copy
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-orange-500/30 text-orange-300 hover:bg-orange-500/20 gap-1.5"
+                              data-testid="button-share-promo"
+                              onClick={() => {
+                                const text = `Use promo code ${joinSettings.freeNominationPromoCode} for a FREE nomination at ${window.location.origin}/join`;
+                                if (navigator.share) {
+                                  navigator.share({ title: "Free Nomination Code", text }).catch(() => {
+                                    navigator.clipboard.writeText(text);
+                                    toast({ title: "Copied!", description: "Share message copied to clipboard." });
+                                  });
+                                } else {
+                                  navigator.clipboard.writeText(text);
+                                  toast({ title: "Copied!", description: "Share message copied to clipboard." });
+                                }
+                              }}
+                            >
+                              <Share2 className="h-3.5 w-3.5" /> Share
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            key={`promo-${joinSettings.freeNominationPromoCode}`}
+                            defaultValue={joinSettings.freeNominationPromoCode || ""}
+                            placeholder="e.g. HIFITFREE"
+                            onBlur={(e) => updateJoinSettingsMutation.mutate({ freeNominationPromoCode: e.target.value.trim().toUpperCase() })}
+                            className="bg-white/5 border-white/10 text-white uppercase max-w-xs"
+                            data-testid="input-promo-code"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
+                            onClick={() => updateJoinSettingsMutation.mutate({ freeNominationPromoCode: "" })}
+                            data-testid="button-remove-promo"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Remove
+                          </Button>
+                        </div>
+                        <p className="text-xs text-white/30">Edit the code above or remove it to disable free nominations.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <Input
+                          key={`promo-${joinSettings.freeNominationPromoCode}`}
+                          defaultValue=""
+                          placeholder="e.g. HIFITFREE"
+                          onBlur={(e) => updateJoinSettingsMutation.mutate({ freeNominationPromoCode: e.target.value.trim().toUpperCase() })}
+                          className="bg-white/5 border-white/10 text-white uppercase max-w-xs"
+                          data-testid="input-promo-code"
+                        />
+                        <p className="text-xs text-white/30">Set a code that nominators can enter to skip the nomination fee.</p>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
