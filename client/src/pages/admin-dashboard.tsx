@@ -1958,8 +1958,20 @@ export default function AdminDashboard({ user }: { user: any }) {
                               variant="outline"
                               className="border-green-500/30 text-green-300 hover:bg-green-500/20 gap-1.5"
                               data-testid="button-copy-promo"
-                              onClick={() => {
-                                navigator.clipboard.writeText(joinSettings.freeNominationPromoCode || "");
+                              onClick={async () => {
+                                const code = joinSettings.freeNominationPromoCode || "";
+                                try {
+                                  await navigator.clipboard.writeText(code);
+                                } catch {
+                                  const ta = document.createElement("textarea");
+                                  ta.value = code;
+                                  ta.style.position = "fixed";
+                                  ta.style.opacity = "0";
+                                  document.body.appendChild(ta);
+                                  ta.select();
+                                  document.execCommand("copy");
+                                  document.body.removeChild(ta);
+                                }
                                 toast({ title: "Copied!", description: "Promo code copied to clipboard." });
                               }}
                             >
@@ -1970,15 +1982,26 @@ export default function AdminDashboard({ user }: { user: any }) {
                               variant="outline"
                               className="border-orange-500/30 text-orange-300 hover:bg-orange-500/20 gap-1.5"
                               data-testid="button-share-promo"
-                              onClick={() => {
+                              onClick={async () => {
                                 const text = `Use promo code ${joinSettings.freeNominationPromoCode} for a FREE nomination at ${window.location.origin}/join`;
-                                if (navigator.share) {
-                                  navigator.share({ title: "Free Nomination Code", text }).catch(() => {
-                                    navigator.clipboard.writeText(text);
-                                    toast({ title: "Copied!", description: "Share message copied to clipboard." });
-                                  });
-                                } else {
-                                  navigator.clipboard.writeText(text);
+                                try {
+                                  if (navigator.share) {
+                                    await navigator.share({ title: "Free Nomination Code", text });
+                                    return;
+                                  }
+                                } catch {}
+                                try {
+                                  await navigator.clipboard.writeText(text);
+                                  toast({ title: "Copied!", description: "Share message copied to clipboard." });
+                                } catch {
+                                  const ta = document.createElement("textarea");
+                                  ta.value = text;
+                                  ta.style.position = "fixed";
+                                  ta.style.opacity = "0";
+                                  document.body.appendChild(ta);
+                                  ta.select();
+                                  document.execCommand("copy");
+                                  document.body.removeChild(ta);
                                   toast({ title: "Copied!", description: "Share message copied to clipboard." });
                                 }
                               }}
