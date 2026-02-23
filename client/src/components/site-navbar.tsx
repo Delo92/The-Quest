@@ -134,7 +134,7 @@ export default function SiteNavbar() {
             Competitions
           </Link>
           <Link
-            href="/join"
+            href="/nominate"
             className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
             data-testid="link-nav-join"
           >
@@ -210,7 +210,7 @@ export default function SiteNavbar() {
             Competitions
           </Link>
           <Link
-            href="/join"
+            href="/nominate"
             className="block py-2 text-white font-bold uppercase tracking-wider text-sm"
             onClick={() => setMenuOpen(false)}
             data-testid="link-mobile-join"

@@ -1983,7 +1983,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                               className="border-orange-500/30 text-orange-300 hover:bg-orange-500/20 gap-1.5"
                               data-testid="button-share-promo"
                               onClick={async () => {
-                                const text = `Use promo code ${joinSettings.freeNominationPromoCode} for a FREE nomination at ${window.location.origin}/join`;
+                                const text = `Use promo code ${joinSettings.freeNominationPromoCode} for a FREE nomination at ${window.location.origin}/nominate`;
                                 try {
                                   await navigator.clipboard.writeText(text);
                                 } catch {

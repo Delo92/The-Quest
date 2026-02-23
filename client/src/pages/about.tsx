@@ -238,7 +238,7 @@ export default function AboutPage() {
               Start Voting <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
             </Link>
             <Link
-              href="/join"
+              href="/nominate"
               className="inline-block bg-transparent text-white font-bold text-sm uppercase px-8 leading-[47px] min-w-[212px] text-center border border-white/30 transition-all duration-500 hover:bg-white hover:text-black hover:border-white cursor-pointer"
               style={{ letterSpacing: "3px" }}
               data-testid="cta-start-nominating"

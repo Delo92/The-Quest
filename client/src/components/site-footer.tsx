@@ -29,7 +29,7 @@ export default function SiteFooter() {
             Competitions
           </Link>
           <Link
-            href="/join"
+            href="/nominate"
             className="text-white/60 text-sm uppercase tracking-widest transition-colors duration-300 hover:text-white"
             data-testid="link-footer-join"
           >

@@ -155,7 +155,7 @@ export default function Landing() {
               </button>
             </div>
             <div className="flex flex-col items-center">
-              <Link href="/join">
+              <Link href="/nominate">
                 <span
                   className="inline-block bg-transparent border border-white text-white font-bold text-sm sm:text-base capitalize px-6 sm:px-8 leading-[42px] sm:leading-[47px] w-full sm:w-auto sm:min-w-[212px] text-center transition-all duration-500 hover:bg-white hover:text-black cursor-pointer"
                   data-testid="button-hero-join-nominate"
@@ -336,7 +336,7 @@ export default function Landing() {
           <p className="text-white/60 mb-10 text-base max-w-xl mx-auto">
             Nominate talented individuals to compete for recognition across the globe. The spotlight is waiting.
           </p>
-          <a href="/join">
+          <a href="/nominate">
             <span
               className="inline-block bg-black text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border border-black transition-all duration-500 hover:bg-white hover:text-black cursor-pointer"
               data-testid="button-cta-join"

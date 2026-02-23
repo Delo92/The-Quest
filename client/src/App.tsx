@@ -32,7 +32,7 @@ function Router() {
       <Route path="/talent/:id" component={TalentProfilePublic} />
       <Route path="/checkout/:competitionId/:contestantId" component={CheckoutPage} />
       <Route path="/my-purchases" component={MyPurchasesPage} />
-      <Route path="/join" component={JoinPage} />
+      <Route path="/nominate" component={JoinPage} />
       <Route path="/host" component={HostPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/faq" component={FAQPage} />
