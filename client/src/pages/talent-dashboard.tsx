@@ -455,25 +455,20 @@ export default function TalentDashboard({ user, profile }: Props) {
     return null;
   };
 
-  const buildShareUrl = (contest: any, refCode?: string | null) => {
+  const buildShareUrl = (contest: any) => {
     const comp = competitions?.find(c => c.id === contest.competitionId);
     const catSlug = slugify(contest.competitionCategory || comp?.category || "competition");
     const compSlug = slugify(contest.competitionTitle || "contest");
     const talentSlug = slugify(displayName || profile?.displayName || "talent");
-    let url = `${window.location.origin}/${catSlug}/${compSlug}/${talentSlug}`;
-    if (refCode) url += `?ref=${refCode}`;
-    return url;
+    return `${window.location.origin}/${catSlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
   };
 
   const handleCopyShareLink = async (contest: any) => {
-    const refCode = await ensureRefCode();
-    const url = buildShareUrl(contest, refCode);
-    const text = `Vote for ${displayName || profile?.displayName} on HiFitComp!${refCode ? ` Use promo code ${refCode} when you sign up or vote for bonus rewards!` : ""}\n${url}`;
+    const url = buildShareUrl(contest);
+    const name = displayName || profile?.displayName || "me";
+    const text = `Vote for ${name} on HiFitComp!\n${url}`;
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedShareId(contest.id.toString());
-      toast({ title: "Link copied!", description: "Share link with your referral code has been copied." });
-      setTimeout(() => setCopiedShareId(null), 3000);
     } catch {
       const textarea = document.createElement("textarea");
       textarea.value = text;
@@ -483,10 +478,10 @@ export default function TalentDashboard({ user, profile }: Props) {
       textarea.select();
       document.execCommand("copy");
       document.body.removeChild(textarea);
-      setCopiedShareId(contest.id.toString());
-      toast({ title: "Link copied!" });
-      setTimeout(() => setCopiedShareId(null), 3000);
     }
+    setCopiedShareId(contest.id.toString());
+    toast({ title: "Link copied!", description: "Your personal voting link has been copied. Share it anywhere!" });
+    setTimeout(() => setCopiedShareId(null), 3000);
   };
 
   const handleNativeShare = async (contest: any) => {
@@ -1203,10 +1198,10 @@ export default function TalentDashboard({ user, profile }: Props) {
                       <Share2 className="h-5 w-5 text-orange-400" />
                       Share & Promote
                     </h3>
-                    <p className="text-sm text-white/40 mb-3">Copy your personal voting link to share on social media, text, or email. Your referral code is automatically included.</p>
+                    <p className="text-sm text-white/40 mb-3">Copy your personal voting link to share on social media, text, or email. Votes from your shared link are tracked to you.</p>
                     <div className="space-y-2">
                       {approvedContests.map((contest: any) => {
-                        const previewUrl = buildShareUrl(contest, myRefCode?.code);
+                        const previewUrl = buildShareUrl(contest);
                         const isCopied = copiedShareId === contest.id.toString();
                         return (
                           <div key={`share-${contest.id}`} className="rounded-md bg-white/[0.06] border border-white/12 p-4" data-testid={`card-share-${contest.id}`}>

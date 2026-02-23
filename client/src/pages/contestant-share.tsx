@@ -158,7 +158,7 @@ export default function ContestantSharePage() {
   const votePercentage = totalVotes > 0 ? Math.round((contestant.voteCount / totalVotes) * 100) : 0;
 
   const getShareData = () => {
-    const shareUrl = `${window.location.origin}/${categorySlug}/${compSlug}/${talentSlug}`;
+    const shareUrl = `${window.location.origin}/${categorySlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
     const shareText = `Vote for ${profile.displayName} in ${competition.title} on HiFitComp!`;
     return { shareUrl, shareText };
   };
