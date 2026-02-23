@@ -1990,12 +1990,26 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <div className="flex items-center gap-3">
                           <Input
                             key={`promo-${joinSettings.freeNominationPromoCode}`}
+                            id="edit-promo-code-input"
                             defaultValue={joinSettings.freeNominationPromoCode || ""}
                             placeholder="e.g. HIFITFREE"
-                            onBlur={(e) => updateJoinSettingsMutation.mutate({ freeNominationPromoCode: e.target.value.trim().toUpperCase() })}
                             className="bg-white/5 border-white/10 text-white uppercase max-w-xs"
                             data-testid="input-promo-code"
                           />
+                          <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white gap-1.5"
+                            data-testid="button-save-promo-edit"
+                            onClick={() => {
+                              const input = document.getElementById("edit-promo-code-input") as HTMLInputElement;
+                              if (input?.value.trim()) {
+                                updateJoinSettingsMutation.mutate({ freeNominationPromoCode: input.value.trim().toUpperCase() });
+                                toast({ title: "Saved!", description: "Promo code updated." });
+                              }
+                            }}
+                          >
+                            <Check className="h-3.5 w-3.5" /> Save
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -2010,14 +2024,30 @@ export default function AdminDashboard({ user }: { user: any }) {
                       </div>
                     ) : (
                       <div className="space-y-1.5">
-                        <Input
-                          key={`promo-${joinSettings.freeNominationPromoCode}`}
-                          defaultValue=""
-                          placeholder="e.g. HIFITFREE"
-                          onBlur={(e) => updateJoinSettingsMutation.mutate({ freeNominationPromoCode: e.target.value.trim().toUpperCase() })}
-                          className="bg-white/5 border-white/10 text-white uppercase max-w-xs"
-                          data-testid="input-promo-code"
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            key={`promo-${joinSettings.freeNominationPromoCode}`}
+                            id="new-promo-code-input"
+                            defaultValue=""
+                            placeholder="e.g. HIFITFREE"
+                            className="bg-white/5 border-white/10 text-white uppercase max-w-xs"
+                            data-testid="input-promo-code"
+                          />
+                          <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white gap-1.5"
+                            data-testid="button-save-promo"
+                            onClick={() => {
+                              const input = document.getElementById("new-promo-code-input") as HTMLInputElement;
+                              if (input?.value.trim()) {
+                                updateJoinSettingsMutation.mutate({ freeNominationPromoCode: input.value.trim().toUpperCase() });
+                                toast({ title: "Saved!", description: "Promo code has been set." });
+                              }
+                            }}
+                          >
+                            <Check className="h-3.5 w-3.5" /> Save
+                          </Button>
+                        </div>
                         <p className="text-xs text-white/30">Set a code that nominators can enter to skip the nomination fee.</p>
                       </div>
                     )}
