@@ -1985,14 +1985,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                               onClick={async () => {
                                 const text = `Use promo code ${joinSettings.freeNominationPromoCode} for a FREE nomination at ${window.location.origin}/join`;
                                 try {
-                                  if (navigator.share) {
-                                    await navigator.share({ title: "Free Nomination Code", text });
-                                    return;
-                                  }
-                                } catch {}
-                                try {
                                   await navigator.clipboard.writeText(text);
-                                  toast({ title: "Copied!", description: "Share message copied to clipboard." });
                                 } catch {
                                   const ta = document.createElement("textarea");
                                   ta.value = text;
@@ -2002,8 +1995,8 @@ export default function AdminDashboard({ user }: { user: any }) {
                                   ta.select();
                                   document.execCommand("copy");
                                   document.body.removeChild(ta);
-                                  toast({ title: "Copied!", description: "Share message copied to clipboard." });
                                 }
+                                toast({ title: "Share message copied!", description: text });
                               }}
                             >
                               <Share2 className="h-3.5 w-3.5" /> Share
