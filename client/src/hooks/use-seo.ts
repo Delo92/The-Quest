@@ -45,7 +45,7 @@ export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOp
     setMetaTag("twitter:description", desc);
 
     setMetaTag("og:type", ogType || "website", true);
-    const defaultOgImage = "https://storage.googleapis.com/hifitcomp.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
+    const defaultOgImage = "https://storage.googleapis.com/hifitcomp.firebasestorage.app/livery%2Fsite_favicon.jpg";
     setMetaTag("og:image", ogImage || defaultOgImage, true);
     setMetaTag("twitter:image", ogImage || defaultOgImage);
 
