@@ -19,7 +19,7 @@ HiFitComp is a comprehensive talent competition and voting platform designed for
 The platform is built with a modern web stack:
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui, Framer Motion for dynamic UI.
 - **Backend**: Express.js, secured with Firebase Authentication (JWT Bearer tokens) and Firebase Admin SDK for user management.
-- **Database**: PostgreSQL (Neon) managed via Drizzle ORM, storing core data like users, profiles, competitions, and votes. Firestore is used for specific data like user profiles, brands, and orders.
+- **Database**: Firebase Firestore exclusively for all data storage — users, profiles, competitions, contestants, votes, livery, settings, and more. No SQL/PostgreSQL.
 - **Styling**: Adheres to a dark theme with #FF5A09 as the primary accent color, using Poppins and Playfair Display fonts. UI elements are designed to mimic the "One Music" template, including distinct section headings, breadcrumb headers, event cards, rectangular buttons, full-screen heroes with animations, and parallax sections.
 - **Key Features**:
     - **Multi-level User Roles**: Viewer, Talent, Host, and Admin, each with progressively more permissions and dedicated dashboards.
@@ -40,5 +40,4 @@ The platform is built with a modern web stack:
 - **Firebase**: Used for user authentication (Auth) and specific data storage (Firestore).
 - **Google Drive**: Integrated for hosting and managing talent image uploads.
 - **Vimeo**: Utilized for hosting and managing talent video uploads, supporting TUS upload protocol.
-- **PostgreSQL (Neon)**: The primary relational database for core platform data.
 - **Authorize.Net (via Accept.js)**: For secure client-side tokenization and processing of payments.
