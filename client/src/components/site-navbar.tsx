@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import CBLogo from "@/components/cb-logo";
 import { useAuth } from "@/hooks/use-auth";
 import { useViewerSession } from "@/hooks/use-viewer-session";
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -108,11 +109,7 @@ export default function SiteNavbar() {
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-20">
         <a href="/" className="flex items-center gap-3" data-testid="link-home">
-          {getMedia("logo", "/images/template/logo.png").type === "video" ? (
-            <video src={getMedia("logo", "/images/template/logo.png").url} className="h-12 sm:h-16 md:h-20" autoPlay muted loop playsInline />
-          ) : (
-            <img src={getImage("logo", "/images/template/logo.png")} alt="The Quest" className="h-12 sm:h-16 md:h-20" />
-          )}
+          <CBLogo size="md" />
         </a>
 
         <button

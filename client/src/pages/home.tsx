@@ -2,6 +2,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useState, useEffect } from "react";
 import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin, Zap } from "lucide-react";
 import MediaSlot from "@/components/media-slot";
+import CBLogo from "@/components/cb-logo";
 
 function darkenHex(hex: string, amount = 0.15): string {
   const h = hex.replace("#", "");
@@ -25,7 +26,7 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <a href="/" className="flex items-center gap-3">
-            <img src={getImage("logo", "/images/template/logo.png")} alt="CB Publishing" className="h-12 sm:h-16" />
+            <CBLogo size="sm" />
           </a>
 
           <button
