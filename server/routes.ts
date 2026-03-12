@@ -454,6 +454,41 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/competitions/featured", async (_req, res) => {
+    const now = new Date();
+    const all = await storage.getCompetitions();
+    const nonDraft = all.filter(c => c.status !== "draft");
+
+    const explicitly = nonDraft.find(c => (c as any).isFeatured && c.votingEndDate && new Date(c.votingEndDate) > now);
+    if (explicitly) return res.json(explicitly);
+
+    const withEnd = nonDraft.filter(c => c.votingEndDate && new Date(c.votingEndDate) > now);
+    if (withEnd.length === 0) return res.json(null);
+    withEnd.sort((a, b) => new Date(a.votingEndDate!).getTime() - new Date(b.votingEndDate!).getTime());
+    return res.json(withEnd[0]);
+  });
+
+  app.post("/api/competitions/:id/feature", firebaseAuth, requireAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
+
+    const all = await storage.getCompetitions();
+    const target = all.find(c => c.id === id);
+    if (!target) return res.status(404).json({ message: "Competition not found" });
+
+    const isAlreadyFeatured = !!(target as any).isFeatured;
+    for (const c of all) {
+      if ((c as any).isFeatured) {
+        await storage.updateCompetition(c.id, { isFeatured: false } as any);
+      }
+    }
+    if (!isAlreadyFeatured) {
+      await storage.updateCompetition(id, { isFeatured: true } as any);
+    }
+    const updated = await storage.getCompetition(id);
+    res.json(updated);
+  });
+
   app.get("/api/competitions/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });

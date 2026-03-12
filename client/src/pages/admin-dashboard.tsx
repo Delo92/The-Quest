@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2 } from "lucide-react";
+import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star } from "lucide-react";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "wouter";
@@ -804,6 +804,20 @@ export default function AdminDashboard({ user }: { user: any }) {
     },
   });
 
+  const featureCompMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("POST", `/api/competitions/${id}/feature`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/competitions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/competitions/featured"] });
+      toast({ title: "Featured competition updated!" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
   const uploadLiveryMutation = useMutation({
     mutationFn: async ({ imageKey, file }: { imageKey: string; file: File }) => {
       const formData = new FormData();
@@ -1490,6 +1504,18 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <SelectItem value="completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => featureCompMutation.mutate(comp.id)}
+                      disabled={featureCompMutation.isPending}
+                      className={(comp as any).isFeatured ? "text-yellow-400" : "text-white/30"}
+                      title={(comp as any).isFeatured ? "Currently featured (click to unfeature)" : "Set as featured countdown"}
+                      data-testid={`button-feature-${comp.id}`}
+                    >
+                      <Star className={`h-4 w-4 mr-1 ${(comp as any).isFeatured ? "fill-yellow-400" : ""}`} />
+                      {(comp as any).isFeatured ? "Featured" : "Feature"}
+                    </Button>
                   </div>
                 </div>
               ))}

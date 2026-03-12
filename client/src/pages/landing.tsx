@@ -36,6 +36,7 @@ export default function Landing() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   const { items, isLoading: liveryLoading, getImage, getMedia, getText } = useLivery();
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
+  const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured"] });
 
   const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
     if (cat.videoUrl) return { url: cat.videoUrl, type: "video" };
@@ -187,17 +188,22 @@ export default function Landing() {
             </motion.p>
           )}
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 2.0 }}
-            className="mt-12 sm:mt-16"
-          >
-            <FlipCountdown
-              targetDate={new Date("2026-06-13T23:59:59")}
-              title="Voting Closes In"
-            />
-          </motion.div>
+          {featuredComp && featuredComp.votingEndDate && new Date(featuredComp.votingEndDate) > new Date() && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 2.0 }}
+              className="mt-12 sm:mt-16"
+            >
+              <FlipCountdown
+                targetDate={new Date(featuredComp.votingEndDate)}
+                title="Voting Closes In"
+              />
+              <p className="text-center text-white/40 text-xs uppercase tracking-widest mt-3" data-testid="text-featured-comp-name">
+                {featuredComp.title}
+              </p>
+            </motion.div>
+          )}
         </div>
       </section>
 

@@ -19,6 +19,7 @@ export interface Competition {
   expectedContestants: number | null;
   onlineVoteWeight: number;
   inPersonOnly: boolean;
+  isFeatured?: boolean;
   createdAt: string | null;
   createdBy: string | null;
 }
