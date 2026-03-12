@@ -97,6 +97,7 @@ export default function JoinPage() {
 
   const { data: settings, isLoading } = useQuery<JoinSettings>({
     queryKey: ["/api/join/settings"],
+    staleTime: 0,
   });
 
   const { data: paymentConfig } = useQuery<PaymentConfig>({
