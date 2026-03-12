@@ -175,11 +175,14 @@ export default function HomePage() {
             )}
           </h1>
           <p className="text-lg md:text-xl uppercase tracking-[0.3em] text-white/70 mb-10">
-            {heroSubtitle.includes(" – ")
-              ? heroSubtitle.split(" – ").filter(Boolean).map((part, i) => (
-                  <span key={i} className="block">{part}</span>
-                ))
-              : heroSubtitle}
+            {(() => {
+              const parts = heroSubtitle.split(/\s*[–—\-]+\s*/).filter(Boolean);
+              return parts.length > 1
+                ? parts.map((part, i) => (
+                    <span key={i} className="block">{i > 0 ? `– ${part} –` : part}</span>
+                  ))
+                : heroSubtitle;
+            })()}
           </p>
         </div>
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce z-10">
