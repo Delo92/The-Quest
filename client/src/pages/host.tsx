@@ -390,7 +390,7 @@ export default function HostPage() {
                   <p className="text-white/40 text-xs mt-2">{pkg.description}</p>
                   <div className="mt-3 space-y-1">
                     <p className="text-white/50 text-xs">Up to {pkg.maxContestants} contestants</p>
-                    <p className="text-white/50 text-xs">{pkg.revenueSharePercent}% revenue share</p>
+                    <p className="text-white/50 text-xs">Revenue sharing included</p>
                   </div>
                 </button>
               ))}
