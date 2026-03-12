@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "tliC2YFG7qzariRh53P0u"
+uri = "file://client/public/cb-logo-export.png"
+type = "image"
+title = "CB Logo — 512×512 PNG"
