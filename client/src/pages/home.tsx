@@ -282,7 +282,7 @@ export default function HomePage() {
               <Music className="w-10 h-10 text-[var(--cbp-brand)] mb-5" />
               <h3 className="text-xl font-bold text-white mb-3">Music Promotion</h3>
               <p className="text-gray-400 text-sm leading-relaxed">Artist discovery and promotion services. Get your music in front of audiences that matter.</p>
-              <span className="inline-flex items-center gap-1 text-gray-500 text-sm font-bold mt-5">Coming Soon</span>
+              <a href="#contact" className="inline-flex items-center gap-1 text-[var(--cbp-brand)] text-sm font-bold mt-5 hover:gap-2 transition-all">Request Brand Development Meeting <ChevronRight className="w-4 h-4" /></a>
             </div>
             <div className="bg-white/5 border border-white/10 p-8 flex flex-col">
               <Star className="w-10 h-10 text-[var(--cbp-brand)] mb-5" />
