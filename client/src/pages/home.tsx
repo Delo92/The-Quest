@@ -344,9 +344,9 @@ export default function HomePage() {
                 <Mail className="w-5 h-5 text-[var(--cbp-brand)] mt-1 shrink-0" />
                 <div>
                   <h4 className="text-white font-semibold mb-1">Email</h4>
-                  <a href={`mailto:${getText("contact_email", "admin@thequest.com")}`} className="text-gray-400 hover:text-[var(--cbp-brand)] transition-colors text-sm">
+                  <span className="text-gray-400 text-sm select-all">
                     {getText("contact_email", "admin@thequest.com")}
-                  </a>
+                  </span>
                 </div>
               </div>
               {getText("contact_phone", "") && (
