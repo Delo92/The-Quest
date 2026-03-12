@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import CBLogo from "@/components/cb-logo";
 import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
@@ -493,9 +494,7 @@ export default function TalentDashboard({ user, profile }: Props) {
       <nav className="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-white/15">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
           <Link href="/" className="flex items-center gap-2" data-testid="link-home">
-            <div className="w-8 h-8 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-              <Trophy className="h-4 w-4 text-white" />
-            </div>
+            <CBLogo size="sm" showText={false} />
             <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
           <div className="flex items-center gap-3">

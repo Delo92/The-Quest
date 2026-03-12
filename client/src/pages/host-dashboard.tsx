@@ -11,6 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
+import CBLogo from "@/components/cb-logo";
 import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -359,9 +360,7 @@ export default function HostDashboard({ user }: { user: any }) {
       <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
           <Link href="/" className="flex items-center gap-2" data-testid="link-home">
-            <div className="w-8 h-8 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
-              <Trophy className="h-4 w-4 text-white" />
-            </div>
+            <CBLogo size="sm" showText={false} />
             <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
