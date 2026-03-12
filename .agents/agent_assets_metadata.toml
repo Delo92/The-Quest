@@ -1,3 +1,8 @@
 uploads = []
 generated = []
-outputs = []
+
+[[outputs]]
+id = "Xyedl2Ts-dMwqxQBMfDhA"
+uri = "file://client/public/cb-logo-transparent.png"
+type = "image"
+title = "CB Logo — Transparent Background PNG"
