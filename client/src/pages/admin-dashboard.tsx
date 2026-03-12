@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
-import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS } from "@/lib/media-utils";
+import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS, getVimeoId } from "@/lib/media-utils";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "wouter";
@@ -1802,7 +1802,10 @@ export default function AdminDashboard({ user }: { user: any }) {
                     <div className="relative aspect-video bg-black/50 overflow-hidden">
                       {isEmbed && mediaType === "vimeo" ? (
                         <iframe
-                          src={displayUrl}
+                          src={(() => {
+                            const id = getVimeoId(displayUrl);
+                            return id ? `https://player.vimeo.com/video/${id}` : displayUrl;
+                          })()}
                           className="w-full h-full"
                           allow="autoplay; fullscreen; picture-in-picture"
                           allowFullScreen
