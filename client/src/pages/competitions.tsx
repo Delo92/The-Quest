@@ -41,43 +41,47 @@ export default function Competitions() {
     <div className="min-h-screen bg-black text-white">
       <SiteNavbar />
 
-      <section className="relative h-[270px] md:h-[340px] overflow-hidden">
-        {getMedia("competitions_header", "/images/template/breadcumb2.jpg").type === "video" ? (
-          <video src={getMedia("competitions_header", "/images/template/breadcumb2.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-        ) : (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${getImage("competitions_header", "/images/template/breadcumb2.jpg")}')` }} />
-        )}
-        <div className="absolute inset-0 bg-black/65" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
-          <p className="text-black/50 text-base leading-relaxed mb-1">See what&apos;s new</p>
-          <h2
-            className="text-[30px] uppercase text-black/80 font-normal leading-none"
-            style={{ letterSpacing: "10px" }}
-            data-testid="text-page-title"
-          >
-            Competitions
-          </h2>
-        </div>
-      </section>
-
-      <section className="border-b border-white/10 bg-gradient-to-b from-black to-purple-950/30 py-16 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-purple-500/20 border border-purple-500/30 mb-5">
-            <Megaphone className="h-6 w-6 text-purple-300" />
-          </div>
-          <h2 className="text-3xl font-bold uppercase mb-3" style={{ letterSpacing: "4px" }}>Become a Host</h2>
-          <p className="text-white/50 text-base mb-8 max-w-xl mx-auto">
-            Want to run your own competition? Get access to built-in voting, contestant management, analytics, and more. Host your event on The Quest.
-          </p>
-          <Link href="/host">
-            <span
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold uppercase px-8 py-3 tracking-widest text-sm cursor-pointer hover:from-purple-500 hover:to-purple-400 transition-all duration-300"
-              style={{ letterSpacing: "3px" }}
-              data-testid="button-become-a-host"
+      <section className="relative overflow-hidden">
+        <div className="relative h-[270px] md:h-[340px]">
+          {getMedia("competitions_header", "/images/template/breadcumb2.jpg").type === "video" ? (
+            <video src={getMedia("competitions_header", "/images/template/breadcumb2.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+          ) : (
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${getImage("competitions_header", "/images/template/breadcumb2.jpg")}')` }} />
+          )}
+          <div className="absolute inset-0 bg-black/65" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
+            <p className="text-black/50 text-base leading-relaxed mb-1">See what&apos;s new</p>
+            <h2
+              className="text-[30px] uppercase text-black/80 font-normal leading-none"
+              style={{ letterSpacing: "10px" }}
+              data-testid="text-page-title"
             >
-              Become a Host <ArrowRight className="h-4 w-4" />
-            </span>
-          </Link>
+              Competitions
+            </h2>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-b from-purple-950/40 to-black border-b border-white/10 py-12 px-4">
+          <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+            <div className="flex-shrink-0 inline-flex items-center justify-center w-14 h-14 rounded-full bg-purple-500/20 border border-purple-500/30">
+              <Megaphone className="h-6 w-6 text-purple-300" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold uppercase mb-1" style={{ letterSpacing: "4px" }}>Become a Host</h2>
+              <p className="text-white/50 text-sm">
+                Want to run your own competition? Get access to built-in voting, contestant management, analytics, and more.
+              </p>
+            </div>
+            <Link href="/host" className="flex-shrink-0">
+              <span
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold uppercase px-6 py-3 text-sm cursor-pointer hover:from-purple-500 hover:to-purple-400 transition-all duration-300 whitespace-nowrap"
+                style={{ letterSpacing: "2px" }}
+                data-testid="button-become-a-host"
+              >
+                Become a Host <ArrowRight className="h-4 w-4" />
+              </span>
+            </Link>
+          </div>
         </div>
       </section>
 
