@@ -194,7 +194,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/drive/images"] });
       queryClient.invalidateQueries({ queryKey: ["/api/talent-profiles/me"] });
-      toast({ title: "Deleted", description: "Image removed successfully." });
+      toast({ title: "Image removed", description: "The image has been removed from your profile." });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
@@ -208,7 +208,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", selectedCompId] });
-      toast({ title: "Deleted", description: "Video removed from Vimeo." });
+      toast({ title: "Video removed", description: "The video has been removed from your profile." });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });

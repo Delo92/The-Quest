@@ -100,6 +100,7 @@ export interface FirestoreTalentProfile {
   profileColor?: string | null;
   profileBgImage?: string | null;
   role: string;
+  hiddenVideoUris?: string[];
 }
 
 export interface FirestoreContestant {

@@ -3375,45 +3375,8 @@ export async function registerRoutes(
 
       const { fileId } = req.params;
       const currentUrls = profile.imageUrls || [];
-
       const imageIndex = parseInt(fileId.replace("img-", ""));
-      const imageUrl = currentUrls[imageIndex];
-      if (!imageUrl) return res.status(404).json({ message: "Image not found" });
-
-      const backupsSnap = await getFirestore().collection("imageBackups")
-        .where("userId", "==", uid)
-        .where("primaryUrl", "==", imageUrl)
-        .limit(1)
-        .get();
-
-      if (!backupsSnap.empty) {
-        const backupData = backupsSnap.docs[0].data();
-
-        if (backupData.storagePath) {
-          try {
-            await deleteFromFirebaseStorage(backupData.storagePath);
-          } catch {}
-        }
-
-        if (backupData.driveFileId) {
-          try {
-            await deleteFile(backupData.driveFileId);
-          } catch {}
-        }
-
-        await backupsSnap.docs[0].ref.delete();
-      } else {
-        if (imageUrl.includes("storage.googleapis.com")) {
-          const bucketMatch = imageUrl.match(/storage\.googleapis\.com\/([^/]+)\/(.+)$/);
-          if (bucketMatch) {
-            try { await deleteFromFirebaseStorage(decodeURIComponent(bucketMatch[2])); } catch {}
-          }
-        }
-        const driveMatch = imageUrl.match(/id=([a-zA-Z0-9_-]+)/);
-        if (driveMatch) {
-          try { await deleteFile(driveMatch[1]); } catch {}
-        }
-      }
+      if (isNaN(imageIndex) || !currentUrls[imageIndex]) return res.status(404).json({ message: "Image not found" });
 
       const currentBackupUrls = (profile as any).imageBackupUrls || [];
       await storage.updateTalentProfile(uid, {
@@ -3421,10 +3384,10 @@ export async function registerRoutes(
         imageBackupUrls: currentBackupUrls.filter((_: string, i: number) => i !== imageIndex),
       });
 
-      res.json({ message: "Image deleted" });
+      res.json({ message: "Image removed" });
     } catch (error: any) {
-      console.error("Image delete error:", error);
-      res.status(500).json({ message: "Failed to delete image" });
+      console.error("Image remove error:", error);
+      res.status(500).json({ message: "Failed to remove image" });
     }
   });
 
@@ -3449,36 +3412,41 @@ export async function registerRoutes(
 
       const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : null;
       const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
 
       if (competitionId) {
         const comp = await storage.getCompetition(competitionId);
         if (!comp) return res.json([]);
         const videos = await listTalentVideos(comp.title, talentName);
-        res.json(videos.map(v => ({
-          uri: v.uri,
-          name: v.name,
-          description: v.description,
-          link: v.link,
-          embedUrl: v.player_embed_url,
-          duration: v.duration,
-          status: v.status,
-          thumbnail: getVideoThumbnail(v),
-          createdTime: v.created_time,
-        })));
+        res.json(videos
+          .filter(v => !hiddenUris.includes(v.uri))
+          .map(v => ({
+            uri: v.uri,
+            name: v.name,
+            description: v.description,
+            link: v.link,
+            embedUrl: v.player_embed_url,
+            duration: v.duration,
+            status: v.status,
+            thumbnail: getVideoThumbnail(v),
+            createdTime: v.created_time,
+          })));
       } else {
         const allVideos = await listAllTalentVideos(talentName);
-        res.json(allVideos.map(v => ({
-          uri: v.uri,
-          name: v.name,
-          description: v.description,
-          link: v.link,
-          embedUrl: v.player_embed_url,
-          duration: v.duration,
-          status: v.status,
-          thumbnail: getVideoThumbnail(v),
-          createdTime: v.created_time,
-          competitionFolder: v.competitionFolder,
-        })));
+        res.json(allVideos
+          .filter(v => !hiddenUris.includes(v.uri))
+          .map(v => ({
+            uri: v.uri,
+            name: v.name,
+            description: v.description,
+            link: v.link,
+            embedUrl: v.player_embed_url,
+            duration: v.duration,
+            status: v.status,
+            thumbnail: getVideoThumbnail(v),
+            createdTime: v.created_time,
+            competitionFolder: v.competitionFolder,
+          })));
       }
     } catch (error: any) {
       console.error("Vimeo list error:", error);
@@ -3511,8 +3479,10 @@ export async function registerRoutes(
       const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
       try {
+        const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
         const existingVideos = await listTalentVideos(comp.title, talentName);
-        if (existingVideos.length >= maxVideos) {
+        const visibleVideos = existingVideos.filter(v => !hiddenUris.includes(v.uri));
+        if (visibleVideos.length >= maxVideos) {
           return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
         }
       } catch {}
@@ -3536,12 +3506,23 @@ export async function registerRoutes(
 
   app.delete("/api/vimeo/videos/:videoId", firebaseAuth, async (req, res) => {
     try {
+      const uid = req.firebaseUser!.uid;
+      const profile = await storage.getTalentProfileByUserId(uid);
+      if (!profile) return res.status(400).json({ message: "Profile not found" });
+
       const { videoId } = req.params;
-      await deleteVideo(`/videos/${videoId}`);
-      res.json({ message: "Video deleted" });
+      const videoUri = `/videos/${videoId}`;
+      const current = (profile as any).hiddenVideoUris || [];
+      if (!current.includes(videoUri)) {
+        await storage.updateTalentProfile(uid, {
+          hiddenVideoUris: [...current, videoUri],
+        } as any);
+      }
+
+      res.json({ message: "Video removed" });
     } catch (error: any) {
-      console.error("Vimeo delete error:", error);
-      res.status(500).json({ message: "Failed to delete video" });
+      console.error("Vimeo hide error:", error);
+      res.status(500).json({ message: "Failed to remove video" });
     }
   });
 
