@@ -140,7 +140,8 @@ export default function Landing() {
             <div className="flex flex-col items-center">
               <Link href="/competitions">
                 <span
-                  className="inline-block bg-[#FF5A09] border border-[#FF5A09] text-white font-bold text-sm sm:text-base capitalize px-6 sm:px-8 leading-[42px] sm:leading-[47px] w-full sm:w-auto sm:min-w-[212px] text-center transition-all duration-500 hover:bg-transparent hover:text-white cursor-pointer rounded-full"
+                  className="inline-block text-white font-bold text-sm sm:text-base capitalize px-6 sm:px-8 leading-[42px] sm:leading-[47px] w-full sm:w-auto sm:min-w-[212px] text-center transition-all duration-500 hover:opacity-80 cursor-pointer rounded-full"
+                  style={{ backgroundColor: "var(--quest-brand)", borderColor: "var(--quest-brand)", border: "1px solid" }}
                   data-testid="button-hero-start-voting"
                 >
                   Start Voting <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
