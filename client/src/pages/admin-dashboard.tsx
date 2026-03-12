@@ -990,7 +990,7 @@ export default function AdminDashboard({ user }: { user: any }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/join/settings"] });
-      toast({ title: "Join settings updated!" });
+      toast({ title: "Nomination settings updated!" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
@@ -1297,7 +1297,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                 <Image className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Livery</span>
               </TabsTrigger>
               <TabsTrigger value="join" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-join">
-                <UserPlus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Join</span>
+                <UserPlus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Nominations</span>
               </TabsTrigger>
               <TabsTrigger value="host" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-host">
                 <Megaphone className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Host</span>
@@ -1931,7 +1931,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                   <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
                     <div className="flex items-center gap-3">
                       <Settings className="h-5 w-5 text-orange-400" />
-                      <h3 className="font-bold text-lg">Join Settings</h3>
+                      <h3 className="font-bold text-lg">Nomination Settings</h3>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
                       <InviteDialog senderLevel={4} />
@@ -2108,7 +2108,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                           );
                         })}
                       </div>
-                      <p className="text-xs text-white/20 mt-1">Click to toggle required fields on the join form.</p>
+                      <p className="text-xs text-white/20 mt-1">Click to toggle required fields on the nomination form.</p>
                     </div>
                     <div className="mt-4 rounded-md bg-white/5 border border-white/10 p-4">
                       <div className="flex items-center gap-2 mb-3">
@@ -2179,7 +2179,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               )}
 
               <div>
-                <h3 className="font-bold text-lg mb-3">Join Submissions ({joinSubmissions?.length || 0})</h3>
+                <h3 className="font-bold text-lg mb-3">Nomination Submissions ({joinSubmissions?.length || 0})</h3>
                 {joinSubmissions && joinSubmissions.length > 0 ? (
                   <div className="space-y-3">
                     {joinSubmissions.map((sub) => (
@@ -2361,7 +2361,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                 ) : (
                   <div className="rounded-md bg-white/5 border border-white/5 p-6 text-center">
                     <UserPlus className="h-8 w-8 text-white/10 mx-auto mb-2" />
-                    <p className="text-sm text-white/30">No join submissions yet.</p>
+                    <p className="text-sm text-white/30">No nomination submissions yet.</p>
                   </div>
                 )}
               </div>
