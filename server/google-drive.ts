@@ -62,7 +62,7 @@ export async function findOrCreateFolder(name: string, parentId?: string): Promi
 }
 
 export async function getHiFitCompFolder(): Promise<string> {
-  return findOrCreateFolder("HiFitComp");
+  return "17Fuu4-5mzEs7oGUtKorUJigvdk1lu-9H";
 }
 
 export async function getCompetitionFolder(competitionName: string): Promise<string> {
