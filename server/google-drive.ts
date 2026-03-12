@@ -310,7 +310,7 @@ export async function getDriveStorageUsage(): Promise<{
   totalGB: number;
   usedPercent: number;
   totalFiles: number;
-  hifitcompSizeMB: number;
+  theQuestSizeMB: number;
   folders: Array<{ name: string; fileCount: number; sizeBytes: number; sizeMB: number }>;
   error?: string;
 }> {
@@ -318,7 +318,7 @@ export async function getDriveStorageUsage(): Promise<{
   let usedGB = 0;
   let totalGB = 0;
   let totalFiles = 0;
-  let hifitcompSizeBytes = 0;
+  let theQuestSizeBytes = 0;
   const folders: Array<{ name: string; fileCount: number; sizeBytes: number; sizeMB: number }> = [];
 
   try {
@@ -385,7 +385,7 @@ export async function getDriveStorageUsage(): Promise<{
       }
 
       totalFiles += folderFiles;
-      hifitcompSizeBytes += folderSize;
+      theQuestSizeBytes += folderSize;
       folders.push({
         name: compFolder.name!,
         fileCount: folderFiles,
@@ -402,7 +402,7 @@ export async function getDriveStorageUsage(): Promise<{
     totalGB,
     usedPercent: totalGB > 0 ? Math.round((usedGB / totalGB) * 10000) / 100 : 0,
     totalFiles,
-    hifitcompSizeMB: Math.round((hifitcompSizeBytes / (1024 * 1024)) * 100) / 100,
+    theQuestSizeMB: Math.round((theQuestSizeBytes / (1024 * 1024)) * 100) / 100,
     folders,
   };
 }

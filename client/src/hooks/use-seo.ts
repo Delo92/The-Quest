@@ -8,8 +8,8 @@ interface SEOOptions {
   ogType?: string;
 }
 
-const DEFAULT_TITLE = "HiFitComp - Talent Competition & Voting Platform";
-const DEFAULT_DESC = "HiFitComp is the ultimate talent competition and voting platform. Browse competitions, vote for your favorite artists, models, bodybuilders, and performers. Join or host your own event today.";
+const DEFAULT_TITLE = "The Quest - Competition & Voting Platform";
+const DEFAULT_DESC = "The Quest is the ultimate competition and voting platform. Browse competitions, vote for your favorites, join as a competitor, or host your own event today.";
 
 function setMetaTag(property: string, content: string, isProperty = false) {
   const attr = isProperty ? "property" : "name";
@@ -34,7 +34,7 @@ function setCanonical(url: string) {
 
 export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOptions) {
   useEffect(() => {
-    const fullTitle = title.includes("HiFitComp") ? title : `${title} | HiFitComp`;
+    const fullTitle = title.includes("The Quest") ? title : `${title} | The Quest`;
     document.title = fullTitle;
 
     const desc = description || DEFAULT_DESC;
@@ -45,11 +45,11 @@ export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOp
     setMetaTag("twitter:description", desc);
 
     setMetaTag("og:type", ogType || "website", true);
-    const defaultOgImage = "https://storage.googleapis.com/hifitcomp.firebasestorage.app/livery%2Fsite_favicon.jpg";
+    const defaultOgImage = "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg";
     setMetaTag("og:image", ogImage || defaultOgImage, true);
     setMetaTag("twitter:image", ogImage || defaultOgImage);
 
-    const url = canonical || "https://hifitcomp.com";
+    const url = canonical || "https://thequest-2dc77.firebaseapp.com";
     setCanonical(url);
     setMetaTag("og:url", url, true);
 
@@ -59,12 +59,12 @@ export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOp
       setMetaTag("og:title", DEFAULT_TITLE, true);
       setMetaTag("og:description", DEFAULT_DESC, true);
       setMetaTag("og:image", defaultOgImage, true);
-      setMetaTag("og:url", "https://hifitcomp.com", true);
+      setMetaTag("og:url", "https://thequest-2dc77.firebaseapp.com", true);
       setMetaTag("og:type", "website", true);
       setMetaTag("twitter:title", DEFAULT_TITLE);
       setMetaTag("twitter:description", DEFAULT_DESC);
       setMetaTag("twitter:image", defaultOgImage);
-      setCanonical("https://hifitcomp.com");
+      setCanonical("https://thequest-2dc77.firebaseapp.com");
     };
   }, [title, description, canonical, ogImage, ogType]);
 }

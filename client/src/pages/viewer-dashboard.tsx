@@ -32,7 +32,7 @@ export default function ViewerDashboard() {
   useSEO({
     title: "My Dashboard",
     description: "View your voting history, purchases, and active competitions on HiFitComp.",
-    canonical: "https://hifitcomp.com/viewer",
+    canonical: "https://thequest-2dc77.firebaseapp.com/viewer",
   });
 
   const { viewer, logoutViewer, refreshViewer } = useViewerSession();

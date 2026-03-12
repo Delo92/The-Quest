@@ -31,7 +31,7 @@ export interface AuthUser {
   profileRole: string | null;
 }
 
-const AUTH_CACHE_KEY = "hifitcomp_auth_user";
+const AUTH_CACHE_KEY = "thequest_auth_user";
 const AUTH_TIMEOUT_MS = 10000;
 
 function getCachedUser(): AuthUser | null {

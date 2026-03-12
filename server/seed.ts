@@ -24,7 +24,7 @@ export async function seedDatabase() {
   if (!systemUser) {
     systemUser = await createFirestoreUser({
       uid: systemUid,
-      email: "system@hifitcomp.com",
+      email: "system@thequest.com",
       displayName: "System",
       level: 1,
     });
@@ -132,7 +132,7 @@ const LIVERY_DEFAULTS = [
   { imageKey: "social_twitter", label: "Social - X / Twitter URL", defaultUrl: "", itemType: "text" as const, defaultText: "" },
   { imageKey: "social_youtube", label: "Social - YouTube URL", defaultUrl: "", itemType: "text" as const, defaultText: "" },
   { imageKey: "social_tiktok", label: "Social - TikTok URL", defaultUrl: "", itemType: "text" as const, defaultText: "" },
-  { imageKey: "contact_email", label: "Contact Email", defaultUrl: "", itemType: "text" as const, defaultText: "admin@hifitcomp.com" },
+  { imageKey: "contact_email", label: "Contact Email", defaultUrl: "", itemType: "text" as const, defaultText: "admin@thequest.com" },
   { imageKey: "contact_phone", label: "Contact Phone", defaultUrl: "", itemType: "text" as const, defaultText: "" },
   { imageKey: "contact_address", label: "Contact Address", defaultUrl: "", itemType: "text" as const, defaultText: "" },
   { imageKey: "faq_1_q", label: "FAQ 1 - Question", defaultUrl: "", itemType: "text" as const, defaultText: "Do nominees need to live in Hawaii to participate?" },
@@ -247,9 +247,9 @@ export async function seedSettings() {
   if (existing) return;
 
   await firestoreSettings.update({
-    siteName: "HiFitComp",
-    siteDescription: "Talent Competition & Voting Platform",
-    contactEmail: "admin@hifitcomp.com",
+    siteName: "The Quest",
+    siteDescription: "Competition & Voting Platform",
+    contactEmail: "admin@thequest.com",
     defaultVoteCost: 0,
     defaultMaxVotesPerDay: 10,
   });

@@ -12,7 +12,7 @@ export default function FAQPage() {
   useSEO({
     title: "FAQ - HiFitComp",
     description: "Frequently asked questions about the HI FIT Competition platform. Learn about voting, nominations, fees, and how to participate.",
-    canonical: "https://hifitcomp.com/faq",
+    canonical: "https://thequest-2dc77.firebaseapp.com/faq",
   });
 
   const breadcrumbBg = getImage("breadcrumb_bg", "/images/template/breadcumb.jpg");

@@ -16,7 +16,7 @@ export default function Competitions() {
   useSEO({
     title: "Browse Competitions",
     description: "Explore active talent competitions in music, modeling, bodybuilding, dance and more. Vote for your favorites, or apply to compete on HiFitComp.",
-    canonical: "https://hifitcomp.com/competitions",
+    canonical: "https://thequest-2dc77.firebaseapp.com/competitions",
   });
   const { data: competitions, isLoading } = useQuery<CompetitionExt[]>({
     queryKey: ["/api/competitions"],

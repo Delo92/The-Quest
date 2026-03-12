@@ -987,9 +987,9 @@ export const firestoreSettings = {
       await ref.update({ ...data, updatedAt: now() });
     } else {
       const defaults: FirestoreSettings = {
-        siteName: "HiFitComp",
-        siteDescription: "Talent Competition & Voting Platform",
-        contactEmail: "admin@hifitcomp.com",
+        siteName: "The Quest",
+        siteDescription: "Competition & Voting Platform",
+        contactEmail: "admin@thequest.com",
         defaultVoteCost: 0,
         defaultMaxVotesPerDay: 10,
         updatedAt: now(),

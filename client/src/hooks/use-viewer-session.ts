@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 
-const VIEWER_SESSION_KEY = "hifitcomp_viewer_session";
+const VIEWER_SESSION_KEY = "thequest_viewer_session";
 
 export interface ViewerSession {
   id: string;

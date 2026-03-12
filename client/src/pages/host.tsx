@@ -61,7 +61,7 @@ export default function HostPage() {
   useSEO({
     title: "Host Your Event",
     description: "Want to run your own talent competition? Host your event on HiFitComp with built-in voting, contestant management, and analytics. Get started today.",
-    canonical: "https://hifitcomp.com/host",
+    canonical: "https://thequest-2dc77.firebaseapp.com/host",
   });
   const { toast } = useToast();
   const { getImage, getMedia } = useLivery();

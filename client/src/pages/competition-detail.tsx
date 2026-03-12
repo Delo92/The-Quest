@@ -76,7 +76,7 @@ export default function CompetitionDetailPage() {
     title: competition ? `${competition.title} - ${competition.category} Competition` : "Competition",
     description: competition?.description || (competition ? `Vote in the ${competition.title} ${competition.category} competition on HiFitComp. Browse contestants, cast your vote, and help decide the winner!` : undefined),
     ogImage: competition?.coverImage || undefined,
-    canonical: competition ? `https://hifitcomp.com/${slugify(competition.category)}/${slugify(competition.title)}` : undefined,
+    canonical: competition ? `https://thequest-2dc77.firebaseapp.com/${slugify(competition.category)}/${slugify(competition.title)}` : undefined,
   });
 
   const voteMutation = useMutation({

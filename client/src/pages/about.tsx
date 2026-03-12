@@ -27,7 +27,7 @@ export default function AboutPage() {
   useSEO({
     title: "About HiFitComp",
     description: "Learn about HiFitComp - the ultimate talent competition and voting platform. See our rules, upcoming events calendar, and how to get started as a competitor or host.",
-    canonical: "https://hifitcomp.com/about",
+    canonical: "https://thequest-2dc77.firebaseapp.com/about",
   });
 
   const calendarComps = (competitions || [])
@@ -48,7 +48,7 @@ export default function AboutPage() {
   const socialTwitter = getText("social_twitter", "");
   const socialYoutube = getText("social_youtube", "");
   const socialTiktok = getText("social_tiktok", "");
-  const contactEmail = getText("contact_email", "admin@hifitcomp.com");
+  const contactEmail = getText("contact_email", "admin@thequest.com");
   const contactPhone = getText("contact_phone", "");
   const contactAddress = getText("contact_address", "");
 

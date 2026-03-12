@@ -28,7 +28,7 @@ export default function Landing() {
   useSEO({
     title: "HiFitComp - Talent Competition & Voting Platform",
     description: "The ultimate talent competition platform. Browse competitions, vote for your favorite artists, models, bodybuilders, and performers. Join as a competitor or nominate someone today.",
-    canonical: "https://hifitcomp.com",
+    canonical: "https://thequest-2dc77.firebaseapp.com",
   });
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });

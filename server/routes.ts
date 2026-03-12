@@ -633,7 +633,7 @@ export async function registerRoutes(
 
       const categorySlug = slugify(comp.category);
       const compSlug = slugify(comp.title);
-      const baseUrl = process.env.BASE_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host || "hifitcomp.com"}`;
+      const baseUrl = process.env.BASE_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host || "thequest-2dc77.firebaseapp.com"}`;
       const votingUrl = `${baseUrl}/${categorySlug}/${compSlug}?source=in_person`;
 
       const format = (req.query.format as string) || "png";
@@ -2175,9 +2175,9 @@ export async function registerRoutes(
     try {
       const settings = await firestoreSettings.get();
       res.json(settings || {
-        siteName: "HiFitComp",
-        siteDescription: "Talent Competition & Voting Platform",
-        contactEmail: "admin@hifitcomp.com",
+        siteName: "The Quest",
+        siteDescription: "Competition & Voting Platform",
+        contactEmail: "admin@thequest.com",
         defaultVoteCost: 0,
         defaultMaxVotesPerDay: 10,
       });
@@ -3655,7 +3655,7 @@ export async function registerRoutes(
 
   app.get("/sitemap.xml", async (_req, res) => {
     try {
-      const baseUrl = "https://hifitcomp.com";
+      const baseUrl = process.env.SITE_URL || "https://thequest-2dc77.firebaseapp.com";
       const competitions = await storage.getCompetitions();
       const profiles = await storage.getAllTalentProfiles();
 
@@ -4022,9 +4022,9 @@ export async function registerRoutes(
       if (!comp) return next();
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const ogTitle = `${comp.title} - ${comp.category} Competition | HiFitComp`;
-      const ogDescription = comp.description || `Vote in the ${comp.title} ${comp.category} competition on HiFitComp. Browse contestants, cast your vote, and help decide the winner!`;
-      const ogImage = comp.coverImage || "https://storage.googleapis.com/hifitcomp.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
+      const ogTitle = `${comp.title} - ${comp.category} Competition | The Quest`;
+      const ogDescription = comp.description || `Vote in the ${comp.title} ${comp.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!`;
+      const ogImage = comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
       const ogUrl = `${protocol}://${req.get("host")}/competition/${slug}`;
 
@@ -4034,7 +4034,7 @@ export async function registerRoutes(
     <meta property="og:description" content="${escHtml(ogDescription)}" />
     <meta property="og:image" content="${escHtml(ogImage)}" />
     <meta property="og:url" content="${escHtml(ogUrl)}" />
-    <meta property="og:site_name" content="HiFitComp" />
+    <meta property="og:site_name" content="The Quest" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escHtml(ogTitle)}" />
     <meta name="twitter:description" content="${escHtml(ogDescription)}" />
@@ -4075,9 +4075,9 @@ export async function registerRoutes(
 
       const profile = contestant.talentProfile;
       const displayName = profile.displayName || profile.stageName || "Contestant";
-      const ogTitle = `Vote for ${displayName} - ${comp.title} | HiFitComp`;
-      const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on HiFitComp!`;
-      const ogImage = profile.imageUrls?.[0] || comp.coverImage || "https://storage.googleapis.com/hifitcomp.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
+      const ogTitle = `Vote for ${displayName} - ${comp.title} | The Quest`;
+      const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on The Quest!`;
+      const ogImage = profile.imageUrls?.[0] || comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
       const ogUrl = `${protocol}://${req.get("host")}/${categorySlug}/${compSlug}/${talentSlug}`;
 
@@ -4089,7 +4089,7 @@ export async function registerRoutes(
     <meta property="og:description" content="${escHtml(ogDescription)}" />
     <meta property="og:image" content="${escHtml(ogImage)}" />
     <meta property="og:url" content="${escHtml(ogUrl)}" />
-    <meta property="og:site_name" content="HiFitComp" />
+    <meta property="og:site_name" content="The Quest" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escHtml(ogTitle)}" />
     <meta name="twitter:description" content="${escHtml(ogDescription)}" />
@@ -4122,9 +4122,9 @@ export async function registerRoutes(
       if (!comp) return next();
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const ogTitle = `${comp.title} - ${comp.category} Competition | HiFitComp`;
-      const ogDescription = comp.description || `Vote in the ${comp.title} ${comp.category} competition on HiFitComp. Browse contestants, cast your vote, and help decide the winner!`;
-      const ogImage = comp.coverImage || "https://storage.googleapis.com/hifitcomp.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
+      const ogTitle = `${comp.title} - ${comp.category} Competition | The Quest`;
+      const ogDescription = comp.description || `Vote in the ${comp.title} ${comp.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!`;
+      const ogImage = comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
       const ogUrl = `${protocol}://${req.get("host")}/${categorySlug}/${compSlug}`;
 
@@ -4134,7 +4134,7 @@ export async function registerRoutes(
     <meta property="og:description" content="${escHtml(ogDescription)}" />
     <meta property="og:image" content="${escHtml(ogImage)}" />
     <meta property="og:url" content="${escHtml(ogUrl)}" />
-    <meta property="og:site_name" content="HiFitComp" />
+    <meta property="og:site_name" content="The Quest" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escHtml(ogTitle)}" />
     <meta name="twitter:description" content="${escHtml(ogDescription)}" />
@@ -4197,7 +4197,7 @@ export async function registerRoutes(
     <meta property="og:description" content="${escHtml(ogDescription)}" />
     <meta property="og:image" content="${escHtml(ogImage)}" />
     <meta property="og:url" content="${escHtml(ogUrl)}" />
-    <meta property="og:site_name" content="HiFitComp" />
+    <meta property="og:site_name" content="The Quest" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escHtml(ogTitle)}" />
     <meta name="twitter:description" content="${escHtml(ogDescription)}" />

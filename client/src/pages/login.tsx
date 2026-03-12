@@ -36,7 +36,7 @@ export default function LoginPage() {
   useSEO({
     title: "Sign In",
     description: "Log in or create your HiFitComp account to vote, compete, or host talent competitions.",
-    canonical: "https://hifitcomp.com/login",
+    canonical: "https://thequest-2dc77.firebaseapp.com/login",
   });
   const { login, register, resetPassword, isAuthenticated, error } = useAuth();
   const { loginViewer, isViewerLoggedIn } = useViewerSession();

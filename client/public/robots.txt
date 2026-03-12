@@ -5,4 +5,4 @@ Disallow: /checkout/
 Disallow: /my-purchases
 Disallow: /api/
 
-Sitemap: https://hifitcomp.com/sitemap.xml
+Sitemap: https://thequest-2dc77.firebaseapp.com/sitemap.xml
