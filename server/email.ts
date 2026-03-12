@@ -324,6 +324,36 @@ export async function sendTestEmail(to: string): Promise<boolean> {
   }
 }
 
+export async function sendContactEmail(opts: {
+  name: string;
+  email: string;
+  phone?: string;
+  message: string;
+}): Promise<boolean> {
+  try {
+    const transporter = await getTransporter();
+    const html = wrapInTemplate(`
+      <h2>New Contact Form Submission</h2>
+      <p><strong>From:</strong> ${opts.name}</p>
+      <p><strong>Email:</strong> ${opts.email}</p>
+      ${opts.phone ? `<p><strong>Phone:</strong> ${opts.phone}</p>` : ""}
+      <p><strong>Message:</strong></p>
+      <p style="background:#111;padding:16px;border-left:4px solid #FF5A09;border-radius:4px;">${opts.message.replace(/\n/g, "<br/>")}</p>
+    `);
+    await transporter.sendMail({
+      from: `"CB Publishing" <${GMAIL_ADDRESS}>`,
+      to: GMAIL_ADDRESS,
+      replyTo: opts.email,
+      subject: `New Contact Message from ${opts.name}`,
+      html,
+    });
+    return true;
+  } catch (err) {
+    console.error("sendContactEmail error:", err);
+    return false;
+  }
+}
+
 export function isEmailConfigured(): boolean {
   const clientId = process.env.GMAIL_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;

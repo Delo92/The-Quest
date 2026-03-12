@@ -71,6 +71,7 @@ export default function HomePage() {
   const { getImage, getText } = useLivery();
   const [scrolled, setScrolled] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
+  const [formStatus, setFormStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -361,7 +362,16 @@ export default function HomePage() {
                 {socialYoutube && <a href={socialYoutube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[var(--cbp-brand)] flex items-center justify-center text-white transition-colors"><Youtube className="w-4 h-4" /></a>}
               </div>
             </div>
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+            <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!formData.name || !formData.email || !formData.message) return;
+                setFormStatus("sending");
+                try {
+                  const res = await fetch("/api/home/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
+                  if (res.ok) { setFormStatus("sent"); setFormData({ name: "", email: "", phone: "", message: "" }); }
+                  else setFormStatus("error");
+                } catch { setFormStatus("error"); }
+              }} className="space-y-4">
               <input
                 type="text"
                 placeholder="Your Name"
@@ -390,12 +400,17 @@ export default function HomePage() {
                 onChange={(e) => setFormData(p => ({ ...p, message: e.target.value }))}
                 className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[var(--cbp-brand)] transition-colors resize-none"
               />
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[var(--cbp-brand-dark)] transition-colors"
-              >
-                Send Message <ChevronRight className="w-4 h-4" />
-              </button>
+              {formStatus === "sent" && <p className="text-green-400 text-sm font-semibold">Message sent! We'll be in touch soon.</p>}
+              {formStatus === "error" && <p className="text-red-400 text-sm">Something went wrong. Please try again or email us directly.</p>}
+              {formStatus !== "sent" && (
+                <button
+                  type="submit"
+                  disabled={formStatus === "sending"}
+                  className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[var(--cbp-brand-dark)] transition-colors disabled:opacity-60"
+                >
+                  {formStatus === "sending" ? "Sending..." : <> Send Message <ChevronRight className="w-4 h-4" /> </>}
+                </button>
+              )}
             </form>
           </div>
         </div>

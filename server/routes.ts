@@ -32,7 +32,7 @@ import {
   firestoreCompetitions,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig } from "./authorize-net";
-import { sendInviteEmail, sendPurchaseReceipt, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode } from "./email";
+import { sendInviteEmail, sendPurchaseReceipt, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail } from "./email";
 import {
   uploadImageToDrive,
   uploadFileToDriveFolder,
@@ -3043,6 +3043,13 @@ export async function registerRoutes(
       console.error("Save platform settings error:", error);
       res.status(500).json({ message: "Failed to save platform settings" });
     }
+  });
+
+  app.post("/api/home/contact", async (req, res) => {
+    const { name, email, phone, message } = req.body;
+    if (!name || !email || !message) return res.status(400).json({ message: "Name, email and message are required." });
+    const sent = await sendContactEmail({ name, email, phone, message });
+    res.json({ ok: true, sent });
   });
 
   app.get("/api/livery", async (_req, res) => {
