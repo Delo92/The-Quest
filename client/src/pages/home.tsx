@@ -228,9 +228,20 @@ export default function HomePage() {
             <div>
               <span className="text-[var(--cbp-brand)] text-sm font-bold uppercase tracking-widest mb-3 block">Who We Are</span>
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">{aboutTitle}</h2>
-              {aboutBody.split("\n\n").map((para, i) => (
-                <p key={i} className="text-gray-400 mb-4 leading-relaxed">{para}</p>
-              ))}
+              {aboutBody.split("\n\n").map((para, i) => {
+                const underlinePhrases = ["Exclusive Empire Records distribution", "Exclusive Empire Records distrobution", "The Quest"];
+                const regex = new RegExp(`(${underlinePhrases.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "g");
+                const parts = para.split(regex);
+                return (
+                  <p key={i} className="text-gray-400 mb-4 leading-relaxed">
+                    {parts.map((part, j) =>
+                      underlinePhrases.includes(part)
+                        ? <span key={j} className="underline decoration-1 underline-offset-2">{part}</span>
+                        : part
+                    )}
+                  </p>
+                );
+              })}
               <a
                 href="/thequest"
                 className="inline-flex items-center gap-2 text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-wider hover:text-white transition-colors mt-4"
