@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2 } from "lucide-react";
-import { InviteDialog, CreateUserDialog } from "@/components/invite-dialog";
+import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -2514,6 +2514,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     />
                   </div>
                   <span className="text-xs text-white/30" data-testid="text-host-count">{filteredHosts.length} host{filteredHosts.length !== 1 ? "s" : ""}</span>
+                  <InviteHostDialog />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {paginatedHosts.map((host) => (

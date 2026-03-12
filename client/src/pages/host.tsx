@@ -10,9 +10,20 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { CheckCircle, Send, CreditCard, Trophy } from "lucide-react";
+import { CheckCircle, Send, CreditCard, Trophy, Mail } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import type { Competition } from "@shared/schema";
+
+interface InviteDetails {
+  invitedEmail: string;
+  invitedName: string;
+  invitedPhone?: string | null;
+  invitedByName: string;
+  message: string | null;
+  suggestedCategory?: string | null;
+  suggestedEventName?: string | null;
+  targetLevel: number;
+}
 
 interface HostSettings {
   mode: "request" | "purchase";
@@ -68,15 +79,40 @@ export default function HostPage() {
 
   const searchString = useSearch();
   const [referenceCompetitionId, setReferenceCompetitionId] = useState<number | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const compId = params.get("competition");
-    if (compId) {
-      setReferenceCompetitionId(parseInt(compId, 10));
-    }
+    if (compId) setReferenceCompetitionId(parseInt(compId, 10));
+    const token = params.get("invite");
+    if (token) setInviteToken(token);
   }, [searchString]);
+
+  const { data: inviteDetails } = useQuery<InviteDetails>({
+    queryKey: ["/api/invitations/token", inviteToken],
+    queryFn: async () => {
+      const res = await fetch(`/api/invitations/token/${inviteToken}`);
+      if (!res.ok) throw new Error("Invalid or expired invitation");
+      return res.json();
+    },
+    enabled: !!inviteToken,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (inviteDetails) {
+      setForm(prev => ({
+        ...prev,
+        fullName: prev.fullName || inviteDetails.invitedName || "",
+        email: prev.email || inviteDetails.invitedEmail || "",
+        phone: prev.phone || inviteDetails.invitedPhone || "",
+        eventName: prev.eventName || inviteDetails.suggestedEventName || "",
+        eventCategory: prev.eventCategory || inviteDetails.suggestedCategory || "",
+      }));
+    }
+  }, [inviteDetails]);
   const [cardNumber, setCardNumber] = useState("");
   const [expMonth, setExpMonth] = useState("");
   const [expYear, setExpYear] = useState("");
@@ -164,6 +200,7 @@ export default function HostPage() {
         await apiRequest("POST", "/api/host/submit", {
           ...form,
           referenceCompetitionId,
+          inviteToken: inviteToken || undefined,
           mediaUrls: [],
           dataDescriptor,
           dataValue,
@@ -295,6 +332,28 @@ export default function HostPage() {
         <p className="text-white/40 text-sm mb-10 max-w-xl" data-testid="text-page-description">
           {settings.pageDescription}
         </p>
+
+        {inviteDetails && (
+          <div className="border border-purple-500/40 bg-purple-500/5 p-4 mb-8 flex flex-wrap items-start gap-3" data-testid="invite-banner">
+            <Mail className="h-5 w-5 text-purple-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs text-purple-400/70 uppercase tracking-wider mb-1">You've been personally invited</p>
+              <p className="text-white font-medium">
+                {inviteDetails.invitedByName} has invited you to host an event on The Quest.
+              </p>
+              {(inviteDetails.suggestedEventName || inviteDetails.suggestedCategory) && (
+                <p className="text-xs text-white/50 mt-1">
+                  {inviteDetails.suggestedEventName && <>Suggested event: <span className="text-white/80">{inviteDetails.suggestedEventName}</span></>}
+                  {inviteDetails.suggestedEventName && inviteDetails.suggestedCategory && " · "}
+                  {inviteDetails.suggestedCategory && <>Category: <span className="text-white/80">{inviteDetails.suggestedCategory}</span></>}
+                </p>
+              )}
+              {inviteDetails.message && (
+                <p className="text-xs text-white/40 mt-2 italic">"{inviteDetails.message}"</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {referenceCompetition && (
           <div className="border border-[#FF5A09]/40 bg-[#FF5A09]/5 p-4 mb-8 flex flex-wrap items-center gap-3" data-testid="reference-competition">

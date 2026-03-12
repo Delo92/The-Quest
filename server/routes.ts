@@ -1638,7 +1638,7 @@ export async function registerRoutes(
 
   app.post("/api/invitations", firebaseAuth, requireTalent, async (req, res) => {
     try {
-      const { email, name, targetLevel, message, competitionId } = req.body;
+      const { email, name, phone, targetLevel, message, competitionId, suggestedCategory, suggestedEventName } = req.body;
       if (!email || !name || !targetLevel) {
         return res.status(400).json({ message: "Email, name, and target level are required" });
       }
@@ -1658,8 +1658,11 @@ export async function registerRoutes(
         invitedByName: senderUser?.displayName || req.firebaseUser!.email,
         invitedEmail: email,
         invitedName: name,
+        invitedPhone: phone || undefined,
         targetLevel,
         message: message || undefined,
+        suggestedCategory: suggestedCategory || undefined,
+        suggestedEventName: suggestedEventName || undefined,
       });
 
       const siteUrl = process.env.SITE_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host || ""}`;
@@ -1791,9 +1794,12 @@ export async function registerRoutes(
       res.json({
         invitedEmail: invitation.invitedEmail,
         invitedName: invitation.invitedName,
+        invitedPhone: invitation.invitedPhone || null,
         targetLevel: invitation.targetLevel,
         invitedByName: invitation.invitedByName,
         message: invitation.message,
+        suggestedCategory: invitation.suggestedCategory || null,
+        suggestedEventName: invitation.suggestedEventName || null,
       });
     } catch (error: any) {
       console.error("Get invitation by token error:", error);
@@ -2649,7 +2655,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Host applications are currently closed" });
       }
 
-      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, selectedPackageName, selectedPackagePrice } = req.body;
+      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, selectedPackageName, selectedPackagePrice, inviteToken } = req.body;
       if (!fullName || !email || !eventName) {
         return res.status(400).json({ message: "Name, email, and event name are required" });
       }
@@ -2712,6 +2718,18 @@ export async function registerRoutes(
         selectedPackageName: verifiedPackageName || null,
         selectedPackagePrice: verifiedPackagePrice || 0,
       });
+
+      if (inviteToken) {
+        try {
+          const db = getFirestore();
+          const invSnap = await db.collection("invitations").where("token", "==", inviteToken).limit(1).get();
+          if (!invSnap.empty) {
+            await invSnap.docs[0].ref.update({ status: "accepted", acceptedAt: new Date().toISOString() });
+          }
+        } catch (invErr) {
+          console.warn("Failed to mark invitation as accepted:", invErr);
+        }
+      }
 
       res.status(201).json(submission);
     } catch (error: any) {

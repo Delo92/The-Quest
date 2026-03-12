@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Users, Search } from "lucide-react";
+import { Calendar, Users, Search, Megaphone, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import type { Competition } from "@shared/schema";
 import { slugify } from "@shared/slugify";
@@ -121,6 +121,27 @@ export default function Competitions() {
           </div>
         )}
       </div>
+
+      <section className="border-t border-white/10 bg-gradient-to-b from-black to-purple-950/30 py-16 px-4">
+        <div className="max-w-3xl mx-auto text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-purple-500/20 border border-purple-500/30 mb-5">
+            <Megaphone className="h-6 w-6 text-purple-300" />
+          </div>
+          <h2 className="text-3xl font-bold uppercase mb-3" style={{ letterSpacing: "4px" }}>Become a Host</h2>
+          <p className="text-white/50 text-base mb-8 max-w-xl mx-auto">
+            Want to run your own competition? Get access to built-in voting, contestant management, analytics, and more. Host your event on The Quest.
+          </p>
+          <Link href="/host">
+            <span
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold uppercase px-8 py-3 tracking-widest text-sm cursor-pointer hover:from-purple-500 hover:to-purple-400 transition-all duration-300"
+              style={{ letterSpacing: "3px" }}
+              data-testid="button-become-a-host"
+            >
+              Become a Host <ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
+        </div>
+      </section>
 
       <SiteFooter />
     </div>
