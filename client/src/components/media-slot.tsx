@@ -1,0 +1,146 @@
+import { useEffect } from "react";
+import { detectMediaType, getYouTubeId, getVimeoId, isFacebookVideo } from "@/lib/media-utils";
+
+interface MediaSlotProps {
+  url: string;
+  alt?: string;
+  className?: string;
+  mode?: "img" | "bg";
+}
+
+export default function MediaSlot({ url, alt = "", className = "", mode = "img" }: MediaSlotProps) {
+  const type = detectMediaType(url);
+
+  const bgStyle: React.CSSProperties = mode === "bg"
+    ? { position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }
+    : {};
+
+  useEffect(() => {
+    if (type === "facebook" && !document.getElementById("fb-sdk")) {
+      const div = document.createElement("div");
+      div.id = "fb-root";
+      document.body.prepend(div);
+      const script = document.createElement("script");
+      script.id = "fb-sdk";
+      script.src = "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0";
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+    if (type === "instagram" && !document.getElementById("ig-embed")) {
+      const script = document.createElement("script");
+      script.id = "ig-embed";
+      script.src = "//www.instagram.com/embed.js";
+      script.async = true;
+      document.body.appendChild(script);
+      script.onload = () => { (window as any).instgrm?.Embeds?.process?.(); };
+    }
+  }, [type]);
+
+  if (!url) return null;
+
+  if (type === "image") {
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className={`object-cover ${className}`}
+        style={mode === "bg" ? { ...bgStyle, objectFit: "cover" } : undefined}
+      />
+    );
+  }
+
+  if (type === "video") {
+    return (
+      <video
+        src={url}
+        className={`object-cover ${className}`}
+        style={mode === "bg" ? { ...bgStyle, objectFit: "cover" } : { width: "100%", height: "100%", objectFit: "cover" }}
+        muted
+        loop
+        autoPlay
+        playsInline
+      />
+    );
+  }
+
+  if (type === "youtube") {
+    const id = getYouTubeId(url);
+    if (!id) return <img src={url} alt={alt} className={`object-cover ${className}`} style={mode === "bg" ? bgStyle : undefined} />;
+    const src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&showinfo=0&modestbranding=1`;
+    return (
+      <iframe
+        src={src}
+        className={className}
+        style={{ ...bgStyle, pointerEvents: mode === "bg" ? "none" : "auto", objectFit: "cover" }}
+        allow="autoplay; encrypted-media"
+        allowFullScreen
+        title={alt || "YouTube video"}
+      />
+    );
+  }
+
+  if (type === "vimeo") {
+    const id = getVimeoId(url);
+    if (!id) return <img src={url} alt={alt} className={`object-cover ${className}`} style={mode === "bg" ? bgStyle : undefined} />;
+    const src = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=1`;
+    return (
+      <iframe
+        src={src}
+        className={className}
+        style={{ ...bgStyle, pointerEvents: mode === "bg" ? "none" : "auto" }}
+        allow="autoplay; encrypted-media"
+        allowFullScreen
+        title={alt || "Vimeo video"}
+      />
+    );
+  }
+
+  if (type === "facebook") {
+    const isVid = isFacebookVideo(url);
+    return (
+      <div
+        className={`flex items-center justify-center overflow-auto ${className}`}
+        style={mode === "bg" ? { ...bgStyle, zIndex: 0 } : undefined}
+      >
+        {isVid ? (
+          <div
+            className="fb-video"
+            data-href={url}
+            data-width="auto"
+            data-show-text="false"
+            data-autoplay="true"
+            data-mute="true"
+          />
+        ) : (
+          <div
+            className="fb-post"
+            data-href={url}
+            data-width="auto"
+            data-show-text="true"
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (type === "instagram") {
+    return (
+      <div
+        className={`flex items-center justify-center overflow-auto ${className}`}
+        style={mode === "bg" ? { ...bgStyle, zIndex: 0 } : undefined}
+      >
+        <blockquote
+          className="instagram-media"
+          data-instgrm-permalink={url}
+          data-instgrm-version="14"
+          data-instgrm-captioned
+        >
+          <a href={url}>View on Instagram</a>
+        </blockquote>
+      </div>
+    );
+  }
+
+  return <img src={url} alt={alt} className={`object-cover ${className}`} style={mode === "bg" ? bgStyle : undefined} />;
+}

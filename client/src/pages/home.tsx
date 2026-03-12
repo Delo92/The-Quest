@@ -1,6 +1,7 @@
 import { useLivery } from "@/hooks/use-livery";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin } from "lucide-react";
+import MediaSlot from "@/components/media-slot";
 
 function HomeNavbar({ scrolled }: { scrolled: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -102,14 +103,15 @@ export default function HomePage() {
   const socialTwitter = getText("social_twitter", "");
   const socialYoutube = getText("social_youtube", "");
 
-  const FeatureCard = ({ img, title, subtitle, tall = false }: { img: string; title: string; subtitle: string; tall?: boolean }) => (
+  const FeatureCard = ({ url, title, subtitle, tall = false }: { url: string; title: string; subtitle: string; tall?: boolean }) => (
     <div className={`relative overflow-hidden group cursor-pointer ${tall ? "h-72 md:h-80" : "h-56 md:h-64"}`}>
-      <img
-        src={img}
+      <MediaSlot
+        url={url}
         alt={title}
-        className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+        mode="bg"
+        className="grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
       />
-      <div className="absolute inset-0 bg-black/60 group-hover:bg-[#691cff]/70 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 group-hover:bg-[#691cff]/70 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-10">
         <div className="text-center text-white px-4">
           <h2 className="text-xl md:text-2xl font-bold uppercase mb-2">{title}</h2>
           <p className="text-sm text-white/80">{subtitle}</p>
@@ -125,10 +127,10 @@ export default function HomePage() {
       {/* Hero / Banner */}
       <section
         id="home"
-        className="relative min-h-screen flex items-center justify-center"
-        style={{ backgroundImage: `url(${bannerBg})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}
+        className="relative min-h-screen flex items-center justify-center overflow-hidden"
       >
-        <div className="absolute inset-0 bg-black/60" />
+        <MediaSlot url={bannerBg} alt="Hero background" mode="bg" />
+        <div className="absolute inset-0 bg-black/60 z-[1]" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-7xl font-bold uppercase text-white tracking-wider mb-6 drop-shadow-2xl">
             {heroTitle}
@@ -145,7 +147,7 @@ export default function HomePage() {
             <ChevronRight className="w-4 h-4" />
           </a>
         </div>
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce z-10">
           <div className="w-6 h-10 border-2 border-white/40 rounded-full flex items-start justify-center pt-2">
             <div className="w-1 h-3 bg-white/60 rounded-full" />
           </div>
@@ -174,16 +176,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Feature / Image Grid */}
+      {/* Feature / Media Grid */}
       <section id="feature" className="bg-black">
         <div className="grid grid-cols-1 md:grid-cols-3">
-          <FeatureCard img={feat1} title={feat1Title} subtitle={feat1Sub} tall />
-          <FeatureCard img={feat2} title={feat2Title} subtitle={feat2Sub} tall />
-          <FeatureCard img={feat3} title={feat3Title} subtitle={feat3Sub} tall />
+          <FeatureCard url={feat1} title={feat1Title} subtitle={feat1Sub} tall />
+          <FeatureCard url={feat2} title={feat2Title} subtitle={feat2Sub} tall />
+          <FeatureCard url={feat3} title={feat3Title} subtitle={feat3Sub} tall />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2">
-          <FeatureCard img={feat4} title={feat4Title} subtitle={feat4Sub} />
-          <FeatureCard img={feat5} title={feat5Title} subtitle={feat5Sub} />
+          <FeatureCard url={feat4} title={feat4Title} subtitle={feat4Sub} />
+          <FeatureCard url={feat5} title={feat5Title} subtitle={feat5Sub} />
         </div>
       </section>
 
@@ -192,7 +194,9 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative">
-              <img src={aboutImg} alt="About" className="w-full h-80 md:h-96 object-cover" />
+              <div className="w-full h-80 md:h-96 overflow-hidden relative">
+                <MediaSlot url={aboutImg} alt="About CB Publishing" mode="bg" />
+              </div>
               <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[#691cff] hidden md:block" />
             </div>
             <div>
@@ -213,11 +217,9 @@ export default function HomePage() {
       </section>
 
       {/* Our Properties / Services */}
-      <section
-        className="py-20 relative"
-        style={{ backgroundImage: `url(${serviceBg})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}
-      >
-        <div className="absolute inset-0 bg-black/80" />
+      <section className="py-20 relative overflow-hidden">
+        <MediaSlot url={serviceBg} alt="Services background" mode="bg" />
+        <div className="absolute inset-0 bg-black/80 z-[1]" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">What We Build</span>
@@ -246,12 +248,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Members / Featured Artists */}
-      <section
-        className="py-20 relative"
-        style={{ backgroundImage: `url(${memberBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
-      >
-        <div className="absolute inset-0 bg-black/75" />
+      {/* Members / Join CTA */}
+      <section className="py-20 relative overflow-hidden">
+        <MediaSlot url={memberBg} alt="Join background" mode="bg" />
+        <div className="absolute inset-0 bg-black/75 z-[1]" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">Join Us</span>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to Compete?</h2>
@@ -313,10 +313,7 @@ export default function HomePage() {
                 {socialYoutube && <a href={socialYoutube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Youtube className="w-4 h-4" /></a>}
               </div>
             </div>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="space-y-4"
-            >
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
               <input
                 type="text"
                 placeholder="Your Name"

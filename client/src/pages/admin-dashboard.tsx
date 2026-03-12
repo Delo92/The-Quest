@@ -11,7 +11,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star } from "lucide-react";
+import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
+import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS } from "@/lib/media-utils";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "wouter";
@@ -635,6 +636,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [newCatName, setNewCatName] = useState("");
   const [newCatDesc, setNewCatDesc] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
+  const [embedInputs, setEmbedInputs] = useState<Record<string, string | undefined>>({});
 
   const addCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; description: string }) => {
@@ -982,6 +984,19 @@ export default function AdminDashboard({ user }: { user: any }) {
     },
     onError: (err: Error) => {
       toast({ title: "Delete failed", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const embedLiveryMutation = useMutation({
+    mutationFn: async ({ imageKey, url }: { imageKey: string; url: string }) => {
+      await apiRequest("PUT", `/api/admin/livery/${imageKey}/url`, { url });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/livery"] });
+      toast({ title: "Embed URL saved!" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Save failed", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
     },
   });
 
@@ -1571,11 +1586,23 @@ export default function AdminDashboard({ user }: { user: any }) {
               {liveryItems?.filter((item: any) => item.itemType !== "text").map((item: any) => {
                 const displayUrl = item.imageUrl || item.defaultUrl;
                 const isCustom = !!item.imageUrl;
-                const isVideo = item.mediaType === "video";
+                const isHomepageSlot = item.imageKey.startsWith("home_") || item.imageKey === "logo";
+                const mediaType = detectMediaType(displayUrl || "");
+                const isEmbed = ["youtube", "vimeo", "facebook", "instagram"].includes(mediaType);
+                const isVideo = mediaType === "video";
+                const embedInputVal = embedInputs[item.imageKey];
+                const embedOpen = embedInputVal !== undefined;
                 return (
                   <div key={item.imageKey} className="rounded-md bg-white/5 border border-white/10 overflow-visible" data-testid={`livery-item-${item.imageKey}`}>
-                    <div className="relative aspect-video bg-black/50">
-                      {isVideo ? (
+                    <div className="relative aspect-video bg-black/50 overflow-hidden">
+                      {isEmbed ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${MEDIA_TYPE_COLORS[mediaType]}`}>
+                            {MEDIA_TYPE_LABELS[mediaType]}
+                          </span>
+                          <p className="text-[10px] text-white/30 text-center px-2 break-all line-clamp-2">{displayUrl}</p>
+                        </div>
+                      ) : isVideo ? (
                         <video
                           src={displayUrl}
                           className="w-full h-full object-cover"
@@ -1597,6 +1624,9 @@ export default function AdminDashboard({ user }: { user: any }) {
                         {isVideo && (
                           <Badge className="bg-blue-500 text-white border-0 text-xs">Video</Badge>
                         )}
+                        {isEmbed && (
+                          <Badge className={`border-0 text-xs ${MEDIA_TYPE_COLORS[mediaType]}`}>{MEDIA_TYPE_LABELS[mediaType]}</Badge>
+                        )}
                         {isCustom && (
                           <Badge className="bg-orange-500 text-white border-0 text-xs">Custom</Badge>
                         )}
@@ -1605,7 +1635,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     <div className="p-3">
                       <h4 className="font-medium text-sm mb-0.5" data-testid={`livery-label-${item.imageKey}`}>{item.label}</h4>
                       <p className="text-xs text-white/30 mb-3 font-mono">{item.imageKey}</p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input
                           ref={(el) => { fileInputRefs.current[item.imageKey] = el; }}
                           type="file"
@@ -1627,6 +1657,22 @@ export default function AdminDashboard({ user }: { user: any }) {
                         >
                           <Upload className="h-3 w-3 mr-1" /> Upload
                         </Button>
+                        {isHomepageSlot && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setEmbedInputs(prev => ({
+                                ...prev,
+                                [item.imageKey]: embedOpen ? undefined : (item.imageUrl || ""),
+                              }))
+                            }
+                            className="border border-white/20 text-white/60 hover:text-white text-xs"
+                            data-testid={`button-embed-${item.imageKey}`}
+                          >
+                            <Link2 className="h-3 w-3 mr-1" /> Embed URL
+                          </Button>
+                        )}
                         {isCustom && (
                           <Button
                             size="sm"
@@ -1656,6 +1702,32 @@ export default function AdminDashboard({ user }: { user: any }) {
                           </Button>
                         )}
                       </div>
+                      {embedOpen && (
+                        <div className="mt-3 flex gap-2 items-center" data-testid={`embed-input-area-${item.imageKey}`}>
+                          <input
+                            type="url"
+                            value={embedInputVal}
+                            onChange={(e) => setEmbedInputs(prev => ({ ...prev, [item.imageKey]: e.target.value }))}
+                            placeholder="Paste YouTube, Vimeo, Facebook, Instagram, or direct URL…"
+                            className="flex-1 bg-black/40 border border-white/20 rounded px-2 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#691cff]"
+                            data-testid={`input-embed-url-${item.imageKey}`}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!embedInputVal?.trim()) return;
+                              embedLiveryMutation.mutate({ imageKey: item.imageKey, url: embedInputVal.trim() }, {
+                                onSuccess: () => setEmbedInputs(prev => ({ ...prev, [item.imageKey]: undefined })),
+                              });
+                            }}
+                            disabled={embedLiveryMutation.isPending || !embedInputVal?.trim()}
+                            className="bg-[#691cff] hover:bg-[#5a15e0] text-white text-xs border-0"
+                            data-testid={`button-embed-save-${item.imageKey}`}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

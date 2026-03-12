@@ -3079,6 +3079,15 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  app.put("/api/admin/livery/:imageKey/url", firebaseAuth, requireAdmin, async (req, res) => {
+    const { imageKey } = req.params;
+    const { url } = req.body;
+    const existing = await storage.getLiveryByKey(imageKey);
+    if (!existing) return res.status(404).json({ message: "Livery item not found" });
+    const updated = await storage.updateLiveryImage(imageKey, url || null, "image");
+    res.json(updated);
+  });
+
   app.put("/api/admin/livery/:imageKey/text", firebaseAuth, requireAdmin, async (req, res) => {
     const { imageKey } = req.params;
     const { textContent } = req.body;
