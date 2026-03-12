@@ -15,6 +15,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [muted, setMuted] = useState(true);
+  const [fullPlayer, setFullPlayer] = useState(false);
 
   const bgStyle: React.CSSProperties = mode === "bg"
     ? { position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }
@@ -48,13 +49,18 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
       videoRef.current.muted = next;
       setMuted(next);
     }
-    if (type === "vimeo" && iframeRef.current?.contentWindow) {
-      const next = !muted;
-      iframeRef.current.contentWindow.postMessage(
-        JSON.stringify({ method: "setVolume", value: next ? 0 : 1 }),
-        "https://player.vimeo.com"
-      );
-      setMuted(next);
+    if (type === "vimeo") {
+      if (!fullPlayer) {
+        setFullPlayer(true);
+        setMuted(false);
+      } else {
+        const next = !muted;
+        iframeRef.current?.contentWindow?.postMessage(
+          JSON.stringify({ method: "setVolume", value: next ? 0 : 1 }),
+          "https://player.vimeo.com"
+        );
+        setMuted(next);
+      }
     }
   }
 
@@ -124,10 +130,14 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
     if (!id) return <img src={url} alt={alt} className={`object-cover ${className}`} style={mode === "bg" ? bgStyle : undefined} />;
 
     if (clickToUnmute && mode === "bg") {
-      const src = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=0&controls=0&autopause=0&title=0&byline=0&portrait=0`;
+      const src = fullPlayer
+        ? `https://player.vimeo.com/video/${id}?autoplay=1&muted=0&loop=1&background=0&controls=0&autopause=0&title=0&byline=0&portrait=0`
+        : `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=1`;
+
       return (
         <>
           <iframe
+            key={fullPlayer ? "full" : "bg"}
             ref={iframeRef}
             src={src}
             className={className}
