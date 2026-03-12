@@ -1,15 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { detectMediaType, getYouTubeId, getVimeoId, isFacebookVideo } from "@/lib/media-utils";
+import { Volume2, VolumeX } from "lucide-react";
 
 interface MediaSlotProps {
   url: string;
   alt?: string;
   className?: string;
   mode?: "img" | "bg";
+  clickToUnmute?: boolean;
 }
 
-export default function MediaSlot({ url, alt = "", className = "", mode = "img" }: MediaSlotProps) {
+export default function MediaSlot({ url, alt = "", className = "", mode = "img", clickToUnmute = false }: MediaSlotProps) {
   const type = detectMediaType(url);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [muted, setMuted] = useState(true);
 
   const bgStyle: React.CSSProperties = mode === "bg"
     ? { position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }
@@ -37,6 +42,22 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img" 
     }
   }, [type]);
 
+  function handleUnmuteClick() {
+    if (type === "video" && videoRef.current) {
+      const next = !muted;
+      videoRef.current.muted = next;
+      setMuted(next);
+    }
+    if (type === "vimeo" && iframeRef.current?.contentWindow) {
+      const next = !muted;
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ method: "setVolume", value: next ? 0 : 1 }),
+        "https://player.vimeo.com"
+      );
+      setMuted(next);
+    }
+  }
+
   if (!url) return null;
 
   if (type === "image") {
@@ -51,8 +72,9 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img" 
   }
 
   if (type === "video") {
-    return (
+    const videoEl = (
       <video
+        ref={videoRef}
         src={url}
         className={`object-cover ${className}`}
         style={mode === "bg" ? { ...bgStyle, objectFit: "cover" } : { width: "100%", height: "100%", objectFit: "cover" }}
@@ -62,6 +84,23 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img" 
         playsInline
       />
     );
+
+    if (clickToUnmute && mode === "bg") {
+      return (
+        <>
+          {videoEl}
+          <button
+            onClick={handleUnmuteClick}
+            className="absolute bottom-20 right-6 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-all duration-200 backdrop-blur-sm border border-white/20"
+            title={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+        </>
+      );
+    }
+
+    return videoEl;
   }
 
   if (type === "youtube") {
@@ -83,6 +122,31 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img" 
   if (type === "vimeo") {
     const id = getVimeoId(url);
     if (!id) return <img src={url} alt={alt} className={`object-cover ${className}`} style={mode === "bg" ? bgStyle : undefined} />;
+
+    if (clickToUnmute && mode === "bg") {
+      const src = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=0&controls=0&autopause=0&title=0&byline=0&portrait=0`;
+      return (
+        <>
+          <iframe
+            ref={iframeRef}
+            src={src}
+            className={className}
+            style={{ ...bgStyle, pointerEvents: "none" }}
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+            title={alt || "Vimeo video"}
+          />
+          <button
+            onClick={handleUnmuteClick}
+            className="absolute bottom-20 right-6 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-all duration-200 backdrop-blur-sm border border-white/20"
+            title={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+        </>
+      );
+    }
+
     const src = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=1`;
     return (
       <iframe
