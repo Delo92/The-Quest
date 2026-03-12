@@ -56,6 +56,40 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        function darken(hex) {
+          var h = hex.replace('#', '');
+          if (h.length !== 6) return hex;
+          return '#' + [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]
+            .map(function(c) { return Math.round(c * 0.85).toString(16).padStart(2, '0'); }).join('');
+        }
+        function hexAlpha(hex, alpha) {
+          var h = hex.replace('#', '');
+          if (h.length !== 6) return hex;
+          var r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+          return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+        }
+        try {
+          var raw = localStorage.getItem('tq_livery_cache');
+          if (raw) {
+            var items = JSON.parse(raw);
+            var root = document.documentElement;
+            items.forEach(function(item) {
+              if (item.imageKey === 'quest_brand_color' && item.textContent) {
+                root.style.setProperty('--quest-brand', item.textContent);
+                root.style.setProperty('--quest-brand-dark', darken(item.textContent));
+              }
+              if (item.imageKey === 'home_brand_color' && item.textContent) {
+                root.style.setProperty('--cbp-brand', item.textContent);
+                root.style.setProperty('--cbp-brand-dark', darken(item.textContent));
+                root.style.setProperty('--cbp-feat-overlay-bg', hexAlpha(item.textContent, 0.7));
+              }
+            });
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

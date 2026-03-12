@@ -1,4 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+
+const CACHE_KEY = "tq_livery_cache";
 
 interface LiveryItem {
   imageKey: string;
@@ -11,11 +14,35 @@ interface LiveryItem {
   itemType?: "media" | "text";
 }
 
+function readCache(): LiveryItem[] | undefined {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return undefined;
+    return JSON.parse(raw) as LiveryItem[];
+  } catch {
+    return undefined;
+  }
+}
+
+function writeCache(items: LiveryItem[]) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(items));
+  } catch {}
+}
+
 export function useLivery() {
   const { data: items, isLoading } = useQuery<LiveryItem[]>({
     queryKey: ["/api/livery"],
     staleTime: 5 * 60 * 1000,
+    initialData: readCache,
+    initialDataUpdatedAt: 0,
   });
+
+  useEffect(() => {
+    if (items && items.length > 0) {
+      writeCache(items);
+    }
+  }, [items]);
 
   const getImage = (imageKey: string, fallback?: string): string => {
     if (!items) return fallback || "";
