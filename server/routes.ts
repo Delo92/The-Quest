@@ -3057,6 +3057,20 @@ export async function registerRoutes(
     res.json(items);
   });
 
+  app.get("/dynamic-favicon", async (_req, res) => {
+    try {
+      const item = await storage.getLiveryByKey("site_favicon");
+      const url = item?.imageUrl || null;
+      if (url) {
+        res.redirect(302, url);
+      } else {
+        res.redirect(302, "/favicon.svg");
+      }
+    } catch {
+      res.redirect(302, "/favicon.svg");
+    }
+  });
+
   app.put("/api/admin/livery/:imageKey", firebaseAuth, requireAdmin, liveryUpload.single("image"), async (req, res) => {
     const { imageKey } = req.params;
     const existing = await storage.getLiveryByKey(imageKey);

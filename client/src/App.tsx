@@ -52,14 +52,13 @@ function QuestRouter() {
 }
 
 function DynamicFavicon() {
-  const { getImage } = useLivery();
-  const faviconUrl = getImage("site_favicon", "/favicon.svg");
+  const { getImage, isLoading } = useLivery();
 
   useEffect(() => {
-    if (!faviconUrl) return;
-    // Remove all existing favicon links to bust cache
+    if (isLoading) return;
+    const uploadedUrl = getImage("site_favicon", "");
+    const faviconUrl = uploadedUrl || "/dynamic-favicon";
     document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"], link[rel="shortcut icon"]').forEach(el => el.remove());
-    // Create fresh link elements so browsers pick up the change immediately
     const icon = document.createElement("link");
     icon.rel = "icon";
     icon.href = faviconUrl + "?v=" + Date.now();
@@ -68,7 +67,7 @@ function DynamicFavicon() {
     apple.rel = "apple-touch-icon";
     apple.href = faviconUrl;
     document.head.appendChild(apple);
-  }, [faviconUrl]);
+  }, [isLoading, getImage]);
 
   return null;
 }
