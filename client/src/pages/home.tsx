@@ -236,7 +236,11 @@ export default function HomePage() {
                   <p key={i} className="text-gray-400 mb-4 leading-relaxed">
                     {parts.map((part, j) =>
                       underlinePhrases.includes(part)
-                        ? <span key={j} className="underline decoration-1 underline-offset-2">{part}</span>
+                        ? (
+                          part === "The Quest"
+                            ? <a key={j} href="/thequest" className="underline decoration-1 underline-offset-2 hover:text-white transition-colors">{part}</a>
+                            : <a key={j} href="https://www.empi.re/" target="_blank" rel="noopener noreferrer" className="underline decoration-1 underline-offset-2 hover:text-white transition-colors">{part}</a>
+                          )
                         : part
                     )}
                   </p>
