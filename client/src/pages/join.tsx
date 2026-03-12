@@ -542,9 +542,10 @@ export default function JoinPage() {
 
         <div className="space-y-5 mb-10">
             <p className="text-[#5f5f5f] text-sm mb-1">Your Information</p>
-            <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
+            <h3 className="text-lg uppercase text-white font-normal mb-1" style={{ letterSpacing: "6px" }}>
               NOMINATOR DETAILS
             </h3>
+            <p className="text-white/30 text-xs mb-6">Nominating someone? Fill in your details below. Nominating yourself? That works too.</p>
             <div>
               <Label className="text-white/60 uppercase text-xs tracking-wider">
                 Your Name <span className="text-[#FF5A09]">*</span>
