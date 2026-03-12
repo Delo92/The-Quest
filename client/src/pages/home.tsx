@@ -1,6 +1,6 @@
 import { useLivery } from "@/hooks/use-livery";
 import { useState, useEffect } from "react";
-import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin } from "lucide-react";
+import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin, Zap } from "lucide-react";
 import MediaSlot from "@/components/media-slot";
 
 function darkenHex(hex: string, amount = 0.15): string {
@@ -159,8 +159,19 @@ export default function HomePage() {
         <MediaSlot url={bannerBg} alt="Hero background" mode="bg" />
         <div className="absolute inset-0 bg-black/60 z-[1]" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold uppercase text-white tracking-wider mb-6 drop-shadow-2xl">
-            {heroTitle}
+          <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-wider mb-6 drop-shadow-2xl">
+            {heroTitle.startsWith("CB") ? (
+              <>
+                <span style={{ WebkitTextStroke: "3px white", color: "transparent" }}>C</span>
+                <span className="inline-flex items-center relative" style={{ color: "#22c55e" }}>
+                  <Zap className="absolute -left-3 md:-left-4 w-5 h-5 md:w-7 md:h-7 text-white fill-white" style={{ top: "50%", transform: "translateY(-50%)" }} />
+                  B
+                </span>
+                <span className="text-white">{heroTitle.slice(2)}</span>
+              </>
+            ) : (
+              <span className="text-white">{heroTitle}</span>
+            )}
           </h1>
           <p className="text-lg md:text-xl uppercase tracking-[0.3em] text-white/70 mb-10">
             {heroSubtitle}
