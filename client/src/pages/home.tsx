@@ -177,14 +177,6 @@ export default function HomePage() {
           <p className="text-lg md:text-xl uppercase tracking-[0.3em] text-white/70 mb-10">
             {heroSubtitle}
           </p>
-          <a
-            href="/thequest"
-            className="inline-flex items-center gap-3 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-widest px-8 py-4 rounded-full hover:bg-[var(--cbp-brand-dark)] transition-all duration-300 shadow-xl hover:shadow-[var(--cbp-brand)]/30 hover:shadow-2xl"
-          >
-            <Trophy className="w-5 h-5" />
-            Enter The Quest
-            <ChevronRight className="w-4 h-4" />
-          </a>
         </div>
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce z-10">
           <div className="w-6 h-10 border-2 border-white/40 rounded-full flex items-start justify-center pt-2">
