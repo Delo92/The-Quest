@@ -637,6 +637,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [newCatDesc, setNewCatDesc] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
   const [embedInputs, setEmbedInputs] = useState<Record<string, string | undefined>>({});
+  const [liverySubTab, setLiverySubTab] = useState<"cbpublishing" | "thequest">("cbpublishing");
 
   const addCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; description: string }) => {
@@ -1579,14 +1580,44 @@ export default function AdminDashboard({ user }: { user: any }) {
           </TabsContent>
 
           <TabsContent value="livery">
-            <div className="mb-4">
-              <p className="text-white/40 text-sm">Upload replacement images or short videos (15 seconds max) for any template slot. Click "Upload" to replace or "Reset" to restore the original.</p>
+            {/* Sub-tab bar */}
+            <div className="flex items-center gap-1 mb-5 border-b border-white/10 pb-0">
+              <button
+                onClick={() => setLiverySubTab("cbpublishing")}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors -mb-px ${liverySubTab === "cbpublishing" ? "border-[#691cff] text-white" : "border-transparent text-white/40 hover:text-white/70"}`}
+                data-testid="subtab-livery-cbpublishing"
+              >
+                CB Publishing
+              </button>
+              <button
+                onClick={() => setLiverySubTab("thequest")}
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors -mb-px ${liverySubTab === "thequest" ? "border-[#691cff] text-white" : "border-transparent text-white/40 hover:text-white/70"}`}
+                data-testid="subtab-livery-thequest"
+              >
+                The Quest
+              </button>
             </div>
+
+            {liverySubTab === "cbpublishing" && (
+              <div className="mb-4">
+                <p className="text-white/40 text-sm">Customize the CB Publishing home page. Upload images/videos or paste embed URLs (YouTube, Vimeo, Facebook, Instagram) for each section slot.</p>
+              </div>
+            )}
+            {liverySubTab === "thequest" && (
+              <div className="mb-4">
+                <p className="text-white/40 text-sm">Upload replacement images or short videos (15 seconds max) for any Quest template slot. Click "Upload" to replace or "Reset" to restore the original.</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {liveryItems?.filter((item: any) => item.itemType !== "text").map((item: any) => {
+              {liveryItems?.filter((item: any) => {
+                if (item.itemType === "text") return false;
+                const isCBSlot = item.imageKey.startsWith("home_") || item.imageKey === "logo" || item.imageKey === "site_favicon";
+                return liverySubTab === "cbpublishing" ? isCBSlot : !isCBSlot;
+              }).map((item: any) => {
                 const displayUrl = item.imageUrl || item.defaultUrl;
                 const isCustom = !!item.imageUrl;
-                const isHomepageSlot = item.imageKey.startsWith("home_") || item.imageKey === "logo";
+                const isHomepageSlot = item.imageKey.startsWith("home_") || item.imageKey === "logo" || item.imageKey === "site_favicon";
                 const mediaType = detectMediaType(displayUrl || "");
                 const isEmbed = ["youtube", "vimeo", "facebook", "instagram"].includes(mediaType);
                 const isVideo = mediaType === "video";
@@ -1739,18 +1770,19 @@ export default function AdminDashboard({ user }: { user: any }) {
               for (let i = 1; i <= 19; i++) {
                 faqPairs.push([`faq_${i}_q`, `faq_${i}_a`]);
               }
-              const groups = [
-                { label: "Home Page (CB Publishing)", keys: ["home_hero_title", "home_hero_subtitle", "home_quote_left", "home_quote_body", "home_about_title", "home_about_body", "home_feature_1_title", "home_feature_1_subtitle", "home_feature_2_title", "home_feature_2_subtitle", "home_feature_3_title", "home_feature_3_subtitle", "home_feature_4_title", "home_feature_4_subtitle", "home_feature_5_title", "home_feature_5_subtitle"], pairs: null },
-                { label: "Hero Section", keys: ["hero_title_top", "hero_title_main", "hero_summary"], pairs: null },
-                { label: "About Page", keys: ["about_rules_text", "about_details_text"], pairs: null },
-                { label: "Contact Info", keys: ["contact_email", "contact_phone", "contact_address"], pairs: null },
-                { label: "Social Links", keys: ["social_facebook", "social_instagram", "social_twitter", "social_youtube", "social_tiktok"], pairs: null },
-                { label: "Info Modals (Home Page)", keys: ["how_voting_works", "how_nominations_work"], pairs: null },
-                { label: "Why The Quest", keys: ["why_subtitle", "why_heading", "why_card1_title", "why_card1_desc", "why_card2_title", "why_card2_desc", "why_card3_title", "why_card3_desc"], pairs: null },
-                { label: "How It Works", keys: ["hiw_section_title", "hiw_step1_title", "hiw_step1_desc", "hiw_step2_title", "hiw_step2_desc", "hiw_step3_title", "hiw_step3_desc"], pairs: null },
-                { label: "FAQ Page", keys: faqPairs.flat(), pairs: faqPairs },
-                { label: "Email Templates", keys: ["email_welcome_subject", "email_welcome_heading", "email_welcome_body", "email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"], pairs: [["email_welcome_subject", "email_welcome_heading", "email_welcome_body"], ["email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"]] },
+              const allGroups = [
+                { label: "Home Page (CB Publishing)", site: "cbpublishing", keys: ["home_hero_title", "home_hero_subtitle", "home_quote_left", "home_quote_body", "home_about_title", "home_about_body", "home_feature_1_title", "home_feature_1_subtitle", "home_feature_2_title", "home_feature_2_subtitle", "home_feature_3_title", "home_feature_3_subtitle", "home_feature_4_title", "home_feature_4_subtitle", "home_feature_5_title", "home_feature_5_subtitle"], pairs: null },
+                { label: "Hero Section", site: "thequest", keys: ["hero_title_top", "hero_title_main", "hero_summary"], pairs: null },
+                { label: "About Page", site: "thequest", keys: ["about_rules_text", "about_details_text"], pairs: null },
+                { label: "Contact Info", site: "thequest", keys: ["contact_email", "contact_phone", "contact_address"], pairs: null },
+                { label: "Social Links", site: "thequest", keys: ["social_facebook", "social_instagram", "social_twitter", "social_youtube", "social_tiktok"], pairs: null },
+                { label: "Info Modals (Home Page)", site: "thequest", keys: ["how_voting_works", "how_nominations_work"], pairs: null },
+                { label: "Why The Quest", site: "thequest", keys: ["why_subtitle", "why_heading", "why_card1_title", "why_card1_desc", "why_card2_title", "why_card2_desc", "why_card3_title", "why_card3_desc"], pairs: null },
+                { label: "How It Works", site: "thequest", keys: ["hiw_section_title", "hiw_step1_title", "hiw_step1_desc", "hiw_step2_title", "hiw_step2_desc", "hiw_step3_title", "hiw_step3_desc"], pairs: null },
+                { label: "FAQ Page", site: "thequest", keys: faqPairs.flat(), pairs: faqPairs },
+                { label: "Email Templates", site: "thequest", keys: ["email_welcome_subject", "email_welcome_heading", "email_welcome_body", "email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"], pairs: [["email_welcome_subject", "email_welcome_heading", "email_welcome_body"], ["email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"]] },
               ];
+              const groups = allGroups.filter(g => g.site === liverySubTab);
               const isLongField = (key: string) => key.includes("rules") || key.includes("details") || key.includes("summary") || key.includes("faq_") || key.includes("_desc") || key.includes("how_") || (key.startsWith("email_") && (key.includes("_body") || key.includes("_footer")));
               const renderField = (item: any) => {
                 const currentText = item.textContent || item.defaultText || "";
@@ -1847,7 +1879,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               });
             })()}
 
-            <details className="mt-4 rounded-md bg-zinc-900 border border-white/15 overflow-visible">
+            {liverySubTab === "thequest" && <details className="mt-4 rounded-md bg-zinc-900 border border-white/15 overflow-visible">
               <summary className="cursor-pointer px-3 py-2 flex items-center justify-between gap-2 select-none" data-testid="livery-group-category-cards">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Category Cards</h3>
@@ -2013,7 +2045,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                   </Button>
                 )}
               </div>
-            </details>
+            </details>}
 
             {(!liveryItems || liveryItems.length === 0) && (
               <div className="rounded-md bg-white/5 border border-white/5 p-6 text-center">
