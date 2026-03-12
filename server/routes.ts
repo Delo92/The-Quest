@@ -1174,7 +1174,7 @@ export async function registerRoutes(
           nomineeName: "Sample Talent",
           nominatorName: "The Quest Admin",
           competitionName: "Sample Competition 2026",
-          defaultPassword: "Hifitcomp2026",
+          defaultPassword: "CBP2026!",
           accountCreated: true,
         });
       } else if (template === "receipt") {
@@ -1669,7 +1669,7 @@ export async function registerRoutes(
       const inviterName = senderUser?.displayName || req.firebaseUser!.email || "Someone";
       const roleName = targetLevel >= 4 ? "admin" : targetLevel >= 3 ? "host" : targetLevel >= 2 ? "talent" : "viewer";
 
-      const DEFAULT_PASSWORD = "Hifitcomp2026";
+      const DEFAULT_PASSWORD = "CBP2026!";
       const inviteeEmail = email.toLowerCase().trim();
       const inviteeName = name.trim();
       let accountCreated = false;
@@ -2461,7 +2461,7 @@ export async function registerRoutes(
 
       const nomineeEmail = email.toLowerCase().trim();
       const nomineeName = fullName.trim();
-      const DEFAULT_PASSWORD = "Hifitcomp2026";
+      const DEFAULT_PASSWORD = "CBP2026!";
 
       let firebaseUid: string | null = null;
       let talentProfileId: number | null = null;
