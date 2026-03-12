@@ -57,7 +57,7 @@ function DynamicFavicon() {
   useEffect(() => {
     if (isLoading) return;
     const uploadedUrl = getImage("site_favicon", "");
-    const faviconUrl = uploadedUrl || "/dynamic-favicon";
+    const faviconUrl = uploadedUrl || "/cb-logo-favicon.png";
     document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"], link[rel="shortcut icon"]').forEach(el => el.remove());
     const icon = document.createElement("link");
     icon.rel = "icon";

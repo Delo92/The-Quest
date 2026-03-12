@@ -3064,10 +3064,10 @@ export async function registerRoutes(
       if (url) {
         res.redirect(302, url);
       } else {
-        res.redirect(302, "/favicon.svg");
+        res.redirect(302, "/cb-logo-favicon.png");
       }
     } catch {
-      res.redirect(302, "/favicon.svg");
+      res.redirect(302, "/cb-logo-favicon.png");
     }
   });
 
