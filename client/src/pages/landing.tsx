@@ -140,7 +140,7 @@ export default function Landing() {
             <div className="flex flex-col items-center">
               <Link href="/competitions">
                 <span
-                  className="inline-block bg-[#FF5A09] border border-[#FF5A09] text-white font-bold text-sm sm:text-base capitalize px-6 sm:px-8 leading-[42px] sm:leading-[47px] w-full sm:w-auto sm:min-w-[212px] text-center transition-all duration-500 hover:bg-transparent hover:text-white cursor-pointer"
+                  className="inline-block bg-[#FF5A09] border border-[#FF5A09] text-white font-bold text-sm sm:text-base capitalize px-6 sm:px-8 leading-[42px] sm:leading-[47px] w-full sm:w-auto sm:min-w-[212px] text-center transition-all duration-500 hover:bg-transparent hover:text-white cursor-pointer rounded-full"
                   data-testid="button-hero-start-voting"
                 >
                   Start Voting <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
@@ -158,7 +158,7 @@ export default function Landing() {
             <div className="flex flex-col items-center">
               <Link href="/nominate">
                 <span
-                  className="inline-block bg-transparent border border-white text-white font-bold text-sm sm:text-base capitalize px-6 sm:px-8 leading-[42px] sm:leading-[47px] w-full sm:w-auto sm:min-w-[212px] text-center transition-all duration-500 hover:bg-white hover:text-black cursor-pointer"
+                  className="inline-block bg-transparent border border-white text-white font-bold text-sm sm:text-base capitalize px-6 sm:px-8 leading-[42px] sm:leading-[47px] w-full sm:w-auto sm:min-w-[212px] text-center transition-all duration-500 hover:bg-white hover:text-black cursor-pointer rounded-full"
                   data-testid="button-hero-join-nominate"
                 >
                   Nominate <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
