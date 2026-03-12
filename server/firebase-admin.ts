@@ -19,8 +19,8 @@ export function getFirebaseAdmin(): admin.app.App {
 
   firebaseApp = admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: "hifitcomp",
-    storageBucket: "hifitcomp.firebasestorage.app",
+    projectId: "thequest-2dc77",
+    storageBucket: "thequest-2dc77.firebasestorage.app",
   });
 
   return firebaseApp;

@@ -146,12 +146,12 @@ export async function registerRoutes(
   app.get("/api/firebase-config", (_req, res) => {
     res.json({
       apiKey: process.env.FIREBASE_API_KEY,
-      authDomain: "hifitcomp.firebaseapp.com",
-      projectId: "hifitcomp",
-      storageBucket: "hifitcomp.firebasestorage.app",
-      messagingSenderId: "679824704394",
-      appId: "1:679824704394:web:ace3a59115a4645175fe73",
-      measurementId: "G-FPCK9DJDHD",
+      authDomain: "thequest-2dc77.firebaseapp.com",
+      projectId: "thequest-2dc77",
+      storageBucket: "thequest-2dc77.firebasestorage.app",
+      messagingSenderId: "886107413539",
+      appId: "1:886107413539:web:f7c6bdf8adb2b032bf2596",
+      measurementId: "G-7LBW9HVXWE",
     });
   });
 
