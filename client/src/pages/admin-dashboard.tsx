@@ -1800,7 +1800,16 @@ export default function AdminDashboard({ user }: { user: any }) {
                 return (
                   <div key={item.imageKey} className="rounded-md bg-white/5 border border-white/10 overflow-visible" data-testid={`livery-item-${item.imageKey}`}>
                     <div className="relative aspect-video bg-black/50 overflow-hidden">
-                      {isEmbed ? (
+                      {isEmbed && mediaType === "vimeo" ? (
+                        <iframe
+                          src={displayUrl}
+                          className="w-full h-full"
+                          allow="autoplay; fullscreen; picture-in-picture"
+                          allowFullScreen
+                          title={item.label}
+                          data-testid={`livery-vimeo-${item.imageKey}`}
+                        />
+                      ) : isEmbed ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2">
                           <span className={`text-xs font-bold px-3 py-1 rounded-full ${MEDIA_TYPE_COLORS[mediaType]}`}>
                             {MEDIA_TYPE_LABELS[mediaType]}
