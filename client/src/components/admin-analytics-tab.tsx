@@ -227,10 +227,10 @@ export default function AdminAnalyticsTab() {
 
   const handleShareLink = async (code: string, ownerName: string) => {
     const url = `${window.location.origin}?ref=${code}`;
-    const text = `Check out HiFitComp! Use promo code ${code} when you sign up or vote for bonus rewards. Shared by ${ownerName}`;
+    const text = `Check out The Quest! Use promo code ${code} when you sign up or vote for bonus rewards. Shared by ${ownerName}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "HiFitComp - Vote & Win!", text, url });
+        await navigator.share({ title: "The Quest - Vote & Win!", text, url });
       } catch {}
     } else {
       handleCopyLink(code);

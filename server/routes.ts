@@ -1168,11 +1168,11 @@ export async function registerRoutes(
       if (template === "welcome") {
         await sendInviteEmail({
           to,
-          inviterName: "HiFitComp Admin",
+          inviterName: "The Quest Admin",
           role: "talent",
           siteUrl,
           nomineeName: "Sample Talent",
-          nominatorName: "HiFitComp Admin",
+          nominatorName: "The Quest Admin",
           competitionName: "Sample Competition 2026",
           defaultPassword: "Hifitcomp2026",
           accountCreated: true,
@@ -2524,7 +2524,7 @@ export async function registerRoutes(
           }
 
           if (!existingUser) {
-            let competitionName = "a HiFitComp competition";
+            let competitionName = "a competition on The Quest";
             if (competitionId) {
               const comp = await storage.getCompetition(Number(competitionId));
               if (comp) competitionName = comp.title;
@@ -4201,8 +4201,8 @@ export async function registerRoutes(
 
       const profile = contestant.talentProfile;
       const displayName = profile.displayName || profile.stageName || "Contestant";
-      const ogTitle = `Vote for ${displayName} - ${comp.title} | HiFitComp`;
-      const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on HiFitComp!`;
+      const ogTitle = `Vote for ${displayName} - ${comp.title} | The Quest`;
+      const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on The Quest!`;
       const ogImage = profile.imageUrls?.[0] || comp.coverImage || "";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
       const ogUrl = `${protocol}://${req.get("host")}/${compSlug}/${talentSlug}`;

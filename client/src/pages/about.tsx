@@ -25,8 +25,8 @@ export default function AboutPage() {
   const [showDetails, setShowDetails] = useState(false);
 
   useSEO({
-    title: "About HiFitComp",
-    description: "Learn about HiFitComp - the ultimate talent competition and voting platform. See our rules, upcoming events calendar, and how to get started as a competitor or host.",
+    title: "About The Quest",
+    description: "Learn about The Quest - the ultimate talent competition and voting platform. See our rules, upcoming events calendar, and how to get started as a competitor or host.",
     canonical: "https://thequest-2dc77.firebaseapp.com/about",
   });
 
@@ -39,7 +39,7 @@ export default function AboutPage() {
       return da - db;
     });
 
-  const rulesText = getText("about_rules_text", "Welcome to HiFitComp! Our platform connects talent with audiences through fair, transparent competitions.\n\n**Rules & Guidelines:**\n\n1. All participants must be 18 years or older.\n2. Each competitor may only enter a competition once.\n3. Voting is limited per IP address daily to ensure fairness.\n4. Content must be original and appropriate for all audiences.\n5. Hosts are responsible for managing their events and enforcing rules.\n6. Vote purchases are non-refundable once processed.\n7. HiFitComp reserves the right to remove content that violates community standards.");
+  const rulesText = getText("about_rules_text", "Welcome to The Quest! Our platform connects talent with audiences through fair, transparent competitions.\n\n**Rules & Guidelines:**\n\n1. All participants must be 18 years or older.\n2. Each competitor may only enter a competition once.\n3. Voting is limited per IP address daily to ensure fairness.\n4. Content must be original and appropriate for all audiences.\n5. Hosts are responsible for managing their events and enforcing rules.\n6. Vote purchases are non-refundable once processed.\n7. The Quest reserves the right to remove content that violates community standards.");
 
   const detailsText = getText("about_details_text", "");
 

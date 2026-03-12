@@ -71,7 +71,7 @@ const FIELD_LABELS: Record<string, string> = {
 export default function HostPage() {
   useSEO({
     title: "Host Your Event",
-    description: "Want to run your own talent competition? Host your event on HiFitComp with built-in voting, contestant management, and analytics. Get started today.",
+    description: "Want to run your own talent competition? Host your event on The Quest with built-in voting, contestant management, and analytics. Get started today.",
     canonical: "https://thequest-2dc77.firebaseapp.com/host",
   });
   const { toast } = useToast();
@@ -262,7 +262,7 @@ export default function HostPage() {
             APPLICATION SUBMITTED
           </h2>
           <p className="text-white/60 mb-8">
-            Thank you for your interest in hosting on HiFitComp! Our team will review your event proposal and contact you at {form.email}.
+            Thank you for your interest in hosting on The Quest! Our team will review your event proposal and contact you at {form.email}.
           </p>
           <a href="/">
             <span className="inline-block bg-[#FF5A09] text-white font-bold text-sm uppercase px-8 leading-[47px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer" data-testid="button-home">

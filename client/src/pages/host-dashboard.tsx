@@ -362,7 +362,7 @@ export default function HostDashboard({ user }: { user: any }) {
             <div className="w-8 h-8 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
               <Trophy className="h-4 w-4 text-white" />
             </div>
-            <span className="font-serif text-xl font-bold">HiFitComp</span>
+            <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="text-sm text-white/40 hidden sm:inline truncate max-w-[150px]">{user?.displayName || user?.email}</span>
@@ -390,7 +390,7 @@ export default function HostDashboard({ user }: { user: any }) {
               <DialogHeader>
                 <DialogTitle className="font-serif text-xl">Event Packages</DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-white/50 mb-4">Choose a package to host your competition on HiFitComp.</p>
+              <p className="text-sm text-white/50 mb-4">Choose a package to host your competition on The Quest.</p>
               <div className="space-y-4">
                 {eventPackages.map((pkg, i) => (
                   <div key={i} className="rounded-md border border-white/10 p-4 hover:bg-white/5 transition-colors" data-testid={`package-${pkg.name.toLowerCase()}`}>

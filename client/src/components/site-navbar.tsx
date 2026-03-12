@@ -100,7 +100,7 @@ export default function SiteNavbar() {
           {getMedia("logo", "/images/template/logo.png").type === "video" ? (
             <video src={getMedia("logo", "/images/template/logo.png").url} className="h-12 sm:h-16 md:h-20" autoPlay muted loop playsInline />
           ) : (
-            <img src={getImage("logo", "/images/template/logo.png")} alt="HiFitComp" className="h-12 sm:h-16 md:h-20" />
+            <img src={getImage("logo", "/images/template/logo.png")} alt="The Quest" className="h-12 sm:h-16 md:h-20" />
           )}
         </Link>
 

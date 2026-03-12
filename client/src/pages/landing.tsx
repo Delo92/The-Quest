@@ -26,7 +26,7 @@ function useInView(threshold = 0.15) {
 
 export default function Landing() {
   useSEO({
-    title: "HiFitComp - Talent Competition & Voting Platform",
+    title: "The Quest - Talent Competition & Voting Platform",
     description: "The ultimate talent competition platform. Browse competitions, vote for your favorite artists, models, bodybuilders, and performers. Join as a competitor or nominate someone today.",
     canonical: "https://thequest-2dc77.firebaseapp.com",
   });
@@ -260,7 +260,7 @@ export default function Landing() {
           <div ref={featured.ref} className={`text-center mb-24 transition-all duration-1000 ${featured.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
             <p className="text-[#5f5f5f] text-sm mb-1">{getText("why_subtitle", "See what's new")}</p>
             <h2 className="text-lg uppercase text-white font-normal tracking-[5px] sm:tracking-[10px]">
-              {getText("why_heading", "Why HiFitComp")}
+              {getText("why_heading", "Why The Quest")}
             </h2>
           </div>
 

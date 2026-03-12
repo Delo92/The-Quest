@@ -93,9 +93,9 @@ export default function ContestantSharePage() {
 
   useEffect(() => {
     if (data) {
-      document.title = `${data.contestant.talentProfile.displayName} - ${data.competition.title} | HiFitComp`;
+      document.title = `${data.contestant.talentProfile.displayName} - ${data.competition.title} | The Quest`;
     }
-    return () => { document.title = "HiFitComp - Talent Competition & Voting Platform"; };
+    return () => { document.title = "The Quest - Talent Competition & Voting Platform"; };
   }, [data]);
 
   const voteMutation = useMutation({
@@ -159,7 +159,7 @@ export default function ContestantSharePage() {
 
   const getShareData = () => {
     const shareUrl = `${window.location.origin}/${categorySlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
-    const shareText = `Vote for ${profile.displayName} in ${competition.title} on HiFitComp!`;
+    const shareText = `Vote for ${profile.displayName} in ${competition.title} on The Quest!`;
     return { shareUrl, shareText };
   };
 

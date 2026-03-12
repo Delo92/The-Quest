@@ -52,7 +52,7 @@ const FIELD_LABELS: Record<string, string> = {
 export default function JoinPage() {
   useSEO({
     title: "Nominate Now",
-    description: "Ready to showcase your talent? Apply to join an active competition on HiFitComp. Compete in music, modeling, bodybuilding, dance, and more.",
+    description: "Ready to showcase your talent? Apply to join an active competition on The Quest. Compete in music, modeling, bodybuilding, dance, and more.",
     canonical: "https://thequest-2dc77.firebaseapp.com/join",
   });
   const { toast } = useToast();

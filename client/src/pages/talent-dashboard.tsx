@@ -466,7 +466,7 @@ export default function TalentDashboard({ user, profile }: Props) {
   const handleCopyShareLink = async (contest: any) => {
     const url = buildShareUrl(contest);
     const name = displayName || profile?.displayName || "me";
-    const text = `Vote for ${name} on HiFitComp!\n${url}`;
+    const text = `Vote for ${name} on The Quest!\n${url}`;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -496,7 +496,7 @@ export default function TalentDashboard({ user, profile }: Props) {
             <div className="w-8 h-8 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
               <Trophy className="h-4 w-4 text-white" />
             </div>
-            <span className="font-serif text-xl font-bold">HiFitComp</span>
+            <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 ring-2 ring-white/10">

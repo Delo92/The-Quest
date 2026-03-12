@@ -74,7 +74,7 @@ export default function CompetitionDetailPage() {
 
   useSEO({
     title: competition ? `${competition.title} - ${competition.category} Competition` : "Competition",
-    description: competition?.description || (competition ? `Vote in the ${competition.title} ${competition.category} competition on HiFitComp. Browse contestants, cast your vote, and help decide the winner!` : undefined),
+    description: competition?.description || (competition ? `Vote in the ${competition.title} ${competition.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!` : undefined),
     ogImage: competition?.coverImage || undefined,
     canonical: competition ? `https://thequest-2dc77.firebaseapp.com/${slugify(competition.category)}/${slugify(competition.title)}` : undefined,
   });
@@ -185,7 +185,7 @@ export default function CompetitionDetailPage() {
 
         {competition.hostedBy && (
           <p className="text-white/50 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
-            Hosted by {competition.hostedBy === "admin" ? getText("site_name", "HiFitComp") : competition.hostedBy}
+            Hosted by {competition.hostedBy === "admin" ? getText("site_name", "The Quest") : competition.hostedBy}
           </p>
         )}
 

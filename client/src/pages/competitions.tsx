@@ -15,7 +15,7 @@ import { useSEO } from "@/hooks/use-seo";
 export default function Competitions() {
   useSEO({
     title: "Browse Competitions",
-    description: "Explore active talent competitions in music, modeling, bodybuilding, dance and more. Vote for your favorites, or apply to compete on HiFitComp.",
+    description: "Explore active talent competitions in music, modeling, bodybuilding, dance and more. Vote for your favorites, or apply to compete on The Quest.",
     canonical: "https://thequest-2dc77.firebaseapp.com/competitions",
   });
   const { data: competitions, isLoading } = useQuery<CompetitionExt[]>({
@@ -154,7 +154,7 @@ export default function Competitions() {
 
 function CompetitionCard({ competition }: { competition: CompetitionExt }) {
   const { getImage, getText } = useLivery();
-  const websiteName = getText("site_name", "HiFitComp");
+  const websiteName = getText("site_name", "The Quest");
   return (
     <div
       className="group transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]"

@@ -10,7 +10,7 @@ export default function SiteFooter() {
           {getMedia("logo", "/images/template/logo.png").type === "video" ? (
             <video src={getMedia("logo", "/images/template/logo.png").url} className="h-32" autoPlay muted loop playsInline />
           ) : (
-            <img src={getImage("logo", "/images/template/logo.png")} alt="HiFitComp" className="h-32" />
+            <img src={getImage("logo", "/images/template/logo.png")} alt="The Quest" className="h-32" />
           )}
         </div>
         <nav className="flex flex-wrap items-center gap-6">
@@ -51,7 +51,7 @@ export default function SiteFooter() {
           </Link>
         </nav>
         <p className="text-xs text-white/30">
-          &copy; {new Date().getFullYear()} HiFitComp
+          &copy; {new Date().getFullYear()} The Quest
         </p>
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 border-t border-white/5 pt-4">

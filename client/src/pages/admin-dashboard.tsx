@@ -1100,7 +1100,7 @@ export default function AdminDashboard({ user }: { user: any }) {
             <div className="w-8 h-8 rounded-md bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
               <Trophy className="h-4 w-4 text-white" />
             </div>
-            <span className="font-serif text-xl font-bold">HiFitComp</span>
+            <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
           <div className="flex items-center gap-3">
             <Badge className="bg-orange-500/20 text-orange-400 border-0">Admin</Badge>
@@ -1647,7 +1647,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                 { label: "Contact Info", keys: ["contact_email", "contact_phone", "contact_address"], pairs: null },
                 { label: "Social Links", keys: ["social_facebook", "social_instagram", "social_twitter", "social_youtube", "social_tiktok"], pairs: null },
                 { label: "Info Modals (Home Page)", keys: ["how_voting_works", "how_nominations_work"], pairs: null },
-                { label: "Why HiFitComp", keys: ["why_subtitle", "why_heading", "why_card1_title", "why_card1_desc", "why_card2_title", "why_card2_desc", "why_card3_title", "why_card3_desc"], pairs: null },
+                { label: "Why The Quest", keys: ["why_subtitle", "why_heading", "why_card1_title", "why_card1_desc", "why_card2_title", "why_card2_desc", "why_card3_title", "why_card3_desc"], pairs: null },
                 { label: "How It Works", keys: ["hiw_section_title", "hiw_step1_title", "hiw_step1_desc", "hiw_step2_title", "hiw_step2_desc", "hiw_step3_title", "hiw_step3_desc"], pairs: null },
                 { label: "FAQ Page", keys: faqPairs.flat(), pairs: faqPairs },
                 { label: "Email Templates", keys: ["email_welcome_subject", "email_welcome_heading", "email_welcome_body", "email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"], pairs: [["email_welcome_subject", "email_welcome_heading", "email_welcome_body"], ["email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"]] },
@@ -1656,7 +1656,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               const renderField = (item: any) => {
                 const currentText = item.textContent || item.defaultText || "";
                 const isCustomText = !!item.textContent;
-                const shortLabel = item.label.replace(/^(Category |Hero |Social - |About Page - |FAQ \d+ - |Why HiFitComp - |How It Works - |Step \d+: |Welcome Email - |Purchase Receipt Email - )/, "");
+                const shortLabel = item.label.replace(/^(Category |Hero |Social - |About Page - |FAQ \d+ - |Why The Quest - |How It Works - |Step \d+: |Welcome Email - |Purchase Receipt Email - )/, "");
                 return (
                   <div key={item.imageKey} data-testid={`livery-item-${item.imageKey}`}>
                     <div className="flex items-center justify-between gap-1 mb-1 flex-wrap">
@@ -3045,7 +3045,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                       </div>
                       <div className="bg-white/[0.03] rounded p-3 text-center">
                         <div className="text-2xl font-bold text-white" data-testid="text-drive-total-files">{storageData.drive?.totalFiles || 0}</div>
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">HiFitComp Files</div>
+                        <div className="text-[10px] text-white/40 uppercase tracking-wider">The Quest Files</div>
                       </div>
                     </div>
                     {storageData.drive?.totalGB > 0 && (
@@ -3066,7 +3066,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     )}
                     {storageData.drive?.folders?.length > 0 && (
                       <div>
-                        <h5 className="text-[10px] text-white/30 uppercase tracking-wider mb-2">HiFitComp Events</h5>
+                        <h5 className="text-[10px] text-white/30 uppercase tracking-wider mb-2">The Quest Events</h5>
                         <div className="space-y-1 max-h-48 overflow-y-auto">
                           {storageData.drive.folders.map((f: any, i: number) => (
                             <div key={i} className="flex items-center justify-between py-1 px-2 bg-white/[0.02] rounded text-sm">

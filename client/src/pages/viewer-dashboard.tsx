@@ -31,7 +31,7 @@ interface LookupResult {
 export default function ViewerDashboard() {
   useSEO({
     title: "My Dashboard",
-    description: "View your voting history, purchases, and active competitions on HiFitComp.",
+    description: "View your voting history, purchases, and active competitions on The Quest.",
     canonical: "https://thequest-2dc77.firebaseapp.com/viewer",
   });
 
