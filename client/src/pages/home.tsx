@@ -162,7 +162,7 @@ export default function HomePage() {
           <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-wider mb-6 drop-shadow-2xl">
             {heroTitle.startsWith("CB") ? (
               <>
-                <span style={{ WebkitTextStroke: "3px white", color: "transparent" }}>C</span>
+                <span style={{ color: "#000000" }}>C</span>
                 <span className="inline-flex items-center relative" style={{ color: "#22c55e" }}>
                   <Zap className="absolute -left-3 md:-left-4 w-5 h-5 md:w-7 md:h-7 text-white fill-white" style={{ top: "50%", transform: "translateY(-50%)" }} />
                   B
