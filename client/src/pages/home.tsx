@@ -44,7 +44,7 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
 
           <a
             href="/thequest"
-            className="hidden md:inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-5 py-2.5 hover:bg-[var(--cbp-brand-dark)] transition-colors"
+            className="hidden md:inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-5 py-2.5 rounded-full hover:bg-[var(--cbp-brand-dark)] transition-colors"
           >
             <Trophy className="w-4 h-4" />
             The Quest
@@ -162,8 +162,8 @@ export default function HomePage() {
           <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-wider mb-6 drop-shadow-2xl">
             {heroTitle.startsWith("CB") ? (
               <>
-                <span style={{ color: "#000000" }}>C</span>
-                <span className="inline-flex items-center relative" style={{ color: "#22c55e" }}>
+                <span style={{ background: "linear-gradient(180deg, #555 0%, #111 45%, #333 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9)) drop-shadow(0 -1px 1px rgba(255,255,255,0.15))" }}>C</span>
+                <span className="inline-flex items-center relative" style={{ background: "linear-gradient(180deg, #86efac 0%, #22c55e 40%, #15803d 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 2px 8px rgba(34,197,94,0.6)) drop-shadow(0 -1px 1px rgba(255,255,255,0.2))" }}>
                   <Zap className="absolute -left-3 md:-left-4 w-5 h-5 md:w-7 md:h-7 text-white fill-white" style={{ top: "50%", transform: "translateY(-50%)" }} />
                   B
                 </span>
@@ -178,7 +178,7 @@ export default function HomePage() {
           </p>
           <a
             href="/thequest"
-            className="inline-flex items-center gap-3 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-widest px-8 py-4 hover:bg-[var(--cbp-brand-dark)] transition-all duration-300 shadow-xl hover:shadow-[var(--cbp-brand)]/30 hover:shadow-2xl"
+            className="inline-flex items-center gap-3 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-widest px-8 py-4 rounded-full hover:bg-[var(--cbp-brand-dark)] transition-all duration-300 shadow-xl hover:shadow-[var(--cbp-brand)]/30 hover:shadow-2xl"
           >
             <Trophy className="w-5 h-5" />
             Enter The Quest
@@ -260,7 +260,7 @@ export default function HomePage() {
               })}
               <a
                 href="/thequest"
-                className="inline-flex items-center gap-2 text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-wider hover:text-white transition-colors mt-4"
+                className="inline-flex items-center gap-2 border border-[var(--cbp-brand)] text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-wider px-6 py-2.5 rounded-full hover:bg-[var(--cbp-brand)] hover:text-white transition-colors mt-4"
               >
                 Explore The Quest <ChevronRight className="w-4 h-4" />
               </a>
@@ -319,11 +319,11 @@ export default function HomePage() {
             The Quest is open to all talent. Apply as a competitor, rally votes from your fans, and win. No gatekeepers — just the public vote.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <a href="/thequest/nominate" className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[var(--cbp-brand-dark)] transition-colors">
+            <a href="/thequest/nominate" className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 rounded-full hover:bg-[var(--cbp-brand-dark)] transition-colors">
               <Users className="w-4 h-4" />
               Nominate Someone
             </a>
-            <a href="/thequest/competitions" className="inline-flex items-center gap-2 border border-white/30 text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:border-[var(--cbp-brand)] hover:text-[var(--cbp-brand)] transition-colors">
+            <a href="/thequest/competitions" className="inline-flex items-center gap-2 border border-white/30 text-white font-bold text-sm uppercase tracking-wider px-8 py-3 rounded-full hover:border-[var(--cbp-brand)] hover:text-[var(--cbp-brand)] transition-colors">
               Browse Competitions
             </a>
           </div>
@@ -417,7 +417,7 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={formStatus === "sending"}
-                  className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[var(--cbp-brand-dark)] transition-colors disabled:opacity-60"
+                  className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 rounded-full hover:bg-[var(--cbp-brand-dark)] transition-colors disabled:opacity-60"
                 >
                   {formStatus === "sending" ? "Sending..." : <> Send Message <ChevronRight className="w-4 h-4" /> </>}
                 </button>

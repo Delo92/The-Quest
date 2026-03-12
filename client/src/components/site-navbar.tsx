@@ -170,7 +170,7 @@ export default function SiteNavbar() {
         <div className="hidden md:flex items-center gap-6">
           <Link
             href="/competitions"
-            className="inline-flex items-center gap-1 bg-[var(--quest-brand)] text-white font-bold text-xs uppercase tracking-wider px-4 py-2 transition-all duration-300 hover:bg-[var(--quest-brand-dark)]"
+            className="inline-flex items-center gap-1 bg-[var(--quest-brand)] text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-full transition-all duration-300 hover:bg-[var(--quest-brand-dark)]"
             data-testid="link-nav-vote"
           >
             Vote
