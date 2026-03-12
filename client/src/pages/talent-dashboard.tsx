@@ -461,7 +461,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     const catSlug = slugify(contest.competitionCategory || comp?.category || "competition");
     const compSlug = slugify(contest.competitionTitle || "contest");
     const talentSlug = slugify(displayName || profile?.displayName || "talent");
-    return `${window.location.origin}/${catSlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
+    return `${window.location.origin}/thequest/${catSlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
   };
 
   const handleCopyShareLink = async (contest: any) => {
