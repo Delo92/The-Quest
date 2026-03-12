@@ -54,7 +54,7 @@ export interface IStorage {
   getContestantVoteBreakdown(contestantId: number, competitionId: number): Promise<{ online: number; inPerson: number; total: number }>;
   getVotesTodayByIp(competitionId: number, voterIp: string): Promise<number>;
 
-  castBulkVotes(data: { contestantId: number; competitionId: number; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person" }): Promise<void>;
+  castBulkVotes(data: { contestantId: number; competitionId: number; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person"; refCode?: string | null }): Promise<void>;
   getVoteCountForContestantInCompetition(contestantId: number, competitionId: number): Promise<number>;
 
   createVotePurchase(purchase: { userId: string; competitionId: number; contestantId: number; voteCount: number; amount: number }): Promise<FirestoreVotePurchase>;
@@ -245,7 +245,7 @@ export class FirestoreStorage implements IStorage {
     return firestoreVotes.getVotesTodayByIp(competitionId, voterIp);
   }
 
-  async castBulkVotes(data: { contestantId: number; competitionId: number; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person" }): Promise<void> {
+  async castBulkVotes(data: { contestantId: number; competitionId: number; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person"; refCode?: string | null }): Promise<void> {
     for (let i = 0; i < data.voteCount; i++) {
       await firestoreVotes.cast({
         contestantId: data.contestantId,
@@ -254,6 +254,7 @@ export class FirestoreStorage implements IStorage {
         userId: data.userId,
         purchaseId: data.purchaseId,
         source: data.source || "online",
+        refCode: data.refCode || null,
       });
     }
   }

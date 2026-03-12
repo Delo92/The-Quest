@@ -2818,6 +2818,7 @@ export async function registerRoutes(
     createAccount: z.boolean().default(false),
     dataDescriptor: z.string().min(1, "Payment token is required"),
     dataValue: z.string().min(1, "Payment token is required"),
+    referralCode: z.string().optional().nullable(),
   });
 
   app.post("/api/guest/checkout", async (req, res) => {
@@ -2827,7 +2828,17 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
       }
 
-      const { name, email, competitionId, contestantId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue } = parsed.data;
+      const { name, email, competitionId, contestantId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode } = parsed.data;
+
+      let resolvedRefCode: string | null = referralCode || null;
+      if (referralCode) {
+        try {
+          const resolved = await firestoreReferrals.resolveCode(referralCode);
+          resolvedRefCode = resolved?.code || referralCode;
+        } catch (e) {
+          console.error("Referral resolve error in checkout:", e);
+        }
+      }
 
       const comp = await storage.getCompetition(competitionId);
       if (!comp) return res.status(404).json({ message: "Competition not found" });
@@ -2900,6 +2911,7 @@ export async function registerRoutes(
         voteCount: totalVotes,
         amount: pkg.price,
         transactionId: chargeResult.transactionId,
+        refCode: resolvedRefCode,
       });
 
       await storage.castBulkVotes({
@@ -2908,7 +2920,16 @@ export async function registerRoutes(
         userId: viewerId || `guest_${purchase.id}`,
         purchaseId: purchase.id,
         voteCount: totalVotes,
+        refCode: resolvedRefCode,
       });
+
+      if (resolvedRefCode) {
+        try {
+          await firestoreReferrals.trackReferralVote(resolvedRefCode, email, totalVotes);
+        } catch (e) {
+          console.error("Referral tracking error in checkout:", e);
+        }
+      }
 
       if (isEmailConfigured() && email) {
         const contestant = await storage.getContestant(contestantId);
