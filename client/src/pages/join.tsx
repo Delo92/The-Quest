@@ -11,7 +11,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Heart, Upload, X, Loader2, ImageIcon } from "lucide-react";
+import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Heart, Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
@@ -541,11 +541,17 @@ export default function JoinPage() {
         </div>
 
         <div className="space-y-5 mb-10">
+            <div className="flex items-start gap-3 bg-white/[0.06] border border-white/10 rounded-sm px-4 py-3 mb-6">
+              <Sparkles className="h-4 w-4 text-[#FF5A09] mt-0.5 shrink-0" />
+              <p className="text-white/70 text-sm leading-relaxed">
+                Want to put yourself in the spotlight?{" "}
+                <span className="text-white font-medium">You can nominate yourself</span> — just fill in your own details below.
+              </p>
+            </div>
             <p className="text-[#5f5f5f] text-sm mb-1">Your Information</p>
-            <h3 className="text-lg uppercase text-white font-normal mb-1" style={{ letterSpacing: "6px" }}>
+            <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
               NOMINATOR DETAILS
             </h3>
-            <p className="text-white/30 text-xs mb-6">Nominating someone? Fill in your details below. Nominating yourself? That works too.</p>
             <div>
               <Label className="text-white/60 uppercase text-xs tracking-wider">
                 Your Name <span className="text-[#FF5A09]">*</span>
