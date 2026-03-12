@@ -3845,31 +3845,62 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/robots.txt", (_req, res) => {
+    const baseUrl = "https://cbpublishing.live";
+    res.set("Content-Type", "text/plain").send(
+      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /thequest/login\nSitemap: ${baseUrl}/sitemap.xml\n`
+    );
+  });
+
   app.get("/sitemap.xml", async (_req, res) => {
     try {
-      const baseUrl = process.env.SITE_URL || "https://thequest-2dc77.firebaseapp.com";
-      const competitions = await storage.getCompetitions();
-      const profiles = await storage.getAllTalentProfiles();
+      const baseUrl = "https://cbpublishing.live";
+      const today = new Date().toISOString().split("T")[0];
+
+      const [competitions, hostProfiles] = await Promise.all([
+        storage.getCompetitions(),
+        storage.getHostProfiles(),
+      ]);
+
+      const activeComps = competitions.filter(c => c.status !== "draft");
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>${baseUrl}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
-  <url><loc>${baseUrl}/thequest</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
-  <url><loc>${baseUrl}/thequest/competitions</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
-  <url><loc>${baseUrl}/thequest/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url><loc>${baseUrl}/</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>${baseUrl}/thequest</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>${baseUrl}/thequest/competitions</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>
   <url><loc>${baseUrl}/thequest/nominate</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>${baseUrl}/thequest/host</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>${baseUrl}/thequest/login</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`;
+  <url><loc>${baseUrl}/thequest/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>`;
 
-      for (const comp of competitions) {
-        if (comp.status === "draft") continue;
-        const compSlug = `${slugify(comp.title)}-${comp.id}`;
-        xml += `\n  <url><loc>${baseUrl}/competition/${compSlug}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>`;
+      for (const host of hostProfiles) {
+        const hostSlug = slugify(host.stageName || host.displayName);
+        if (!hostSlug) continue;
+        xml += `\n  <url><loc>${baseUrl}/thequest/host/${hostSlug}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`;
       }
 
-      for (const profile of profiles) {
-        if (profile.role === "admin" || profile.role === "host") continue;
-        xml += `\n  <url><loc>${baseUrl}/thequest/talent/${profile.id}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>`;
+      for (const comp of activeComps) {
+        const categorySlug = slugify(comp.category);
+        const compSlug = slugify(comp.title);
+        const compUrl = `${baseUrl}/thequest/${categorySlug}/${compSlug}`;
+        const lastmod = comp.endDate ? new Date(comp.endDate).toISOString().split("T")[0] : today;
+        xml += `\n  <url><loc>${compUrl}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq><priority>0.8</priority>`;
+        if (comp.coverImage) xml += `\n    <image:image><image:loc>${comp.coverImage}</image:loc><image:title>${comp.title.replace(/</g,"&lt;")}</image:title></image:image>`;
+        xml += `\n  </url>`;
+
+        try {
+          const contestants = await storage.getContestantsByCompetition(comp.id);
+          for (const c of contestants) {
+            const profile = c.talentProfile;
+            const talentSlug = slugify(profile.stageName || profile.displayName);
+            if (!talentSlug) continue;
+            const talentUrl = `${baseUrl}/thequest/${categorySlug}/${compSlug}/${talentSlug}`;
+            xml += `\n  <url><loc>${talentUrl}</loc><changefreq>daily</changefreq><priority>0.7</priority>`;
+            if (profile.imageUrls?.[0]) xml += `\n    <image:image><image:loc>${profile.imageUrls[0]}</image:loc><image:title>${(profile.stageName || profile.displayName).replace(/</g,"&lt;")}</image:title></image:image>`;
+            xml += `\n  </url>`;
+          }
+        } catch (_) {}
       }
 
       xml += `\n</urlset>`;
@@ -4200,6 +4231,90 @@ export async function registerRoutes(
   });
 
   const socialCrawlerPattern = /facebookexternalhit|facebot|twitterbot|whatsapp|linkedinbot|slackbot|discordbot|telegrambot|applebot|googlebot|bingbot|yandexbot|pinterestbot|redditbot|rogerbot|embedly|quora|outbrain|vkShare|skypeuripreview|iframely|Slurp/i;
+
+  app.get("/thequest", async (req, res, next) => {
+    try {
+      const ua = req.headers["user-agent"] || "";
+      if (!socialCrawlerPattern.test(ua)) return next();
+
+      const livery = await storage.getLiveryItems?.().catch(() => null);
+      const siteImage = livery?.find?.((i: any) => i.imageKey === "site_favicon")?.imageUrl
+        || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg";
+
+      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const ogTitle = "The Quest — Where Competitions Live | CB Publishing";
+      const ogDescription = "Discover live talent competitions, vote for your favorites, nominate an artist, or host your own event. The Quest is CB Publishing's premier competition and voting platform.";
+      const ogUrl = "https://cbpublishing.live/thequest";
+
+      const ogTags = `
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${escHtml(ogTitle)}" />
+    <meta property="og:description" content="${escHtml(ogDescription)}" />
+    <meta property="og:image" content="${escHtml(siteImage)}" />
+    <meta property="og:url" content="${escHtml(ogUrl)}" />
+    <meta property="og:site_name" content="The Quest | CB Publishing" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escHtml(ogTitle)}" />
+    <meta name="twitter:description" content="${escHtml(ogDescription)}" />
+    <meta name="twitter:image" content="${escHtml(siteImage)}" />
+    <meta name="description" content="${escHtml(ogDescription)}" />
+    <title>${escHtml(ogTitle)}</title>`;
+
+      const clientTemplate = path.resolve(process.cwd(), "client", "index.html");
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(/<title>.*?<\/title>/, ogTags);
+      res.status(200).set({ "Content-Type": "text/html" }).end(template);
+    } catch (error) {
+      console.error("The Quest OG meta injection error:", error);
+      next();
+    }
+  });
+
+  app.get("/thequest/host/:hostSlug", async (req, res, next) => {
+    try {
+      const ua = req.headers["user-agent"] || "";
+      if (!socialCrawlerPattern.test(ua)) return next();
+
+      const { hostSlug } = req.params;
+      const hostProfiles = await storage.getHostProfiles();
+      const host = hostProfiles.find((p: any) =>
+        slugify(p.displayName) === hostSlug || (p.stageName && slugify(p.stageName) === hostSlug)
+      );
+      if (!host) return next();
+
+      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const hostName = host.stageName || host.displayName;
+      const ogTitle = `${hostName} | Host on The Quest — CB Publishing`;
+      const ogDescription = host.bio
+        ? host.bio.slice(0, 200)
+        : `${hostName} hosts competitions on The Quest — CB Publishing's talent competition and voting platform. Browse their events and vote for your favorites.`;
+      const ogImage = host.profileImageUrl
+        || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg";
+      const ogUrl = `https://cbpublishing.live/thequest/host/${hostSlug}`;
+
+      const ogTags = `
+    <meta property="og:type" content="profile" />
+    <meta property="og:title" content="${escHtml(ogTitle)}" />
+    <meta property="og:description" content="${escHtml(ogDescription)}" />
+    <meta property="og:image" content="${escHtml(ogImage)}" />
+    <meta property="og:url" content="${escHtml(ogUrl)}" />
+    <meta property="og:site_name" content="The Quest | CB Publishing" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escHtml(ogTitle)}" />
+    <meta name="twitter:description" content="${escHtml(ogDescription)}" />
+    <meta name="twitter:image" content="${escHtml(ogImage)}" />
+    <meta name="description" content="${escHtml(ogDescription)}" />
+    <title>${escHtml(ogTitle)}</title>`;
+
+      const clientTemplate = path.resolve(process.cwd(), "client", "index.html");
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(/<title>.*?<\/title>/, ogTags);
+      res.status(200).set({ "Content-Type": "text/html" }).end(template);
+    } catch (error) {
+      console.error("Host OG meta injection error:", error);
+      next();
+    }
+  });
 
   app.get("/competition/:slug", async (req, res, next) => {
     try {
