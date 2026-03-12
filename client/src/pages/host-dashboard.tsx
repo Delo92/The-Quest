@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useMemo } from "react";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
+import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 
 interface HostStats {
@@ -324,14 +325,57 @@ export default function HostDashboard({ user }: { user: any }) {
     },
   });
 
+  const isVideoFile = (file: File) =>
+    file.type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv|m4v)$/i.test(file.name);
+
   const coverUploadMutation = useMutation({
     mutationFn: async ({ id, file }: { id: number; file: File }) => {
+      const token = getAuthToken();
+      const authHeaders: Record<string, string> = {};
+      if (token) authHeaders["Authorization"] = `Bearer ${token}`;
+
+      if (isVideoFile(file)) {
+        const ticketRes = await fetch(`/api/host/competitions/${id}/cover-vimeo-ticket`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ fileSize: file.size }),
+        });
+        if (!ticketRes.ok) {
+          const err = await ticketRes.json();
+          throw new Error(err.message || "Failed to create upload ticket");
+        }
+        const ticket = await ticketRes.json();
+
+        await new Promise<void>((resolve, reject) => {
+          const upload = new tus.Upload(file, {
+            uploadUrl: ticket.uploadLink,
+            onError: (error) => reject(new Error(error.message || "Upload failed")),
+            onSuccess: () => resolve(),
+          });
+          upload.start();
+        });
+
+        if (ticket.completeUri) {
+          try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
+        }
+
+        const videoId = ticket.videoUri.replace("/videos/", "");
+        const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+
+        const saveRes = await fetch(`/api/host/competitions/${id}/cover-video-url`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ videoUrl: playerUrl }),
+        });
+        if (!saveRes.ok) throw new Error("Failed to save cover video URL");
+        return saveRes.json();
+      }
+
       const formData = new FormData();
       formData.append("cover", file);
-      const token = getAuthToken();
       const res = await fetch(`/api/host/competitions/${id}/cover`, {
         method: "PUT",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: authHeaders,
         body: formData,
       });
       if (!res.ok) {
@@ -342,7 +386,7 @@ export default function HostDashboard({ user }: { user: any }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/host/competitions"] });
-      toast({ title: "Cover image updated" });
+      toast({ title: "Cover updated!" });
     },
     onError: (err: Error) => {
       toast({ title: "Failed to upload cover", description: err.message, variant: "destructive" });

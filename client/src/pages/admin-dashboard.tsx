@@ -23,6 +23,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Competition, SiteLivery } from "@shared/schema";
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
+import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 
@@ -641,6 +642,10 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [liverySubTab, setLiverySubTab] = useState<"cbpublishing" | "thequest">("cbpublishing");
   const [cbpColorInput, setCbpColorInput] = useState("");
   const [questColorInput, setQuestColorInput] = useState("");
+  const [liveryVideoUploading, setLiveryVideoUploading] = useState<string | null>(null);
+  const [liveryVideoProgress, setLiveryVideoProgress] = useState(0);
+  const [coverVideoUploading, setCoverVideoUploading] = useState<number | null>(null);
+  const [coverVideoProgress, setCoverVideoProgress] = useState(0);
 
   const addCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; description: string }) => {
@@ -855,15 +860,63 @@ export default function AdminDashboard({ user }: { user: any }) {
 
   const uploadCoverMutation = useMutation({
     mutationFn: async ({ compId, file }: { compId: number; file: File }) => {
+      const token = getAuthToken();
+      const authHeaders: Record<string, string> = {};
+      if (token) authHeaders["Authorization"] = `Bearer ${token}`;
+
+      if (isVideoFile(file)) {
+        setCoverVideoUploading(compId);
+        setCoverVideoProgress(0);
+        try {
+          const ticketRes = await fetch(`/api/admin/competitions/${compId}/cover-vimeo-ticket`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders },
+            body: JSON.stringify({ fileSize: file.size }),
+          });
+          if (!ticketRes.ok) {
+            const err = await ticketRes.json();
+            throw new Error(err.message || "Failed to create upload ticket");
+          }
+          const ticket = await ticketRes.json();
+
+          await new Promise<void>((resolve, reject) => {
+            const upload = new tus.Upload(file, {
+              uploadUrl: ticket.uploadLink,
+              onError: (error) => reject(new Error(error.message || "Upload failed")),
+              onProgress: (bytesUploaded, bytesTotal) => {
+                setCoverVideoProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+              },
+              onSuccess: () => resolve(),
+            });
+            upload.start();
+          });
+
+          if (ticket.completeUri) {
+            try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
+          }
+
+          const videoId = ticket.videoUri.replace("/videos/", "");
+          const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+
+          const saveRes = await fetch(`/api/admin/competitions/${compId}/cover-video-url`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", ...authHeaders },
+            body: JSON.stringify({ videoUrl: playerUrl }),
+          });
+          if (!saveRes.ok) throw new Error("Failed to save cover video URL");
+          return saveRes.json();
+        } finally {
+          setCoverVideoUploading(null);
+          setCoverVideoProgress(0);
+        }
+      }
+
       const formData = new FormData();
       formData.append("cover", file);
-      const token = getAuthToken();
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`/api/admin/competitions/${compId}/cover`, {
         method: "PUT",
         body: formData,
-        headers,
+        headers: authHeaders,
       });
       if (!res.ok) {
         const err = await res.json();
@@ -882,15 +935,53 @@ export default function AdminDashboard({ user }: { user: any }) {
 
   const uploadCategoryMediaMutation = useMutation({
     mutationFn: async ({ categoryId, file }: { categoryId: string; file: File }) => {
+      const token = getAuthToken();
+      const authHeaders: Record<string, string> = {};
+      if (token) authHeaders["Authorization"] = `Bearer ${token}`;
+
+      if (isVideoFile(file)) {
+        const ticketRes = await fetch(`/api/admin/categories/${categoryId}/vimeo-ticket`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ fileSize: file.size }),
+        });
+        if (!ticketRes.ok) {
+          const err = await ticketRes.json();
+          throw new Error(err.message || "Failed to create upload ticket");
+        }
+        const ticket = await ticketRes.json();
+
+        await new Promise<void>((resolve, reject) => {
+          const upload = new tus.Upload(file, {
+            uploadUrl: ticket.uploadLink,
+            onError: (error) => reject(new Error(error.message || "Upload failed")),
+            onSuccess: () => resolve(),
+          });
+          upload.start();
+        });
+
+        if (ticket.completeUri) {
+          try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
+        }
+
+        const videoId = ticket.videoUri.replace("/videos/", "");
+        const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+
+        const saveRes = await fetch(`/api/admin/categories/${categoryId}/video-url`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ videoUrl: playerUrl }),
+        });
+        if (!saveRes.ok) throw new Error("Failed to save category video URL");
+        return saveRes.json();
+      }
+
       const formData = new FormData();
       formData.append("file", file);
-      const token = getAuthToken();
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`/api/admin/categories/${categoryId}/media`, {
         method: "PUT",
         body: formData,
-        headers,
+        headers: authHeaders,
       });
       if (!res.ok) {
         const err = await res.json();
@@ -1102,8 +1193,68 @@ export default function AdminDashboard({ user }: { user: any }) {
     },
   });
 
-  const handleFileSelect = (imageKey: string, file: File) => {
-    uploadLiveryMutation.mutate({ imageKey, file });
+  const isVideoFile = (file: File) =>
+    file.type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv|m4v)$/i.test(file.name);
+
+  const handleFileSelect = async (imageKey: string, file: File) => {
+    if (isVideoFile(file)) {
+      setLiveryVideoUploading(imageKey);
+      setLiveryVideoProgress(0);
+      try {
+        const token = getAuthToken();
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const ticketRes = await fetch(`/api/admin/livery/${imageKey}/vimeo-ticket`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ fileSize: file.size }),
+        });
+        if (!ticketRes.ok) {
+          const err = await ticketRes.json();
+          throw new Error(err.message || "Failed to create upload ticket");
+        }
+        const ticket = await ticketRes.json();
+
+        await new Promise<void>((resolve, reject) => {
+          const upload = new tus.Upload(file, {
+            uploadUrl: ticket.uploadLink,
+            onError: (error) => reject(new Error(error.message || "Upload failed")),
+            onProgress: (bytesUploaded, bytesTotal) => {
+              setLiveryVideoProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+            },
+            onSuccess: () => resolve(),
+          });
+          upload.start();
+        });
+
+        if (ticket.completeUri) {
+          try {
+            await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" });
+          } catch {}
+        }
+
+        const videoId = ticket.videoUri.replace("/videos/", "");
+        const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+
+        const urlRes = await fetch(`/api/admin/livery/${imageKey}/url`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ url: playerUrl }),
+        });
+        if (!urlRes.ok) throw new Error("Failed to save video URL");
+
+        queryClient.invalidateQueries({ queryKey: ["/api/livery"] });
+        toast({ title: "Video uploaded to Vimeo!" });
+      } catch (err: any) {
+        toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+      } finally {
+        setLiveryVideoUploading(null);
+        setLiveryVideoProgress(0);
+      }
+    } else {
+      uploadLiveryMutation.mutate({ imageKey, file });
+    }
   };
 
   const pending = allContestants?.filter((c) => c.applicationStatus === "pending") || [];
@@ -1705,11 +1856,15 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Button
                           size="sm"
                           onClick={() => fileInputRefs.current[item.imageKey]?.click()}
-                          disabled={uploadLiveryMutation.isPending}
+                          disabled={uploadLiveryMutation.isPending || liveryVideoUploading === item.imageKey}
                           className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-xs"
                           data-testid={`button-upload-${item.imageKey}`}
                         >
-                          <Upload className="h-3 w-3 mr-1" /> Upload
+                          {liveryVideoUploading === item.imageKey ? (
+                            <><Video className="h-3 w-3 mr-1 animate-pulse" /> {liveryVideoProgress}%</>
+                          ) : (
+                            <><Upload className="h-3 w-3 mr-1" /> Upload</>
+                          )}
                         </Button>
                         {isHomepageSlot && (
                           <Button

@@ -252,6 +252,56 @@ export function getVideoEmbedUrl(video: VimeoVideo): string {
   return video.player_embed_url || "";
 }
 
+// Admin10151992 folder (The Quest > Admin10151992, folder ID 28559983)
+const ADMIN_FOLDER_URI = "/me/projects/28559983";
+
+export async function createAdminLiveryUploadTicket(
+  label: string,
+  fileSize: number
+): Promise<{ uploadLink: string; videoUri: string; completeUri: string }> {
+  const data = await vimeoRequest("/me/videos", {
+    method: "POST",
+    body: JSON.stringify({
+      upload: { approach: "tus", size: fileSize },
+      name: label,
+      folder_uri: ADMIN_FOLDER_URI,
+    }),
+  });
+  return {
+    uploadLink: data.upload.upload_link,
+    videoUri: data.uri,
+    completeUri: data.upload.complete_uri || "",
+  };
+}
+
+export async function createCompetitionCoverUploadTicket(
+  competitionName: string,
+  fileSize: number
+): Promise<{ uploadLink: string; videoUri: string; completeUri: string }> {
+  let folderUri: string | undefined;
+  try {
+    const folder = await getCompetitionFolder(competitionName);
+    folderUri = folder.uri;
+  } catch (err: any) {
+    console.warn("Could not find/create competition folder for cover:", err.message);
+  }
+  const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  const body: any = {
+    upload: { approach: "tus", size: fileSize },
+    name: `${safeName} - Cover`,
+  };
+  if (folderUri) body.folder_uri = folderUri;
+  const data = await vimeoRequest("/me/videos", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return {
+    uploadLink: data.upload.upload_link,
+    videoUri: data.uri,
+    completeUri: data.upload.complete_uri || "",
+  };
+}
+
 export async function getVimeoStorageUsage(): Promise<{
   usedGB: number;
   totalGB: number;

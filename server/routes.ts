@@ -58,6 +58,8 @@ import {
   getCompetitionFolder,
   getTalentFolderInCompetition,
   getVimeoStorageUsage,
+  createAdminLiveryUploadTicket,
+  createCompetitionCoverUploadTicket,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -1144,6 +1146,37 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/host/competitions/:id/cover-vimeo-ticket", firebaseAuth, requireHost, async (req, res) => {
+    try {
+      const { uid } = req.firebaseUser!;
+      const id = parseInt(req.params.id);
+      const { fileSize } = req.body;
+      if (!fileSize) return res.status(400).json({ message: "fileSize is required" });
+      const comp = await storage.getCompetition(id);
+      if (!comp || comp.createdBy !== uid) return res.status(403).json({ message: "Not your competition" });
+      const ticket = await createCompetitionCoverUploadTicket(comp.title, fileSize);
+      res.json(ticket);
+    } catch (error: any) {
+      console.error("Host cover Vimeo ticket error:", error);
+      res.status(500).json({ message: "Failed to create upload ticket: " + error.message });
+    }
+  });
+
+  app.patch("/api/host/competitions/:id/cover-video-url", firebaseAuth, requireHost, async (req, res) => {
+    try {
+      const { uid } = req.firebaseUser!;
+      const id = parseInt(req.params.id);
+      const { videoUrl } = req.body;
+      if (!videoUrl) return res.status(400).json({ message: "videoUrl is required" });
+      const comp = await storage.getCompetition(id);
+      if (!comp || comp.createdBy !== uid) return res.status(403).json({ message: "Not your competition" });
+      const updated = await storage.updateCompetition(id, { coverVideo: videoUrl, coverImage: null });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update cover video" });
+    }
+  });
+
   app.delete("/api/host/competitions/:id", firebaseAuth, requireHost, async (req, res) => {
     const { uid } = req.firebaseUser!;
     const id = parseInt(req.params.id);
@@ -1547,6 +1580,34 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Cover upload error:", error);
       res.status(500).json({ message: "Failed to upload cover" });
+    }
+  });
+
+  app.post("/api/admin/competitions/:id/cover-vimeo-ticket", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { fileSize } = req.body;
+      if (!fileSize) return res.status(400).json({ message: "fileSize is required" });
+      const comp = await storage.getCompetition(id);
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const ticket = await createCompetitionCoverUploadTicket(comp.title, fileSize);
+      res.json(ticket);
+    } catch (error: any) {
+      console.error("Admin cover Vimeo ticket error:", error);
+      res.status(500).json({ message: "Failed to create upload ticket: " + error.message });
+    }
+  });
+
+  app.patch("/api/admin/competitions/:id/cover-video-url", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { videoUrl } = req.body;
+      if (!videoUrl) return res.status(400).json({ message: "videoUrl is required" });
+      const updated = await storage.updateCompetition(id, { coverVideo: videoUrl, coverImage: null });
+      if (!updated) return res.status(404).json({ message: "Competition not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update cover video" });
     }
   });
 
@@ -2130,6 +2191,36 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Category media upload error:", error);
       res.status(500).json({ message: "Failed to upload category media" });
+    }
+  });
+
+  app.post("/api/admin/categories/:id/vimeo-ticket", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { fileSize } = req.body;
+      if (!fileSize) return res.status(400).json({ message: "fileSize is required" });
+      const category = await firestoreCategories.get(id);
+      if (!category) return res.status(404).json({ message: "Category not found" });
+      const label = `The Quest - ${category.name || id} Category`;
+      const ticket = await createAdminLiveryUploadTicket(label, fileSize);
+      res.json(ticket);
+    } catch (error: any) {
+      console.error("Category Vimeo ticket error:", error);
+      res.status(500).json({ message: "Failed to create upload ticket: " + error.message });
+    }
+  });
+
+  app.patch("/api/admin/categories/:id/video-url", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { videoUrl } = req.body;
+      if (!videoUrl) return res.status(400).json({ message: "videoUrl is required" });
+      const category = await firestoreCategories.get(id);
+      if (!category) return res.status(404).json({ message: "Category not found" });
+      const updated = await firestoreCategories.update(id, { videoUrl, imageUrl: null });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to update category video" });
     }
   });
 
@@ -3119,6 +3210,22 @@ export async function registerRoutes(
 
     const updated = await storage.updateLiveryImage(imageKey, imageUrl, mediaType);
     res.json(updated);
+  });
+
+  app.post("/api/admin/livery/:imageKey/vimeo-ticket", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { imageKey } = req.params;
+      const { fileSize } = req.body;
+      if (!fileSize) return res.status(400).json({ message: "fileSize is required" });
+      const existing = await storage.getLiveryByKey(imageKey);
+      if (!existing) return res.status(404).json({ message: "Livery item not found" });
+      const label = (existing as any).label || imageKey;
+      const ticket = await createAdminLiveryUploadTicket(label, fileSize);
+      res.json(ticket);
+    } catch (error: any) {
+      console.error("Admin livery Vimeo ticket error:", error);
+      res.status(500).json({ message: "Failed to create upload ticket: " + error.message });
+    }
   });
 
   app.put("/api/admin/livery/:imageKey/url", firebaseAuth, requireAdmin, async (req, res) => {
