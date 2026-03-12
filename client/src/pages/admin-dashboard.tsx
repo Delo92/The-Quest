@@ -1831,10 +1831,11 @@ export default function AdminDashboard({ user }: { user: any }) {
                         }}
                       />
                     ) : (
-                      <Input
+                      <Textarea
                         key={`${item.imageKey}-${currentText}`}
                         defaultValue={currentText}
-                        className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1"
+                        rows={1}
+                        className="bg-zinc-800 border-white/25 text-white text-xs mb-1 resize-y min-h-[32px]"
                         data-testid={`textarea-livery-${item.imageKey}`}
                         onBlur={(e) => {
                           const newText = e.target.value.trim();
