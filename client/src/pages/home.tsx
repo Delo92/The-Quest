@@ -82,7 +82,7 @@ export default function HomePage() {
 
   useEffect(() => {
     document.title = getText("home_hero_title", "CB Publishing") + " — Entertainment. Competition. Community.";
-    return () => { document.title = "The Quest - Talent Competition Platform"; };
+    return () => { document.title = "CB Publishing | Community. Brand. Entertainment"; };
   }, []);
 
   const heroTitle = getText("home_hero_title", "CB Publishing");
