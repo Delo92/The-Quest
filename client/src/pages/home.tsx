@@ -127,7 +127,8 @@ export default function HomePage() {
         mode="bg"
         className="grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
       />
-      <div className="absolute inset-0 cbp-feat-overlay opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-10">
+      <div className="absolute inset-0 cbp-feat-overlay group-hover:opacity-0 transition-opacity duration-500 z-[5]" />
+      <div className="absolute inset-0 flex items-center justify-center z-10 translate-y-0 group-hover:translate-y-full transition-transform duration-500">
         <div className="text-center text-white px-4">
           <h2 className="text-xl md:text-2xl font-bold uppercase mb-2">{title}</h2>
           <p className="text-sm text-white/80">{subtitle}</p>
