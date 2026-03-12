@@ -55,7 +55,7 @@ export default function SiteFooter() {
         </p>
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 border-t border-white/5 pt-4">
-        <p className="text-[10px] text-white/20 text-center" data-testid="text-designed-by">Designed by : Oraginal Concepts</p>
+        <p className="text-[10px] text-white/20 text-center" data-testid="text-designed-by">Designed by : <a href="https://oraginalconcepts.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/40 transition-colors">Oraginal Concepts</a></p>
       </div>
     </footer>
   );
