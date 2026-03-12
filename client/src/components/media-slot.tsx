@@ -8,9 +8,10 @@ interface MediaSlotProps {
   className?: string;
   mode?: "img" | "bg";
   clickToUnmute?: boolean;
+  muteButtonClassName?: string;
 }
 
-export default function MediaSlot({ url, alt = "", className = "", mode = "img", clickToUnmute = false }: MediaSlotProps) {
+export default function MediaSlot({ url, alt = "", className = "", mode = "img", clickToUnmute = false, muteButtonClassName }: MediaSlotProps) {
   const type = detectMediaType(url);
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -97,7 +98,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
           {videoEl}
           <button
             onClick={handleUnmuteClick}
-            className="absolute bottom-20 right-6 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-all duration-200 backdrop-blur-sm border border-white/20"
+            className={muteButtonClassName ?? "absolute bottom-20 right-6 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-all duration-200 backdrop-blur-sm border border-white/20"}
             title={muted ? "Unmute" : "Mute"}
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -148,7 +149,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
           />
           <button
             onClick={handleUnmuteClick}
-            className="absolute bottom-20 right-6 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-all duration-200 backdrop-blur-sm border border-white/20"
+            className={muteButtonClassName ?? "absolute bottom-20 right-6 z-20 bg-black/50 hover:bg-black/70 text-white rounded-full p-2.5 transition-all duration-200 backdrop-blur-sm border border-white/20"}
             title={muted ? "Unmute" : "Mute"}
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}

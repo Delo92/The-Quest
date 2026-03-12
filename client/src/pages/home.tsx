@@ -125,6 +125,8 @@ export default function HomePage() {
         url={url}
         alt={title}
         mode="bg"
+        clickToUnmute
+        muteButtonClassName="absolute bottom-3 right-3 z-30 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-all duration-200 backdrop-blur-sm border border-white/20"
         className="grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
       />
       <div className="absolute inset-0 cbp-feat-overlay group-hover:opacity-0 transition-opacity duration-500 z-[5]" />
