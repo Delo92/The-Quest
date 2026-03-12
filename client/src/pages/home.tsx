@@ -155,7 +155,7 @@ export default function HomePage() {
       {/* Hero / Banner */}
       <section
         id="home"
-        className="relative min-h-screen flex items-end justify-center overflow-hidden pb-32"
+        className="relative min-h-screen flex items-end justify-center overflow-hidden pb-16 sm:pb-32"
       >
         <MediaSlot url={bannerBg} alt="Hero background" mode="bg" clickToUnmute />
         <div className="absolute inset-0 bg-black/60 z-[1]" />

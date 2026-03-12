@@ -141,7 +141,18 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
             ref={iframeRef}
             src={src}
             className={className}
-            style={{ ...bgStyle, pointerEvents: "none" }}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              minWidth: "100%",
+              minHeight: "100%",
+              width: "177.78vh",
+              height: "56.25vw",
+              transform: "translate(-50%, -50%)",
+              border: "none",
+              pointerEvents: "none",
+            }}
             allow="autoplay; encrypted-media"
             allowFullScreen
             title={alt || "Vimeo video"}
@@ -158,11 +169,23 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
     }
 
     const src = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=1`;
+    const vimeoBgCoverStyle: React.CSSProperties = mode === "bg" ? {
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      minWidth: "100%",
+      minHeight: "100%",
+      width: "177.78vh",
+      height: "56.25vw",
+      transform: "translate(-50%, -50%)",
+      border: "none",
+      pointerEvents: "none",
+    } : {};
     return (
       <iframe
         src={src}
         className={className}
-        style={{ ...bgStyle, pointerEvents: mode === "bg" ? "none" : "auto" }}
+        style={vimeoBgCoverStyle}
         allow="autoplay; encrypted-media"
         allowFullScreen
         title={alt || "Vimeo video"}
