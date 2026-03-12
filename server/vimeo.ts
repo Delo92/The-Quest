@@ -86,12 +86,12 @@ export async function findOrCreateFolder(name: string, parentUri?: string): Prom
   return created;
 }
 
-export async function getHiFitCompFolder(): Promise<VimeoFolder> {
-  return findOrCreateFolder("HiFitComp");
+export async function getRootFolder(): Promise<VimeoFolder> {
+  return findOrCreateFolder("The Quest");
 }
 
 export async function getCompetitionFolder(competitionName: string): Promise<VimeoFolder> {
-  const root = await getHiFitCompFolder();
+  const root = await getRootFolder();
   const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   return findOrCreateFolder(safeName, root.uri);
 }
@@ -134,7 +134,7 @@ export async function listTalentVideos(competitionName: string, talentName: stri
 export async function listAllTalentVideos(talentName: string): Promise<(VimeoVideo & { competitionFolder: string })[]> {
   const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   try {
-    const root = await getHiFitCompFolder();
+    const root = await getRootFolder();
     const listPath = `${root.uri}/items?type=folder&per_page=100`;
     const data = await vimeoRequest(listPath);
     const compFolders = data.data || [];
@@ -272,7 +272,7 @@ export async function getVimeoStorageUsage(): Promise<{
       totalGB = Math.round(((quota.space.max || 0) / (1024 * 1024 * 1024)) * 100) / 100;
     }
 
-    const root = await getHiFitCompFolder();
+    const root = await getRootFolder();
     const listPath = `${root.uri}/items?type=folder&per_page=100`;
     const data = await vimeoRequest(listPath);
     const compFolders = data.data || [];
