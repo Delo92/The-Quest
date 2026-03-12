@@ -92,8 +92,10 @@ export default function SiteNavbar() {
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? "bg-black/95 backdrop-blur-sm" : "bg-transparent"}`}
       data-testid="site-navbar"
     >
-      <div className="flex items-center justify-center h-7 bg-black/60 backdrop-blur-sm border-b border-white/5">
+      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-7 bg-black/60 backdrop-blur-sm border-b border-white/5 max-w-7xl mx-auto w-full">
+        <a href="/" className="text-white/40 text-[10px] uppercase tracking-widest hover:text-white/70 transition-colors">← CB Publishing</a>
         <LiveVoteCounter />
+        <div className="w-24" />
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-20">
         <Link href="/" className="flex items-center gap-3" data-testid="link-home">

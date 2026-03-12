@@ -634,7 +634,7 @@ export async function registerRoutes(
       const categorySlug = slugify(comp.category);
       const compSlug = slugify(comp.title);
       const baseUrl = process.env.BASE_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host || "thequest-2dc77.firebaseapp.com"}`;
-      const votingUrl = `${baseUrl}/${categorySlug}/${compSlug}?source=in_person`;
+      const votingUrl = `${baseUrl}/thequest/${categorySlug}/${compSlug}?source=in_person`;
 
       const format = (req.query.format as string) || "png";
 
@@ -3680,11 +3680,12 @@ export async function registerRoutes(
       let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>${baseUrl}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
-  <url><loc>${baseUrl}/competitions</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
-  <url><loc>${baseUrl}/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>${baseUrl}/join</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>${baseUrl}/host</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>${baseUrl}/login</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`;
+  <url><loc>${baseUrl}/thequest</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>${baseUrl}/thequest/competitions</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>${baseUrl}/thequest/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>${baseUrl}/thequest/nominate</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>${baseUrl}/thequest/host</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>${baseUrl}/thequest/login</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`;
 
       for (const comp of competitions) {
         if (comp.status === "draft") continue;
@@ -3694,7 +3695,7 @@ export async function registerRoutes(
 
       for (const profile of profiles) {
         if (profile.role === "admin" || profile.role === "host") continue;
-        xml += `\n  <url><loc>${baseUrl}/talent/${profile.id}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>`;
+        xml += `\n  <url><loc>${baseUrl}/thequest/talent/${profile.id}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>`;
       }
 
       xml += `\n</urlset>`;
@@ -4070,7 +4071,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/:categorySlug/:compSlug/:talentSlug", async (req, res, next) => {
+  app.get("/thequest/:categorySlug/:compSlug/:talentSlug", async (req, res, next) => {
     try {
       const { categorySlug, compSlug, talentSlug } = req.params;
       if (categorySlug.startsWith("api") || categorySlug.startsWith("assets") || categorySlug.includes(".")) {
@@ -4097,7 +4098,7 @@ export async function registerRoutes(
       const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on The Quest!`;
       const ogImage = profile.imageUrls?.[0] || comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const ogUrl = `${protocol}://${req.get("host")}/${categorySlug}/${compSlug}/${talentSlug}`;
+      const ogUrl = `${protocol}://${req.get("host")}/thequest/${categorySlug}/${compSlug}/${talentSlug}`;
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -4125,7 +4126,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/:categorySlug/:compSlug", async (req, res, next) => {
+  app.get("/thequest/:categorySlug/:compSlug", async (req, res, next) => {
     try {
       const { categorySlug, compSlug } = req.params;
       if (categorySlug.startsWith("api") || categorySlug.startsWith("assets") || categorySlug.includes(".")) {
@@ -4144,7 +4145,7 @@ export async function registerRoutes(
       const ogDescription = comp.description || `Vote in the ${comp.title} ${comp.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!`;
       const ogImage = comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const ogUrl = `${protocol}://${req.get("host")}/${categorySlug}/${compSlug}`;
+      const ogUrl = `${protocol}://${req.get("host")}/thequest/${categorySlug}/${compSlug}`;
 
       const ogTags = `
     <meta property="og:type" content="website" />
@@ -4170,7 +4171,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/:compSlug/:talentSlug", async (req, res, next) => {
+  app.get("/thequest/:compSlug/:talentSlug", async (req, res, next) => {
     try {
       const { compSlug, talentSlug } = req.params;
       if (compSlug.startsWith("api") || compSlug.startsWith("assets") || compSlug.includes(".")) {
@@ -4205,7 +4206,7 @@ export async function registerRoutes(
       const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on The Quest!`;
       const ogImage = profile.imageUrls?.[0] || comp.coverImage || "";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const ogUrl = `${protocol}://${req.get("host")}/${compSlug}/${talentSlug}`;
+      const ogUrl = `${protocol}://${req.get("host")}/thequest/${compSlug}/${talentSlug}`;
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

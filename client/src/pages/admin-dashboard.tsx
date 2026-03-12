@@ -1642,6 +1642,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                 faqPairs.push([`faq_${i}_q`, `faq_${i}_a`]);
               }
               const groups = [
+                { label: "Home Page (CB Publishing)", keys: ["home_hero_title", "home_hero_subtitle", "home_quote_left", "home_quote_body", "home_about_title", "home_about_body", "home_feature_1_title", "home_feature_1_subtitle", "home_feature_2_title", "home_feature_2_subtitle", "home_feature_3_title", "home_feature_3_subtitle", "home_feature_4_title", "home_feature_4_subtitle", "home_feature_5_title", "home_feature_5_subtitle"], pairs: null },
                 { label: "Hero Section", keys: ["hero_title_top", "hero_title_main", "hero_summary"], pairs: null },
                 { label: "About Page", keys: ["about_rules_text", "about_details_text"], pairs: null },
                 { label: "Contact Info", keys: ["contact_email", "contact_phone", "contact_address"], pairs: null },
@@ -1656,7 +1657,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               const renderField = (item: any) => {
                 const currentText = item.textContent || item.defaultText || "";
                 const isCustomText = !!item.textContent;
-                const shortLabel = item.label.replace(/^(Category |Hero |Social - |About Page - |FAQ \d+ - |Why The Quest - |How It Works - |Step \d+: |Welcome Email - |Purchase Receipt Email - )/, "");
+                const shortLabel = item.label.replace(/^(Home Page - |Category |Hero |Social - |About Page - |FAQ \d+ - |Why The Quest - |How It Works - |Step \d+: |Welcome Email - |Purchase Receipt Email - )/, "");
                 return (
                   <div key={item.imageKey} data-testid={`livery-item-${item.imageKey}`}>
                     <div className="flex items-center justify-between gap-1 mb-1 flex-wrap">

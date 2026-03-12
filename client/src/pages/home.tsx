@@ -1,0 +1,384 @@
+import { useLivery } from "@/hooks/use-livery";
+import { useState, useEffect, useRef } from "react";
+import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin } from "lucide-react";
+
+function HomeNavbar({ scrolled }: { scrolled: boolean }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { getImage } = useLivery();
+
+  return (
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-black/95 shadow-lg" : "bg-transparent"}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
+          <a href="/" className="flex items-center gap-3">
+            <img src={getImage("logo", "/images/template/logo.png")} alt="CB Publishing" className="h-12 sm:h-16" />
+          </a>
+
+          <button
+            className="md:hidden text-white p-2"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+
+          <nav className="hidden md:flex items-center gap-8">
+            <a href="#home" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">Home</a>
+            <a href="#feature" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">Features</a>
+            <a href="#about" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">About</a>
+            <a href="#contact" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">Contact</a>
+          </nav>
+
+          <a
+            href="/thequest"
+            className="hidden md:inline-flex items-center gap-2 bg-[#691cff] text-white font-bold text-sm uppercase tracking-wider px-5 py-2.5 hover:bg-[#5a15e0] transition-colors"
+          >
+            <Trophy className="w-4 h-4" />
+            The Quest
+          </a>
+        </div>
+      </div>
+
+      {menuOpen && (
+        <div className="md:hidden bg-black/95 border-t border-white/10 px-4 py-4 space-y-1">
+          {[["#home", "Home"], ["#feature", "Features"], ["#about", "About"], ["#contact", "Contact"]].map(([href, label]) => (
+            <a key={href} href={href} onClick={() => setMenuOpen(false)}
+              className="block py-2 text-white font-semibold uppercase tracking-wider text-sm hover:text-purple-400">{label}</a>
+          ))}
+          <a href="/thequest" className="block py-2 text-[#691cff] font-bold uppercase tracking-wider text-sm">
+            The Quest →
+          </a>
+        </div>
+      )}
+    </header>
+  );
+}
+
+export default function HomePage() {
+  const { getImage, getText } = useLivery();
+  const [scrolled, setScrolled] = useState(false);
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  useEffect(() => {
+    document.title = getText("home_hero_title", "CB Publishing") + " — Entertainment. Competition. Community.";
+    return () => { document.title = "The Quest - Talent Competition Platform"; };
+  }, []);
+
+  const heroTitle = getText("home_hero_title", "CB Publishing");
+  const heroSubtitle = getText("home_hero_subtitle", "Entertainment. Competition. Community.");
+  const quoteLeft = getText("home_quote_left", "Music gives soul to the universe, wings to the mind, flight to the imagination.");
+  const quoteBody = getText("home_quote_body", "CB Publishing is a creative entertainment company focused on building platforms that connect artists, performers, and audiences. From competition platforms to music promotion, we're building the future of entertainment.");
+  const aboutTitle = getText("home_about_title", "About CB Publishing");
+  const aboutBody = getText("home_about_body", "CB Publishing is an independent entertainment and digital media company. We specialize in creating competition platforms, music promotion, and event management tools that empower artists and audiences alike.\n\nOur properties include The Quest — an online talent competition and voting platform — and more exciting projects in development.");
+
+  const bannerBg = getImage("home_banner_bg", "/images/template/bg-1.jpg");
+  const feat1 = getImage("home_feature_1", "/images/template/breadcumb.jpg");
+  const feat2 = getImage("home_feature_2", "/images/template/breadcumb2.jpg");
+  const feat3 = getImage("home_feature_3", "/images/template/breadcumb3.jpg");
+  const feat4 = getImage("home_feature_4", "/images/template/bg-1.jpg");
+  const feat5 = getImage("home_feature_5", "/images/template/bg-2.jpg");
+  const aboutImg = getImage("home_about_img", "/images/template/bg-2.jpg");
+  const serviceBg = getImage("home_service_bg", "/images/template/breadcumb.jpg");
+  const memberBg = getImage("home_member_bg", "/images/template/bg-1.jpg");
+
+  const feat1Title = getText("home_feature_1_title", "The Quest Finals");
+  const feat1Sub = getText("home_feature_1_subtitle", "Live competition event");
+  const feat2Title = getText("home_feature_2_title", "Music Showcase");
+  const feat2Sub = getText("home_feature_2_subtitle", "Artists on stage");
+  const feat3Title = getText("home_feature_3_title", "Talent Awards");
+  const feat3Sub = getText("home_feature_3_subtitle", "Celebrating excellence");
+  const feat4Title = getText("home_feature_4_title", "Be Unique");
+  const feat4Sub = getText("home_feature_4_subtitle", "Express your talent");
+  const feat5Title = getText("home_feature_5_title", "Rise to the Top");
+  const feat5Sub = getText("home_feature_5_subtitle", "Compete and win");
+
+  const socialFacebook = getText("social_facebook", "");
+  const socialInstagram = getText("social_instagram", "");
+  const socialTwitter = getText("social_twitter", "");
+  const socialYoutube = getText("social_youtube", "");
+
+  const FeatureCard = ({ img, title, subtitle, tall = false }: { img: string; title: string; subtitle: string; tall?: boolean }) => (
+    <div className={`relative overflow-hidden group cursor-pointer ${tall ? "h-72 md:h-80" : "h-56 md:h-64"}`}>
+      <img
+        src={img}
+        alt={title}
+        className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+      />
+      <div className="absolute inset-0 bg-black/60 group-hover:bg-[#691cff]/70 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+        <div className="text-center text-white px-4">
+          <h2 className="text-xl md:text-2xl font-bold uppercase mb-2">{title}</h2>
+          <p className="text-sm text-white/80">{subtitle}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-gray-950 text-gray-300 font-['Poppins',sans-serif] min-h-screen">
+      <HomeNavbar scrolled={scrolled} />
+
+      {/* Hero / Banner */}
+      <section
+        id="home"
+        className="relative min-h-screen flex items-center justify-center"
+        style={{ backgroundImage: `url(${bannerBg})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}
+      >
+        <div className="absolute inset-0 bg-black/60" />
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
+          <h1 className="text-5xl md:text-7xl font-bold uppercase text-white tracking-wider mb-6 drop-shadow-2xl">
+            {heroTitle}
+          </h1>
+          <p className="text-lg md:text-xl uppercase tracking-[0.3em] text-white/70 mb-10">
+            {heroSubtitle}
+          </p>
+          <a
+            href="/thequest"
+            className="inline-flex items-center gap-3 bg-[#691cff] text-white font-bold text-sm uppercase tracking-widest px-8 py-4 hover:bg-[#5a15e0] transition-all duration-300 shadow-xl hover:shadow-[#691cff]/30 hover:shadow-2xl"
+          >
+            <Trophy className="w-5 h-5" />
+            Enter The Quest
+            <ChevronRight className="w-4 h-4" />
+          </a>
+        </div>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <div className="w-6 h-10 border-2 border-white/40 rounded-full flex items-start justify-center pt-2">
+            <div className="w-1 h-3 bg-white/60 rounded-full" />
+          </div>
+        </div>
+      </section>
+
+      {/* Quote Section */}
+      <section className="py-20 bg-gray-950">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="text-right">
+              <h2 className="text-2xl md:text-3xl font-bold text-white leading-relaxed">
+                {quoteLeft.split(",").map((part, i, arr) => (
+                  <span key={i}>
+                    {i === 0 ? <span className="text-[#691cff]">{part}</span> : part}
+                    {i < arr.length - 1 ? "," : ""}
+                    {i < arr.length - 1 ? <br /> : ""}
+                  </span>
+                ))}
+              </h2>
+            </div>
+            <div>
+              <p className="text-gray-400 leading-relaxed text-base">{quoteBody}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature / Image Grid */}
+      <section id="feature" className="bg-black">
+        <div className="grid grid-cols-1 md:grid-cols-3">
+          <FeatureCard img={feat1} title={feat1Title} subtitle={feat1Sub} tall />
+          <FeatureCard img={feat2} title={feat2Title} subtitle={feat2Sub} tall />
+          <FeatureCard img={feat3} title={feat3Title} subtitle={feat3Sub} tall />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          <FeatureCard img={feat4} title={feat4Title} subtitle={feat4Sub} />
+          <FeatureCard img={feat5} title={feat5Title} subtitle={feat5Sub} />
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-20 bg-gray-950">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="relative">
+              <img src={aboutImg} alt="About" className="w-full h-80 md:h-96 object-cover" />
+              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[#691cff] hidden md:block" />
+            </div>
+            <div>
+              <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">Who We Are</span>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">{aboutTitle}</h2>
+              {aboutBody.split("\n\n").map((para, i) => (
+                <p key={i} className="text-gray-400 mb-4 leading-relaxed">{para}</p>
+              ))}
+              <a
+                href="/thequest"
+                className="inline-flex items-center gap-2 text-[#691cff] font-bold text-sm uppercase tracking-wider hover:text-white transition-colors mt-4"
+              >
+                Explore The Quest <ChevronRight className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Our Properties / Services */}
+      <section
+        className="py-20 relative"
+        style={{ backgroundImage: `url(${serviceBg})`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}
+      >
+        <div className="absolute inset-0 bg-black/80" />
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">What We Build</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-white">Our Properties</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <a href="/thequest" className="group block bg-white/5 border border-white/10 p-8 hover:bg-[#691cff]/20 hover:border-[#691cff]/50 transition-all duration-300">
+              <Trophy className="w-10 h-10 text-[#691cff] mb-5" />
+              <h3 className="text-xl font-bold text-white mb-3">The Quest</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Online talent competition and voting platform. Music, modeling, bodybuilding, dance — compete for public votes and win.</p>
+              <span className="inline-flex items-center gap-1 text-[#691cff] text-sm font-bold mt-5 group-hover:gap-2 transition-all">Enter <ChevronRight className="w-4 h-4" /></span>
+            </a>
+            <div className="bg-white/5 border border-white/10 p-8">
+              <Music className="w-10 h-10 text-[#691cff] mb-5" />
+              <h3 className="text-xl font-bold text-white mb-3">Music Promotion</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Artist discovery and promotion services. Get your music in front of audiences that matter.</p>
+              <span className="inline-flex items-center gap-1 text-gray-500 text-sm font-bold mt-5">Coming Soon</span>
+            </div>
+            <div className="bg-white/5 border border-white/10 p-8">
+              <Star className="w-10 h-10 text-[#691cff] mb-5" />
+              <h3 className="text-xl font-bold text-white mb-3">Events</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Live event management, production, and promotion for entertainment brands and independent artists.</p>
+              <span className="inline-flex items-center gap-1 text-gray-500 text-sm font-bold mt-5">Coming Soon</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Members / Featured Artists */}
+      <section
+        className="py-20 relative"
+        style={{ backgroundImage: `url(${memberBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
+      >
+        <div className="absolute inset-0 bg-black/75" />
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">Join Us</span>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to Compete?</h2>
+          <p className="text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            The Quest is open to all talent. Apply as a competitor, rally votes from your fans, and win. No gatekeepers — just the public vote.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <a href="/thequest/nominate" className="inline-flex items-center gap-2 bg-[#691cff] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[#5a15e0] transition-colors">
+              <Users className="w-4 h-4" />
+              Nominate Someone
+            </a>
+            <a href="/thequest/competitions" className="inline-flex items-center gap-2 border border-white/30 text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:border-[#691cff] hover:text-[#691cff] transition-colors">
+              Browse Competitions
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-20 bg-gray-950">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">Get In Touch</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-white">Contact Us</h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <Mail className="w-5 h-5 text-[#691cff] mt-1 shrink-0" />
+                <div>
+                  <h4 className="text-white font-semibold mb-1">Email</h4>
+                  <a href={`mailto:${getText("contact_email", "admin@thequest.com")}`} className="text-gray-400 hover:text-[#691cff] transition-colors text-sm">
+                    {getText("contact_email", "admin@thequest.com")}
+                  </a>
+                </div>
+              </div>
+              {getText("contact_phone", "") && (
+                <div className="flex items-start gap-4">
+                  <Phone className="w-5 h-5 text-[#691cff] mt-1 shrink-0" />
+                  <div>
+                    <h4 className="text-white font-semibold mb-1">Phone</h4>
+                    <p className="text-gray-400 text-sm">{getText("contact_phone", "")}</p>
+                  </div>
+                </div>
+              )}
+              {getText("contact_address", "") && (
+                <div className="flex items-start gap-4">
+                  <MapPin className="w-5 h-5 text-[#691cff] mt-1 shrink-0" />
+                  <div>
+                    <h4 className="text-white font-semibold mb-1">Address</h4>
+                    <p className="text-gray-400 text-sm">{getText("contact_address", "")}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-4 pt-4">
+                {socialFacebook && <a href={socialFacebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Facebook className="w-4 h-4" /></a>}
+                {socialTwitter && <a href={socialTwitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Twitter className="w-4 h-4" /></a>}
+                {socialInstagram && <a href={socialInstagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Instagram className="w-4 h-4" /></a>}
+                {socialYoutube && <a href={socialYoutube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Youtube className="w-4 h-4" /></a>}
+              </div>
+            </div>
+            <form
+              onSubmit={(e) => e.preventDefault()}
+              className="space-y-4"
+            >
+              <input
+                type="text"
+                placeholder="Your Name"
+                value={formData.name}
+                onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors"
+              />
+              <input
+                type="email"
+                placeholder="Email Address"
+                value={formData.email}
+                onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors"
+              />
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors"
+              />
+              <textarea
+                placeholder="Message"
+                rows={5}
+                value={formData.message}
+                onChange={(e) => setFormData(p => ({ ...p, message: e.target.value }))}
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors resize-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 bg-[#691cff] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[#5a15e0] transition-colors"
+              >
+                Send Message <ChevronRight className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-black py-10 border-t border-white/5">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <p className="text-gray-500 text-sm">
+              &copy; {new Date().getFullYear()} CB Publishing. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6">
+              <a href="/thequest" className="text-gray-500 hover:text-[#691cff] text-sm transition-colors">The Quest</a>
+              <a href="/thequest/about" className="text-gray-500 hover:text-white text-sm transition-colors">About</a>
+              <a href="#contact" className="text-gray-500 hover:text-white text-sm transition-colors">Contact</a>
+            </div>
+          </div>
+          <div className="mt-6 pt-6 border-t border-white/5 text-center">
+            <p className="text-[10px] text-gray-700">
+              Designed by:{" "}
+              <a href="https://oraginalconcepts.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-500 transition-colors">
+                Oraginal Concepts
+              </a>
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
