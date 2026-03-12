@@ -872,9 +872,13 @@ export default function JoinPage() {
         </button>
 
         {needsPayment && (
-          <p className="text-white/30 text-xs text-center mt-4">
-            Payments processed securely via Authorize.Net.
-          </p>
+          <div className="mt-4 space-y-1 text-center">
+            <p className="text-white/30 text-xs">Payments processed securely via Authorize.Net.</p>
+            <p className="text-white/40 text-xs">
+              All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}
+              <a href="/about#terms" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.
+            </p>
+          </div>
         )}
 
         {showConfirmModal && (
