@@ -97,6 +97,7 @@ export async function seedDatabase() {
 const LIVERY_DEFAULTS = [
   { imageKey: "logo", label: "Site Logo", defaultUrl: "/images/template/logo.png" },
   { imageKey: "site_favicon", label: "Site Favicon (Browser Tab Icon)", defaultUrl: "/images/template/favicon.jpeg" },
+  { imageKey: "quest_brand_color", label: "The Quest - Brand Color (hex)", defaultUrl: "", itemType: "text" as const, defaultText: "#f97316" },
   { imageKey: "hero_background", label: "Hero Background (Landing)", defaultUrl: "/images/template/bg-1.jpg" },
   { imageKey: "feature_background", label: "Feature Section Background (Landing)", defaultUrl: "/images/template/bg-2.jpg" },
   { imageKey: "cta_background", label: "Call to Action Background (Landing)", defaultUrl: "/images/template/breadcumb.jpg" },
@@ -189,6 +190,7 @@ const LIVERY_DEFAULTS = [
   { imageKey: "home_about_img", label: "Home Page - About Section Image", defaultUrl: "/images/template/bg-2.jpg" },
   { imageKey: "home_service_bg", label: "Home Page - Services Section Background", defaultUrl: "/images/template/breadcumb.jpg" },
   { imageKey: "home_member_bg", label: "Home Page - Join Section Background", defaultUrl: "/images/template/bg-1.jpg" },
+  { imageKey: "home_brand_color", label: "CB Publishing - Brand Color (hex)", defaultUrl: "", itemType: "text" as const, defaultText: "#691cff" },
   { imageKey: "home_hero_title", label: "Home Page - Hero Title", defaultUrl: "", itemType: "text" as const, defaultText: "CB Publishing" },
   { imageKey: "home_hero_subtitle", label: "Home Page - Hero Subtitle", defaultUrl: "", itemType: "text" as const, defaultText: "Entertainment. Competition. Community." },
   { imageKey: "home_quote_left", label: "Home Page - Quote (Left Side)", defaultUrl: "", itemType: "text" as const, defaultText: "Music gives soul to the universe, wings to the mind, flight to the imagination." },

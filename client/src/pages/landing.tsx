@@ -148,7 +148,7 @@ export default function Landing() {
               </Link>
               <button
                 onClick={() => setShowVotingModal(true)}
-                className="inline-flex items-center gap-1.5 text-white/90 text-xs uppercase tracking-widest transition-colors duration-300 hover:text-[#FF5A09] mt-3"
+                className="inline-flex items-center gap-1.5 text-white/90 text-xs uppercase tracking-widest transition-colors duration-300 hover:text-[var(--quest-brand)] mt-3"
                 data-testid="button-hero-how-voting"
               >
                 <Info className="h-3.5 w-3.5" />
@@ -166,7 +166,7 @@ export default function Landing() {
               </Link>
               <button
                 onClick={() => setShowNominationModal(true)}
-                className="inline-flex items-center gap-1.5 text-white/90 text-xs uppercase tracking-widest transition-colors duration-300 hover:text-[#FF5A09] mt-3"
+                className="inline-flex items-center gap-1.5 text-white/90 text-xs uppercase tracking-widest transition-colors duration-300 hover:text-[var(--quest-brand)] mt-3"
                 data-testid="button-hero-how-nominations"
               >
                 <Info className="h-3.5 w-3.5" />

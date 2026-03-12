@@ -3,6 +3,19 @@ import { useState, useEffect } from "react";
 import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin } from "lucide-react";
 import MediaSlot from "@/components/media-slot";
 
+function darkenHex(hex: string, amount = 0.15): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const f = 1 - amount;
+  return `#${Math.round(r * f).toString(16).padStart(2, "0")}${Math.round(g * f).toString(16).padStart(2, "0")}${Math.round(b * f).toString(16).padStart(2, "0")}`;
+}
+function hexAlpha(hex: string, opacity: number): string {
+  const base = hex.startsWith("#") && hex.length === 7 ? hex : (hex.length === 6 ? `#${hex}` : hex.slice(0, 7));
+  return base + Math.round(opacity * 255).toString(16).padStart(2, "0");
+}
+
 function HomeNavbar({ scrolled }: { scrolled: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { getImage } = useLivery();
@@ -23,15 +36,15 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
           </button>
 
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#home" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">Home</a>
-            <a href="#feature" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">Features</a>
-            <a href="#about" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">About</a>
-            <a href="#contact" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-purple-400 transition-colors">Contact</a>
+            <a href="#home" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Home</a>
+            <a href="#feature" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Features</a>
+            <a href="#about" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">About</a>
+            <a href="#contact" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Contact</a>
           </nav>
 
           <a
             href="/thequest"
-            className="hidden md:inline-flex items-center gap-2 bg-[#691cff] text-white font-bold text-sm uppercase tracking-wider px-5 py-2.5 hover:bg-[#5a15e0] transition-colors"
+            className="hidden md:inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-5 py-2.5 hover:bg-[var(--cbp-brand-dark)] transition-colors"
           >
             <Trophy className="w-4 h-4" />
             The Quest
@@ -43,9 +56,9 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
         <div className="md:hidden bg-black/95 border-t border-white/10 px-4 py-4 space-y-1">
           {[["#home", "Home"], ["#feature", "Features"], ["#about", "About"], ["#contact", "Contact"]].map(([href, label]) => (
             <a key={href} href={href} onClick={() => setMenuOpen(false)}
-              className="block py-2 text-white font-semibold uppercase tracking-wider text-sm hover:text-purple-400">{label}</a>
+              className="block py-2 text-white font-semibold uppercase tracking-wider text-sm hover:text-[var(--cbp-brand)]">{label}</a>
           ))}
-          <a href="/thequest" className="block py-2 text-[#691cff] font-bold uppercase tracking-wider text-sm">
+          <a href="/thequest" className="block py-2 text-[var(--cbp-brand)] font-bold uppercase tracking-wider text-sm">
             The Quest →
           </a>
         </div>
@@ -102,6 +115,7 @@ export default function HomePage() {
   const socialInstagram = getText("social_instagram", "");
   const socialTwitter = getText("social_twitter", "");
   const socialYoutube = getText("social_youtube", "");
+  const brandColor = getText("home_brand_color", "#691cff");
 
   const FeatureCard = ({ url, title, subtitle, tall = false }: { url: string; title: string; subtitle: string; tall?: boolean }) => (
     <div className={`relative overflow-hidden group cursor-pointer ${tall ? "h-72 md:h-80" : "h-56 md:h-64"}`}>
@@ -111,7 +125,7 @@ export default function HomePage() {
         mode="bg"
         className="grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
       />
-      <div className="absolute inset-0 bg-black/60 group-hover:bg-[#691cff]/70 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-10">
+      <div className="absolute inset-0 cbp-feat-overlay opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center z-10">
         <div className="text-center text-white px-4">
           <h2 className="text-xl md:text-2xl font-bold uppercase mb-2">{title}</h2>
           <p className="text-sm text-white/80">{subtitle}</p>
@@ -119,6 +133,18 @@ export default function HomePage() {
       </div>
     </div>
   );
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--cbp-brand", brandColor);
+    root.style.setProperty("--cbp-brand-dark", darkenHex(brandColor));
+    root.style.setProperty("--cbp-feat-overlay-bg", hexAlpha(brandColor, 0.7));
+    return () => {
+      root.style.removeProperty("--cbp-brand");
+      root.style.removeProperty("--cbp-brand-dark");
+      root.style.removeProperty("--cbp-feat-overlay-bg");
+    };
+  }, [brandColor]);
 
   return (
     <div className="bg-gray-950 text-gray-300 font-['Poppins',sans-serif] min-h-screen">
@@ -140,7 +166,7 @@ export default function HomePage() {
           </p>
           <a
             href="/thequest"
-            className="inline-flex items-center gap-3 bg-[#691cff] text-white font-bold text-sm uppercase tracking-widest px-8 py-4 hover:bg-[#5a15e0] transition-all duration-300 shadow-xl hover:shadow-[#691cff]/30 hover:shadow-2xl"
+            className="inline-flex items-center gap-3 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-widest px-8 py-4 hover:bg-[var(--cbp-brand-dark)] transition-all duration-300 shadow-xl hover:shadow-[var(--cbp-brand)]/30 hover:shadow-2xl"
           >
             <Trophy className="w-5 h-5" />
             Enter The Quest
@@ -162,7 +188,7 @@ export default function HomePage() {
               <h2 className="text-2xl md:text-3xl font-bold text-white leading-relaxed">
                 {quoteLeft.split(",").map((part, i, arr) => (
                   <span key={i}>
-                    {i === 0 ? <span className="text-[#691cff]">{part}</span> : part}
+                    {i === 0 ? <span className="text-[var(--cbp-brand)]">{part}</span> : part}
                     {i < arr.length - 1 ? "," : ""}
                     {i < arr.length - 1 ? <br /> : ""}
                   </span>
@@ -197,17 +223,17 @@ export default function HomePage() {
               <div className="w-full h-80 md:h-96 overflow-hidden relative">
                 <MediaSlot url={aboutImg} alt="About CB Publishing" mode="bg" />
               </div>
-              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[#691cff] hidden md:block" />
+              <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-[var(--cbp-brand)] hidden md:block" />
             </div>
             <div>
-              <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">Who We Are</span>
+              <span className="text-[var(--cbp-brand)] text-sm font-bold uppercase tracking-widest mb-3 block">Who We Are</span>
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">{aboutTitle}</h2>
               {aboutBody.split("\n\n").map((para, i) => (
                 <p key={i} className="text-gray-400 mb-4 leading-relaxed">{para}</p>
               ))}
               <a
                 href="/thequest"
-                className="inline-flex items-center gap-2 text-[#691cff] font-bold text-sm uppercase tracking-wider hover:text-white transition-colors mt-4"
+                className="inline-flex items-center gap-2 text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-wider hover:text-white transition-colors mt-4"
               >
                 Explore The Quest <ChevronRight className="w-4 h-4" />
               </a>
@@ -222,24 +248,24 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-black/80 z-[1]" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">What We Build</span>
+            <span className="text-[var(--cbp-brand)] text-sm font-bold uppercase tracking-widest mb-3 block">What We Build</span>
             <h2 className="text-3xl md:text-4xl font-bold text-white">Our Properties</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <a href="/thequest" className="group block bg-white/5 border border-white/10 p-8 hover:bg-[#691cff]/20 hover:border-[#691cff]/50 transition-all duration-300">
-              <Trophy className="w-10 h-10 text-[#691cff] mb-5" />
+            <a href="/thequest" className="group block bg-white/5 border border-white/10 p-8 hover:bg-[var(--cbp-brand)]/20 hover:border-[var(--cbp-brand)]/50 transition-all duration-300">
+              <Trophy className="w-10 h-10 text-[var(--cbp-brand)] mb-5" />
               <h3 className="text-xl font-bold text-white mb-3">The Quest</h3>
               <p className="text-gray-400 text-sm leading-relaxed">Online talent competition and voting platform. Music, modeling, bodybuilding, dance — compete for public votes and win.</p>
-              <span className="inline-flex items-center gap-1 text-[#691cff] text-sm font-bold mt-5 group-hover:gap-2 transition-all">Enter <ChevronRight className="w-4 h-4" /></span>
+              <span className="inline-flex items-center gap-1 text-[var(--cbp-brand)] text-sm font-bold mt-5 group-hover:gap-2 transition-all">Enter <ChevronRight className="w-4 h-4" /></span>
             </a>
             <div className="bg-white/5 border border-white/10 p-8">
-              <Music className="w-10 h-10 text-[#691cff] mb-5" />
+              <Music className="w-10 h-10 text-[var(--cbp-brand)] mb-5" />
               <h3 className="text-xl font-bold text-white mb-3">Music Promotion</h3>
               <p className="text-gray-400 text-sm leading-relaxed">Artist discovery and promotion services. Get your music in front of audiences that matter.</p>
               <span className="inline-flex items-center gap-1 text-gray-500 text-sm font-bold mt-5">Coming Soon</span>
             </div>
             <div className="bg-white/5 border border-white/10 p-8">
-              <Star className="w-10 h-10 text-[#691cff] mb-5" />
+              <Star className="w-10 h-10 text-[var(--cbp-brand)] mb-5" />
               <h3 className="text-xl font-bold text-white mb-3">Events</h3>
               <p className="text-gray-400 text-sm leading-relaxed">Live event management, production, and promotion for entertainment brands and independent artists.</p>
               <span className="inline-flex items-center gap-1 text-gray-500 text-sm font-bold mt-5">Coming Soon</span>
@@ -253,17 +279,17 @@ export default function HomePage() {
         <MediaSlot url={memberBg} alt="Join background" mode="bg" />
         <div className="absolute inset-0 bg-black/75 z-[1]" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">Join Us</span>
+          <span className="text-[var(--cbp-brand)] text-sm font-bold uppercase tracking-widest mb-3 block">Join Us</span>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to Compete?</h2>
           <p className="text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
             The Quest is open to all talent. Apply as a competitor, rally votes from your fans, and win. No gatekeepers — just the public vote.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <a href="/thequest/nominate" className="inline-flex items-center gap-2 bg-[#691cff] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[#5a15e0] transition-colors">
+            <a href="/thequest/nominate" className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[var(--cbp-brand-dark)] transition-colors">
               <Users className="w-4 h-4" />
               Nominate Someone
             </a>
-            <a href="/thequest/competitions" className="inline-flex items-center gap-2 border border-white/30 text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:border-[#691cff] hover:text-[#691cff] transition-colors">
+            <a href="/thequest/competitions" className="inline-flex items-center gap-2 border border-white/30 text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:border-[var(--cbp-brand)] hover:text-[var(--cbp-brand)] transition-colors">
               Browse Competitions
             </a>
           </div>
@@ -274,23 +300,23 @@ export default function HomePage() {
       <section id="contact" className="py-20 bg-gray-950">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
-            <span className="text-[#691cff] text-sm font-bold uppercase tracking-widest mb-3 block">Get In Touch</span>
+            <span className="text-[var(--cbp-brand)] text-sm font-bold uppercase tracking-widest mb-3 block">Get In Touch</span>
             <h2 className="text-3xl md:text-4xl font-bold text-white">Contact Us</h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <Mail className="w-5 h-5 text-[#691cff] mt-1 shrink-0" />
+                <Mail className="w-5 h-5 text-[var(--cbp-brand)] mt-1 shrink-0" />
                 <div>
                   <h4 className="text-white font-semibold mb-1">Email</h4>
-                  <a href={`mailto:${getText("contact_email", "admin@thequest.com")}`} className="text-gray-400 hover:text-[#691cff] transition-colors text-sm">
+                  <a href={`mailto:${getText("contact_email", "admin@thequest.com")}`} className="text-gray-400 hover:text-[var(--cbp-brand)] transition-colors text-sm">
                     {getText("contact_email", "admin@thequest.com")}
                   </a>
                 </div>
               </div>
               {getText("contact_phone", "") && (
                 <div className="flex items-start gap-4">
-                  <Phone className="w-5 h-5 text-[#691cff] mt-1 shrink-0" />
+                  <Phone className="w-5 h-5 text-[var(--cbp-brand)] mt-1 shrink-0" />
                   <div>
                     <h4 className="text-white font-semibold mb-1">Phone</h4>
                     <p className="text-gray-400 text-sm">{getText("contact_phone", "")}</p>
@@ -299,7 +325,7 @@ export default function HomePage() {
               )}
               {getText("contact_address", "") && (
                 <div className="flex items-start gap-4">
-                  <MapPin className="w-5 h-5 text-[#691cff] mt-1 shrink-0" />
+                  <MapPin className="w-5 h-5 text-[var(--cbp-brand)] mt-1 shrink-0" />
                   <div>
                     <h4 className="text-white font-semibold mb-1">Address</h4>
                     <p className="text-gray-400 text-sm">{getText("contact_address", "")}</p>
@@ -307,10 +333,10 @@ export default function HomePage() {
                 </div>
               )}
               <div className="flex items-center gap-4 pt-4">
-                {socialFacebook && <a href={socialFacebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Facebook className="w-4 h-4" /></a>}
-                {socialTwitter && <a href={socialTwitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Twitter className="w-4 h-4" /></a>}
-                {socialInstagram && <a href={socialInstagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Instagram className="w-4 h-4" /></a>}
-                {socialYoutube && <a href={socialYoutube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[#691cff] flex items-center justify-center text-white transition-colors"><Youtube className="w-4 h-4" /></a>}
+                {socialFacebook && <a href={socialFacebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[var(--cbp-brand)] flex items-center justify-center text-white transition-colors"><Facebook className="w-4 h-4" /></a>}
+                {socialTwitter && <a href={socialTwitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[var(--cbp-brand)] flex items-center justify-center text-white transition-colors"><Twitter className="w-4 h-4" /></a>}
+                {socialInstagram && <a href={socialInstagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[var(--cbp-brand)] flex items-center justify-center text-white transition-colors"><Instagram className="w-4 h-4" /></a>}
+                {socialYoutube && <a href={socialYoutube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-[var(--cbp-brand)] flex items-center justify-center text-white transition-colors"><Youtube className="w-4 h-4" /></a>}
               </div>
             </div>
             <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
@@ -319,32 +345,32 @@ export default function HomePage() {
                 placeholder="Your Name"
                 value={formData.name}
                 onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[var(--cbp-brand)] transition-colors"
               />
               <input
                 type="email"
                 placeholder="Email Address"
                 value={formData.email}
                 onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[var(--cbp-brand)] transition-colors"
               />
               <input
                 type="tel"
                 placeholder="Phone Number"
                 value={formData.phone}
                 onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[var(--cbp-brand)] transition-colors"
               />
               <textarea
                 placeholder="Message"
                 rows={5}
                 value={formData.message}
                 onChange={(e) => setFormData(p => ({ ...p, message: e.target.value }))}
-                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[#691cff] transition-colors resize-none"
+                className="w-full bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-[var(--cbp-brand)] transition-colors resize-none"
               />
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 bg-[#691cff] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[#5a15e0] transition-colors"
+                className="inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-8 py-3 hover:bg-[var(--cbp-brand-dark)] transition-colors"
               >
                 Send Message <ChevronRight className="w-4 h-4" />
               </button>
@@ -361,7 +387,7 @@ export default function HomePage() {
               &copy; {new Date().getFullYear()} CB Publishing. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
-              <a href="/thequest" className="text-gray-500 hover:text-[#691cff] text-sm transition-colors">The Quest</a>
+              <a href="/thequest" className="text-gray-500 hover:text-[var(--cbp-brand)] text-sm transition-colors">The Quest</a>
               <a href="/thequest/about" className="text-gray-500 hover:text-white text-sm transition-colors">About</a>
               <a href="#contact" className="text-gray-500 hover:text-white text-sm transition-colors">Contact</a>
             </div>

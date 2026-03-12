@@ -638,6 +638,8 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [addingCategory, setAddingCategory] = useState(false);
   const [embedInputs, setEmbedInputs] = useState<Record<string, string | undefined>>({});
   const [liverySubTab, setLiverySubTab] = useState<"cbpublishing" | "thequest">("cbpublishing");
+  const [cbpColorInput, setCbpColorInput] = useState("");
+  const [questColorInput, setQuestColorInput] = useState("");
 
   const addCategoryMutation = useMutation({
     mutationFn: async (data: { name: string; description: string }) => {
@@ -1598,16 +1600,38 @@ export default function AdminDashboard({ user }: { user: any }) {
               </button>
             </div>
 
-            {liverySubTab === "cbpublishing" && (
-              <div className="mb-4">
-                <p className="text-white/40 text-sm">Customize the CB Publishing home page. Upload images/videos or paste embed URLs (YouTube, Vimeo, Facebook, Instagram) for each section slot.</p>
-              </div>
-            )}
-            {liverySubTab === "thequest" && (
-              <div className="mb-4">
-                <p className="text-white/40 text-sm">Upload replacement images or short videos (15 seconds max) for any Quest template slot. Click "Upload" to replace or "Reset" to restore the original.</p>
-              </div>
-            )}
+            {liverySubTab === "cbpublishing" && (() => {
+              const saved = liveryItems?.find((i: any) => i.imageKey === "home_brand_color")?.textContent || "#691cff";
+              const current = cbpColorInput || saved;
+              return (
+                <div className="mb-4 space-y-3">
+                  <p className="text-white/40 text-sm">Customize the CB Publishing home page. Upload images/videos or paste embed URLs (YouTube, Vimeo, Facebook, Instagram) for each section slot.</p>
+                  <div className="flex items-center gap-3 bg-zinc-900 border border-white/10 rounded-md px-3 py-2">
+                    <span className="text-xs text-white/50 font-semibold uppercase tracking-wider whitespace-nowrap">Brand Color</span>
+                    <input type="color" value={current} onChange={e => setCbpColorInput(e.target.value)} className="h-7 w-10 rounded cursor-pointer border-0 bg-transparent p-0" data-testid="input-cbp-brand-color" />
+                    <input type="text" value={current} onChange={e => setCbpColorInput(e.target.value)} className="bg-zinc-800 border border-white/20 text-white text-xs h-7 px-2 rounded w-24 font-mono" placeholder="#691cff" data-testid="input-cbp-brand-hex" />
+                    <Button size="sm" onClick={() => updateLiveryTextMutation.mutate({ imageKey: "home_brand_color", textContent: current })} disabled={updateLiveryTextMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-save-cbp-brand-color">Save</Button>
+                    {current !== saved && <span className="text-[10px] text-orange-400">Unsaved</span>}
+                  </div>
+                </div>
+              );
+            })()}
+            {liverySubTab === "thequest" && (() => {
+              const saved = liveryItems?.find((i: any) => i.imageKey === "quest_brand_color")?.textContent || "#FF5A09";
+              const current = questColorInput || saved;
+              return (
+                <div className="mb-4 space-y-3">
+                  <p className="text-white/40 text-sm">Upload replacement images or short videos (15 seconds max) for any Quest template slot. Click "Upload" to replace or "Reset" to restore the original.</p>
+                  <div className="flex items-center gap-3 bg-zinc-900 border border-white/10 rounded-md px-3 py-2">
+                    <span className="text-xs text-white/50 font-semibold uppercase tracking-wider whitespace-nowrap">Brand Color</span>
+                    <input type="color" value={current} onChange={e => setQuestColorInput(e.target.value)} className="h-7 w-10 rounded cursor-pointer border-0 bg-transparent p-0" data-testid="input-quest-brand-color" />
+                    <input type="text" value={current} onChange={e => setQuestColorInput(e.target.value)} className="bg-zinc-800 border border-white/20 text-white text-xs h-7 px-2 rounded w-24 font-mono" placeholder="#FF5A09" data-testid="input-quest-brand-hex" />
+                    <Button size="sm" onClick={() => updateLiveryTextMutation.mutate({ imageKey: "quest_brand_color", textContent: current })} disabled={updateLiveryTextMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-save-quest-brand-color">Save</Button>
+                    {current !== saved && <span className="text-[10px] text-orange-400">Unsaved</span>}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {liveryItems?.filter((item: any) => {
