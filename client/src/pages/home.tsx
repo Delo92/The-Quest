@@ -238,7 +238,7 @@ export default function HomePage() {
               <div className="w-full h-80 md:h-96 overflow-hidden relative">
                 <MediaSlot url={aboutImg} alt="About CB Publishing" mode="bg" />
               </div>
-              <div className="absolute -bottom-4 -right-4 w-28 h-28 bg-gray-950 border border-white/10 shadow-2xl hidden md:flex items-center justify-center">
+              <div className="absolute -bottom-4 -right-4 w-28 h-28 bg-black/40 backdrop-blur-sm border border-white/10 shadow-2xl hidden md:flex items-center justify-center">
                 <CBLogo size="md" />
               </div>
             </div>
