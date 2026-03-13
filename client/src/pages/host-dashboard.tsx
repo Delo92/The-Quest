@@ -328,6 +328,21 @@ export default function HostDashboard({ user }: { user: any }) {
   const isVideoFile = (file: File) =>
     file.type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv|m4v)$/i.test(file.name);
 
+  const fetchVimeoEmbedUrl = async (videoUri: string): Promise<string> => {
+    const videoId = videoUri.replace("/videos/", "");
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const r = await fetch(`/api/admin/vimeo/video/${videoId}/embed-url`, { headers });
+      if (r.ok) {
+        const data = await r.json();
+        return data.playerEmbedUrl || `https://player.vimeo.com/video/${videoId}`;
+      }
+    } catch {}
+    return `https://player.vimeo.com/video/${videoId}`;
+  };
+
   const coverUploadMutation = useMutation({
     mutationFn: async ({ id, file }: { id: number; file: File }) => {
       const token = getAuthToken();
@@ -359,8 +374,7 @@ export default function HostDashboard({ user }: { user: any }) {
           try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
         }
 
-        const videoId = ticket.videoUri.replace("/videos/", "");
-        const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+        const playerUrl = await fetchVimeoEmbedUrl(ticket.videoUri);
 
         const saveRes = await fetch(`/api/host/competitions/${id}/cover-video-url`, {
           method: "PATCH",

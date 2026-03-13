@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
-import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS, getVimeoId } from "@/lib/media-utils";
+import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS, getVimeoId, buildVimeoSrc } from "@/lib/media-utils";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "wouter";
@@ -895,8 +895,7 @@ export default function AdminDashboard({ user }: { user: any }) {
             try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
           }
 
-          const videoId = ticket.videoUri.replace("/videos/", "");
-          const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+          const playerUrl = await fetchVimeoEmbedUrl(ticket.videoUri);
 
           const saveRes = await fetch(`/api/admin/competitions/${compId}/cover-video-url`, {
             method: "PATCH",
@@ -964,8 +963,7 @@ export default function AdminDashboard({ user }: { user: any }) {
           try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
         }
 
-        const videoId = ticket.videoUri.replace("/videos/", "");
-        const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+        const playerUrl = await fetchVimeoEmbedUrl(ticket.videoUri);
 
         const saveRes = await fetch(`/api/admin/categories/${categoryId}/video-url`, {
           method: "PATCH",
@@ -1196,6 +1194,21 @@ export default function AdminDashboard({ user }: { user: any }) {
   const isVideoFile = (file: File) =>
     file.type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv|m4v)$/i.test(file.name);
 
+  const fetchVimeoEmbedUrl = async (videoUri: string): Promise<string> => {
+    const videoId = videoUri.replace("/videos/", "");
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const r = await fetch(`/api/admin/vimeo/video/${videoId}/embed-url`, { headers });
+      if (r.ok) {
+        const data = await r.json();
+        return data.playerEmbedUrl || `https://player.vimeo.com/video/${videoId}`;
+      }
+    } catch {}
+    return `https://player.vimeo.com/video/${videoId}`;
+  };
+
   const handleFileSelect = async (imageKey: string, file: File) => {
     if (isVideoFile(file)) {
       setLiveryVideoUploading(imageKey);
@@ -1234,8 +1247,7 @@ export default function AdminDashboard({ user }: { user: any }) {
           } catch {}
         }
 
-        const videoId = ticket.videoUri.replace("/videos/", "");
-        const playerUrl = `https://player.vimeo.com/video/${videoId}`;
+        const playerUrl = await fetchVimeoEmbedUrl(ticket.videoUri);
 
         const urlRes = await fetch(`/api/admin/livery/${imageKey}/url`, {
           method: "PUT",
@@ -1802,10 +1814,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     <div className="relative aspect-video bg-black/50 overflow-hidden">
                       {isEmbed && mediaType === "vimeo" ? (
                         <iframe
-                          src={(() => {
-                            const id = getVimeoId(displayUrl);
-                            return id ? `https://player.vimeo.com/video/${id}` : displayUrl;
-                          })()}
+                          src={buildVimeoSrc(displayUrl, "") ?? displayUrl}
                           className="w-full h-full"
                           allow="autoplay; fullscreen; picture-in-picture"
                           allowFullScreen

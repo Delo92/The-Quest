@@ -60,6 +60,7 @@ import {
   getVimeoStorageUsage,
   createAdminLiveryUploadTicket,
   createCompetitionCoverUploadTicket,
+  getVideoById,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -3225,6 +3226,17 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Admin livery Vimeo ticket error:", error);
       res.status(500).json({ message: "Failed to create upload ticket: " + error.message });
+    }
+  });
+
+  app.get("/api/admin/vimeo/video/:videoId/embed-url", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const video = await getVideoById(videoId);
+      res.json({ playerEmbedUrl: video.player_embed_url || `https://player.vimeo.com/video/${videoId}` });
+    } catch (error: any) {
+      console.error("Get Vimeo embed URL error:", error);
+      res.status(500).json({ message: "Failed to get video embed URL: " + error.message });
     }
   });
 

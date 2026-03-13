@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { detectMediaType, getYouTubeId, getVimeoId, isFacebookVideo } from "@/lib/media-utils";
+import { detectMediaType, getYouTubeId, getVimeoId, buildVimeoSrc, isFacebookVideo } from "@/lib/media-utils";
 import { Volume2, VolumeX } from "lucide-react";
 
 interface MediaSlotProps {
@@ -132,8 +132,8 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
 
     if (clickToUnmute && mode === "bg") {
       const src = fullPlayer
-        ? `https://player.vimeo.com/video/${id}?autoplay=1&muted=0&loop=1&background=0&controls=0&autopause=0&title=0&byline=0&portrait=0`
-        : `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=1`;
+        ? buildVimeoSrc(url, "autoplay=1&muted=0&loop=1&background=0&controls=0&autopause=0&title=0&byline=0&portrait=0")!
+        : buildVimeoSrc(url, "autoplay=1&muted=1&loop=1&background=1")!;
 
       return (
         <>
@@ -158,7 +158,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
       );
     }
 
-    const src = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1&loop=1&background=1`;
+    const src = buildVimeoSrc(url, "autoplay=1&muted=1&loop=1&background=1")!;
     return (
       <iframe
         src={src}

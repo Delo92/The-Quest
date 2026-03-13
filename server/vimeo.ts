@@ -252,6 +252,10 @@ export function getVideoEmbedUrl(video: VimeoVideo): string {
   return video.player_embed_url || "";
 }
 
+export async function getVideoById(videoId: string): Promise<VimeoVideo> {
+  return vimeoRequest(`/videos/${videoId}`);
+}
+
 // Admin10151992 folder (The Quest > Admin10151992, folder ID 28559983)
 const ADMIN_FOLDER_URI = "/me/projects/28559983";
 

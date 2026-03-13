@@ -21,6 +21,22 @@ export function getVimeoId(url: string): string | null {
   return m ? m[1] : null;
 }
 
+export function getVimeoHash(url: string): string | null {
+  const m = url.match(/[?&]h=([a-zA-Z0-9]+)/);
+  return m ? m[1] : null;
+}
+
+export function buildVimeoSrc(url: string, params: string): string | null {
+  const id = getVimeoId(url);
+  if (!id) return null;
+  const hash = getVimeoHash(url);
+  const parts: string[] = [];
+  if (params) parts.push(params);
+  if (hash) parts.push(`h=${hash}`);
+  const qs = parts.length ? `?${parts.join("&")}` : "";
+  return `https://player.vimeo.com/video/${id}${qs}`;
+}
+
 export function isFacebookVideo(url: string): boolean {
   return /\/videos\/|\/watch|fb\.watch|\/reel/.test(url);
 }
