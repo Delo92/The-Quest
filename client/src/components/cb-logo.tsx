@@ -22,7 +22,6 @@ export default function CBLogo({ size = "md", showText = false, className = "" }
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           WebkitTextStroke: "1.5px rgba(255,255,255,0.2)",
-          paintOrder: "stroke fill",
           filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))",
         }}>C</span>
         <span className="relative inline-flex items-center" style={{
