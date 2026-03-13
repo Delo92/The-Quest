@@ -166,7 +166,7 @@ export default function HomePage() {
           <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-wider mb-6 drop-shadow-2xl">
             {heroTitle.startsWith("CB") ? (
               <>
-                <span style={{ background: "linear-gradient(180deg, #555 0%, #111 45%, #333 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", WebkitTextStroke: "1px rgba(255,255,255,0.5)", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))" }}>C</span>
+                <span style={{ color: "#2a2a2a", WebkitTextStroke: "1px rgba(255,255,255,0.5)" }}>C</span>
                 <span className="inline-flex items-center relative" style={{ background: "linear-gradient(180deg, #86efac 0%, #22c55e 40%, #15803d 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 2px 8px rgba(34,197,94,0.6)) drop-shadow(0 -1px 1px rgba(255,255,255,0.2))" }}>
                   <Zap className="absolute -left-3 md:-left-4 w-5 h-5 md:w-7 md:h-7 text-white fill-white" style={{ top: "50%", transform: "translateY(-50%)" }} />
                   B
