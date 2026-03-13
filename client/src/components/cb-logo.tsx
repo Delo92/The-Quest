@@ -21,7 +21,7 @@ export default function CBLogo({ size = "md", showText = false, className = "" }
           background: "linear-gradient(180deg, #c8c8c8 0%, #777 45%, #aaa 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
-          filter: "drop-shadow(0 0 2px rgba(255,255,255,0.25)) drop-shadow(0 2px 6px rgba(0,0,0,0.9))",
+          filter: "drop-shadow(0 0 4px rgba(255,255,255,0.45)) drop-shadow(0 2px 6px rgba(0,0,0,0.9))",
         }}>C</span>
         <span className="relative inline-flex items-center" style={{
           background: "linear-gradient(180deg, #86efac 0%, #22c55e 40%, #15803d 100%)",
