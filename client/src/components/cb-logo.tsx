@@ -18,10 +18,12 @@ export default function CBLogo({ size = "md", showText = false, className = "" }
     <div className={`flex flex-col items-center leading-none select-none ${className}`}>
       <div className={`flex items-center font-black uppercase tracking-tight ${s.letters}`}>
         <span style={{
-          background: "linear-gradient(180deg, #555 0%, #111 45%, #333 100%)",
+          background: "linear-gradient(180deg, #999 0%, #444 45%, #666 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
-          filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9)) drop-shadow(0 -1px 1px rgba(255,255,255,0.15))",
+          WebkitTextStroke: "1.5px rgba(255,255,255,0.45)",
+          paintOrder: "stroke fill",
+          filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.9))",
         }}>C</span>
         <span className="relative inline-flex items-center" style={{
           background: "linear-gradient(180deg, #86efac 0%, #22c55e 40%, #15803d 100%)",
