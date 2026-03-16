@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, Calendar, Vote, Heart, Users, Crown, Award, ChevronRight, ShoppingCart } from "lucide-react";
@@ -51,7 +51,7 @@ interface CompetitionDetail {
 }
 
 export default function CompetitionDetailPage() {
-  const [, params] = useRoute("/:categorySlug/:compSlug");
+  const params = useParams<{ categorySlug: string; compSlug: string }>();
   const categorySlug = params?.categorySlug;
   const compSlug = params?.compSlug;
   const { user } = useAuth();

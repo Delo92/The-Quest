@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRoute, useLocation, Link } from "wouter";
+import { useParams, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,7 +60,7 @@ interface PaymentConfig {
 }
 
 export default function CheckoutPage() {
-  const [, params] = useRoute("/checkout/:competitionId/:contestantId");
+  const params = useParams<{ competitionId: string; contestantId: string }>();
   const competitionId = params?.competitionId ? parseInt(params.competitionId) : null;
   const contestantId = params?.contestantId ? parseInt(params.contestantId) : null;
   const [, setLocation] = useLocation();

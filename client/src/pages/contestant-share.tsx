@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, MapPin, Tag, ChevronRight, Play, Heart, ShoppingCart, Calendar, Users, Share2, Check, Copy } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
@@ -63,7 +63,7 @@ interface ResolvedData {
 }
 
 export default function ContestantSharePage() {
-  const [, params] = useRoute("/:categorySlug/:compSlug/:talentSlug");
+  const params = useParams<{ categorySlug: string; compSlug: string; talentSlug: string }>();
   const categorySlug = params?.categorySlug;
   const compSlug = params?.compSlug;
   const talentSlug = params?.talentSlug;

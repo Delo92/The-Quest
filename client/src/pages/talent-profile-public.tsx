@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, MapPin, Tag, ChevronRight, Play } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
@@ -12,7 +12,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 
 export default function TalentProfilePublic() {
-  const [, params] = useRoute("/talent/:id");
+  const params = useParams<{ id: string }>();
   const id = params?.id;
   const { getImage } = useLivery();
 

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, Calendar, Users, ChevronRight, Crown, Globe, Instagram } from "lucide-react";
 import { Link } from "wouter";
@@ -34,7 +34,7 @@ interface HostData {
 }
 
 export default function HostProfilePublic() {
-  const [, params] = useRoute("/host/:hostSlug");
+  const params = useParams<{ hostSlug: string }>();
   const hostSlug = params?.hostSlug;
   const { getImage } = useLivery();
 
