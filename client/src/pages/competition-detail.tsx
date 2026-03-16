@@ -186,7 +186,7 @@ export default function CompetitionDetailPage() {
           <div className="w-full bg-black" style={{ aspectRatio: "16/9", maxHeight: "520px" }}>
             {competition.coverVideo.includes("vimeo.com") ? (
               <iframe
-                src={competition.coverVideo.includes("?") ? competition.coverVideo + "&autoplay=0" : competition.coverVideo + "?autoplay=0"}
+                src={competition.coverVideo.includes("?") ? competition.coverVideo + "&autoplay=1&loop=1&muted=1" : competition.coverVideo + "?autoplay=1&loop=1&muted=1"}
                 className="w-full h-full"
                 style={{ border: "none", display: "block" }}
                 allow="autoplay; fullscreen; picture-in-picture"
