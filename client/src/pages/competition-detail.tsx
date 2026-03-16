@@ -133,11 +133,32 @@ export default function CompetitionDetailPage() {
 
       <section className="relative h-[270px] md:h-[340px] overflow-hidden">
         {(() => {
-          const headerMedia = competition.coverVideo ? { url: competition.coverVideo, type: "video" as const } : competition.coverImage ? { url: competition.coverImage, type: "image" as const } : getMedia("competition_detail_header", "/images/template/breadcumb3.jpg");
-          return headerMedia.type === "video" ? (
-            <video src={headerMedia.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+          if (competition.coverVideo) {
+            const isVimeo = competition.coverVideo.includes("vimeo.com");
+            if (isVimeo) {
+              const embedUrl = competition.coverVideo.includes("?")
+                ? competition.coverVideo + "&background=1&autoplay=1&loop=1&muted=1"
+                : competition.coverVideo + "?background=1&autoplay=1&loop=1&muted=1";
+              return (
+                <iframe
+                  src={embedUrl}
+                  className="absolute inset-0 w-full h-full"
+                  style={{ border: "none", transform: "scale(1.4)", transformOrigin: "center center" }}
+                  allow="autoplay; fullscreen"
+                  title="Competition video"
+                />
+              );
+            }
+            return <video src={competition.coverVideo} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />;
+          }
+          if (competition.coverImage) {
+            return <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />;
+          }
+          const fallback = getMedia("competition_detail_header", "/images/template/breadcumb3.jpg");
+          return fallback.type === "video" ? (
+            <video src={fallback.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
           ) : (
-            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${headerMedia.url}')` }} />
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${fallback.url}')` }} />
           );
         })()}
         <div className="absolute inset-0 bg-black/65" />
