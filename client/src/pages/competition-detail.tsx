@@ -131,53 +131,73 @@ export default function CompetitionDetailPage() {
     <div className="min-h-screen bg-black text-white">
       <SiteNavbar />
 
-      <section className="relative h-[270px] md:h-[340px] overflow-hidden">
+      <section className="relative overflow-hidden">
         {(() => {
-          if (competition.coverVideo) {
-            const isVimeo = competition.coverVideo.includes("vimeo.com");
-            if (isVimeo) {
-              const embedUrl = competition.coverVideo.includes("?")
-                ? competition.coverVideo + "&background=1&autoplay=1&loop=1&muted=1"
-                : competition.coverVideo + "?background=1&autoplay=1&loop=1&muted=1";
-              return (
-                <iframe
-                  src={embedUrl}
-                  className="absolute inset-0 w-full h-full"
-                  style={{ border: "none", transform: "scale(1.4)", transformOrigin: "center center" }}
-                  allow="autoplay; fullscreen"
-                  title="Competition video"
-                />
-              );
-            }
-            return <video src={competition.coverVideo} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />;
-          }
           if (competition.coverImage) {
-            return <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />;
+            return (
+              <>
+                <div className="h-[270px] md:h-[340px] relative overflow-hidden">
+                  <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />
+                  <div className="absolute inset-0 bg-black/65" />
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
+                    <p className="text-black/50 text-base leading-relaxed mb-1">
+                      <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
+                      <span className="mx-2">/</span>{competition.category}
+                    </p>
+                    <h2 className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none" style={{ letterSpacing: "10px" }} data-testid="text-competition-title">{competition.title}</h2>
+                  </div>
+                </div>
+              </>
+            );
           }
-          const fallback = getMedia("competition_detail_header", "/images/template/breadcumb3.jpg");
-          return fallback.type === "video" ? (
-            <video src={fallback.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-          ) : (
-            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${fallback.url}')` }} />
+          const fallback = getMedia("competition_detail_header", "");
+          if (!competition.coverVideo && fallback.url) {
+            return (
+              <div className="h-[270px] md:h-[340px] relative overflow-hidden">
+                {fallback.type === "video"
+                  ? <video src={fallback.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+                  : <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${fallback.url}')` }} />
+                }
+                <div className="absolute inset-0 bg-black/65" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
+                  <p className="text-black/50 text-base leading-relaxed mb-1">
+                    <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
+                    <span className="mx-2">/</span>{competition.category}
+                  </p>
+                  <h2 className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none" style={{ letterSpacing: "10px" }} data-testid="text-competition-title">{competition.title}</h2>
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div className="bg-black/80 pt-20 pb-0">
+              <div className="mx-auto bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 w-[calc(100%-60px)] max-w-[552px]">
+                <p className="text-black/50 text-base leading-relaxed mb-1">
+                  <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
+                  <span className="mx-2">/</span>{competition.category}
+                </p>
+                <h2 className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none" style={{ letterSpacing: "10px" }} data-testid="text-competition-title">{competition.title}</h2>
+              </div>
+            </div>
           );
         })()}
-        <div className="absolute inset-0 bg-black/65" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
-          <p className="text-black/50 text-base leading-relaxed mb-1">
-            <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">
-              Competitions
-            </Link>
-            <span className="mx-2">/</span>
-            {competition.category}
-          </p>
-          <h2
-            className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none"
-            style={{ letterSpacing: "10px" }}
-            data-testid="text-competition-title"
-          >
-            {competition.title}
-          </h2>
-        </div>
+
+        {competition.coverVideo && (
+          <div className="w-full bg-black" style={{ aspectRatio: "16/9", maxHeight: "520px" }}>
+            {competition.coverVideo.includes("vimeo.com") ? (
+              <iframe
+                src={competition.coverVideo.includes("?") ? competition.coverVideo + "&autoplay=0" : competition.coverVideo + "?autoplay=0"}
+                className="w-full h-full"
+                style={{ border: "none", display: "block" }}
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+                title="Competition video"
+              />
+            ) : (
+              <video src={competition.coverVideo} className="w-full h-full object-cover" controls playsInline />
+            )}
+          </div>
+        )}
       </section>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
