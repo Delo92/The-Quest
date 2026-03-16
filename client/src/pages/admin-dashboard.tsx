@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { slugify } from "@shared/slugify";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -505,7 +506,7 @@ function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: s
               {(comp as any).inPersonOnly && (
                 <Badge className="border-0 text-xs bg-purple-500/20 text-purple-300">In-Person Only</Badge>
               )}
-              <Link href={`/competitions/${comp.id}`}>
+              <Link href={`/${slugify(comp.category)}/${slugify(comp.title)}`}>
                 <Button variant="ghost" size="icon" className="text-white/40" data-testid={`link-comp-page-${comp.id}`}>
                   <ExternalLink className="h-4 w-4" />
                 </Button>
