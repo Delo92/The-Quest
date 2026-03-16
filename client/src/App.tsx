@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect, Router } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -25,29 +25,27 @@ import ViewerDashboard from "@/pages/viewer-dashboard";
 
 function QuestRouter() {
   return (
-    <Router base="/thequest">
-      <Switch>
-        <Route path="/" component={Landing} />
-        <Route path="/login" component={LoginPage} />
-        <Route path="/register" component={LoginPage} />
-        <Route path="/competitions" component={Competitions} />
-        <Route path="/talent/:id" component={TalentProfilePublic} />
-        <Route path="/checkout/:competitionId/:contestantId" component={CheckoutPage} />
-        <Route path="/my-purchases" component={MyPurchasesPage} />
-        <Route path="/nominate" component={JoinPage} />
-        <Route path="/join">{() => <Redirect to="/nominate" />}</Route>
-        <Route path="/host" component={HostPage} />
-        <Route path="/about" component={AboutPage} />
-        <Route path="/faq" component={FAQPage} />
-        <Route path="/host/:hostSlug" component={HostProfilePublic} />
-        <Route path="/viewer" component={ViewerDashboard} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/admin" component={Dashboard} />
-        <Route path="/:categorySlug/:compSlug/:talentSlug" component={ContestantSharePage} />
-        <Route path="/:categorySlug/:compSlug" component={CompetitionDetail} />
-        <Route component={NotFound} />
-      </Switch>
-    </Router>
+    <Switch>
+      <Route path="/" component={Landing} />
+      <Route path="/login" component={LoginPage} />
+      <Route path="/register" component={LoginPage} />
+      <Route path="/competitions" component={Competitions} />
+      <Route path="/talent/:id" component={TalentProfilePublic} />
+      <Route path="/checkout/:competitionId/:contestantId" component={CheckoutPage} />
+      <Route path="/my-purchases" component={MyPurchasesPage} />
+      <Route path="/nominate" component={JoinPage} />
+      <Route path="/join">{() => <Redirect to="/nominate" />}</Route>
+      <Route path="/host" component={HostPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/faq" component={FAQPage} />
+      <Route path="/host/:hostSlug" component={HostProfilePublic} />
+      <Route path="/viewer" component={ViewerDashboard} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/admin" component={Dashboard} />
+      <Route path="/:categorySlug/:compSlug/:talentSlug" component={ContestantSharePage} />
+      <Route path="/:categorySlug/:compSlug" component={CompetitionDetail} />
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
