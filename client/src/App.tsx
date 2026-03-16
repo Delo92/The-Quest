@@ -88,8 +88,7 @@ function App() {
         <Toaster />
         <Switch>
           <Route path="/" component={HomePage} />
-          <Route path="/thequest" component={QuestRouter} />
-          <Route path="/thequest/:rest*" component={QuestRouter} />
+          <Route path="/thequest" nest component={QuestRouter} />
           <Route component={NotFound} />
         </Switch>
       </TooltipProvider>
