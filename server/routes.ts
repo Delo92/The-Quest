@@ -1808,8 +1808,11 @@ export async function registerRoutes(
               imageUrls: [],
               videoUrls: [],
               socialLinks: null,
-              role: "talent",
+              role: targetLevel >= 3 ? "host" : "talent",
             });
+          } else if (existingProfile && targetLevel >= 3 && existingProfile.role === "talent") {
+            await storage.updateTalentProfile(firebaseUid, { role: "host" });
+            await setUserLevel(firebaseUid, targetLevel);
           }
 
           if (firebaseUid && existingProfile && competitionId && targetLevel >= 2) {

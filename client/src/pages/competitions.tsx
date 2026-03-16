@@ -164,14 +164,23 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
         <div className="cursor-pointer">
           <div className="overflow-hidden relative h-52">
             {competition.coverVideo ? (
-              <video
-                src={competition.coverVideo}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              />
+              competition.coverVideo.includes("vimeo.com") ? (
+                <iframe
+                  src={`${competition.coverVideo}&background=1&autoplay=1&loop=1&muted=1`}
+                  className="w-full h-full object-cover pointer-events-none transition-transform duration-700 group-hover:scale-105"
+                  style={{ border: "none" }}
+                  allow="autoplay"
+                />
+              ) : (
+                <video
+                  src={competition.coverVideo}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+              )
             ) : (
               <img
                 src={competition.coverImage || getImage("competition_card_fallback", "/images/template/e1.jpg")}

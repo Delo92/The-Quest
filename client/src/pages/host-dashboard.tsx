@@ -573,7 +573,11 @@ export default function HostDashboard({ user }: { user: any }) {
                       style={comp.coverImage && !comp.coverVideo ? { backgroundImage: `url(${comp.coverImage})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
                     >
                       {comp.coverVideo && (
-                        <video src={comp.coverVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                        comp.coverVideo.includes("vimeo.com") ? (
+                          <iframe src={`${comp.coverVideo}&background=1&autoplay=1&loop=1&muted=1`} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ border: "none" }} allow="autoplay" />
+                        ) : (
+                          <video src={comp.coverVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
+                        )
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
                       {!comp.coverImage && !comp.coverVideo && (
@@ -839,7 +843,11 @@ export default function HostDashboard({ user }: { user: any }) {
                             {(comp.coverImage || comp.coverVideo) && (
                               <div className="relative w-24 h-16 rounded-md overflow-hidden border border-white/10">
                                 {comp.coverVideo ? (
-                                  <video src={comp.coverVideo} muted className="w-full h-full object-cover" />
+                                  comp.coverVideo.includes("vimeo.com") ? (
+                                    <iframe src={`${comp.coverVideo}&background=1&muted=1`} className="w-full h-full object-cover pointer-events-none" style={{ border: "none" }} allow="autoplay" />
+                                  ) : (
+                                    <video src={comp.coverVideo} muted className="w-full h-full object-cover" />
+                                  )
                                 ) : (
                                   <img src={comp.coverImage!} alt="Cover" className="w-full h-full object-cover" />
                                 )}

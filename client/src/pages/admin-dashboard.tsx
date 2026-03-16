@@ -1547,14 +1547,23 @@ export default function AdminDashboard({ user }: { user: any }) {
                     style={comp.coverImage && !comp.coverVideo ? { backgroundImage: `url(${comp.coverImage})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
                   >
                     {comp.coverVideo && (
-                      <video
-                        src={comp.coverVideo}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="absolute inset-0 w-full h-full object-cover rounded-t-md"
-                      />
+                      comp.coverVideo.includes("vimeo.com") ? (
+                        <iframe
+                          src={`${comp.coverVideo}&background=1&autoplay=1&loop=1&muted=1`}
+                          className="absolute inset-0 w-full h-full object-cover rounded-t-md pointer-events-none"
+                          style={{ border: "none" }}
+                          allow="autoplay"
+                        />
+                      ) : (
+                        <video
+                          src={comp.coverVideo}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="absolute inset-0 w-full h-full object-cover rounded-t-md"
+                        />
+                      )
                     )}
                     {!comp.coverImage && !comp.coverVideo && (
                       <div className="absolute inset-0 rounded-t-md bg-gradient-to-b from-orange-900/40 to-black flex items-center justify-center">
