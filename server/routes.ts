@@ -1478,7 +1478,19 @@ export async function registerRoutes(
   app.get("/api/admin/users", firebaseAuth, requireAdmin, async (_req, res) => {
     try {
       const profiles = await storage.getAllTalentProfiles();
-      res.json(profiles);
+      const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
+      const enriched = await Promise.all(profiles.map(async (p) => {
+        try {
+          const fsUser = await getFirestoreUser(p.userId);
+          const level = fsUser?.level;
+          if (level && roleMap[level] && roleMap[level] !== p.role) {
+            await storage.updateTalentProfile(p.userId, { role: roleMap[level] as any });
+            return { ...p, role: roleMap[level] };
+          }
+        } catch (_) {}
+        return p;
+      }));
+      res.json(enriched);
     } catch (error: any) {
       console.error("Get users error:", error);
       res.status(500).json({ message: "Failed to get users" });
