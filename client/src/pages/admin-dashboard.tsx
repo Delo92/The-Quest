@@ -473,8 +473,14 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
 
 
 function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: string }) {
-  const { data, isLoading } = useQuery<HostCompetitionDetail[]>({
+  const { toast } = useToast();
+  const { data, isLoading, refetch } = useQuery<HostCompetitionDetail[]>({
     queryKey: ["/api/admin/hosts", hostUid, "competitions"],
+  });
+  const deleteContestantMutation = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("DELETE", `/api/admin/contestants/${id}`); },
+    onSuccess: () => { refetch(); toast({ title: "Contestant removed" }); },
+    onError: (err: Error) => { toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" }); },
   });
 
   if (isLoading) return <div className="flex items-center justify-center py-6"><span className="text-white/40 text-sm">Loading competitions...</span></div>;

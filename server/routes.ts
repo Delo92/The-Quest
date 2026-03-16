@@ -1838,7 +1838,7 @@ export async function registerRoutes(
             await setUserLevel(firebaseUid, targetLevel);
           }
 
-          if (firebaseUid && existingProfile && competitionId && targetLevel >= 2) {
+          if (firebaseUid && existingProfile && competitionId && targetLevel === 2) {
             try {
               const comp = await storage.getCompetition(Number(competitionId));
               if (comp) {
