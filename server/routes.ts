@@ -1499,6 +1499,17 @@ export async function registerRoutes(
 
   app.get("/api/admin/hosts", firebaseAuth, requireAdmin, async (_req, res) => {
     try {
+      const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
+      const allProfiles = await storage.getAllTalentProfiles();
+      await Promise.all(allProfiles.map(async (p) => {
+        try {
+          const fsUser = await getFirestoreUser(p.userId);
+          const level = fsUser?.level;
+          if (level && roleMap[level] && roleMap[level] !== p.role) {
+            await storage.updateTalentProfile(p.userId, { role: roleMap[level] as any });
+          }
+        } catch (_) {}
+      }));
       const hostProfiles = await storage.getHostProfiles();
       const allComps = await storage.getCompetitions();
       const hosts = hostProfiles.map(h => {
