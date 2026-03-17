@@ -417,7 +417,7 @@ export async function registerRoutes(
           }
 
           // Fallback: if there are competitions but no votes yet, use the earliest
-          // competition's own thumbnail instead of the generic category image
+          // competition's own thumbnail (or Vimeo thumbnail) instead of the generic category image
           if (catComps.length > 0 && topVoteCount === 0) {
             const earliest = [...catComps].sort((a, b) => {
               const dateA = a.startDate || a.createdAt || "";
@@ -426,6 +426,19 @@ export async function registerRoutes(
             })[0];
             if (earliest?.coverImage) {
               thumbnail = earliest.coverImage;
+            } else if (earliest?.coverVideo) {
+              // coverImage is null but there is a Vimeo embed — use it for playback
+              // and fetch its thumbnail via the Vimeo API for non-centered display
+              const vimeoMatch = earliest.coverVideo.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+              if (vimeoMatch) {
+                const vimeoId = vimeoMatch[1];
+                videoEmbedUrl = `https://player.vimeo.com/video/${vimeoId}`;
+                try {
+                  const vimeoData = await getVideoById(vimeoId);
+                  const vimeoThumb = getVideoThumbnail(vimeoData, 640);
+                  if (vimeoThumb) thumbnail = vimeoThumb;
+                } catch {}
+              }
             }
           }
 
