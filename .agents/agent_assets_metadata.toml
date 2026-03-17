@@ -6,3 +6,9 @@ id = "Xyedl2Ts-dMwqxQBMfDhA"
 uri = "file://client/public/cb-logo-transparent.png"
 type = "image"
 title = "CB Logo — Transparent Background PNG"
+
+[[outputs]]
+id = "_eTuxBMWUci8EyhsHqaRB"
+uri = "file://docs/chronicv-sync-integration.md"
+type = "text"
+title = "ChronicTV Dual-Sync Integration Guide"
