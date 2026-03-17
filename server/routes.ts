@@ -416,6 +416,19 @@ export async function registerRoutes(
             coverVideoUrl = cat.videoUrl;
           }
 
+          // Fallback: if there are competitions but no votes yet, use the earliest
+          // competition's own thumbnail instead of the generic category image
+          if (catComps.length > 0 && topVoteCount === 0) {
+            const earliest = [...catComps].sort((a, b) => {
+              const dateA = a.startDate || a.createdAt || "";
+              const dateB = b.startDate || b.createdAt || "";
+              return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
+            })[0];
+            if (earliest?.coverImage) {
+              thumbnail = earliest.coverImage;
+            }
+          }
+
           if (topContestant && topVoteCount > 0 && topCompetition) {
             displayName = topContestant.talentProfile.stageName || topContestant.talentProfile.displayName;
             if (topContestant.talentProfile.imageUrls?.length > 0) {
