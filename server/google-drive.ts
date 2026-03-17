@@ -65,10 +65,48 @@ export async function getHiFitCompFolder(): Promise<string> {
   return "17Fuu4-5mzEs7oGUtKorUJigvdk1lu-9H";
 }
 
-const CHRONIC_TV_DRIVE_FOLDER_NAME = "ChronicTV(Beta)";
+// ChronicTV(Beta) folder ID — hardcoded exactly like CBpublishing_TheQuest
+// so the service account writes into the human-owned folder (not its own 0-quota drive)
+const CHRONIC_TV_ROOT_FOLDER_ID = "PLACEHOLDER_CHRONICV_FOLDER_ID";
+const CHRONIC_TV_QUEST_SHOW_NAME = "The Quest";
 
 export async function getChronicTVRootFolder(): Promise<string> {
-  return findOrCreateFolder(CHRONIC_TV_DRIVE_FOLDER_NAME);
+  return CHRONIC_TV_ROOT_FOLDER_ID;
+}
+
+// Returns ChronicTV(Beta) > The Quest — the show folder for all Quest events/competitors
+async function getChronicTVQuestDriveFolder(): Promise<string> {
+  return findOrCreateFolder(CHRONIC_TV_QUEST_SHOW_NAME, CHRONIC_TV_ROOT_FOLDER_ID);
+}
+
+// Creates a Google Doc (no storage quota cost) with plain-text content
+async function upsertSummaryDoc(drive: drive_v3.Drive, parentFolderId: string, lines: string[]): Promise<void> {
+  const content = lines.join("\n");
+  const stream = new Readable();
+  stream.push(Buffer.from(content, "utf-8"));
+  stream.push(null);
+
+  const existing = await drive.files.list({
+    q: `name='summary' and '${parentFolderId}' in parents and trashed=false`,
+    fields: "files(id)",
+  });
+
+  if (existing.data.files?.length) {
+    await drive.files.update({
+      fileId: existing.data.files[0].id!,
+      media: { mimeType: "text/plain", body: stream },
+    });
+  } else {
+    await drive.files.create({
+      requestBody: {
+        name: "summary",
+        parents: [parentFolderId],
+        mimeType: "application/vnd.google-apps.document",
+      },
+      media: { mimeType: "text/plain", body: stream },
+      fields: "id",
+    });
+  }
 }
 
 export async function syncCompetitionToChronicTV(
@@ -77,11 +115,11 @@ export async function syncCompetitionToChronicTV(
 ): Promise<void> {
   const drive = getDriveClient();
   const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-  const chronicRoot = await getChronicTVRootFolder();
-  const eventFolder = await findOrCreateFolder(safeName, chronicRoot);
-  await findOrCreateFolder("ChronicTV", eventFolder);
+  // Path: ChronicTV(Beta) / The Quest / ChronicTV / [Event Name]
+  const chronicTVQuestFolder = await getChronicTVQuestDriveFolder();
+  const eventFolder = await findOrCreateFolder(safeName, chronicTVQuestFolder);
 
-  const summaryLines = [
+  await upsertSummaryDoc(drive, eventFolder, [
     `COMPETITION: ${competitionName}`,
     `Category: ${details.category}`,
     `Status: ${details.status}`,
@@ -92,32 +130,7 @@ export async function syncCompetitionToChronicTV(
     ``,
     `---`,
     `Synced from: The Quest by CB Publishing`,
-  ];
-  const summaryBuffer = Buffer.from(summaryLines.join("\n"), "utf-8");
-
-  const existing = await drive.files.list({
-    q: `name='summary' and '${eventFolder}' in parents and trashed=false`,
-    fields: "files(id)",
-  });
-
-  if (existing.data.files?.length) {
-    const stream = new Readable();
-    stream.push(summaryBuffer);
-    stream.push(null);
-    await drive.files.update({
-      fileId: existing.data.files[0].id!,
-      media: { mimeType: "text/plain", body: stream },
-    });
-  } else {
-    const stream = new Readable();
-    stream.push(summaryBuffer);
-    stream.push(null);
-    await drive.files.create({
-      requestBody: { name: "summary", parents: [eventFolder], mimeType: "text/plain" },
-      media: { mimeType: "text/plain", body: stream },
-      fields: "id",
-    });
-  }
+  ]);
 }
 
 export async function syncContestantToChronicTV(
@@ -128,11 +141,12 @@ export async function syncContestantToChronicTV(
   const drive = getDriveClient();
   const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   const safeTalent = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-  const chronicRoot = await getChronicTVRootFolder();
-  const eventFolder = await findOrCreateFolder(safeName, chronicRoot);
+  // Path: ChronicTV(Beta) / The Quest / ChronicTV / [Event Name] / [Talent Name]
+  const chronicTVQuestFolder = await getChronicTVQuestDriveFolder();
+  const eventFolder = await findOrCreateFolder(safeName, chronicTVQuestFolder);
   const contestantFolder = await findOrCreateFolder(safeTalent, eventFolder);
 
-  const summaryLines = [
+  await upsertSummaryDoc(drive, contestantFolder, [
     `CONTESTANT: ${talentName}`,
     `Competition: ${competitionName}`,
     ``,
@@ -141,32 +155,7 @@ export async function syncContestantToChronicTV(
     ``,
     `---`,
     `Synced from: The Quest by CB Publishing`,
-  ];
-  const summaryBuffer = Buffer.from(summaryLines.join("\n"), "utf-8");
-
-  const existing = await drive.files.list({
-    q: `name='summary' and '${contestantFolder}' in parents and trashed=false`,
-    fields: "files(id)",
-  });
-
-  if (existing.data.files?.length) {
-    const stream = new Readable();
-    stream.push(summaryBuffer);
-    stream.push(null);
-    await drive.files.update({
-      fileId: existing.data.files[0].id!,
-      media: { mimeType: "text/plain", body: stream },
-    });
-  } else {
-    const stream = new Readable();
-    stream.push(summaryBuffer);
-    stream.push(null);
-    await drive.files.create({
-      requestBody: { name: "summary", parents: [contestantFolder], mimeType: "text/plain" },
-      media: { mimeType: "text/plain", body: stream },
-      fields: "id",
-    });
-  }
+  ]);
 }
 
 export async function getCompetitionFolder(competitionName: string): Promise<string> {
