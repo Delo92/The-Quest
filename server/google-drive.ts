@@ -67,7 +67,7 @@ export async function getHiFitCompFolder(): Promise<string> {
 // ChronicTV(Beta) folder ID — hardcoded exactly like CBpublishing_TheQuest
 // so the service account writes into the human-owned folder (not its own 0-quota drive)
 const CHRONIC_TV_ROOT_FOLDER_ID = "1bAg39ECtEDQPl_P7xbeMaeA8ILoPY2ki";
-const CHRONIC_TV_QUEST_SHOW_NAME = "The Quest/ChronicTV";
+const CHRONIC_TV_QUEST_SHOW_NAME = "CB Publishing The Quest/ChronicTV";
 
 export async function getChronicTVRootFolder(): Promise<string> {
   return CHRONIC_TV_ROOT_FOLDER_ID;

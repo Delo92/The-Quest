@@ -209,7 +209,7 @@ export async function findOrCreateFolder(name: string, parentId?: string): Promi
 const CHRONIC_TV_ROOT_FOLDER_ID = "1bAg39ECtEDQPl_P7xbeMaeA8ILoPY2ki"; // ChronicTV(Beta)
 
 // Show name follows the ChronicTV naming convention: "ShowName/ChronicTV"
-const CHRONIC_TV_QUEST_SHOW_NAME = "The Quest/ChronicTV";
+const CHRONIC_TV_QUEST_SHOW_NAME = "CB Publishing The Quest/ChronicTV";
 
 async function getChronicTVQuestDriveFolder(): Promise<string> {
   return findOrCreateFolder(CHRONIC_TV_QUEST_SHOW_NAME, CHRONIC_TV_ROOT_FOLDER_ID);

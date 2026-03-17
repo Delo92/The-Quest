@@ -28,7 +28,7 @@ async function run() {
         status: comp.status,
         endDate: comp.endDate,
       });
-      console.log(`  ✓ Drive: ChronicTV(Beta)/The Quest/ChronicTV/${safeName(comp.title)}/`);
+      console.log(`  ✓ Drive: ChronicTV(Beta)/CB Publishing The Quest/ChronicTV/${safeName(comp.title)}/`);
     } catch (e: any) {
       console.error(`  ✗ Drive sync failed: ${e.message}`);
     }
@@ -64,7 +64,7 @@ async function run() {
 
     try {
       await syncContestantToChronicTV(comp.title, talentName, (profile as any).bio || null);
-      console.log(`  ✓ Drive: ChronicTV(Beta)/The Quest/ChronicTV/${safeName(comp.title)}/${talentName}/`);
+      console.log(`  ✓ Drive: ChronicTV(Beta)/CB Publishing The Quest/ChronicTV/${safeName(comp.title)}/${talentName}/`);
     } catch (e: any) {
       console.error(`  ✗ Drive sync failed: ${e.message}`);
     }
