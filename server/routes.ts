@@ -44,6 +44,8 @@ import {
   createCompetitionDriveFolder,
   createContestantDriveFolders,
   getDriveStorageUsage,
+  syncCompetitionToChronicTV,
+  syncContestantToChronicTV,
 } from "./google-drive";
 import {
   listTalentVideos,
@@ -61,6 +63,9 @@ import {
   createAdminLiveryUploadTicket,
   createCompetitionCoverUploadTicket,
   getVideoById,
+  getChronicTVEventVimeoFolder,
+  getChronicTVContestantVimeoFolder,
+  syncVideoToChronicTV,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -606,6 +611,17 @@ export async function registerRoutes(
       console.error("Auto-create competition folders error (non-blocking):", folderErr.message);
     }
 
+    // ChronicTV parallel sync — fire and forget
+    Promise.all([
+      syncCompetitionToChronicTV(comp.title, {
+        description: comp.description,
+        category: comp.category,
+        status: comp.status,
+        endDate: comp.endDate,
+      }),
+      getChronicTVEventVimeoFolder(comp.title),
+    ]).catch((err: any) => console.error("ChronicTV competition sync error (non-blocking):", err.message));
+
     res.status(201).json(comp);
   });
 
@@ -845,6 +861,10 @@ export async function registerRoutes(
         createContestantDriveFolders(comp.title, talentName),
         createContestantVimeoFolder(comp.title, talentName),
       ]);
+      Promise.all([
+        syncContestantToChronicTV(comp.title, talentName, profile.bio || null),
+        getChronicTVContestantVimeoFolder(comp.title, talentName),
+      ]).catch((err: any) => console.error("ChronicTV contestant sync error (non-blocking):", err.message));
     } catch (folderErr: any) {
       console.error("Auto-create contestant folders error (non-blocking):", folderErr.message);
     }
@@ -1068,6 +1088,10 @@ export async function registerRoutes(
             createContestantDriveFolders(comp.title, talentName),
             createContestantVimeoFolder(comp.title, talentName),
           ]);
+          Promise.all([
+            syncContestantToChronicTV(comp.title, talentName, profile.bio || null),
+            getChronicTVContestantVimeoFolder(comp.title, talentName),
+          ]).catch((err: any) => console.error("ChronicTV contestant sync error (non-blocking):", err.message));
         }
       } catch (folderErr: any) {
         console.error("Auto-create contestant folders error (non-blocking):", folderErr.message);
@@ -1298,6 +1322,10 @@ export async function registerRoutes(
             createContestantDriveFolders(comp.title, talentName),
             createContestantVimeoFolder(comp.title, talentName),
           ]);
+          Promise.all([
+            syncContestantToChronicTV(comp.title, talentName, profile.bio || null),
+            getChronicTVContestantVimeoFolder(comp.title, talentName),
+          ]).catch((err: any) => console.error("ChronicTV contestant sync error (non-blocking):", err.message));
         }
       } catch (folderErr: any) {
         console.error("Auto-create contestant folders error (non-blocking):", folderErr.message);
@@ -2130,6 +2158,10 @@ export async function registerRoutes(
           createContestantDriveFolders(comp.title, talentName),
           createContestantVimeoFolder(comp.title, talentName),
         ]);
+        Promise.all([
+          syncContestantToChronicTV(comp.title, talentName, (profile as any).bio || null),
+          getChronicTVContestantVimeoFolder(comp.title, talentName),
+        ]).catch((err: any) => console.error("ChronicTV contestant sync error (non-blocking):", err.message));
       } catch (folderErr: any) {
         console.error("Auto-create assigned contestant folders error (non-blocking):", folderErr.message);
       }
@@ -2524,6 +2556,10 @@ export async function registerRoutes(
                 createContestantDriveFolders(comp.title, safeTalentName),
                 createContestantVimeoFolder(comp.title, safeTalentName),
               ]);
+              Promise.all([
+                syncContestantToChronicTV(comp.title, safeTalentName, bio || null),
+                getChronicTVContestantVimeoFolder(comp.title, safeTalentName),
+              ]).catch((err: any) => console.error("ChronicTV contestant sync error (non-blocking):", err.message));
             }
           } catch (folderErr: any) {
             console.error("Auto-create join contestant folders error (non-blocking):", folderErr.message);
@@ -3526,6 +3562,10 @@ export async function registerRoutes(
       } catch {}
 
       const ticket = await createUploadTicket(comp.title, talentName, fileName, fileSize);
+
+      // ChronicTV video sync — fire and forget once video resource is created
+      syncVideoToChronicTV(ticket.videoUri, comp.title, talentName)
+        .catch((err: any) => console.error("ChronicTV video sync error (non-blocking):", err.message));
 
       res.json(ticket);
     } catch (error: any) {

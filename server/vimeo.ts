@@ -256,6 +256,40 @@ export async function getVideoById(videoId: string): Promise<VimeoVideo> {
   return vimeoRequest(`/videos/${videoId}`);
 }
 
+// ChronicTV sync — parallel catalog under ChronicTV > Originals > CB Publishing The Quest
+const CHRONIC_TV_QUEST_SERIES_NAME = "CB Publishing The Quest";
+
+export async function getChronicTVVimeoFolder(): Promise<VimeoFolder> {
+  return findOrCreateFolder("ChronicTV");
+}
+
+export async function getChronicTVOriginalsFolder(): Promise<VimeoFolder> {
+  const chronicTV = await getChronicTVVimeoFolder();
+  return findOrCreateFolder("Originals", chronicTV.uri);
+}
+
+export async function getChronicTVQuestSeriesFolder(): Promise<VimeoFolder> {
+  const originals = await getChronicTVOriginalsFolder();
+  return findOrCreateFolder(CHRONIC_TV_QUEST_SERIES_NAME, originals.uri);
+}
+
+export async function getChronicTVEventVimeoFolder(competitionName: string): Promise<VimeoFolder> {
+  const questSeries = await getChronicTVQuestSeriesFolder();
+  const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  return findOrCreateFolder(safeName, questSeries.uri);
+}
+
+export async function getChronicTVContestantVimeoFolder(competitionName: string, talentName: string): Promise<VimeoFolder> {
+  const eventFolder = await getChronicTVEventVimeoFolder(competitionName);
+  const safeTalent = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  return findOrCreateFolder(safeTalent, eventFolder.uri);
+}
+
+export async function syncVideoToChronicTV(videoUri: string, competitionName: string, talentName: string): Promise<void> {
+  const contestantFolder = await getChronicTVContestantVimeoFolder(competitionName, talentName);
+  await addVideoToFolder(videoUri, contestantFolder.uri);
+}
+
 // Admin10151992 folder (The Quest > Admin10151992, folder ID 28559983)
 const ADMIN_FOLDER_URI = "/me/projects/28559983";
 

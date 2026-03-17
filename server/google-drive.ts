@@ -65,6 +65,110 @@ export async function getHiFitCompFolder(): Promise<string> {
   return "17Fuu4-5mzEs7oGUtKorUJigvdk1lu-9H";
 }
 
+const CHRONIC_TV_DRIVE_FOLDER_NAME = "ChronicTV(Beta)";
+
+export async function getChronicTVRootFolder(): Promise<string> {
+  return findOrCreateFolder(CHRONIC_TV_DRIVE_FOLDER_NAME);
+}
+
+export async function syncCompetitionToChronicTV(
+  competitionName: string,
+  details: { description: string | null; category: string; status: string; endDate: string | null }
+): Promise<void> {
+  const drive = getDriveClient();
+  const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  const chronicRoot = await getChronicTVRootFolder();
+  const eventFolder = await findOrCreateFolder(safeName, chronicRoot);
+  await findOrCreateFolder("ChronicTV", eventFolder);
+
+  const summaryLines = [
+    `COMPETITION: ${competitionName}`,
+    `Category: ${details.category}`,
+    `Status: ${details.status}`,
+    `End Date: ${details.endDate || "TBD"}`,
+    ``,
+    `Description:`,
+    details.description || "No description provided.",
+    ``,
+    `---`,
+    `Synced from: The Quest by CB Publishing`,
+  ];
+  const summaryBuffer = Buffer.from(summaryLines.join("\n"), "utf-8");
+
+  const existing = await drive.files.list({
+    q: `name='summary' and '${eventFolder}' in parents and trashed=false`,
+    fields: "files(id)",
+  });
+
+  if (existing.data.files?.length) {
+    const stream = new Readable();
+    stream.push(summaryBuffer);
+    stream.push(null);
+    await drive.files.update({
+      fileId: existing.data.files[0].id!,
+      media: { mimeType: "text/plain", body: stream },
+    });
+  } else {
+    const stream = new Readable();
+    stream.push(summaryBuffer);
+    stream.push(null);
+    await drive.files.create({
+      requestBody: { name: "summary", parents: [eventFolder], mimeType: "text/plain" },
+      media: { mimeType: "text/plain", body: stream },
+      fields: "id",
+    });
+  }
+}
+
+export async function syncContestantToChronicTV(
+  competitionName: string,
+  talentName: string,
+  bio: string | null
+): Promise<void> {
+  const drive = getDriveClient();
+  const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  const safeTalent = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  const chronicRoot = await getChronicTVRootFolder();
+  const eventFolder = await findOrCreateFolder(safeName, chronicRoot);
+  const contestantFolder = await findOrCreateFolder(safeTalent, eventFolder);
+
+  const summaryLines = [
+    `CONTESTANT: ${talentName}`,
+    `Competition: ${competitionName}`,
+    ``,
+    `Bio:`,
+    bio || "No bio provided.",
+    ``,
+    `---`,
+    `Synced from: The Quest by CB Publishing`,
+  ];
+  const summaryBuffer = Buffer.from(summaryLines.join("\n"), "utf-8");
+
+  const existing = await drive.files.list({
+    q: `name='summary' and '${contestantFolder}' in parents and trashed=false`,
+    fields: "files(id)",
+  });
+
+  if (existing.data.files?.length) {
+    const stream = new Readable();
+    stream.push(summaryBuffer);
+    stream.push(null);
+    await drive.files.update({
+      fileId: existing.data.files[0].id!,
+      media: { mimeType: "text/plain", body: stream },
+    });
+  } else {
+    const stream = new Readable();
+    stream.push(summaryBuffer);
+    stream.push(null);
+    await drive.files.create({
+      requestBody: { name: "summary", parents: [contestantFolder], mimeType: "text/plain" },
+      media: { mimeType: "text/plain", body: stream },
+      fields: "id",
+    });
+  }
+}
+
 export async function getCompetitionFolder(competitionName: string): Promise<string> {
   const rootId = await getHiFitCompFolder();
   const safeName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
