@@ -1823,8 +1823,8 @@ export async function registerRoutes(
             email,
             displayName,
             level,
-            stageName: stageName || undefined,
-            socialLinks: socialLinks || undefined,
+            ...(stageName ? { stageName } : {}),
+            ...(socialLinks ? { socialLinks } : {}),
           });
           const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
           await storage.createTalentProfile({
