@@ -1807,7 +1807,43 @@ export async function registerRoutes(
       });
     } catch (error: any) {
       if (error.code === "auth/email-already-exists") {
-        return res.status(400).json({ message: "Email already in use" });
+        // Firebase already has this user — look them up and create the app profile if missing
+        try {
+          const { email, password, displayName, level, stageName, socialLinks } = req.body;
+          const existingFbUser = await getFirebaseAuth().getUserByEmail(email);
+          const existingProfile = await storage.getTalentProfileByUserId(existingFbUser.uid);
+          if (existingProfile) {
+            return res.status(400).json({ message: "This user already has a profile in the system" });
+          }
+          // Update Firebase password and display name to what admin specified
+          await getFirebaseAuth().updateUser(existingFbUser.uid, { password, displayName });
+          await setUserLevel(existingFbUser.uid, level);
+          await createFirestoreUser({
+            uid: existingFbUser.uid,
+            email,
+            displayName,
+            level,
+            stageName: stageName || undefined,
+            socialLinks: socialLinks || undefined,
+          });
+          const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
+          await storage.createTalentProfile({
+            userId: existingFbUser.uid,
+            displayName,
+            stageName: stageName || null,
+            bio: null,
+            category: null,
+            location: null,
+            imageUrls: [],
+            videoUrls: [],
+            socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
+            role: roleMap[level],
+          });
+          return res.status(201).json({ uid: existingFbUser.uid, email, displayName, level });
+        } catch (recoveryErr: any) {
+          console.error("Admin create user recovery error:", recoveryErr);
+          return res.status(500).json({ message: "Failed to recover existing Firebase account" });
+        }
       }
       console.error("Admin create user error:", error);
       res.status(500).json({ message: "Failed to create user" });
