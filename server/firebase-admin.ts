@@ -100,11 +100,11 @@ export async function createFirestoreUser(data: {
   };
 }): Promise<FirestoreUser> {
   const now = admin.firestore.Timestamp.now();
-  const userData: FirestoreUser = {
-    ...data,
-    createdAt: now,
-    updatedAt: now,
-  };
+  const raw = { ...data, createdAt: now, updatedAt: now };
+  // Firestore rejects undefined values — strip them out
+  const userData = Object.fromEntries(
+    Object.entries(raw).filter(([, v]) => v !== undefined)
+  ) as FirestoreUser;
   await getFirestore().collection("users").doc(data.uid).set(userData);
   return userData;
 }
