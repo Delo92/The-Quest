@@ -71,7 +71,7 @@ export default function TalentDashboard({ user, profile }: Props) {
   const lastTimeRef = useRef<number>(0);
   const [editingVideoUri, setEditingVideoUri] = useState<string | null>(null);
   const [editingVideoName, setEditingVideoName] = useState("");
-  const [previewVideoUri, setPreviewVideoUri] = useState<string | null>(null);
+
   const [copiedShareId, setCopiedShareId] = useState<string | null>(null);
   const [editingPromoCode, setEditingPromoCode] = useState(false);
   const [customPromoCode, setCustomPromoCode] = useState("");
@@ -1033,13 +1033,12 @@ export default function TalentDashboard({ user, profile }: Props) {
                       ) : vimeoVideos && vimeoVideos.length > 0 ? (
                         <div className="space-y-4">
                           {vimeoVideos.map((vid: any) => {
-                            const isPreviewing = previewVideoUri === vid.uri;
                             return (
                               <div key={vid.uri} className="rounded-md bg-white/5 border border-white/10 overflow-hidden" data-testid={`card-video-${vid.uri}`}>
-                                {isPreviewing && vid.embedUrl ? (
+                                {vid.embedUrl ? (
                                   <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
                                     <iframe
-                                      src={`${vid.embedUrl}?autoplay=1&title=0&byline=0&portrait=0`}
+                                      src={`${vid.embedUrl}?title=0&byline=0&portrait=0&dnt=1`}
                                       className="absolute inset-0 w-full h-full"
                                       allow="autoplay; fullscreen; picture-in-picture"
                                       allowFullScreen
@@ -1047,23 +1046,9 @@ export default function TalentDashboard({ user, profile }: Props) {
                                     />
                                   </div>
                                 ) : (
-                                  <div
-                                    className="relative w-full cursor-pointer group"
-                                    style={{ paddingTop: "56.25%" }}
-                                    onClick={() => setPreviewVideoUri(vid.uri)}
-                                    data-testid={`button-preview-video-${vid.uri}`}
-                                  >
-                                    {vid.thumbnail ? (
-                                      <img src={vid.thumbnail} alt={vid.name} className="absolute inset-0 w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                        <Video className="h-12 w-12 text-white/20" />
-                                      </div>
-                                    )}
-                                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                      <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 group-hover:bg-orange-500/40 transition-colors">
-                                        <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                      </div>
+                                  <div className="relative w-full bg-black/60 flex items-center justify-center" style={{ paddingTop: "56.25%" }}>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <Video className="h-12 w-12 text-white/20" />
                                     </div>
                                   </div>
                                 )}
@@ -1133,27 +1118,16 @@ export default function TalentDashboard({ user, profile }: Props) {
                                       </Badge>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-1 flex-shrink-0">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className={`text-xs px-2 ${isPreviewing ? "text-orange-400" : "text-white/40 hover:text-orange-400"}`}
-                                      onClick={() => setPreviewVideoUri(isPreviewing ? null : vid.uri)}
-                                      data-testid={`button-toggle-preview-${vid.uri}`}
-                                    >
-                                      {isPreviewing ? "Hide" : "Preview"}
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="text-red-400 flex-shrink-0"
-                                      onClick={() => deleteVideoMutation.mutate(vid.uri)}
-                                      disabled={deleteVideoMutation.isPending}
-                                      data-testid={`button-delete-video-${vid.uri}`}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="text-red-400 flex-shrink-0"
+                                    onClick={() => deleteVideoMutation.mutate(vid.uri)}
+                                    disabled={deleteVideoMutation.isPending}
+                                    data-testid={`button-delete-video-${vid.uri}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </div>
                             );
