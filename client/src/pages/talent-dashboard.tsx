@@ -380,13 +380,21 @@ export default function TalentDashboard({ user, profile }: Props) {
       setVideoUploadSpeed("");
       setVideoUploadEta("");
 
-      if (ticket.completeUri) {
-        try {
-          await fetch(`https://api.vimeo.com${ticket.completeUri}`, {
-            method: "DELETE",
-          });
-        } catch {}
-      }
+      try {
+        const token = getAuthToken();
+        await fetch("/api/vimeo/finalize-upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            videoUri: ticket.videoUri,
+            competitionId: selectedCompId,
+            completeUri: ticket.completeUri || null,
+          }),
+        });
+      } catch {}
 
       setVideoUploadStep("done");
       setVideoUploadComplete(true);

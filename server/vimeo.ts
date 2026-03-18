@@ -115,9 +115,7 @@ export async function listTalentVideos(competitionName: string, talentName: stri
   const safeCompName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   try {
     const folder = await getTalentFolderInCompetition(competitionName, talentName);
-    const videosUri = folder.metadata?.connections?.videos?.uri;
-    if (!videosUri) return [];
-
+    const videosUri = folder.metadata?.connections?.videos?.uri || `${folder.uri}/videos`;
     const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
     return data.data || [];
   } catch {
@@ -150,8 +148,7 @@ export async function listAllTalentVideos(talentName: string): Promise<(VimeoVid
             .map((t: any) => t.folder || t)
             .find((f: any) => f.name === safeTalentName);
           if (!talentFolder) return [];
-          const videosUri = talentFolder.metadata?.connections?.videos?.uri;
-          if (!videosUri) return [];
+          const videosUri = talentFolder.metadata?.connections?.videos?.uri || `${talentFolder.uri}/videos`;
           const videosData = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
           return (videosData.data || []).map((v: VimeoVideo) => ({ ...v, competitionFolder: compFolder.name }));
         } catch {

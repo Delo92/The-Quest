@@ -449,7 +449,7 @@ export async function registerRoutes(
             }
             coverVideoUrl = topCompetition.coverVideo || null;
             try {
-              const talentName = (topContestant.talentProfile.displayName || topContestant.talentProfile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+              const talentName = (topContestant.talentProfile.stageName || topContestant.talentProfile.displayName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
               const videos = await listTalentVideos(topCompetition.title, talentName);
               if (videos.length > 0 && videos[0].player_embed_url) {
                 const baseUrl = videos[0].player_embed_url;
@@ -463,7 +463,7 @@ export async function registerRoutes(
           let contestantSlug: string | null = null;
           if (topCompetition && topContestant) {
             competitionSlug = slugify(topCompetition.title);
-            contestantSlug = slugify(topContestant.talentProfile.displayName || topContestant.talentProfile.stageName || "");
+            contestantSlug = slugify(topContestant.talentProfile.stageName || topContestant.talentProfile.displayName || "");
           }
 
           return {
@@ -537,7 +537,7 @@ export async function registerRoutes(
       contestantsData.map(async (contestant) => {
         let videoThumbnail: string | null = null;
         try {
-          const talentName = (contestant.talentProfile.displayName || contestant.talentProfile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+          const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
           const videos = await listTalentVideos(comp.title, talentName);
           if (videos.length > 0) {
             videoThumbnail = getVideoThumbnail(videos[0]);
@@ -886,7 +886,7 @@ export async function registerRoutes(
     });
 
     try {
-      const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
       await Promise.all([
         createContestantDriveFolders(comp.title, talentName),
         createContestantVimeoFolder(comp.title, talentName),
@@ -1023,7 +1023,7 @@ export async function registerRoutes(
 
     let videos: any[] = [];
     try {
-      const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
       const rawVideos = await listAllTalentVideos(talentName);
       videos = rawVideos.map(v => ({
         uri: v.uri,
@@ -1135,7 +1135,7 @@ export async function registerRoutes(
       try {
         const profile = await storage.getTalentProfile(updated.talentProfileId);
         if (profile && comp) {
-          const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+          const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
           await Promise.all([
             createContestantDriveFolders(comp.title, talentName),
             createContestantVimeoFolder(comp.title, talentName),
@@ -1369,7 +1369,7 @@ export async function registerRoutes(
         const profile = await storage.getTalentProfile(updated.talentProfileId);
         const comp = await storage.getCompetition(updated.competitionId);
         if (profile && comp) {
-          const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+          const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
           await Promise.all([
             createContestantDriveFolders(comp.title, talentName),
             createContestantVimeoFolder(comp.title, talentName),
@@ -2141,7 +2141,7 @@ export async function registerRoutes(
       const profile = await storage.getTalentProfile(profileId);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
 
-      const talentName = ((profile as any).displayName || (profile as any).stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = ((profile as any).stageName || (profile as any).displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
       // Run DB + Firestore in parallel — Vimeo is on its own separate endpoint
       const [firestoreUser, contestantEntries] = await Promise.all([
@@ -2222,7 +2222,7 @@ export async function registerRoutes(
       ]);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
 
-      const talentName = ((profile as any).displayName || (profile as any).stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = ((profile as any).stageName || (profile as any).displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
       // Only fetch from competitions this talent is actually enrolled in
       const competitions = await Promise.all(
@@ -2287,7 +2287,7 @@ export async function registerRoutes(
       });
 
       try {
-        const talentName = ((profile as any).displayName || (profile as any).stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+        const talentName = ((profile as any).stageName || (profile as any).displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
         await Promise.all([
           createContestantDriveFolders(comp.title, talentName),
           createContestantVimeoFolder(comp.title, talentName),
@@ -3496,7 +3496,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Upload limit reached. Maximum ${maxImages} images allowed per contestant.` });
       }
 
-      const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
       const uniqueName = generateUniqueFilename(req.file.originalname);
       const storagePath = `talent-images/${comp.title}/${talentName}/${uniqueName}`;
 
@@ -3619,7 +3619,7 @@ export async function registerRoutes(
       if (!profile) return res.json([]);
 
       const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : null;
-      const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
       const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
 
       if (competitionId) {
@@ -3684,7 +3684,7 @@ export async function registerRoutes(
       const compMaxVideos = comp.maxVideosPerContestant;
       const maxVideos = compMaxVideos != null ? Math.min(compMaxVideos, globalMaxVideos) : globalMaxVideos;
 
-      const talentName = (profile.displayName || profile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
       try {
         const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
@@ -3713,6 +3713,49 @@ export async function registerRoutes(
         userMessage = "Vimeo storage quota reached. Please contact the administrator.";
       }
       res.status(500).json({ message: userMessage });
+    }
+  });
+
+  app.post("/api/vimeo/finalize-upload", firebaseAuth, async (req, res) => {
+    try {
+      const uid = req.firebaseUser!.uid;
+      const profile = await storage.getTalentProfileByUserId(uid);
+      if (!profile) return res.status(400).json({ message: "Profile not found" });
+
+      const { videoUri, competitionId, completeUri } = req.body;
+      if (!videoUri || !competitionId) {
+        return res.status(400).json({ message: "videoUri and competitionId are required" });
+      }
+
+      if (completeUri) {
+        try {
+          await fetch(`https://api.vimeo.com${completeUri}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${process.env.VIMEO_ACCESS_TOKEN}`,
+              Accept: "application/vnd.vimeo.*+json;version=3.4",
+            },
+          });
+        } catch (e: any) {
+          console.warn("Vimeo completeUri call failed:", e.message);
+        }
+      }
+
+      const comp = await storage.getCompetition(parseInt(competitionId));
+      if (comp) {
+        const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+        try {
+          const folder = await getTalentFolderInCompetition(comp.title, talentName);
+          await addVideoToFolder(videoUri, folder.uri);
+        } catch (folderErr: any) {
+          console.warn("Could not add video to folder:", folderErr.message);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Finalize upload error:", error);
+      res.status(500).json({ message: "Failed to finalize upload" });
     }
   });
 
@@ -3882,7 +3925,7 @@ export async function registerRoutes(
         contestantsData.map(async (contestant) => {
           let videoThumbnail: string | null = null;
           try {
-            const talentName = (contestant.talentProfile.displayName || contestant.talentProfile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
             const videos = await listTalentVideos(comp.title, talentName);
             if (videos.length > 0) {
               videoThumbnail = getVideoThumbnail(videos[0]);
@@ -3967,7 +4010,7 @@ export async function registerRoutes(
       let videoThumbnail: string | null = null;
       let videos: any[] = [];
       try {
-        const talentName = (contestant.talentProfile.displayName || contestant.talentProfile.stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+        const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
         const talentVideos = await listTalentVideos(comp.title, talentName);
         if (talentVideos.length > 0) {
           videoThumbnail = getVideoThumbnail(talentVideos[0]);
@@ -4594,7 +4637,7 @@ export async function registerRoutes(
       if (!contestant) return next();
 
       const profile = contestant.talentProfile;
-      const displayName = profile.displayName || profile.stageName || "Contestant";
+      const displayName = profile.stageName || profile.displayName || "Contestant";
       const ogTitle = `Vote for ${displayName} - ${comp.title} | The Quest`;
       const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on The Quest!`;
       const ogImage = profile.imageUrls?.[0] || comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
@@ -4702,7 +4745,7 @@ export async function registerRoutes(
       if (!contestant) return next();
 
       const profile = contestant.talentProfile;
-      const displayName = profile.displayName || profile.stageName || "Contestant";
+      const displayName = profile.stageName || profile.displayName || "Contestant";
       const ogTitle = `Vote for ${displayName} - ${comp.title} | The Quest`;
       const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on The Quest!`;
       const ogImage = profile.imageUrls?.[0] || comp.coverImage || "";
