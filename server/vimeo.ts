@@ -23,6 +23,8 @@ export interface VimeoVideo {
   height: number;
   status: string;
   pictures: {
+    active: boolean;
+    type: string;
     sizes: Array<{ width: number; height: number; link: string }>;
   };
   created_time: string;
@@ -239,6 +241,7 @@ export async function addVideoToFolder(videoUri: string, folderUri: string): Pro
 
 export function getVideoThumbnail(video: VimeoVideo, width: number = 640): string {
   if (!video.pictures?.sizes?.length) return "";
+  if (!video.pictures.active || video.pictures.type === "default") return "";
   const sorted = [...video.pictures.sizes].sort((a, b) => Math.abs(a.width - width) - Math.abs(b.width - width));
   return sorted[0]?.link || "";
 }
