@@ -861,6 +861,10 @@ export async function registerRoutes(
     const existing = await storage.getContestant(compId, profile.id);
     if (existing) return res.status(400).json({ message: "Already applied to this competition" });
 
+    if (profile.role === "host" || profile.role === "admin") {
+      return res.status(400).json({ message: "Hosts and admins cannot be entered as contestants." });
+    }
+
     const allMyContests = await storage.getContestantsByTalent(profile.id);
     const activeEntries = allMyContests.filter(c => c.applicationStatus === "approved" || c.applicationStatus === "pending");
 
@@ -2170,6 +2174,10 @@ export async function registerRoutes(
 
       const existing = await storage.getContestant(compId, profileId);
       if (existing) return res.status(400).json({ message: "Already assigned to this competition" });
+
+      if ((profile as any).role === "host" || (profile as any).role === "admin") {
+        return res.status(400).json({ message: "Hosts and admins cannot be assigned as contestants." });
+      }
 
       const contestant = await storage.createContestant({
         competitionId: compId,
