@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
 import { slugify } from "@shared/slugify";
@@ -174,6 +175,9 @@ export default function TalentDashboard({ user, profile }: Props) {
     }
   };
 
+  const [leaveTarget, setLeaveTarget] = useState<{ contestantId: number; title: string } | null>(null);
+  const [leaveConfirmText, setLeaveConfirmText] = useState("");
+
   const applyMutation = useMutation({
     mutationFn: async (competitionId: number) => {
       await apiRequest("POST", `/api/competitions/${competitionId}/apply`);
@@ -181,6 +185,21 @@ export default function TalentDashboard({ user, profile }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contestants/me"] });
       toast({ title: "Applied!", description: "Your application has been submitted for review." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: async (contestantId: number) => {
+      await apiRequest("DELETE", `/api/contestants/me/${contestantId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contestants/me"] });
+      setLeaveTarget(null);
+      setLeaveConfirmText("");
+      toast({ title: "Left competition", description: "You have been removed from the competition." });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
@@ -1265,6 +1284,15 @@ export default function TalentDashboard({ user, profile }: Props) {
                             <Badge className={`border-0 ${contest.applicationStatus === "approved" ? "bg-green-500/20 text-green-400" : contest.applicationStatus === "rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`} data-testid={`badge-app-status-${contest.id}`}>
                               {contest.applicationStatus}
                             </Badge>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => { setLeaveTarget({ contestantId: contest.id, title: contest.competitionTitle || "Competition" }); setLeaveConfirmText(""); }}
+                              data-testid={`button-leave-${contest.id}`}
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs"
+                            >
+                              Leave
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -1283,7 +1311,21 @@ export default function TalentDashboard({ user, profile }: Props) {
                             <p className="text-xs text-white/30">{comp.category}</p>
                           </div>
                           {appliedIds.has(comp.id) ? (
-                            <Badge className="bg-orange-500/20 text-orange-400 border-0">Applied</Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-orange-500/20 text-orange-400 border-0">Applied</Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  const entry = myContests?.find((c: any) => c.competitionId === comp.id);
+                                  if (entry) { setLeaveTarget({ contestantId: entry.id, title: comp.title }); setLeaveConfirmText(""); }
+                                }}
+                                data-testid={`button-leave-available-${comp.id}`}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs"
+                              >
+                                Leave
+                              </Button>
+                            </div>
                           ) : hasActiveEntry ? (
                             <Badge className="bg-white/10 text-white/30 border-0">Already in a competition</Badge>
                           ) : (
@@ -1307,6 +1349,54 @@ export default function TalentDashboard({ user, profile }: Props) {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Leave Competition confirmation dialog */}
+      <Dialog open={!!leaveTarget} onOpenChange={(open) => { if (!open) { setLeaveTarget(null); setLeaveConfirmText(""); } }}>
+        <DialogContent className="bg-[#111] border border-white/10 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+              Leave Competition
+            </DialogTitle>
+            <DialogDescription className="text-white/60 pt-1">
+              You are about to leave <span className="text-white font-medium">{leaveTarget?.title}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3 space-y-1">
+              <p className="text-sm text-red-300 font-medium">Warning — this action will:</p>
+              <ul className="text-sm text-red-300/80 list-disc list-inside space-y-1">
+                <li>Remove all your votes from this competition</li>
+                <li>Clear your ranking and leaderboard status</li>
+                <li>Require re-applying if you want to re-enter</li>
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-white/50">Type <span className="font-mono text-white">Leave Competition</span> to confirm:</p>
+              <Input
+                value={leaveConfirmText}
+                onChange={(e) => setLeaveConfirmText(e.target.value)}
+                placeholder="Leave Competition"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/20"
+                data-testid="input-leave-confirm"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => { setLeaveTarget(null); setLeaveConfirmText(""); }} className="text-white/50">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => leaveTarget && leaveMutation.mutate(leaveTarget.contestantId)}
+              disabled={leaveConfirmText !== "Leave Competition" || leaveMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white border-0 disabled:opacity-40"
+              data-testid="button-confirm-leave"
+            >
+              {leaveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Leave Competition"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

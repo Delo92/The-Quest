@@ -902,6 +902,28 @@ export async function registerRoutes(
     res.status(201).json(contestant);
   });
 
+  // Talent self-withdrawal from a competition
+  app.delete("/api/contestants/me/:contestantId", firebaseAuth, async (req, res) => {
+    try {
+      const uid = req.firebaseUser!.uid;
+      const contestantId = parseInt(req.params.contestantId);
+      if (isNaN(contestantId)) return res.status(400).json({ message: "Invalid contestant ID" });
+
+      const profile = await storage.getTalentProfileByUserId(uid);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      // Verify the contestant record belongs to this talent
+      const allMyContests = await storage.getContestantsByTalent(profile.id);
+      const target = allMyContests.find(c => c.id === contestantId);
+      if (!target) return res.status(404).json({ message: "Contestant record not found" });
+
+      await storage.deleteContestant(contestantId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Leave competition error:", error);
+      res.status(500).json({ message: "Failed to leave competition" });
+    }
+  });
 
   app.get("/api/talent-profiles/me", firebaseAuth, async (req, res) => {
     const uid = req.firebaseUser!.uid;
