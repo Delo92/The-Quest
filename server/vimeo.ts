@@ -139,29 +139,27 @@ export async function listAllTalentVideos(talentName: string): Promise<(VimeoVid
     const data = await vimeoRequest(listPath);
     const compFolders = data.data || [];
 
-    const allVideos: (VimeoVideo & { competitionFolder: string })[] = [];
-
-    for (const compItem of compFolders) {
-      const compFolder = compItem.folder || compItem;
-      if (!compFolder.uri) continue;
-      try {
-        const talentListPath = `${compFolder.uri}/items?type=folder&per_page=100`;
-        const talentData = await vimeoRequest(talentListPath);
-        const talentItems = talentData.data || [];
-        const talentFolder = talentItems.map((t: any) => t.folder || t).find((f: any) => f.name === safeTalentName);
-        if (!talentFolder) continue;
-
-        const videosUri = talentFolder.metadata?.connections?.videos?.uri;
-        if (!videosUri) continue;
-
-        const videosData = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
-        const videos = videosData.data || [];
-        allVideos.push(...videos.map((v: VimeoVideo) => ({ ...v, competitionFolder: compFolder.name })));
-      } catch {
-        continue;
-      }
-    }
-    return allVideos;
+    // Parallel: all competition folders checked simultaneously
+    const results = await Promise.all(
+      compFolders.map(async (compItem: any) => {
+        const compFolder = compItem.folder || compItem;
+        if (!compFolder.uri) return [];
+        try {
+          const talentData = await vimeoRequest(`${compFolder.uri}/items?type=folder&per_page=100`);
+          const talentFolder = (talentData.data || [])
+            .map((t: any) => t.folder || t)
+            .find((f: any) => f.name === safeTalentName);
+          if (!talentFolder) return [];
+          const videosUri = talentFolder.metadata?.connections?.videos?.uri;
+          if (!videosUri) return [];
+          const videosData = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
+          return (videosData.data || []).map((v: VimeoVideo) => ({ ...v, competitionFolder: compFolder.name }));
+        } catch {
+          return [];
+        }
+      })
+    );
+    return results.flat();
   } catch {
     try {
       const searchQuery = ` - ${safeTalentName} - `;

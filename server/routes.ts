@@ -2083,34 +2083,41 @@ export async function registerRoutes(
       const profile = await storage.getTalentProfile(profileId);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
 
-      const firestoreUser = await getFirestoreUser(profile.userId);
-
-      const contestantEntries = await storage.getContestantsByTalent(profileId);
-
-      const votingStats = [];
-      for (const entry of contestantEntries) {
-        const comp = await storage.getCompetition(entry.competitionId);
-        if (!comp) continue;
-        const voteCount = await storage.getVoteCountForContestantInCompetition(entry.id, entry.competitionId);
-        const totalCompVotes = await storage.getTotalVotesByCompetition(entry.competitionId);
-        const allContestants = await storage.getContestantsByCompetition(entry.competitionId);
-        const sorted = allContestants.sort((a, b) => b.voteCount - a.voteCount);
-        const rank = sorted.findIndex(c => c.id === entry.id) + 1;
-
-        votingStats.push({
-          competitionId: comp.id,
-          competitionTitle: comp.title,
-          competitionStatus: comp.status,
-          applicationStatus: entry.applicationStatus,
-          voteCount,
-          totalVotes: totalCompVotes,
-          votePercentage: totalCompVotes > 0 ? Math.round((voteCount / totalCompVotes) * 10000) / 100 : 0,
-          rank: rank > 0 ? rank : null,
-          totalContestants: allContestants.length,
-        });
-      }
-
       const talentName = ((profile as any).displayName || (profile as any).stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+
+      // Run DB + Firestore in parallel — Vimeo is on its own separate endpoint
+      const [firestoreUser, contestantEntries] = await Promise.all([
+        getFirestoreUser(profile.userId),
+        storage.getContestantsByTalent(profileId),
+      ]);
+
+      // For each contestant entry, run all sub-queries in parallel
+      const votingStats = (
+        await Promise.all(
+          contestantEntries.map(async (entry) => {
+            const [comp, voteCount, totalCompVotes, allContestants] = await Promise.all([
+              storage.getCompetition(entry.competitionId),
+              storage.getVoteCountForContestantInCompetition(entry.id, entry.competitionId),
+              storage.getTotalVotesByCompetition(entry.competitionId),
+              storage.getContestantsByCompetition(entry.competitionId),
+            ]);
+            if (!comp) return null;
+            const sorted = [...allContestants].sort((a, b) => b.voteCount - a.voteCount);
+            const rank = sorted.findIndex(c => c.id === entry.id) + 1;
+            return {
+              competitionId: comp.id,
+              competitionTitle: comp.title,
+              competitionStatus: comp.status,
+              applicationStatus: entry.applicationStatus,
+              voteCount,
+              totalVotes: totalCompVotes,
+              votePercentage: totalCompVotes > 0 ? Math.round((voteCount / totalCompVotes) * 10000) / 100 : 0,
+              rank: rank > 0 ? rank : null,
+              totalContestants: allContestants.length,
+            };
+          })
+        )
+      ).filter(Boolean);
 
       const profileImageUrls = (profile as any).imageUrls || [];
       const driveImages = profileImageUrls.map((url: string, idx: number) => ({
@@ -2120,23 +2127,11 @@ export async function registerRoutes(
         thumbnailUrl: url,
       }));
 
-      let vimeoVideos: any[] = [];
-      try {
-        const rawVideos = await listAllTalentVideos(talentName);
-        vimeoVideos = rawVideos.map(v => ({
-          uri: v.uri,
-          name: v.name,
-          link: v.link,
-          embedUrl: v.player_embed_url,
-          duration: v.duration,
-          thumbnail: getVideoThumbnail(v),
-          competitionFolder: v.competitionFolder,
-        }));
-      } catch {}
+      const vimeoVideos: any[] = []; // loaded separately via /videos endpoint
 
-      const activeStats = votingStats.filter(s => s.competitionStatus === "active" || s.competitionStatus === "voting");
-      const pastStats = votingStats.filter(s => s.competitionStatus === "completed");
-      const upcomingEvents = votingStats.filter(s => s.competitionStatus === "draft" && s.applicationStatus === "approved");
+      const activeStats = votingStats.filter((s: any) => s.competitionStatus === "active" || s.competitionStatus === "voting");
+      const pastStats = votingStats.filter((s: any) => s.competitionStatus === "completed");
+      const upcomingEvents = votingStats.filter((s: any) => s.competitionStatus === "draft" && s.applicationStatus === "approved");
 
       res.json({
         profile: {
@@ -2154,6 +2149,53 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("User detail error:", error);
       res.status(500).json({ message: "Failed to get user detail" });
+    }
+  });
+
+  // Separate lazy endpoint for Vimeo videos — only looks in competitions the talent is actually in
+  app.get("/api/admin/users/:profileId/videos", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const profileId = parseInt(req.params.profileId);
+      if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
+
+      const [profile, contestantEntries] = await Promise.all([
+        storage.getTalentProfile(profileId),
+        storage.getContestantsByTalent(profileId),
+      ]);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const talentName = ((profile as any).displayName || (profile as any).stageName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+
+      // Only fetch from competitions this talent is actually enrolled in
+      const competitions = await Promise.all(
+        contestantEntries.map(e => storage.getCompetition(e.competitionId))
+      );
+      const knownCompetitions = competitions.filter(Boolean) as any[];
+
+      const rawVideos = (
+        await Promise.all(
+          knownCompetitions.map(comp =>
+            listTalentVideos(comp.title, talentName)
+              .then(vids => vids.map(v => ({ ...v, competitionFolder: comp.title })))
+              .catch(() => [])
+          )
+        )
+      ).flat();
+
+      const vimeoVideos = rawVideos.map((v: any) => ({
+        uri: v.uri,
+        name: v.name,
+        link: v.link,
+        embedUrl: v.player_embed_url,
+        duration: v.duration,
+        thumbnail: getVideoThumbnail(v),
+        competitionFolder: v.competitionFolder,
+      }));
+
+      res.json({ vimeoVideos });
+    } catch (error: any) {
+      console.error("User videos error:", error);
+      res.status(500).json({ message: "Failed to get videos" });
     }
   });
 

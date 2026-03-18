@@ -220,6 +220,14 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
     queryKey: ["/api/admin/users", profileId, "detail"],
   });
 
+  const { data: videosData, isLoading: videosLoading } = useQuery<{ vimeoVideos: VimeoVideo[] }>({
+    queryKey: ["/api/admin/users", profileId, "videos"],
+    enabled: !!data, // only fetch after profile is loaded
+    staleTime: 60_000,
+  });
+
+  const vimeoVideos = videosData?.vimeoVideos ?? [];
+
   const assignMutation = useMutation({
     mutationFn: async ({ pId, competitionId }: { pId: number; competitionId: number }) => {
       await apiRequest("POST", `/api/admin/users/${pId}/assign`, { competitionId });
@@ -260,7 +268,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
 
   if (!data) return <div className="text-white/40 text-sm py-8 text-center">Failed to load details.</div>;
 
-  const { profile, activeStats, pastStats, upcomingEvents, driveImages, vimeoVideos } = data;
+  const { profile, activeStats, pastStats, upcomingEvents, driveImages } = data;
 
   let socialLinksObj: Record<string, string> = {};
   if (profile.socialLinks) {
@@ -327,7 +335,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
         </div>
       </div>
 
-      {(driveImages.length > 0 || vimeoVideos.length > 0) && (
+      {(driveImages.length > 0 || videosLoading || vimeoVideos.length > 0) && (
         <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="user-detail-media">
           <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold mb-3">Media</h3>
           {driveImages.length > 0 && (
@@ -343,9 +351,13 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
               {driveImages.length > 8 && <p className="text-xs text-white/20 mt-1">+{driveImages.length - 8} more</p>}
             </div>
           )}
-          {vimeoVideos.length > 0 && (
-            <div>
-              <p className="text-xs text-white/40 mb-2 flex items-center gap-1"><Video className="h-3 w-3" /> Videos ({vimeoVideos.length})</p>
+          <div>
+            <p className="text-xs text-white/40 mb-2 flex items-center gap-1"><Video className="h-3 w-3" /> Videos{!videosLoading && ` (${vimeoVideos.length})`}</p>
+            {videosLoading ? (
+              <p className="text-xs text-white/20">Loading videos...</p>
+            ) : vimeoVideos.length === 0 ? (
+              <p className="text-xs text-white/20">No videos found</p>
+            ) : (
               <div className="space-y-2">
                 {vimeoVideos.slice(0, 4).map((vid) => (
                   <a key={vid.uri} href={vid.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-md bg-white/5 p-2" data-testid={`vimeo-vid-${vid.uri}`}>
@@ -358,8 +370,8 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
                   </a>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
