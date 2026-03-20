@@ -46,3 +46,4 @@ integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_database:1.0.
 
 [userenv.shared]
 SITE_URL = "cbpublishing.live"
+GA4_PROPERTY_ID = "528039087"
