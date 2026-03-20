@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import AdminDiagnostics from "@/components/admin-diagnostics";
 import { slugify } from "@shared/slugify";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -3509,6 +3510,24 @@ export default function AdminDashboard({ user }: { user: any }) {
           </TabsContent>
 
           <TabsContent value="settings">
+            <Tabs defaultValue="platform-settings">
+              <TabsList className="bg-white/[0.06] border border-white/10 mb-6">
+                <TabsTrigger
+                  value="platform-settings"
+                  className="text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
+                  data-testid="tab-settings-platform"
+                >
+                  Platform Settings
+                </TabsTrigger>
+                <TabsTrigger
+                  value="diagnostics"
+                  className="text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white flex items-center gap-2"
+                  data-testid="tab-settings-diagnostics"
+                >
+                  <BarChart3 className="h-4 w-4" /> Diagnostics
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="platform-settings">
             {(() => {
               const form = settingsForm || platformSettings || {};
               const updateForm = (key: string, value: any) => {
@@ -3879,6 +3898,11 @@ export default function AdminDashboard({ user }: { user: any }) {
                 </div>
               );
             })()}
+              </TabsContent>
+              <TabsContent value="diagnostics">
+                <AdminDiagnostics />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>

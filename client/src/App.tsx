@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useLivery } from "@/hooks/use-livery";
+import { useGATracking } from "@/hooks/use-ga-tracking";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home";
 import Landing from "@/pages/landing";
@@ -71,6 +72,7 @@ function DynamicFavicon() {
 }
 
 function App() {
+  useGATracking();
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");

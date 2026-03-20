@@ -151,6 +151,50 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.use(async (req, res, next) => {
+    const originalJson = (res.json as Function).bind(res);
+    (res as any).json = function (data: any) {
+      const status = res.statusCode;
+      if (status >= 400 && req.path.startsWith('/api')) {
+        const isSessionCheck = (
+          req.path === '/api/admin/session' ||
+          req.path === '/api/portal/session'
+        ) && status === 401;
+        const isCartMiss = req.path.startsWith('/api/cart') && status === 404;
+        if (!isSessionCheck && !isCartMiss) {
+          const p = req.path.toLowerCase();
+          let errorType: any = 'api';
+          if (p.includes('/login') || p.includes('/logout') || p.includes('/session') || p.includes('/auth') || p.includes('/register')) errorType = 'authentication';
+          else if (p.includes('/payment') || p.includes('/paypal') || p.includes('/subscribe') || p.includes('/checkout')) errorType = 'payment';
+          else if (p.includes('/email') || p.includes('/contact') || p.includes('/send')) errorType = 'email';
+          else if (p.includes('/upload') || p.includes('/image') || p.includes('/vimeo') || p.includes('/photo') || p.includes('/cover')) errorType = 'form_upload';
+          else if (p.includes('/admin')) errorType = 'admin_operation_error';
+          else if (status >= 500) errorType = 'system';
+          const severity: any = status >= 500 ? 'error' : (status === 401 || status === 403) ? 'warning' : 'info';
+          import('./services/errorLogger').then(({ logError, createErrorContext }) => {
+            logError({
+              errorType,
+              severity,
+              message: data?.message || `HTTP ${status} ${req.method} ${req.path}`,
+              endpoint: req.path,
+              method: req.method,
+              statusCode: status,
+              wasShownToUser: status < 500,
+              context: createErrorContext({
+                ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip,
+                userAgent: req.headers['user-agent']?.substring(0, 250),
+                referer: req.headers['referer'],
+                body: req.method !== 'GET' ? JSON.stringify(req.body || {}).substring(0, 400) : undefined,
+              }),
+            }).catch(() => {});
+          }).catch(() => {});
+        }
+      }
+      return originalJson(data);
+    };
+    next();
+  });
+
   app.get("/api/firebase-config", (_req, res) => {
     res.json({
       apiKey: process.env.FIREBASE_API_KEY,
@@ -4778,6 +4822,38 @@ export async function registerRoutes(
     } catch (error) {
       console.error("OG meta injection error:", error);
       next();
+    }
+  });
+
+  app.get("/api/admin/ga4-analytics", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { getGA4Report } = await import('./services/ga4Analytics');
+      const dateRange = (req.query.dateRange as string) || '30d';
+      const data = await getGA4Report(dateRange);
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error('GA4 analytics error:', error.message);
+      res.status(500).json({ success: false, message: error.message || 'Failed to fetch analytics data' });
+    }
+  });
+
+  app.get("/api/admin/error-logs", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { getErrorLogs } = await import('./services/errorLogger');
+      const { startDate, endDate, severity, errorType, userUid, limit, offset } = req.query;
+      const options: any = {};
+      if (startDate) options.startDate = new Date(startDate as string);
+      if (endDate) options.endDate = new Date(endDate as string);
+      if (severity) options.severity = severity as string;
+      if (errorType) options.errorType = errorType as string;
+      if (userUid) options.userUid = userUid as string;
+      if (limit) options.limit = parseInt(limit as string);
+      if (offset) options.offset = parseInt(offset as string);
+      const result = await getErrorLogs(options);
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching error logs:', error);
+      res.status(500).json({ logs: [], total: 0 });
     }
   });
 
