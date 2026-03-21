@@ -256,7 +256,7 @@ export default function ContestantSharePage() {
             <button
               onClick={() => voteMutation.mutate()}
               disabled={voteMutation.isPending}
-              className="inline-flex items-center bg-black text-white font-bold text-sm uppercase px-8 leading-[47px] border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center bg-black text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
               style={{ letterSpacing: "2px" }}
               data-testid="button-vote"
             >
@@ -265,7 +265,7 @@ export default function ContestantSharePage() {
             </button>
             <Link
               href={`/checkout/${competition.id}/${contestant.id}`}
-              className="inline-flex items-center text-white font-bold text-sm uppercase px-8 leading-[47px] border transition-all duration-500 cursor-pointer"
+              className="inline-flex items-center text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border transition-all duration-500 cursor-pointer"
               style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
               data-testid="button-buy-votes"
             >
@@ -278,7 +278,7 @@ export default function ContestantSharePage() {
         <div className="flex justify-center mb-10">
           <button
             onClick={handleShare}
-            className="inline-flex items-center gap-2 bg-white/5 text-white/70 font-bold text-sm uppercase px-8 leading-[47px] border border-white/20 transition-all duration-500 hover:bg-white/10 hover:text-white hover:border-white/40 cursor-pointer"
+            className="inline-flex items-center gap-2 bg-white/5 text-white/70 font-bold text-sm uppercase px-8 leading-[47px] rounded-full border border-white/20 transition-all duration-500 hover:bg-white/10 hover:text-white hover:border-white/40 cursor-pointer"
             style={{ letterSpacing: "2px" }}
             data-testid="button-share"
           >
@@ -376,9 +376,9 @@ export default function ContestantSharePage() {
                         alt={video.name}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500 flex items-center justify-center">
-                        <div className="w-14 h-14 flex items-center justify-center transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: accentColor }}>
-                          <Play className="h-6 w-6 text-white fill-white ml-0.5" />
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110 shadow-lg" style={{ backgroundColor: accentColor }}>
+                          <Play className="h-7 w-7 text-white fill-white ml-1" />
                         </div>
                       </div>
                     </div>
@@ -393,7 +393,7 @@ export default function ContestantSharePage() {
         <div className="flex flex-wrap items-center justify-center gap-4 pb-10">
           <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
             <span
-              className="inline-block bg-transparent text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer text-center"
+              className="inline-block bg-transparent text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer text-center"
               data-testid="button-back-competition"
             >
               View Competition <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
@@ -401,7 +401,7 @@ export default function ContestantSharePage() {
           </Link>
           <Link href="/competitions">
             <span
-              className="inline-block bg-transparent text-white/60 font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border border-white/30 transition-all duration-500 hover:bg-white hover:text-black cursor-pointer text-center"
+              className="inline-block bg-transparent text-white/60 font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] rounded-full border border-white/30 transition-all duration-500 hover:bg-white hover:text-black cursor-pointer text-center"
               data-testid="button-back-competitions"
             >
               All Competitions
