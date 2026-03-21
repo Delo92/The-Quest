@@ -59,32 +59,38 @@ async function run() {
       continue;
     }
 
-    const talentName = safeName((profile as any).displayName || (profile as any).stageName || `talent-${contestant.talentProfileId}`);
-    console.log(`[CONTESTANT] ${talentName} in "${comp.title}"`);
+    // Quest folder uses stageName first (matches upload ticket logic)
+    const questName = safeName((profile as any).stageName || (profile as any).displayName || `talent-${contestant.talentProfileId}`);
+    // ChronicTV catalog uses displayName (real name for broadcast, matches contestant approval logic)
+    const chronicTVName = safeName((profile as any).displayName || (profile as any).stageName || `talent-${contestant.talentProfileId}`);
+
+    console.log(`[CONTESTANT] quest="${questName}" / chronicTV="${chronicTVName}" in "${comp.title}"`);
 
     try {
-      await syncContestantToChronicTV(comp.title, talentName, (profile as any).bio || null);
-      console.log(`  ✓ Drive: ChronicTV(Beta)/CB Publishing The Quest/ChronicTV/${safeName(comp.title)}/${talentName}/`);
+      await syncContestantToChronicTV(comp.title, chronicTVName, (profile as any).bio || null);
+      console.log(`  ✓ Drive: ChronicTV folder for ${chronicTVName}`);
     } catch (e: any) {
       console.error(`  ✗ Drive sync failed: ${e.message}`);
     }
 
     try {
-      await getChronicTVContestantVimeoFolder(comp.title, talentName);
-      console.log(`  ✓ Vimeo: contestant folder created/confirmed`);
+      await getChronicTVContestantVimeoFolder(comp.title, chronicTVName);
+      console.log(`  ✓ Vimeo: ChronicTV contestant folder confirmed for ${chronicTVName}`);
     } catch (e: any) {
       console.error(`  ✗ Vimeo folder failed: ${e.message}`);
     }
 
     try {
-      const videos = await listTalentVideos(comp.title, talentName);
+      // List videos from the Quest platform folder (uses questName / stageName)
+      const videos = await listTalentVideos(comp.title, questName);
       if (videos.length === 0) {
-        console.log(`  — no videos found in main folder, skipping video sync`);
+        console.log(`  — no videos found in Quest folder for "${questName}", skipping video sync`);
       }
       for (const video of videos) {
         try {
-          await syncVideoToChronicTV(video.uri, comp.title, talentName);
-          console.log(`  ✓ Video synced: ${video.name || video.uri}`);
+          // Sync into ChronicTV folder using chronicTVName (displayName)
+          await syncVideoToChronicTV(video.uri, comp.title, questName, chronicTVName);
+          console.log(`  ✓ Video synced to ChronicTV: ${video.name || video.uri}`);
         } catch (e: any) {
           console.error(`  ✗ Video sync failed for ${video.uri}: ${e.message}`);
         }

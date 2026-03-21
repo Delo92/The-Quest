@@ -299,8 +299,14 @@ export async function getChronicTVContestantVimeoFolder(competitionName: string,
   return findOrCreateFolder(safeTalent, eventFolder.uri);
 }
 
-export async function syncVideoToChronicTV(videoUri: string, competitionName: string, talentName: string): Promise<void> {
-  const contestantFolder = await getChronicTVContestantVimeoFolder(competitionName, talentName);
+export async function syncVideoToChronicTV(
+  videoUri: string,
+  competitionName: string,
+  talentName: string,
+  chronicTVName?: string
+): Promise<void> {
+  const folderName = chronicTVName || talentName;
+  const contestantFolder = await getChronicTVContestantVimeoFolder(competitionName, folderName);
   await addVideoToFolder(videoUri, contestantFolder.uri);
 }
 

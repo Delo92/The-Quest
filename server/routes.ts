@@ -3742,10 +3742,6 @@ export async function registerRoutes(
 
       const ticket = await createUploadTicket(comp.title, talentName, fileName, fileSize);
 
-      // ChronicTV video sync — fire and forget once video resource is created
-      syncVideoToChronicTV(ticket.videoUri, comp.title, talentName)
-        .catch((err: any) => console.error("ChronicTV video sync error (non-blocking):", err.message));
-
       res.json(ticket);
     } catch (error: any) {
       console.error("Vimeo upload ticket error:", error);
@@ -3795,6 +3791,11 @@ export async function registerRoutes(
         } catch (folderErr: any) {
           console.warn("Could not add video to folder:", folderErr.message);
         }
+        // ChronicTV sync fires AFTER upload is complete; uses displayName so it matches the
+        // contestant folder created at approval time (displayName, not stageName)
+        const chronicTVName = (profile.displayName || profile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+        syncVideoToChronicTV(videoUri, comp.title, talentName, chronicTVName)
+          .catch((err: any) => console.warn("ChronicTV video sync (non-blocking):", err.message));
       }
 
       res.json({ success: true });
@@ -4855,6 +4856,53 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Error fetching error logs:', error);
       res.status(500).json({ logs: [], total: 0 });
+    }
+  });
+
+  // Admin: manual ChronicTV video backfill — links all existing uploaded videos into the ChronicTV Vimeo folder tree
+  app.post("/api/admin/vimeo/sync-chronicTV", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const competitions = await storage.getCompetitions();
+      const nonDraft = competitions.filter((c: any) => c.status !== "draft");
+      const allContestants = await storage.getAllContestants();
+      const approved = allContestants.filter((c: any) => c.applicationStatus === "approved");
+
+      const results: any[] = [];
+
+      for (const contestant of approved) {
+        const comp = nonDraft.find((c: any) => c.id === contestant.competitionId);
+        if (!comp) continue;
+        const profile = await storage.getTalentProfile(contestant.talentProfileId);
+        if (!profile) continue;
+
+        const safeFn = (s: string) => (s || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+        const questName = safeFn((profile as any).stageName || (profile as any).displayName || `talent-${contestant.talentProfileId}`);
+        const chronicTVName = safeFn((profile as any).displayName || (profile as any).stageName || `talent-${contestant.talentProfileId}`);
+
+        const entry: any = { contestant: chronicTVName, competition: comp.title, questFolder: questName, videos: [] };
+
+        try {
+          const videos = await listTalentVideos(comp.title, questName);
+          for (const video of videos) {
+            try {
+              await syncVideoToChronicTV(video.uri, comp.title, questName, chronicTVName);
+              entry.videos.push({ uri: video.uri, status: "synced" });
+            } catch (e: any) {
+              entry.videos.push({ uri: video.uri, status: "error", error: e.message });
+            }
+          }
+          if (videos.length === 0) entry.videos.push({ status: "no_videos_found" });
+        } catch (e: any) {
+          entry.error = e.message;
+        }
+
+        results.push(entry);
+      }
+
+      res.json({ success: true, results });
+    } catch (error: any) {
+      console.error("ChronicTV backfill error:", error);
+      res.status(500).json({ message: "Backfill failed", error: error.message });
     }
   });
 

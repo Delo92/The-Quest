@@ -14,7 +14,7 @@ import {
   AlertTriangle, AlertCircle, Info, ShieldAlert,
   ChevronDown, ChevronRight, RefreshCw, Search,
   BarChart3, TrendingUp, Users, Eye, Clock,
-  Globe, FileText, Loader2, Activity,
+  Globe, FileText, Loader2, Activity, Tv2, CheckCircle2, XCircle,
 } from "lucide-react";
 
 interface ErrorLog {
@@ -460,6 +460,78 @@ function ErrorLogsTab() {
   );
 }
 
+function ChronicTVSyncTab() {
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState<any[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runSync() {
+    setRunning(true);
+    setResults(null);
+    setError(null);
+    try {
+      const res = await apiRequest("POST", "/api/admin/vimeo/sync-chronicTV");
+      const data = await res.json();
+      setResults(data.results || []);
+    } catch (e: any) {
+      setError(e.message || "Unknown error");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <Card className="bg-white/[0.04] border-white/10">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2 text-base">
+          <Tv2 className="h-4 w-4 text-orange-400" />
+          ChronicTV Vimeo Sync
+        </CardTitle>
+        <p className="text-xs text-white/40 mt-1">
+          Links all existing contestant videos into the ChronicTV Vimeo folder tree
+          (ChronicTV → Originals → CB Publishing The Quest → Competition → Talent).
+          Safe to run multiple times — Vimeo ignores duplicate folder links.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button
+          onClick={runSync}
+          disabled={running}
+          data-testid="button-chronicTV-sync"
+          className="bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:opacity-90"
+        >
+          {running ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Syncing…</> : <><RefreshCw className="h-4 w-4 mr-2" /> Run ChronicTV Sync</>}
+        </Button>
+
+        {error && (
+          <div className="text-red-400 text-sm flex items-center gap-2">
+            <XCircle className="h-4 w-4" /> {error}
+          </div>
+        )}
+
+        {results && (
+          <div className="space-y-3">
+            <p className="text-white/60 text-xs">Processed {results.length} contestant(s)</p>
+            {results.map((r, i) => (
+              <div key={i} className="bg-white/[0.04] border border-white/10 rounded-lg p-3 space-y-1">
+                <div className="text-white text-sm font-medium">{r.contestant} — {r.competition}</div>
+                <div className="text-white/40 text-xs">Quest folder: {r.questFolder}</div>
+                {r.error && <div className="text-red-400 text-xs flex items-center gap-1"><XCircle className="h-3 w-3" />{r.error}</div>}
+                {(r.videos || []).map((v: any, j: number) => (
+                  <div key={j} className={`text-xs flex items-center gap-1 ${v.status === "synced" ? "text-green-400" : v.status === "no_videos_found" ? "text-white/40" : "text-red-400"}`}>
+                    {v.status === "synced" ? <CheckCircle2 className="h-3 w-3" /> : v.status === "no_videos_found" ? <Info className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                    {v.status === "synced" ? `Synced: ${v.uri}` : v.status === "no_videos_found" ? "No videos in Quest folder" : `Error: ${v.error}`}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminDiagnostics() {
   return (
     <div className="space-y-6">
@@ -484,6 +556,13 @@ export default function AdminDiagnostics() {
           >
             <AlertCircle className="h-4 w-4" /> Error Logs
           </TabsTrigger>
+          <TabsTrigger
+            value="chronicTV"
+            className="text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white flex items-center gap-2"
+            data-testid="tab-diagnostics-chronicTV"
+          >
+            <Tv2 className="h-4 w-4" /> ChronicTV Sync
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics">
@@ -492,6 +571,10 @@ export default function AdminDiagnostics() {
 
         <TabsContent value="errors">
           <ErrorLogsTab />
+        </TabsContent>
+
+        <TabsContent value="chronicTV">
+          <ChronicTVSyncTab />
         </TabsContent>
       </Tabs>
     </div>
