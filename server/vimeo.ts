@@ -241,7 +241,9 @@ export async function addVideoToFolder(videoUri: string, folderUri: string): Pro
 
 export function getVideoThumbnail(video: VimeoVideo, width: number = 640): string {
   if (!video.pictures?.sizes?.length) return "";
-  if (!video.pictures.active || video.pictures.type === "default") return "";
+  // Only skip when Vimeo's dark-gray watermark placeholder is active:false.
+  // type === "default" is Vimeo's auto-generated thumbnail from the actual video — keep it.
+  if (!video.pictures.active) return "";
   const sorted = [...video.pictures.sizes].sort((a, b) => Math.abs(a.width - width) - Math.abs(b.width - width));
   return sorted[0]?.link || "";
 }
