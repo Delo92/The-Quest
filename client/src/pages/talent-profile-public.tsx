@@ -67,7 +67,7 @@ export default function TalentProfilePublic() {
         <FallbackImage
           src={mainImage}
           fallbackSrc={mainImageFallback}
-          alt={profile.displayName || "Talent"}
+          alt={profile.stageName || profile.displayName || "Talent"}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-black/65" />
@@ -78,7 +78,7 @@ export default function TalentProfilePublic() {
             style={{ letterSpacing: "10px" }}
             data-testid="text-profile-name"
           >
-            {profile.displayName}
+            {profile.stageName || profile.displayName}
           </h2>
         </div>
       </section>

@@ -25,6 +25,7 @@ interface ContestantWithProfile {
   talentProfile: {
     id: number;
     displayName: string;
+    stageName?: string | null;
     bio: string | null;
     category: string | null;
     imageUrls: string[] | null;
@@ -289,7 +290,7 @@ export default function CompetitionDetailPage() {
                     <FallbackImage
                       src={(contestant as any).videoThumbnail || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
                       fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
-                      alt={contestant.talentProfile.displayName}
+                      alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                     {rankIcon && (
@@ -300,12 +301,12 @@ export default function CompetitionDetailPage() {
                   </div>
                   <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
                     <Link
-                      href={`/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.displayName)}`}
+                      href={`/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.stageName || contestant.talentProfile.displayName)}`}
                       onClick={(e) => e.stopPropagation()}
                       data-testid={`link-contestant-name-${contestant.id}`}
                     >
                       <h4 className="text-white group-hover:text-black uppercase font-bold text-base mb-2 transition-colors duration-500 hover:text-[#FF5A09] group-hover:hover:text-[#FF5A09]" data-testid={`text-contestant-name-${contestant.id}`}>
-                        {contestant.talentProfile.displayName}
+                        {contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                       </h4>
                     </Link>
                     <div className="mb-3">
@@ -331,7 +332,7 @@ export default function CompetitionDetailPage() {
 
                     <div className="flex items-center justify-center gap-4">
                       <Link
-                        href={`/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.displayName)}`}
+                        href={`/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.stageName || contestant.talentProfile.displayName)}`}
                         className="text-[11px] text-white group-hover:text-black uppercase border-b border-white group-hover:border-black pb-1 transition-colors duration-500"
                         style={{ letterSpacing: "6px" }}
                         data-testid={`link-profile-${contestant.id}`}

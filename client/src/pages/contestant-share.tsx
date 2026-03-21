@@ -93,7 +93,7 @@ export default function ContestantSharePage() {
 
   useEffect(() => {
     if (data) {
-      document.title = `${data.contestant.talentProfile.displayName} - ${data.competition.title} | The Quest`;
+      document.title = `${data.contestant.talentProfile.stageName || data.contestant.talentProfile.displayName} - ${data.competition.title} | The Quest`;
     }
     return () => { document.title = "The Quest - Talent Competition & Voting Platform"; };
   }, [data]);
@@ -159,7 +159,7 @@ export default function ContestantSharePage() {
 
   const getShareData = () => {
     const shareUrl = `${window.location.origin}/thequest/${categorySlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
-    const shareText = `Vote for ${profile.displayName} in ${competition.title} on The Quest!`;
+    const shareText = `Vote for ${profile.stageName || profile.displayName} in ${competition.title} on The Quest!`;
     return { shareUrl, shareText };
   };
 
@@ -199,7 +199,7 @@ export default function ContestantSharePage() {
         <FallbackImage
           src={mainImage}
           fallbackSrc={mainImageFallback}
-          alt={profile.displayName || ""}
+          alt={profile.stageName || profile.displayName || ""}
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30" />
@@ -215,7 +215,7 @@ export default function ContestantSharePage() {
             style={{ letterSpacing: "10px" }}
             data-testid="text-contestant-name"
           >
-            {profile.displayName}
+            {profile.stageName || profile.displayName}
           </h2>
         </div>
       </section>
