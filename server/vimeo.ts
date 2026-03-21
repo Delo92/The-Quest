@@ -241,11 +241,25 @@ export async function addVideoToFolder(videoUri: string, folderUri: string): Pro
 
 export function getVideoThumbnail(video: VimeoVideo, width: number = 640): string {
   if (!video.pictures?.sizes?.length) return "";
-  // Only skip when Vimeo's dark-gray watermark placeholder is active:false.
-  // type === "default" is Vimeo's auto-generated thumbnail from the actual video — keep it.
   if (!video.pictures.active) return "";
   const sorted = [...video.pictures.sizes].sort((a, b) => Math.abs(a.width - width) - Math.abs(b.width - width));
   return sorted[0]?.link || "";
+}
+
+export async function resolveVideoThumbnail(video: VimeoVideo, width: number = 640): Promise<string> {
+  const quick = getVideoThumbnail(video, width);
+  if (quick) return quick;
+  try {
+    const videoId = video.uri.replace("/videos/", "");
+    const data = await vimeoRequest(`/videos/${videoId}/pictures`);
+    const pictures: any[] = data.data || [];
+    const custom = pictures.find((p) => !p.default_picture && p.sizes?.length);
+    if (!custom) return "";
+    const sorted = [...custom.sizes].sort((a: any, b: any) => Math.abs(a.width - width) - Math.abs(b.width - width));
+    return sorted[0]?.link || "";
+  } catch {
+    return "";
+  }
 }
 
 export function getVideoEmbedUrl(video: VimeoVideo): string {

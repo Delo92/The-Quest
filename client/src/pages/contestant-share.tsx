@@ -372,7 +372,7 @@ export default function ContestantSharePage() {
                       onClick={() => setPlayingVideo(video.embedUrl)}
                     >
                       <img
-                        src={video.thumbnail || "/images/template/a1.jpg"}
+                        src={video.thumbnail || profile.imageUrls?.[0] || competition.coverImage || ""}
                         alt={video.name}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />

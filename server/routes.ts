@@ -55,6 +55,7 @@ import {
   renameVideo,
   addVideoToFolder,
   getVideoThumbnail,
+  resolveVideoThumbnail,
   createCompetitionVimeoFolder,
   createContestantVimeoFolder,
   getCompetitionFolder,
@@ -584,7 +585,7 @@ export async function registerRoutes(
           const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
           const videos = await listTalentVideos(comp.title, talentName);
           if (videos.length > 0) {
-            videoThumbnail = getVideoThumbnail(videos[0]);
+            videoThumbnail = await resolveVideoThumbnail(videos[0]);
           }
         } catch {}
         return { ...contestant, videoThumbnail };
@@ -3972,7 +3973,7 @@ export async function registerRoutes(
             const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
             const videos = await listTalentVideos(comp.title, talentName);
             if (videos.length > 0) {
-              videoThumbnail = getVideoThumbnail(videos[0]);
+              videoThumbnail = await resolveVideoThumbnail(videos[0]);
             }
           } catch {}
           return { ...contestant, videoThumbnail };
@@ -4057,16 +4058,16 @@ export async function registerRoutes(
         const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
         const talentVideos = await listTalentVideos(comp.title, talentName);
         if (talentVideos.length > 0) {
-          videoThumbnail = getVideoThumbnail(talentVideos[0]);
+          videoThumbnail = await resolveVideoThumbnail(talentVideos[0]);
         }
-        videos = talentVideos.map(v => ({
+        videos = await Promise.all(talentVideos.map(async v => ({
           uri: v.uri,
           name: v.name,
           link: v.link,
           embedUrl: v.player_embed_url,
           duration: v.duration,
-          thumbnail: getVideoThumbnail(v),
-        }));
+          thumbnail: await resolveVideoThumbnail(v),
+        })));
       } catch {}
 
       const totalVotes = await storage.getTotalVotesByCompetition(comp.id);
