@@ -200,44 +200,52 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                     <span className="coverflow-vote-count">{item.voteCount.toLocaleString()}</span>
                     <span className="coverflow-vote-label">VOTES</span>
                   </div>
-                  <div className="coverflow-cover">
-                    {item.videoEmbedUrl && index === currentIndex ? (
-                      <>
-                        <iframe
-                          src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1`}
-                          className="w-full h-full"
-                          allow="autoplay; fullscreen"
-                          frameBorder="0"
-                          title={item.categoryName}
-                          style={{ pointerEvents: "none" }}
+                  <div className="coverflow-card-wrapper">
+                    <div className="coverflow-cover">
+                      {item.videoEmbedUrl && index === currentIndex ? (
+                        <>
+                          <iframe
+                            src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1`}
+                            className="w-full h-full"
+                            allow="autoplay; fullscreen"
+                            frameBorder="0"
+                            title={item.categoryName}
+                            style={{ pointerEvents: "none" }}
+                          />
+                          <div className="absolute inset-0 z-10" />
+                        </>
+                      ) : item.coverVideoUrl ? (
+                        <video
+                          src={item.coverVideoUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
                         />
-                        <div className="absolute inset-0 z-10" />
-                      </>
-                    ) : item.coverVideoUrl ? (
-                      <video
-                        src={item.coverVideoUrl}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
+                      ) : (
+                        <img
+                          src={item.thumbnail || "/images/template/bg-1.jpg"}
+                          alt={item.categoryName}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="coverflow-label">
+                        <span className="coverflow-label-title">{item.categoryName}</span>
+                        {item.topContestantName && (
+                          <span className="coverflow-label-sub">{item.topContestantName}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="coverflow-reflection" aria-hidden="true">
                       <img
                         src={item.thumbnail || "/images/template/bg-1.jpg"}
-                        alt={item.categoryName}
-                        className="w-full h-full object-cover"
+                        alt=""
                         loading="lazy"
                       />
-                    )}
-                    <div className="coverflow-label">
-                      <span className="coverflow-label-title">{item.categoryName}</span>
-                      {item.topContestantName && (
-                        <span className="coverflow-label-sub">{item.topContestantName}</span>
-                      )}
                     </div>
                   </div>
-                  <div className="coverflow-reflection" />
                 </CardWrapper>
               </div>
             );
