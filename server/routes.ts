@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { trackChronicBrandsPromo } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
 import {
   verifyFirebaseToken,
@@ -2940,6 +2941,21 @@ export async function registerRoutes(
 
       await firestoreJoinSubmissions.updateStatus(submission.id, "approved");
 
+      // Track free nomination promo code redemption with Chronic Brands USA
+      if (promoValid && promoCode) {
+        const compTitle = competitionId ? (await storage.getCompetition(Number(competitionId)))?.title : null;
+        trackChronicBrandsPromo({
+          code: promoCode.trim().toUpperCase(),
+          orderNumber: submission.id,
+          orderValue: "0.00",
+          discountAmount: String((settings.nominationFee || 0) / 100),
+          customerName: nominatorName?.trim(),
+          customerEmail: nominatorEmail?.toLowerCase().trim(),
+          customerPhone: nominatorPhone || null,
+          notes: `Free nomination for ${nomineeName}${compTitle ? ` in ${compTitle}` : ""}`,
+        }).catch((err: any) => console.warn("[ChronicBrands] Nomination promo tracking failed (non-blocking):", err.message));
+      }
+
       res.status(201).json({
         ...submission,
         accountCreated: !!firebaseUid,
@@ -3262,6 +3278,17 @@ export async function registerRoutes(
         } catch (e) {
           console.error("Referral tracking error in checkout:", e);
         }
+
+        // Track referral code redemption with Chronic Brands USA
+        trackChronicBrandsPromo({
+          code: resolvedRefCode,
+          orderNumber: chargeResult.transactionId,
+          orderValue: String(amountInDollars),
+          discountAmount: "0.00",
+          customerName: name?.trim(),
+          customerEmail: email?.toLowerCase().trim(),
+          notes: `Vote package: ${pkg.name} (${totalVotes} votes) for ${comp.title}`,
+        }).catch((err: any) => console.warn("[ChronicBrands] Checkout referral tracking failed (non-blocking):", err.message));
       }
 
       if (isEmailConfigured() && email) {
