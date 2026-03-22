@@ -14,9 +14,9 @@ interface PromoRedemptionPayload {
 }
 
 export async function trackChronicBrandsPromo(payload: PromoRedemptionPayload): Promise<void> {
-  const apiKey = process.env.CHRONIC_BRANDS_API_KEY;
+  const apiKey = process.env.CHRONIC_BRANDS_API_KEY || process.env.PROMO_API_KEY;
   if (!apiKey) {
-    console.warn("[ChronicBrands] CHRONIC_BRANDS_API_KEY not set — promo redemption not tracked:", payload.code);
+    console.warn("[ChronicBrands] PROMO_API_KEY not set — promo redemption not tracked:", payload.code);
     return;
   }
 

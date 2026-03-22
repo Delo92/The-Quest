@@ -48,3 +48,4 @@ integrations = ["javascript_log_in_with_replit:2.0.0", "javascript_database:1.0.
 SITE_URL = "cbpublishing.live"
 GA4_PROPERTY_ID = "528039087"
 GA4_MEASUREMENT_ID = "G-7LBW9HVXWE"
+PROMO_API_KEY = "CBUSA-3904D0DC917655F1C6ADD85C7214F89C4353A807F3"
