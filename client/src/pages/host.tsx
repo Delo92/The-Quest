@@ -113,6 +113,7 @@ export default function HostPage() {
       }));
     }
   }, [inviteDetails]);
+  const [referralCode, setReferralCode] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expMonth, setExpMonth] = useState("");
   const [expYear, setExpYear] = useState("");
@@ -206,6 +207,7 @@ export default function HostPage() {
           dataValue,
           selectedPackageName: selectedPackage?.name || null,
           selectedPackagePrice: selectedPrice,
+          referralCode: referralCode.trim().toUpperCase() || undefined,
         });
         setSuccess(true);
         toast({ title: "Application submitted!", description: "We'll review your event proposal and get back to you." });
@@ -540,6 +542,19 @@ export default function HostPage() {
             </div>
           </div>
         )}
+
+        <div className="mb-6">
+          <Label className="text-white/60 uppercase text-xs tracking-wider">
+            Referral Code <span className="text-white/30 normal-case">(optional)</span>
+          </Label>
+          <Input
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_\-]/g, ""))}
+            className="bg-white/[0.08] border-white/20 text-white mt-2"
+            placeholder="Enter a referral code if you have one"
+            data-testid="input-referral-code"
+          />
+        </div>
 
         <button
           onClick={handlePayClick}

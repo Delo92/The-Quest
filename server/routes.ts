@@ -3039,7 +3039,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Host applications are currently closed" });
       }
 
-      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, selectedPackageName, selectedPackagePrice, inviteToken } = req.body;
+      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, selectedPackageName, selectedPackagePrice, inviteToken, referralCode } = req.body;
       if (!fullName || !email || !eventName) {
         return res.status(400).json({ message: "Name, email, and event name are required" });
       }
@@ -3113,6 +3113,20 @@ export async function registerRoutes(
         } catch (invErr) {
           console.warn("Failed to mark invitation as accepted:", invErr);
         }
+      }
+
+      // Track referral code with Chronic Brands USA if one was provided and payment was made
+      if (referralCode?.trim() && verifiedPackagePrice > 0 && transactionId) {
+        trackChronicBrandsPromo({
+          code: referralCode.trim().toUpperCase(),
+          orderNumber: transactionId,
+          orderValue: String(verifiedPackagePrice),
+          discountAmount: "0.00",
+          customerName: fullName?.trim(),
+          customerEmail: email?.toLowerCase().trim(),
+          customerPhone: phone || null,
+          notes: `Host package: ${verifiedPackageName} — Event: ${eventName}`,
+        }).catch((err: any) => console.warn("[ChronicBrands] Host referral tracking failed (non-blocking):", err.message));
       }
 
       res.status(201).json(submission);
