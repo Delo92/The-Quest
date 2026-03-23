@@ -381,7 +381,7 @@ export default function TalentDashboard({ user, profile }: Props) {
       if (ticket.chronicTV?.uploadLink) {
         setVideoUploadStep("syncing");
         setVideoUploadProgress(0);
-        setUploadStatus("Syncing to ChronicTV...");
+        setUploadStatus("Syncing for backup...");
         setVideoUploadSpeed("");
         setVideoUploadEta("");
         setChronicTVUploadProgress(0);
@@ -970,14 +970,14 @@ export default function TalentDashboard({ user, profile }: Props) {
                                 <p className={`text-sm font-medium ${videoUploadStep === "done" ? "text-green-300" : "text-orange-300"}`}>
                                   {videoUploadStep === "preparing" && "Preparing upload..."}
                                   {videoUploadStep === "uploading" && `Uploading to The Quest — ${videoUploadProgress}%`}
-                                  {videoUploadStep === "syncing" && `Syncing to ChronicTV — ${videoUploadProgress}%`}
+                                  {videoUploadStep === "syncing" && `Syncing for backup — ${videoUploadProgress}%`}
                                   {videoUploadStep === "finalizing" && "Processing video..."}
                                   {videoUploadStep === "done" && "Upload complete!"}
                                 </p>
                                 <p className="text-xs text-white/40 mt-0.5">
                                   {videoUploadStep === "preparing" && "Getting things ready, one moment..."}
                                   {videoUploadStep === "uploading" && (uploadStatus || "Transferring file...")}
-                                  {videoUploadStep === "syncing" && (uploadStatus || "Uploading copy to ChronicTV library...")}
+                                  {videoUploadStep === "syncing" && (uploadStatus || "Creating backup copy...")}
                                   {videoUploadStep === "finalizing" && "Vimeo is processing your video, almost done..."}
                                   {videoUploadStep === "done" && "Your video will appear below shortly."}
                                 </p>
