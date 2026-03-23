@@ -3854,17 +3854,23 @@ export async function registerRoutes(
 
       const { videoId } = req.params;
       const videoUri = `/videos/${videoId}`;
-      const current = (profile as any).hiddenVideoUris || [];
-      if (!current.includes(videoUri)) {
-        await storage.updateTalentProfile(uid, {
-          hiddenVideoUris: [...current, videoUri],
-        } as any);
+
+      try {
+        await deleteVideo(videoUri);
+      } catch (vimeoErr: any) {
+        console.warn("Vimeo delete failed, hiding locally instead:", vimeoErr.message);
+        const current = (profile as any).hiddenVideoUris || [];
+        if (!current.includes(videoUri)) {
+          await storage.updateTalentProfile(uid, {
+            hiddenVideoUris: [...current, videoUri],
+          } as any);
+        }
       }
 
-      res.json({ message: "Video removed" });
+      res.json({ message: "Video deleted" });
     } catch (error: any) {
-      console.error("Vimeo hide error:", error);
-      res.status(500).json({ message: "Failed to remove video" });
+      console.error("Vimeo delete error:", error);
+      res.status(500).json({ message: "Failed to delete video" });
     }
   });
 
