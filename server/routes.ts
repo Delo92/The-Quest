@@ -64,10 +64,10 @@ import {
   getVimeoStorageUsage,
   createAdminLiveryUploadTicket,
   createCompetitionCoverUploadTicket,
+  createChronicTVUploadTicket,
   getVideoById,
   getChronicTVEventVimeoFolder,
   getChronicTVContestantVimeoFolder,
-  syncVideoToChronicTV,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -3781,9 +3781,23 @@ export async function registerRoutes(
         }
       } catch {}
 
-      const ticket = await createUploadTicket(comp.title, talentName, fileName, fileSize);
+      const chronicTVName = (profile.displayName || profile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
-      res.json(ticket);
+      const [questTicket, chronicTVTicket] = await Promise.all([
+        createUploadTicket(comp.title, talentName, fileName, fileSize),
+        createChronicTVUploadTicket(comp.title, talentName, chronicTVName, fileName, fileSize),
+      ]);
+
+      res.json({
+        uploadLink: questTicket.uploadLink,
+        videoUri: questTicket.videoUri,
+        completeUri: questTicket.completeUri,
+        chronicTV: {
+          uploadLink: chronicTVTicket.uploadLink,
+          videoUri: chronicTVTicket.videoUri,
+          completeUri: chronicTVTicket.completeUri,
+        },
+      });
     } catch (error: any) {
       console.error("Vimeo upload ticket error:", error);
       let userMessage = "Failed to create upload ticket";
@@ -3800,18 +3814,15 @@ export async function registerRoutes(
 
   app.post("/api/vimeo/finalize-upload", firebaseAuth, async (req, res) => {
     try {
-      const uid = req.firebaseUser!.uid;
-      const profile = await storage.getTalentProfileByUserId(uid);
-      if (!profile) return res.status(400).json({ message: "Profile not found" });
-
-      const { videoUri, competitionId, completeUri } = req.body;
+      const { videoUri, competitionId, completeUri, chronicTVVideoUri, chronicTVCompleteUri } = req.body;
       if (!videoUri || !competitionId) {
         return res.status(400).json({ message: "videoUri and competitionId are required" });
       }
 
-      if (completeUri) {
+      const callCompleteUri = async (uri: string | undefined) => {
+        if (!uri) return;
         try {
-          await fetch(`https://api.vimeo.com${completeUri}`, {
+          await fetch(`https://api.vimeo.com${uri}`, {
             method: "DELETE",
             headers: {
               Authorization: `Bearer ${process.env.VIMEO_ACCESS_TOKEN}`,
@@ -3821,23 +3832,12 @@ export async function registerRoutes(
         } catch (e: any) {
           console.warn("Vimeo completeUri call failed:", e.message);
         }
-      }
+      };
 
-      const comp = await storage.getCompetition(parseInt(competitionId));
-      if (comp) {
-        const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-        try {
-          const folder = await getTalentFolderInCompetition(comp.title, talentName);
-          await addVideoToFolder(videoUri, folder.uri);
-        } catch (folderErr: any) {
-          console.warn("Could not add video to folder:", folderErr.message);
-        }
-        // ChronicTV sync fires AFTER upload is complete; uses displayName so it matches the
-        // contestant folder created at approval time (displayName, not stageName)
-        const chronicTVName = (profile.displayName || profile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-        syncVideoToChronicTV(videoUri, comp.title, talentName, chronicTVName)
-          .catch((err: any) => console.warn("ChronicTV video sync (non-blocking):", err.message));
-      }
+      await Promise.all([
+        callCompleteUri(completeUri),
+        callCompleteUri(chronicTVCompleteUri),
+      ]);
 
       res.json({ success: true });
     } catch (error: any) {

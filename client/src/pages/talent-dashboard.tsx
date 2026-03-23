@@ -58,13 +58,14 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [imageUploading, setImageUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
-  const [videoUploadStep, setVideoUploadStep] = useState<"preparing" | "uploading" | "finalizing" | "done">("preparing");
+  const [videoUploadStep, setVideoUploadStep] = useState<"preparing" | "uploading" | "syncing" | "finalizing" | "done">("preparing");
   const [videoUploadSpeed, setVideoUploadSpeed] = useState("");
   const [videoUploadEta, setVideoUploadEta] = useState("");
   const [videoUploadFileName, setVideoUploadFileName] = useState("");
   const [videoUploadFileSize, setVideoUploadFileSize] = useState("");
   const [videoUploadComplete, setVideoUploadComplete] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [chronicTVUploadProgress, setChronicTVUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<{ type: "image" | "video"; message: string } | null>(null);
   const uploadStartTimeRef = useRef<number>(0);
   const lastBytesRef = useRef<number>(0);
@@ -332,48 +333,67 @@ export default function TalentDashboard({ user, profile }: Props) {
       setVideoUploadStep("uploading");
       setUploadStatus("Starting upload...");
 
-      await new Promise<void>((resolve, reject) => {
-        const upload = new tus.Upload(file, {
-          uploadUrl: ticket.uploadLink,
-          onError: (error) => {
-            reject(new Error(error.message || "Video upload failed"));
-          },
-          onProgress: (bytesUploaded, bytesTotal) => {
-            const pct = Math.round((bytesUploaded / bytesTotal) * 100);
-            setVideoUploadProgress(pct);
-            const mbUploaded = (bytesUploaded / (1024 * 1024)).toFixed(1);
-            const mbTotal = (bytesTotal / (1024 * 1024)).toFixed(1);
-            setUploadStatus(`${mbUploaded} MB / ${mbTotal} MB`);
+      const doTusUpload = (uploadLink: string, onProgress: (pct: number, mbUp: string, mbTotal: string, speed: string, eta: string) => void): Promise<void> => {
+        lastBytesRef.current = 0;
+        lastTimeRef.current = Date.now();
+        return new Promise<void>((resolve, reject) => {
+          const upload = new tus.Upload(file, {
+            uploadUrl: uploadLink,
+            onError: (error) => {
+              reject(new Error(error.message || "Video upload failed"));
+            },
+            onProgress: (bytesUploaded, bytesTotal) => {
+              const pct = Math.round((bytesUploaded / bytesTotal) * 100);
+              const mbUploaded = (bytesUploaded / (1024 * 1024)).toFixed(1);
+              const mbTotalStr = (bytesTotal / (1024 * 1024)).toFixed(1);
 
-            const now = Date.now();
-            const elapsed = (now - lastTimeRef.current) / 1000;
-            if (elapsed >= 1) {
-              const bytesDelta = bytesUploaded - lastBytesRef.current;
-              const speed = bytesDelta / elapsed;
-              lastBytesRef.current = bytesUploaded;
-              lastTimeRef.current = now;
-
-              if (speed > 0) {
-                const speedMb = (speed / (1024 * 1024)).toFixed(1);
-                setVideoUploadSpeed(`${speedMb} MB/s`);
-                const remaining = bytesTotal - bytesUploaded;
-                const etaSec = Math.round(remaining / speed);
-                if (etaSec < 60) {
-                  setVideoUploadEta(`~${etaSec}s remaining`);
-                } else {
-                  const min = Math.floor(etaSec / 60);
-                  const sec = etaSec % 60;
-                  setVideoUploadEta(`~${min}m ${sec}s remaining`);
+              const now = Date.now();
+              const elapsed = (now - lastTimeRef.current) / 1000;
+              let speedStr = "";
+              let etaStr = "";
+              if (elapsed >= 1) {
+                const bytesDelta = bytesUploaded - lastBytesRef.current;
+                const speed = bytesDelta / elapsed;
+                lastBytesRef.current = bytesUploaded;
+                lastTimeRef.current = now;
+                if (speed > 0) {
+                  speedStr = `${(speed / (1024 * 1024)).toFixed(1)} MB/s`;
+                  const remaining = bytesTotal - bytesUploaded;
+                  const etaSec = Math.round(remaining / speed);
+                  etaStr = etaSec < 60 ? `~${etaSec}s remaining` : `~${Math.floor(etaSec / 60)}m ${etaSec % 60}s remaining`;
                 }
               }
-            }
-          },
-          onSuccess: () => {
-            resolve();
-          },
+              onProgress(pct, mbUploaded, mbTotalStr, speedStr, etaStr);
+            },
+            onSuccess: () => resolve(),
+          });
+          upload.start();
         });
-        upload.start();
+      };
+
+      await doTusUpload(ticket.uploadLink, (pct, mbUp, mbTotal, speed, eta) => {
+        setVideoUploadProgress(pct);
+        setUploadStatus(`${mbUp} MB / ${mbTotal} MB`);
+        if (speed) setVideoUploadSpeed(speed);
+        if (eta) setVideoUploadEta(eta);
       });
+
+      if (ticket.chronicTV?.uploadLink) {
+        setVideoUploadStep("syncing");
+        setVideoUploadProgress(0);
+        setUploadStatus("Syncing to ChronicTV...");
+        setVideoUploadSpeed("");
+        setVideoUploadEta("");
+        setChronicTVUploadProgress(0);
+
+        await doTusUpload(ticket.chronicTV.uploadLink, (pct, mbUp, mbTotal, speed, eta) => {
+          setVideoUploadProgress(pct);
+          setChronicTVUploadProgress(pct);
+          setUploadStatus(`${mbUp} MB / ${mbTotal} MB`);
+          if (speed) setVideoUploadSpeed(speed);
+          if (eta) setVideoUploadEta(eta);
+        });
+      }
 
       setVideoUploadStep("finalizing");
       setVideoUploadProgress(100);
@@ -393,6 +413,8 @@ export default function TalentDashboard({ user, profile }: Props) {
             videoUri: ticket.videoUri,
             competitionId: selectedCompId,
             completeUri: ticket.completeUri || null,
+            chronicTVVideoUri: ticket.chronicTV?.videoUri || null,
+            chronicTVCompleteUri: ticket.chronicTV?.completeUri || null,
           }),
         });
       } catch {}
@@ -947,13 +969,15 @@ export default function TalentDashboard({ user, profile }: Props) {
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-medium ${videoUploadStep === "done" ? "text-green-300" : "text-orange-300"}`}>
                                   {videoUploadStep === "preparing" && "Preparing upload..."}
-                                  {videoUploadStep === "uploading" && `Uploading — ${videoUploadProgress}%`}
+                                  {videoUploadStep === "uploading" && `Uploading to The Quest — ${videoUploadProgress}%`}
+                                  {videoUploadStep === "syncing" && `Syncing to ChronicTV — ${videoUploadProgress}%`}
                                   {videoUploadStep === "finalizing" && "Processing video..."}
                                   {videoUploadStep === "done" && "Upload complete!"}
                                 </p>
                                 <p className="text-xs text-white/40 mt-0.5">
                                   {videoUploadStep === "preparing" && "Getting things ready, one moment..."}
                                   {videoUploadStep === "uploading" && (uploadStatus || "Transferring file...")}
+                                  {videoUploadStep === "syncing" && (uploadStatus || "Uploading copy to ChronicTV library...")}
                                   {videoUploadStep === "finalizing" && "Vimeo is processing your video, almost done..."}
                                   {videoUploadStep === "done" && "Your video will appear below shortly."}
                                 </p>
@@ -972,25 +996,25 @@ export default function TalentDashboard({ user, profile }: Props) {
                               <div className="flex items-center justify-between text-xs text-white/40">
                                 <span>
                                   {videoUploadStep === "preparing" && "Waiting..."}
-                                  {videoUploadStep === "uploading" && (videoUploadSpeed || "Calculating speed...")}
+                                  {(videoUploadStep === "uploading" || videoUploadStep === "syncing") && (videoUploadSpeed || "Calculating speed...")}
                                   {videoUploadStep === "finalizing" && "Almost there..."}
                                   {videoUploadStep === "done" && "Finished"}
                                 </span>
                                 <span>
-                                  {videoUploadStep === "uploading" && videoUploadEta}
+                                  {(videoUploadStep === "uploading" || videoUploadStep === "syncing") && videoUploadEta}
                                   {videoUploadStep === "done" && "100%"}
                                 </span>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4 pt-1">
-                              {["preparing", "uploading", "finalizing", "done"].map((step, i) => {
-                                const steps = ["preparing", "uploading", "finalizing", "done"];
+                            <div className="flex items-center gap-2 pt-1">
+                              {["preparing", "uploading", "syncing", "finalizing", "done"].map((step, i) => {
+                                const steps = ["preparing", "uploading", "syncing", "finalizing", "done"];
                                 const currentIdx = steps.indexOf(videoUploadStep);
                                 const isActive = i <= currentIdx;
-                                const labels = ["Prepare", "Upload", "Process", "Done"];
+                                const labels = ["Prepare", "Upload", "Sync", "Process", "Done"];
                                 return (
-                                  <div key={step} className="flex items-center gap-1.5 flex-1">
+                                  <div key={step} className="flex items-center gap-1 flex-1">
                                     <div className={`h-2 w-2 rounded-full flex-shrink-0 ${
                                       isActive
                                         ? step === "done" ? "bg-green-400" : "bg-orange-400"

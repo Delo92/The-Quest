@@ -217,6 +217,49 @@ export async function createUploadTicket(
   };
 }
 
+export async function createChronicTVUploadTicket(
+  competitionName: string,
+  talentName: string,
+  chronicTVName: string,
+  fileName: string,
+  fileSize: number
+): Promise<{
+  uploadLink: string;
+  videoUri: string;
+  completeUri: string;
+}> {
+  let folderUri: string | undefined;
+  try {
+    const folder = await getChronicTVContestantVimeoFolder(competitionName, chronicTVName);
+    folderUri = folder.uri;
+  } catch (folderErr: any) {
+    console.warn("Could not create/find ChronicTV Vimeo folder (uploading without folder):", folderErr.message);
+  }
+
+  const videoName = `${competitionName} - ${talentName} - ${fileName}`;
+  const body: any = {
+    upload: {
+      approach: "tus",
+      size: fileSize,
+    },
+    name: videoName,
+  };
+  if (folderUri) {
+    body.folder_uri = folderUri;
+  }
+
+  const data = await vimeoRequest("/me/videos", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  return {
+    uploadLink: data.upload.upload_link,
+    videoUri: data.uri,
+    completeUri: data.upload.complete_uri || "",
+  };
+}
+
 export async function getVideo(videoUri: string): Promise<VimeoVideo> {
   return vimeoRequest(videoUri);
 }
