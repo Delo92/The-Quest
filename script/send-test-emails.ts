@@ -1,3 +1,14 @@
+import { readFileSync, existsSync } from "fs";
+
+// Use the freshly-exchanged token from the temp file if available
+const freshToken = existsSync("/tmp/gmail_refresh_token.txt")
+  ? readFileSync("/tmp/gmail_refresh_token.txt", "utf8").trim()
+  : null;
+if (freshToken) {
+  process.env.GMAIL_REFRESH_TOKEN = freshToken;
+  console.log("  ℹ️  Using fresh token from /tmp/gmail_refresh_token.txt\n");
+}
+
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
