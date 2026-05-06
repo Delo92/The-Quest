@@ -128,14 +128,14 @@ export async function sendInviteEmail(opts: {
       role: roleDisplay,
       nomineeName: opts.nomineeName || opts.to.split("@")[0],
       nominatorName: opts.nominatorName || opts.inviterName,
-      competitionName: opts.competitionName || "a HiFitComp competition",
+      competitionName: opts.competitionName || "The Quest",
       email: opts.to,
       defaultPassword: opts.defaultPassword || "",
     };
     const [subject, heading, body] = await Promise.all([
-      getEmailTemplate("email_welcome_subject", "{inviterName} invited you to join HiFitComp!"),
+      getEmailTemplate("email_welcome_subject", "{inviterName} invited you to join The Quest!"),
       getEmailTemplate("email_welcome_heading", "You've Been Invited!"),
-      getEmailTemplate("email_welcome_body", "{inviterName} has invited you to join HiFitComp as a {role}.\n\nHiFitComp is Hawaii's premier live talent competition platform where artists, models, bodybuilders, and performers compete for public votes.\n\nClick the button below to accept your invitation and get started!"),
+      getEmailTemplate("email_welcome_body", "{inviterName} has invited you to join The Quest as a {role}.\n\nThe Quest is CB Publishing's premier talent competition platform where artists, models, bodybuilders, and performers compete for public votes.\n\nClick the button below to accept your invitation and get started!"),
     ]);
 
     let actionUrl: string;
@@ -144,7 +144,7 @@ export async function sendInviteEmail(opts: {
       actionUrl = `${opts.siteUrl}/login`;
       actionLabel = "Log In Now";
     } else if (opts.inviteToken) {
-      actionUrl = `${opts.siteUrl}/join?invite=${opts.inviteToken}`;
+      actionUrl = `${opts.siteUrl}/register?invite=${opts.inviteToken}`;
       actionLabel = "Accept Invitation";
     } else {
       actionUrl = `${opts.siteUrl}/login`;

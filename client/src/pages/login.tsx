@@ -135,8 +135,20 @@ export default function LoginPage() {
         setMode("login");
       }
     } catch (err: any) {
-      const msg = err.message?.replace(/^\d+:\s*/, "") || "Something went wrong";
-      toast({ title: "Error", description: msg, variant: "destructive" });
+      const isAlreadyExists = err.message?.toLowerCase().includes("already in use") || err.message?.toLowerCase().includes("already exists");
+      if (mode === "register" && isAlreadyExists) {
+        toast({
+          title: "Account already exists",
+          description: inviteToken
+            ? "Your account was pre-created. Log in below — check your invitation email for your temporary password."
+            : "An account with this email already exists. Please log in instead.",
+          variant: "destructive",
+        });
+        setMode("login");
+      } else {
+        const msg = err.message?.replace(/^\d+:\s*/, "") || "Something went wrong";
+        toast({ title: "Error", description: msg, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
