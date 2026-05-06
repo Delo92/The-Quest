@@ -200,82 +200,64 @@ export default function SiteNavbar() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden bg-black/95 border-t border-white/10 px-4 py-4">
-          <a
-            href="/"
-            className="block py-2 text-white font-bold uppercase tracking-wider text-sm"
-            data-testid="link-mobile-home"
-          >
-            Home
-          </a>
-          <Link
-            href="/competitions"
-            className="block py-2 text-white font-bold uppercase tracking-wider text-sm"
-            onClick={() => setMenuOpen(false)}
-            data-testid="link-mobile-competitions"
-          >
-            Competitions
-          </Link>
-          <Link
-            href="/nominate"
-            className="block py-2 text-white font-bold uppercase tracking-wider text-sm"
-            onClick={() => setMenuOpen(false)}
-            data-testid="link-mobile-join"
-          >
-            Nominate
-          </Link>
-          <Link
-            href="/about"
-            className="block py-2 text-white font-bold uppercase tracking-wider text-sm"
-            onClick={() => setMenuOpen(false)}
-            data-testid="link-mobile-about"
-          >
-            About
-          </Link>
-          <Link
-            href="/faq"
-            className="block py-2 text-white font-bold uppercase tracking-wider text-sm"
-            onClick={() => setMenuOpen(false)}
-            data-testid="link-mobile-faq"
-          >
-            FAQ
-          </Link>
-          <Link
-            href="/competitions"
-            className="block py-2 text-[var(--quest-brand)] font-bold uppercase tracking-wider text-sm"
-            onClick={() => setMenuOpen(false)}
-            data-testid="link-mobile-vote"
-          >
-            Vote
-          </Link>
-          <Link
-            href="/my-purchases"
-            className="flex items-center gap-2 py-2 text-white font-bold uppercase tracking-wider text-sm"
-            onClick={() => setMenuOpen(false)}
-            data-testid="link-mobile-cart"
-          >
-            <ShoppingCart className="h-4 w-4" />
-            My Purchases
-          </Link>
-          {isLoggedIn ? (
+        <div className="md:hidden bg-black/98 backdrop-blur-xl border-t border-white/10 px-4 pb-safe">
+          <div className="py-2 space-y-0.5">
+            {[
+              { href: "/", label: "Home", testid: "link-mobile-home", isAnchor: true },
+              { href: "/competitions", label: "Competitions", testid: "link-mobile-competitions" },
+              { href: "/nominate", label: "Nominate", testid: "link-mobile-join" },
+              { href: "/about", label: "About", testid: "link-mobile-about" },
+              { href: "/faq", label: "FAQ", testid: "link-mobile-faq" },
+            ].map(({ href, label, testid, isAnchor }) =>
+              isAnchor ? (
+                <a key={href} href={href} className="flex items-center min-h-[52px] text-white font-bold uppercase tracking-wider text-sm border-b border-white/5" data-testid={testid}>
+                  {label}
+                </a>
+              ) : (
+                <Link key={href} href={href} className="flex items-center min-h-[52px] text-white font-bold uppercase tracking-wider text-sm border-b border-white/5" onClick={() => setMenuOpen(false)} data-testid={testid}>
+                  {label}
+                </Link>
+              )
+            )}
+          </div>
+          <div className="py-3 space-y-3">
             <Link
-              href={dashboardHref}
-              className="block py-2 text-white font-bold text-sm"
+              href="/competitions"
+              className="flex items-center justify-center gap-2 min-h-[52px] w-full bg-[var(--quest-brand)] text-white font-bold uppercase tracking-wider text-sm"
               onClick={() => setMenuOpen(false)}
-              data-testid="link-mobile-dashboard"
+              data-testid="link-mobile-vote"
             >
-              {isViewerLoggedIn ? "My Account" : "Dashboard"}
+              Vote Now
             </Link>
-          ) : (
             <Link
-              href="/login"
-              className="block py-2 text-white font-bold text-sm"
+              href="/my-purchases"
+              className="flex items-center justify-center gap-2 min-h-[48px] w-full border border-white/20 text-white font-bold uppercase tracking-wider text-sm"
               onClick={() => setMenuOpen(false)}
-              data-testid="link-mobile-login"
+              data-testid="link-mobile-cart"
             >
-              Login
+              <ShoppingCart className="h-4 w-4" />
+              My Purchases
             </Link>
-          )}
+            {isLoggedIn ? (
+              <Link
+                href={dashboardHref}
+                className="flex items-center justify-center min-h-[48px] w-full text-white/60 font-bold text-sm"
+                onClick={() => setMenuOpen(false)}
+                data-testid="link-mobile-dashboard"
+              >
+                {isViewerLoggedIn ? "My Account" : "Dashboard"}
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center justify-center min-h-[48px] w-full text-white/60 font-bold text-sm"
+                onClick={() => setMenuOpen(false)}
+                data-testid="link-mobile-login"
+              >
+                Login
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </nav>

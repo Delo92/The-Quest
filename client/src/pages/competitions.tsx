@@ -86,37 +86,41 @@ export default function Competitions() {
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          {["all", "active", "completed"].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`inline-block px-3 py-1.5 text-[15px] border-2 transition-all duration-300 ${filter === f ? "border-black bg-transparent text-white" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
-              data-testid={`filter-${f}`}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-        </div>
-        {firestoreCategories && firestoreCategories.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mb-10">
-            <button
-              onClick={() => setCategoryFilter("all")}
-              className={`inline-block px-3 py-1.5 text-[13px] uppercase tracking-wider border-2 transition-all duration-300 ${categoryFilter === "all" ? "border-[#FF5A09] text-[#FF5A09]" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
-              data-testid="filter-category-all"
-            >
-              All Categories
-            </button>
-            {firestoreCategories.map((cat: any) => (
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scroll-momentum">
+          <div className="flex items-center gap-2 mb-4 min-w-max sm:min-w-0 sm:flex-wrap">
+            {["all", "active", "completed"].map((f) => (
               <button
-                key={cat.id}
-                onClick={() => setCategoryFilter(cat.name)}
-                className={`inline-block px-3 py-1.5 text-[13px] uppercase tracking-wider border-2 transition-all duration-300 ${categoryFilter === cat.name ? "border-[#FF5A09] text-[#FF5A09]" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
-                data-testid={`filter-category-${cat.id}`}
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`inline-block px-4 py-2 min-h-[40px] text-[14px] border-2 transition-all duration-300 whitespace-nowrap ${filter === f ? "border-black bg-transparent text-white" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
+                data-testid={`filter-${f}`}
               >
-                {cat.name}
+                {f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
+          </div>
+        </div>
+        {firestoreCategories && firestoreCategories.length > 0 && (
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scroll-momentum">
+            <div className="flex items-center gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
+              <button
+                onClick={() => setCategoryFilter("all")}
+                className={`inline-block px-4 py-2 min-h-[40px] text-[12px] uppercase tracking-wider border-2 transition-all duration-300 whitespace-nowrap ${categoryFilter === "all" ? "border-[#FF5A09] text-[#FF5A09]" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
+                data-testid="filter-category-all"
+              >
+                All Categories
+              </button>
+              {firestoreCategories.map((cat: any) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.name)}
+                  className={`inline-block px-4 py-2 min-h-[40px] text-[12px] uppercase tracking-wider border-2 transition-all duration-300 whitespace-nowrap ${categoryFilter === cat.name ? "border-[#FF5A09] text-[#FF5A09]" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
+                  data-testid={`filter-category-${cat.id}`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

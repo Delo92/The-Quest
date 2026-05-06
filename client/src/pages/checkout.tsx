@@ -558,7 +558,7 @@ export default function CheckoutPage() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               <div>
                 <Label htmlFor="exp-month" className="text-white/60 uppercase text-xs tracking-wider">
                   Month

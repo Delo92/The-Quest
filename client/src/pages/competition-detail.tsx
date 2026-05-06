@@ -330,18 +330,18 @@ export default function CompetitionDetailPage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-center gap-4">
+                    <div className="flex flex-col items-center gap-2">
                       <Link
                         href={`/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.stageName || contestant.talentProfile.displayName)}`}
                         className="text-[11px] text-white group-hover:text-black uppercase border-b border-white group-hover:border-black pb-1 transition-colors duration-500"
-                        style={{ letterSpacing: "6px" }}
+                        style={{ letterSpacing: "4px" }}
                         data-testid={`link-profile-${contestant.id}`}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        Profile
+                        View Profile
                       </Link>
                       {canVote && (
-                        <>
+                        <div className="flex items-center justify-center gap-2 w-full flex-wrap">
                           <button
                             onClick={(e) => {
                               e.preventDefault();
@@ -349,25 +349,24 @@ export default function CompetitionDetailPage() {
                               voteMutation.mutate(contestant.id);
                             }}
                             disabled={voteMutation.isPending}
-                            className="inline-block bg-black group-hover:bg-[#111] text-white font-bold text-sm capitalize px-6 leading-[40px] border border-black transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
+                            className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 bg-black group-hover:bg-[#111] text-white font-bold text-sm capitalize px-4 py-2.5 min-h-[44px] border border-black transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
                             data-testid={`button-vote-${contestant.id}`}
                           >
-                            <Heart className="inline h-3.5 w-3.5 mr-1.5" />
-                            {voteMutation.isPending ? "Voting..." : "Vote"}
+                            <Heart className="h-3.5 w-3.5 flex-shrink-0" />
+                            {voteMutation.isPending ? "Voting..." : "Vote Free"}
                           </button>
                           {!isInPersonOnlyEvent && (
                             <Link
                               href={`/checkout/${competition.id}/${contestant.id}`}
-                              className="inline-block bg-[#FF5A09] text-white font-bold text-sm capitalize px-6 leading-[40px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
-                              style={{ letterSpacing: "2px" }}
+                              className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 bg-[#FF5A09] text-white font-bold text-sm capitalize px-4 py-2.5 min-h-[44px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
                               onClick={(e) => e.stopPropagation()}
                               data-testid={`button-buy-votes-${contestant.id}`}
                             >
-                              <ShoppingCart className="inline h-3.5 w-3.5 mr-1.5" />
+                              <ShoppingCart className="h-3.5 w-3.5 flex-shrink-0" />
                               Buy Votes
                             </Link>
                           )}
-                        </>
+                        </div>
                       )}
                       {isVotingOpen && isInPersonOnlyEvent && !isInPersonVoting && (
                         <span className="text-[11px] text-white/40 uppercase" style={{ letterSpacing: "3px" }} data-testid={`text-in-person-only-${contestant.id}`}>

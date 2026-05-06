@@ -547,3 +547,47 @@
     top: -10% !important;
   }
 }
+
+/* ── Mobile-first global improvements ─────────────────────────── */
+/* Remove 300ms tap delay & blue flash on all interactive elements */
+a, button, [role="button"], label, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* iOS: prevent auto-zoom when tapping an input (requires ≥16px) */
+input, textarea, select {
+  font-size: max(16px, 1em);
+}
+
+/* Respect notched / rounded-corner phones */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Smooth momentum scrolling in scroll containers */
+.scroll-momentum {
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+
+/* Sticky save bar (talent dashboard mobile) */
+.mobile-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: rgba(10,10,10,0.97);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+@media (min-width: 1024px) {
+  .mobile-sticky-bar { display: none; }
+}

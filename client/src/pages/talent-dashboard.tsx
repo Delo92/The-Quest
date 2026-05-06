@@ -664,7 +664,7 @@ export default function TalentDashboard({ user, profile }: Props) {
             <Tabs value={activeSection} onValueChange={(v) => setActiveSection(v as any)}>
 
           <TabsContent value="profile">
-            <div className="rounded-md bg-white/[0.04] border border-white/15 p-6 space-y-5">
+            <div className="rounded-md bg-white/[0.04] border border-white/15 p-4 sm:p-6 space-y-5 pb-28 lg:pb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="displayName" className="text-white/60">Display Name</Label>
@@ -836,7 +836,7 @@ export default function TalentDashboard({ user, profile }: Props) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="hidden lg:flex flex-wrap gap-3">
                 <Button onClick={() => saveProfileMutation.mutate()} disabled={saveProfileMutation.isPending || !displayName.trim()}
                   data-testid="button-save-profile" className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white">
                   <Save className="h-4 w-4 mr-2" />
@@ -851,6 +851,25 @@ export default function TalentDashboard({ user, profile }: Props) {
                     </Button>
                   </a>
                 )}
+              </div>
+
+              {/* Sticky save bar — mobile only, hidden on desktop via CSS */}
+              <div className="mobile-sticky-bar">
+                <div className="flex items-center gap-3">
+                  <Button onClick={() => saveProfileMutation.mutate()} disabled={saveProfileMutation.isPending || !displayName.trim()}
+                    data-testid="button-save-profile-mobile" className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white min-h-[48px] text-base">
+                    <Save className="h-4 w-4 mr-2" />
+                    {saveProfileMutation.isPending ? "Saving..." : "Save Profile"}
+                  </Button>
+                  {profile && (
+                    <a href={`/talent/${profile.id}`} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" data-testid="button-view-profile-mobile"
+                        className="border-white/20 text-white/70 min-h-[48px]">
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </TabsContent>
