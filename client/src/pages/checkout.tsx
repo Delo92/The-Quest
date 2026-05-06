@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
-import { ShoppingCart, CreditCard, CheckCircle, ArrowLeft, Heart, Package } from "lucide-react";
+import { ShoppingCart, CreditCard, CheckCircle, ArrowLeft, Heart, Package, Tag, Loader2, X } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import { slugify } from "@shared/slugify";
 
@@ -59,6 +59,18 @@ interface PaymentConfig {
   environment: string;
 }
 
+interface PromoReward {
+  type: "discount_percent" | "discount_fixed" | "bonus_votes" | "info";
+  value?: number;
+  description: string;
+}
+
+interface PromoResult {
+  valid: boolean;
+  reward?: PromoReward;
+  message?: string;
+}
+
 export default function CheckoutPage() {
   const params = useParams<{ competitionId: string; contestantId: string }>();
   const competitionId = params?.competitionId ? parseInt(params.competitionId) : null;
@@ -82,6 +94,12 @@ export default function CheckoutPage() {
   const [referralCode, setReferralCode] = useState("");
   const [acceptLoaded, setAcceptLoaded] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Promo code state
+  const [promoCode, setPromoCode] = useState("");
+  const [promoValidating, setPromoValidating] = useState(false);
+  const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
+  const promoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: competition, isLoading: compLoading } = useQuery<CompetitionDetail>({
     queryKey: ["/api/competitions", competitionId?.toString()],
@@ -136,6 +154,48 @@ export default function CheckoutPage() {
   const selectedPkg = packages?.find((p) => p.id === selectedPackage);
   const isIndividual = selectedPackage === "individual";
   const individualTotal = individualVoteCount * perVotePrice * 100;
+
+  // Compute discount from promo
+  const getPromoDiscount = useCallback((subtotal: number) => {
+    if (!promoResult?.valid || !promoResult.reward) return { discountDollars: 0, discountPercent: 0, discountFixed: 0 };
+    const r = promoResult.reward;
+    if (r.type === "discount_percent" && r.value) {
+      const d = Math.round(subtotal * (r.value / 100) * 100) / 100;
+      return { discountDollars: d, discountPercent: r.value, discountFixed: 0 };
+    }
+    if (r.type === "discount_fixed" && r.value) {
+      const d = Math.min(r.value, subtotal);
+      return { discountDollars: d, discountPercent: 0, discountFixed: r.value };
+    }
+    return { discountDollars: 0, discountPercent: 0, discountFixed: 0 };
+  }, [promoResult]);
+
+  const handleValidatePromo = useCallback(async () => {
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+    setPromoValidating(true);
+    setPromoResult(null);
+    try {
+      const res = await apiRequest("POST", "/api/promo/validate", { code });
+      const data: PromoResult = await res.json();
+      setPromoResult(data);
+      if (data.valid) {
+        toast({ title: "Promo code applied!", description: data.reward?.description || "Reward unlocked." });
+      } else {
+        toast({ title: "Invalid code", description: data.message || "This code could not be validated.", variant: "destructive" });
+      }
+    } catch {
+      setPromoResult({ valid: false, message: "Unable to validate code right now." });
+      toast({ title: "Validation failed", description: "Unable to reach promo service.", variant: "destructive" });
+    } finally {
+      setPromoValidating(false);
+    }
+  }, [promoCode, toast]);
+
+  const clearPromo = useCallback(() => {
+    setPromoCode("");
+    setPromoResult(null);
+  }, []);
 
   const validateCheckout = useCallback(() => {
     if (!name.trim() || !email.trim()) {
@@ -194,6 +254,9 @@ export default function CheckoutPage() {
 
       try {
         const pkgIndex = selectedPackage?.startsWith("pkg_") ? parseInt(selectedPackage.replace("pkg_", "")) : undefined;
+        const subtotal = isIndividual ? (individualVoteCount * perVotePrice) : (selectedPkg ? selectedPkg.price / 100 : 0);
+        const { discountPercent, discountFixed } = getPromoDiscount(subtotal);
+
         const body: any = {
           name: name.trim(),
           email: email.trim(),
@@ -205,6 +268,9 @@ export default function CheckoutPage() {
           dataDescriptor: tokenResponse.opaqueData.dataDescriptor,
           dataValue: tokenResponse.opaqueData.dataValue,
           referralCode: referralCode || undefined,
+          promoCode: promoResult?.valid && promoCode ? promoCode.trim().toUpperCase() : undefined,
+          promoDiscountPercent: discountPercent > 0 ? discountPercent : undefined,
+          promoDiscountFixed: discountFixed > 0 ? discountFixed : undefined,
         };
         if (isIndividual) {
           body.individualVoteCount = individualVoteCount;
@@ -221,7 +287,7 @@ export default function CheckoutPage() {
         setProcessing(false);
       }
     });
-  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode]);
+  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode, promoCode, promoResult, selectedPkg, perVotePrice, getPromoDiscount]);
 
   const handlePayClick = useCallback(() => {
     if (!validateCheckout()) return;
@@ -506,9 +572,10 @@ export default function CheckoutPage() {
               </span>
             </label>
 
+            {/* Referral Code */}
             <div className="mt-4">
               <Label className="text-white/60 uppercase text-xs tracking-wider">
-                Referral / Promo Code
+                Referral Code
               </Label>
               <div className="flex items-center gap-2 mt-2">
                 <Input
@@ -520,7 +587,7 @@ export default function CheckoutPage() {
                     else localStorage.removeItem("hfc_ref");
                   }}
                   className="bg-white/[0.08] border-white/20 text-white"
-                  placeholder="Enter code (optional)"
+                  placeholder="Enter referral code (optional)"
                   data-testid="input-checkout-referral-code"
                 />
                 {referralCode && (
@@ -529,6 +596,61 @@ export default function CheckoutPage() {
                   </span>
                 )}
               </div>
+            </div>
+
+            {/* CBUSA Promo Code */}
+            <div className="mt-4">
+              <Label className="text-white/60 uppercase text-xs tracking-wider flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5" /> Promo Code
+              </Label>
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  ref={promoInputRef}
+                  value={promoCode}
+                  onChange={(e) => {
+                    setPromoCode(e.target.value.toUpperCase());
+                    if (promoResult) setPromoResult(null);
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && promoCode.trim()) handleValidatePromo(); }}
+                  className={`bg-white/[0.08] border-white/20 text-white ${promoResult?.valid ? "border-green-500/60" : promoResult && !promoResult.valid ? "border-red-500/60" : ""}`}
+                  placeholder="Enter promo code"
+                  data-testid="input-promo-code"
+                  disabled={promoValidating}
+                />
+                {promoResult?.valid ? (
+                  <button
+                    type="button"
+                    onClick={clearPromo}
+                    className="text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+                    data-testid="button-clear-promo"
+                    title="Remove promo code"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleValidatePromo}
+                    disabled={!promoCode.trim() || promoValidating}
+                    className="flex-shrink-0 bg-white/10 hover:bg-white/20 text-white text-xs uppercase tracking-wider px-4 py-2 border border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    data-testid="button-validate-promo"
+                  >
+                    {promoValidating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                    {promoValidating ? "Checking..." : "Apply"}
+                  </button>
+                )}
+              </div>
+              {promoResult?.valid && promoResult.reward && (
+                <div className="mt-2 flex items-start gap-2 text-green-400 text-xs" data-testid="text-promo-reward">
+                  <CheckCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  <span>{promoResult.reward.description}</span>
+                </div>
+              )}
+              {promoResult && !promoResult.valid && (
+                <p className="mt-2 text-red-400 text-xs" data-testid="text-promo-invalid">
+                  {promoResult.message || "Invalid promo code."}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -558,6 +680,7 @@ export default function CheckoutPage() {
                 data-testid="input-card-number"
               />
             </div>
+
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="exp-month" className="text-white/60 uppercase text-xs tracking-wider">
@@ -590,7 +713,7 @@ export default function CheckoutPage() {
                   value={expYear}
                   onChange={(e) => setExpYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
                   className="bg-white/[0.08] border-white/20 text-white mt-2"
-                  placeholder="YYYY"
+                  placeholder="YY"
                   maxLength={4}
                   data-testid="input-exp-year"
                 />
@@ -623,8 +746,10 @@ export default function CheckoutPage() {
             ? `${individualVoteCount.toLocaleString()} vote${individualVoteCount !== 1 ? "s" : ""}`
             : `${selectedPkg!.name} (${selectedPkg!.voteCount.toLocaleString()}${selectedPkg!.bonusVotes > 0 ? ` + ${selectedPkg!.bonusVotes.toLocaleString()} bonus` : ""} votes)`;
           const taxRate = platformSettings?.salesTaxPercent || 0;
-          const taxAmount = subtotal * (taxRate / 100);
-          const total = subtotal + taxAmount;
+          const { discountDollars } = getPromoDiscount(subtotal);
+          const discountedSubtotal = Math.max(0, subtotal - discountDollars);
+          const taxAmount = discountedSubtotal * (taxRate / 100);
+          const total = discountedSubtotal + taxAmount;
           return (
             <div className="border border-white/10 p-5 mb-8">
               <div className="flex items-center justify-between mb-2">
@@ -634,6 +759,15 @@ export default function CheckoutPage() {
                 <span className="text-white">{voteLabel}</span>
                 <span className="text-white">${subtotal.toFixed(2)}</span>
               </div>
+              {discountDollars > 0 && (
+                <div className="flex items-center justify-between mb-1 text-green-400 text-sm">
+                  <span className="flex items-center gap-1">
+                    <Tag className="h-3.5 w-3.5" />
+                    Promo: {promoCode}
+                  </span>
+                  <span>-${discountDollars.toFixed(2)}</span>
+                </div>
+              )}
               {taxRate > 0 && (
                 <div className="flex items-center justify-between mb-1 text-white/50 text-sm">
                   <span>Sales Tax ({taxRate}%)</span>
@@ -651,7 +785,7 @@ export default function CheckoutPage() {
               {referralCode && (
                 <div className="flex items-center gap-1.5 text-green-400 text-xs mt-2 pt-2 border-t border-white/10">
                   <CheckCircle className="h-3 w-3" />
-                  <span>Referral code applied: {referralCode}</span>
+                  <span>Referral code: {referralCode}</span>
                 </div>
               )}
             </div>
@@ -665,7 +799,15 @@ export default function CheckoutPage() {
           data-testid="button-checkout"
         >
           <CreditCard className="h-5 w-5" />
-          {processing ? "PROCESSING..." : (selectedPkg || isIndividual) ? `PAY $${(((isIndividual ? individualVoteCount * perVotePrice : selectedPkg!.price / 100) * (1 + (platformSettings?.salesTaxPercent || 0) / 100))).toFixed(2)}` : "SELECT A VOTE OPTION"}
+          {processing ? "PROCESSING..." : (() => {
+            if (!selectedPackage) return "SELECT A VOTE OPTION";
+            const subtotal = isIndividual ? (individualVoteCount * perVotePrice) : (selectedPkg ? selectedPkg.price / 100 : 0);
+            const { discountDollars } = getPromoDiscount(subtotal);
+            const discountedSubtotal = Math.max(0, subtotal - discountDollars);
+            const taxRate = platformSettings?.salesTaxPercent || 0;
+            const total = discountedSubtotal * (1 + taxRate / 100);
+            return `PAY $${total.toFixed(2)}`;
+          })()}
         </button>
 
         <p className="text-white/30 text-xs text-center mt-4">
@@ -678,13 +820,16 @@ export default function CheckoutPage() {
             ? `${individualVoteCount.toLocaleString()} vote${individualVoteCount !== 1 ? "s" : ""}`
             : selectedPkg ? `${selectedPkg.name} (${selectedPkg.voteCount.toLocaleString()}${selectedPkg.bonusVotes > 0 ? ` + ${selectedPkg.bonusVotes.toLocaleString()} bonus` : ""} votes)` : "";
           const taxRate = platformSettings?.salesTaxPercent || 0;
-          const taxAmount = subtotal * (taxRate / 100);
-          const total = subtotal + taxAmount;
+          const { discountDollars } = getPromoDiscount(subtotal);
+          const discountedSubtotal = Math.max(0, subtotal - discountDollars);
+          const taxAmount = discountedSubtotal * (taxRate / 100);
+          const total = discountedSubtotal + taxAmount;
           const lineItems = [
             { label: "Contestant", value: contestant?.talentProfile?.displayName || "" },
             { label: "Competition", value: competition?.title || "" },
             { label: "Package", value: voteLabel },
             { label: "Subtotal", value: `$${subtotal.toFixed(2)}` },
+            ...(discountDollars > 0 ? [{ label: `Promo (${promoCode})`, value: `-$${discountDollars.toFixed(2)}`, highlight: true }] : []),
             ...(taxRate > 0 ? [{ label: `Sales Tax (${taxRate}%)`, value: `$${taxAmount.toFixed(2)}` }] : []),
           ];
           if (referralCode) {
