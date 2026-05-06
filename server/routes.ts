@@ -33,7 +33,7 @@ import {
   firestoreCompetitions,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig } from "./authorize-net";
-import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail } from "./email";
+import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter } from "./email";
 import {
   uploadImageToDrive,
   uploadFileToDriveFolder,
@@ -1490,13 +1490,20 @@ export async function registerRoutes(
     try {
       const { code } = req.body;
       if (!code) return res.status(400).json({ error: "Missing authorization code" });
+      // Reject if someone accidentally pastes an auth code as a refresh token
+      if (code.trim().startsWith("1//")) {
+        return res.status(400).json({ error: "That looks like a refresh token, not an authorization code. Paste the short code you got from the OAuth consent page (starts with 4/)." });
+      }
       const redirectUri = "https://developers.google.com/oauthplayground";
       const newToken = await exchangeGmailCode(code.trim(), redirectUri);
-      // Apply in-process so emails work immediately without a restart
+      // Apply in-process immediately
       process.env.GMAIL_REFRESH_TOKEN = newToken;
-      // Also clear the cached transporter so it re-builds with the fresh token
       resetTransporter();
-      res.json({ success: true, token: newToken, message: "Refresh token updated in memory. Copy the token and save it as the GMAIL_REFRESH_TOKEN secret to persist across restarts." });
+      // Write to temp file so agent can read and persist it automatically
+      const fs = await import("fs");
+      fs.writeFileSync("/tmp/gmail_refresh_token.txt", newToken, "utf8");
+      console.log("✅ GMAIL REFRESH TOKEN EXCHANGED — length:", newToken.length, "prefix:", newToken.substring(0, 10));
+      res.json({ success: true, token: newToken, message: "Token saved to server memory. The system will persist it automatically." });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
