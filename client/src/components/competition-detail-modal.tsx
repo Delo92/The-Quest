@@ -61,7 +61,7 @@ interface ContestantProfileDetail {
     imageUrls?: string[];
     imageBackupUrls?: string[];
   };
-  vimeoVideos?: { uri: string; name: string; link: string; pictures?: { base_link?: string } }[];
+  vimeoVideos?: { uri: string; name: string; link: string; embedUrl?: string; thumbnail?: string | null }[];
 }
 
 export function CompetitionDetailModal({ compId }: { compId: number }) {
@@ -478,9 +478,9 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                               <div className="flex gap-2 overflow-x-auto pb-1">
                                 {epVideos.map((v, i) => (
                                   <a key={i} href={v.link} target="_blank" rel="noopener noreferrer" className="shrink-0 group relative">
-                                    {v.pictures?.base_link ? (
+                                    {v.thumbnail ? (
                                       <img
-                                        src={`${v.pictures.base_link}_295x166`}
+                                        src={v.thumbnail}
                                         alt={v.name}
                                         className="h-20 w-36 object-cover rounded-md border border-white/10 group-hover:border-orange-500/50 transition-colors"
                                       />
