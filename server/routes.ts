@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { trackChronicBrandsPromo, validatePromo, redeemPromo } from "./chronic-brands";
+import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
 import {
   verifyFirebaseToken,
@@ -3171,17 +3171,15 @@ export async function registerRoutes(
     res.json(config);
   });
 
-  app.post("/api/promo/validate", async (req, res) => {
+  app.get("/api/code-registry/lookup/:code", async (req, res) => {
     try {
-      const { code } = req.body;
-      if (!code || typeof code !== "string" || !code.trim()) {
-        return res.status(400).json({ valid: false, message: "Code is required" });
-      }
-      const result = await validatePromo(code.trim());
+      const code = (req.params.code || "").trim().toUpperCase();
+      if (!code) return res.status(400).json({ found: false });
+      const result = await lookupCodeRegistry(code);
       res.json(result);
     } catch (err: any) {
-      console.error("[/api/promo/validate] error:", err.message);
-      res.status(500).json({ valid: false, message: "Promo validation failed" });
+      console.error("[/api/code-registry/lookup] error:", err.message);
+      res.status(500).json({ found: false });
     }
   });
 
@@ -3197,9 +3195,6 @@ export async function registerRoutes(
     dataDescriptor: z.string().min(1, "Payment token is required"),
     dataValue: z.string().min(1, "Payment token is required"),
     referralCode: z.string().optional().nullable(),
-    promoCode: z.string().optional().nullable(),
-    promoDiscountPercent: z.number().min(0).max(100).optional().nullable(),
-    promoDiscountFixed: z.number().min(0).optional().nullable(),
   });
 
   app.post("/api/guest/checkout", async (req, res) => {
@@ -3209,7 +3204,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
       }
 
-      const { name, email, competitionId, contestantId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode, promoCode, promoDiscountPercent, promoDiscountFixed } = parsed.data;
+      const { name, email, competitionId, contestantId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode } = parsed.data;
 
       let resolvedRefCode: string | null = referralCode || null;
       if (referralCode) {
@@ -3261,21 +3256,10 @@ export async function registerRoutes(
       const totalVotes = pkg.voteCount + (pkg.bonusVotes || 0);
       const subtotalDollars = pkg.price / 100;
 
-      // Apply CBUSA promo discount if present
-      let discountDollars = 0;
-      if (promoCode) {
-        if (promoDiscountPercent && promoDiscountPercent > 0) {
-          discountDollars = Math.round(subtotalDollars * (promoDiscountPercent / 100) * 100) / 100;
-        } else if (promoDiscountFixed && promoDiscountFixed > 0) {
-          discountDollars = Math.min(promoDiscountFixed, subtotalDollars);
-        }
-      }
-      const discountedSubtotal = Math.max(0, subtotalDollars - discountDollars);
-
       const settingsForTax = await getFirestore().collection("platformSettings").doc("global").get();
       const salesTaxPercent = settingsForTax.exists ? (settingsForTax.data()?.salesTaxPercent || 0) : 0;
-      const taxAmount = discountedSubtotal * (salesTaxPercent / 100);
-      const amountInDollars = Math.max(0.01, Math.round((discountedSubtotal + taxAmount) * 100) / 100);
+      const taxAmount = subtotalDollars * (salesTaxPercent / 100);
+      const amountInDollars = Math.round((subtotalDollars + taxAmount) * 100) / 100;
 
       const chargeResult = await chargePaymentNonce(
         amountInDollars,
@@ -3334,18 +3318,6 @@ export async function registerRoutes(
         }).catch((err: any) => console.warn("[ChronicBrands] Checkout referral tracking failed (non-blocking):", err.message));
       }
 
-      // Redeem CBUSA promo code after successful payment (non-blocking)
-      if (promoCode) {
-        redeemPromo({
-          code: promoCode,
-          orderNumber: chargeResult.transactionId,
-          orderValue: String(subtotalDollars),
-          discountAmount: String(discountDollars.toFixed(2)),
-          customerName: name?.trim(),
-          customerEmail: email?.toLowerCase().trim(),
-          notes: `Vote package: ${pkg.name} (${totalVotes} votes) for ${comp.title}`,
-        }).catch((err: any) => console.warn("[ChronicBrands] Promo redeem failed (non-blocking):", err.message));
-      }
 
       if (isEmailConfigured() && email) {
         const contestant = await storage.getContestant(contestantId);

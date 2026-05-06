@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useLivery } from "@/hooks/use-livery";
 import { useGATracking } from "@/hooks/use-ga-tracking";
 import NotFound from "@/pages/not-found";
+import CodeLandingPage from "@/pages/code-landing";
 import HomePage from "@/pages/home";
 import Landing from "@/pages/landing";
 import Competitions from "@/pages/competitions";
@@ -89,6 +90,7 @@ function App() {
         <Switch>
           <Route path="/" component={HomePage} />
           <Route path="/thequest" nest component={QuestRouter} />
+          <Route path="/:slug" component={CodeLandingPage} />
           <Route component={NotFound} />
         </Switch>
       </TooltipProvider>
