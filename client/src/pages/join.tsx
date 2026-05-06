@@ -118,7 +118,7 @@ export default function JoinPage() {
 
   const filteredCompetitions = useMemo(() => {
     if (!competitions) return [];
-    let openComps = competitions.filter(c => c.status === "active" || c.status === "voting" || c.status === "draft");
+    let openComps = competitions.filter(c => c.status === "active" || c.status === "voting");
     if (selectedCategory) {
       openComps = openComps.filter(c => c.category === selectedCategory);
     }
@@ -131,7 +131,7 @@ export default function JoinPage() {
 
   const categoryCompCounts = useMemo(() => {
     if (!competitions || !firestoreCategories) return {};
-    const openComps = competitions.filter(c => c.status === "active" || c.status === "voting" || c.status === "draft");
+    const openComps = competitions.filter(c => c.status === "active" || c.status === "voting");
     const counts: Record<string, number> = {};
     for (const cat of firestoreCategories) {
       counts[cat.name] = openComps.filter(c => c.category === cat.name).length;
