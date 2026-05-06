@@ -99,8 +99,8 @@ function wrapInTemplate(bodyHtml: string): string {
       ${bodyHtml}
     </div>
     <div class="footer">
-      <p>HiFitComp - Hawaii's Live Talent Competition Platform</p>
-      <p>&copy; ${new Date().getFullYear()} HiFitComp. All rights reserved.</p>
+      <p>The Quest - CB Publishing's Talent Competition Platform</p>
+      <p>&copy; ${new Date().getFullYear()} CB Publishing. All rights reserved.</p>
     </div>
   </div>
 </body>

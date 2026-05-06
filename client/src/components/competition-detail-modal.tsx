@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, MapPin, Download, Save, Pencil, X } from "lucide-react";
+import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film } from "lucide-react";
 
 interface CompDetailResponse {
   competition: {
@@ -51,9 +51,23 @@ interface CompDetailResponse {
   }[];
 }
 
+interface ContestantProfileDetail {
+  profile: {
+    displayName: string;
+    stageName?: string;
+    bio?: string;
+    location?: string;
+    category?: string;
+    imageUrls?: string[];
+    imageBackupUrls?: string[];
+  };
+  vimeoVideos?: { uri: string; name: string; link: string; pictures?: { base_link?: string } }[];
+}
+
 export function CompetitionDetailModal({ compId }: { compId: number }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
+  const [expandedProfileId, setExpandedProfileId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -74,6 +88,18 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
 
   const { data: platformSettings } = useQuery<any>({
     queryKey: ["/api/platform-settings"],
+  });
+
+  const { data: expandedProfileData, isLoading: expandedLoading } = useQuery<ContestantProfileDetail>({
+    queryKey: ["/api/admin/users", expandedProfileId, "detail"],
+    enabled: expandedProfileId !== null,
+    staleTime: 60_000,
+  });
+
+  const { data: expandedVideosData } = useQuery<{ vimeoVideos: ContestantProfileDetail["vimeoVideos"] }>({
+    queryKey: ["/api/admin/users", expandedProfileId, "videos"],
+    enabled: expandedProfileId !== null && !!expandedProfileData,
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -370,46 +396,115 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
         <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold mb-3">Contestants ({contestants.length})</h3>
         {contestants.length > 0 ? (
           <div className="space-y-2">
-            {contestants.map((c) => (
-              <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-white/5 border border-white/5 p-3" data-testid={`comp-contestant-${c.id}`}>
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage src={c.imageUrls?.[0] || ""} />
-                    <AvatarFallback className="bg-orange-500/20 text-orange-400 text-xs font-bold">
-                      {c.displayName?.charAt(0) || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm" data-testid={`contestant-name-${c.id}`}>{c.displayName}</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {c.stageName && <span className="text-xs text-white/40" data-testid={`contestant-stage-${c.id}`}>{c.stageName}</span>}
-                      {c.category && <span className="text-xs text-white/30">{c.category}</span>}
+            {contestants.map((c) => {
+              const isExpanded = expandedProfileId === c.talentProfileId;
+              const epd = isExpanded ? expandedProfileData : null;
+              const epImages = epd?.profile?.imageUrls ?? c.imageUrls ?? [];
+              const epVideos = isExpanded ? (expandedVideosData?.vimeoVideos ?? []) : [];
+              return (
+                <div key={c.id} className="rounded-md bg-white/5 border border-white/5 overflow-hidden" data-testid={`comp-contestant-${c.id}`}>
+                  <button
+                    className="w-full flex flex-wrap items-center justify-between gap-3 p-3 text-left hover:bg-white/[0.04] transition-colors"
+                    onClick={() => setExpandedProfileId(isExpanded ? null : c.talentProfileId)}
+                    data-testid={`button-expand-contestant-${c.id}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <Avatar className="h-9 w-9 shrink-0">
+                        <AvatarImage src={c.imageUrls?.[0] || ""} />
+                        <AvatarFallback className="bg-orange-500/20 text-orange-400 text-xs font-bold">
+                          {c.displayName?.charAt(0) || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm" data-testid={`contestant-name-${c.id}`}>{c.displayName}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {c.stageName && <span className="text-xs text-white/40" data-testid={`contestant-stage-${c.id}`}>{c.stageName}</span>}
+                          {c.category && <span className="text-xs text-white/30">{c.category}</span>}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 mt-0.5">
+                          {c.email && (
+                            <span className="flex items-center gap-1 text-[11px] text-orange-400/70 truncate" data-testid={`contestant-email-${c.id}`}>
+                              <Mail className="h-3 w-3 shrink-0" /> {c.email}
+                            </span>
+                          )}
+                          {c.location && (
+                            <span className="flex items-center gap-1 text-[11px] text-white/30" data-testid={`contestant-location-${c.id}`}>
+                              <MapPin className="h-3 w-3 shrink-0" /> {c.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 mt-1">
-                      {c.email && (
-                        <a href={`mailto:${c.email}`} className="flex items-center gap-1 text-[11px] text-orange-400/70 hover:text-orange-400 truncate" data-testid={`contestant-email-${c.id}`}>
-                          <Mail className="h-3 w-3 shrink-0" /> {c.email}
-                        </a>
-                      )}
-                      {c.location && (
-                        <span className="flex items-center gap-1 text-[11px] text-white/30" data-testid={`contestant-location-${c.id}`}>
-                          <MapPin className="h-3 w-3 shrink-0" /> {c.location}
-                        </span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <p className="text-sm font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent" data-testid={`contestant-votes-${c.id}`}>{c.voteCount}</p>
+                        <p className="text-[10px] text-white/30">votes</p>
+                      </div>
+                      <Badge className={`border-0 text-xs ${c.applicationStatus === "approved" ? "bg-green-500/20 text-green-400" : c.applicationStatus === "rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`} data-testid={`contestant-status-${c.id}`}>
+                        {c.applicationStatus}
+                      </Badge>
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-white/30 shrink-0" /> : <ChevronDown className="h-4 w-4 text-white/30 shrink-0" />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-white/5 bg-black/20 p-3 space-y-3">
+                      {expandedLoading ? (
+                        <p className="text-xs text-white/30 text-center py-2">Loading profile...</p>
+                      ) : (
+                        <>
+                          {epd?.profile?.bio && (
+                            <p className="text-xs text-white/50 leading-relaxed">{epd.profile.bio}</p>
+                          )}
+                          {epImages.length > 0 && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2 flex items-center gap-1"><Image className="h-3 w-3" /> Photos ({epImages.length})</p>
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {epImages.map((url, i) => (
+                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                    <img
+                                      src={url}
+                                      alt={`photo-${i + 1}`}
+                                      className="h-24 w-24 object-cover rounded-md border border-white/10 hover:border-orange-500/50 transition-colors"
+                                    />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {epVideos.length > 0 && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2 flex items-center gap-1"><Film className="h-3 w-3" /> Videos ({epVideos.length})</p>
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {epVideos.map((v, i) => (
+                                  <a key={i} href={v.link} target="_blank" rel="noopener noreferrer" className="shrink-0 group relative">
+                                    {v.pictures?.base_link ? (
+                                      <img
+                                        src={`${v.pictures.base_link}_295x166`}
+                                        alt={v.name}
+                                        className="h-20 w-36 object-cover rounded-md border border-white/10 group-hover:border-orange-500/50 transition-colors"
+                                      />
+                                    ) : (
+                                      <div className="h-20 w-36 rounded-md bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-orange-500/50 transition-colors">
+                                        <Film className="h-6 w-6 text-white/20" />
+                                      </div>
+                                    )}
+                                    <p className="text-[10px] text-white/40 mt-1 truncate w-36">{v.name}</p>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {epImages.length === 0 && epVideos.length === 0 && !expandedLoading && (
+                            <p className="text-xs text-white/30 text-center py-1">No photos or videos uploaded yet.</p>
+                          )}
+                        </>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <p className="text-sm font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent" data-testid={`contestant-votes-${c.id}`}>{c.voteCount}</p>
-                    <p className="text-[10px] text-white/30">votes</p>
-                  </div>
-                  <Badge className={`border-0 text-xs ${c.applicationStatus === "approved" ? "bg-green-500/20 text-green-400" : c.applicationStatus === "rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`} data-testid={`contestant-status-${c.id}`}>
-                    {c.applicationStatus}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-md bg-white/5 border border-white/5 p-4 text-center">
