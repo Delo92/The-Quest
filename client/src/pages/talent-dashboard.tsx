@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
@@ -539,52 +539,129 @@ export default function TalentDashboard({ user, profile }: Props) {
     await handleCopyShareLink(contest);
   };
 
+  const [activeSection, setActiveSection] = useState<"profile" | "media" | "competitions">("profile");
+
+  const totalVotes = myContests?.reduce((acc: number, c: any) => acc + (c.voteCount || 0), 0) || 0;
+  const approvedCount = approvedContests.length;
+  const pendingCount = myContests?.filter((c: any) => c.applicationStatus === "pending").length || 0;
+
+  const navItems = [
+    { id: "profile" as const, label: "My Profile", sublabel: "Info, bio & customization", icon: User },
+    { id: "media" as const, label: "Media Library", sublabel: "Photos & videos", icon: FolderOpen },
+    { id: "competitions" as const, label: "Competitions", sublabel: "Applications & sharing", icon: Trophy },
+  ];
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      <nav className="sticky top-0 z-50 bg-black/95 backdrop-blur-xl border-b border-white/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
-          <Link href="/" className="flex items-center gap-2" data-testid="link-home">
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Top Nav */}
+      <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
+          <Link href="/" className="flex items-center gap-2.5" data-testid="link-home">
             <CBLogo size="sm" showText={false} />
-            <span className="font-serif text-xl font-bold">The Quest</span>
+            <span className="font-serif text-lg font-bold tracking-tight">The Quest</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8 ring-2 ring-white/10">
-              <AvatarImage src={user.profileImageUrl || ""} />
-              <AvatarFallback className="bg-gradient-to-br from-orange-500/20 to-amber-500/20 text-orange-400 text-xs font-bold">
-                {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-medium hidden sm:inline text-white/70">{user.displayName || user.email}</span>
-            <Button size="icon" variant="ghost" className="text-white/40" onClick={() => logout()} data-testid="button-logout">
-              <LogOut className="h-4 w-4" />
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 bg-white/[0.06] border border-white/10 rounded-full pl-1 pr-3 py-1">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={user.profileImageUrl || ""} />
+                <AvatarFallback className="bg-orange-500/20 text-orange-400 text-[10px] font-bold">
+                  {(user.displayName || user.email || "U").charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-xs text-white/60">{user.displayName || user.email}</span>
+            </div>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-white/30 hover:text-white/60" onClick={() => logout()} data-testid="button-logout">
+              <LogOut className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold" data-testid="text-dashboard-title">Talent Dashboard</h1>
-            <p className="text-white/40 mt-1">Manage your profile, media, and competition applications.</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center flex-shrink-0">
+              <LayoutDashboard className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold leading-none" data-testid="text-dashboard-title">Talent Dashboard</h1>
+              <p className="text-white/35 text-xs mt-0.5">Welcome back, {displayName || user.displayName || "Competitor"}</p>
+            </div>
           </div>
           <InviteDialog senderLevel={2} />
         </div>
 
-        <Tabs defaultValue="profile">
-          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
-            <TabsList className="inline-flex w-max sm:w-auto bg-white/[0.08] border border-white/15">
-              <TabsTrigger value="profile" data-testid="tab-profile" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white">
-                <User className="h-4 w-4 mr-1.5" /> <span className="hidden sm:inline">Profile</span>
-              </TabsTrigger>
-              <TabsTrigger value="media" data-testid="tab-media" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white">
-                <FolderOpen className="h-4 w-4 mr-1.5" /> <span className="hidden sm:inline">Media</span>
-              </TabsTrigger>
-              <TabsTrigger value="competitions" data-testid="tab-competitions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white">
-                <Trophy className="h-4 w-4 mr-1.5" /> <span className="hidden sm:inline">Competitions</span>
-              </TabsTrigger>
-            </TabsList>
+        {/* Stats strip */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[
+            { label: "Competitions", value: approvedCount, icon: Trophy, color: "text-orange-400" },
+            { label: "Total Votes", value: totalVotes.toLocaleString(), icon: Star, color: "text-amber-400" },
+            { label: "Pending", value: pendingCount, icon: AlertTriangle, color: "text-yellow-500" },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-white/[0.04] border border-white/8 rounded-xl p-3 sm:p-4 flex items-center gap-3">
+              <div className={`hidden sm:flex h-9 w-9 rounded-lg bg-white/[0.06] items-center justify-center flex-shrink-0 ${color}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-lg sm:text-2xl font-bold leading-none">{value}</p>
+                <p className="text-[11px] text-white/35 mt-0.5">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Layout: sidebar + content */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar nav - desktop */}
+          <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 gap-1">
+            {navItems.map(({ id, label, sublabel, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveSection(id)}
+                data-testid={`nav-${id}`}
+                className={`w-full text-left rounded-xl px-3.5 py-3 flex items-center gap-3 transition-all duration-200 group ${
+                  activeSection === id
+                    ? "bg-gradient-to-r from-orange-500/20 to-amber-500/10 border border-orange-500/30 text-white"
+                    : "text-white/40 hover:text-white/70 hover:bg-white/[0.04] border border-transparent"
+                }`}
+              >
+                <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                  activeSection === id ? "bg-orange-500/20 text-orange-400" : "bg-white/[0.06] text-white/30 group-hover:text-white/50"
+                }`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-sm font-semibold leading-none ${activeSection === id ? "text-white" : ""}`}>{label}</p>
+                  <p className="text-[10px] text-white/30 mt-0.5 leading-none truncate">{sublabel}</p>
+                </div>
+                {activeSection === id && <ChevronRight className="h-3.5 w-3.5 text-orange-400 ml-auto flex-shrink-0" />}
+              </button>
+            ))}
+          </aside>
+
+          {/* Mobile tab bar */}
+          <div className="lg:hidden flex gap-2 mb-2">
+            {navItems.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveSection(id)}
+                data-testid={`tab-${id}`}
+                className={`flex-1 rounded-xl py-2.5 px-2 flex flex-col items-center gap-1 transition-all border ${
+                  activeSection === id
+                    ? "bg-orange-500/15 border-orange-500/30 text-orange-400"
+                    : "bg-white/[0.04] border-white/8 text-white/35"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="text-[10px] font-semibold">{label.split(" ")[0]}</span>
+              </button>
+            ))}
           </div>
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            <Tabs value={activeSection} onValueChange={(v) => setActiveSection(v as any)}>
 
           <TabsContent value="profile">
             <div className="rounded-md bg-white/[0.04] border border-white/15 p-6 space-y-5">
@@ -1398,7 +1475,9 @@ export default function TalentDashboard({ user, profile }: Props) {
               </div>
             )}
           </TabsContent>
-        </Tabs>
+            </Tabs>
+          </div>
+        </div>
       </div>
 
       {/* Leave Competition confirmation dialog */}
