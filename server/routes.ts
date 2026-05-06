@@ -33,7 +33,7 @@ import {
   firestoreCompetitions,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig } from "./authorize-net";
-import { sendInviteEmail, sendPurchaseReceipt, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail } from "./email";
+import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail } from "./email";
 import {
   uploadImageToDrive,
   uploadFileToDriveFolder,
@@ -1191,6 +1191,17 @@ export async function registerRoutes(
             syncContestantToChronicTV(comp.title, talentName, profile.bio || null),
             getChronicTVContestantVimeoFolder(comp.title, talentName),
           ]).catch((err: any) => console.error("ChronicTV contestant sync error (non-blocking):", err.message));
+
+          // Send approval email to the talent (non-blocking)
+          if (isEmailConfigured() && profile.email) {
+            const siteUrl = process.env.SITE_URL || "https://cbpublishing.live";
+            sendApplicationApproved({
+              to: profile.email,
+              talentName: profile.stageName || profile.displayName,
+              competitionName: comp.title,
+              siteUrl,
+            }).catch((e: any) => console.error("Application approved email error (non-blocking):", e.message));
+          }
         }
       } catch (folderErr: any) {
         console.error("Auto-create contestant folders error (non-blocking):", folderErr.message);
@@ -1356,42 +1367,158 @@ export async function registerRoutes(
       if (!to) return res.status(400).json({ error: "Missing 'to' email address" });
 
       const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get("host")}`;
+      const results: Record<string, boolean | string> = {};
 
+      // "all" mode — send every email type sequentially so Gmail doesn't throttle
+      if (template === "all") {
+        const txId = "TEST-" + Date.now();
+
+        // 1. Welcome / Invite
+        results["1_welcome_invite"] = await sendInviteEmail({
+          to, inviterName: "The Quest Admin", role: "talent", siteUrl,
+          nomineeName: "Sample Talent", nominatorName: "The Quest Admin",
+          competitionName: "CB Publishing Music 2026",
+          defaultPassword: "CBP2026!", accountCreated: true,
+        });
+
+        // 2. Nomination Congrats (to the nominee)
+        results["2_nomination_congrats"] = await sendNominationCongrats({
+          to, nomineeName: "Sample Talent", nominatorName: "Jordan Smith",
+          competitionName: "CB Publishing Music 2026", siteUrl,
+          defaultPassword: "CBP2026!", accountCreated: true,
+        });
+
+        // 3. Nomination Receipt (for the nominator)
+        results["3_nomination_receipt"] = await sendNominationReceipt({
+          to, nominatorName: "Jordan Smith", nomineeName: "Sample Talent",
+          competitionName: "CB Publishing Music 2026",
+          amount: "$25.00", transactionId: txId, isFree: false,
+        });
+
+        // 4. Vote Pack Purchase Receipt
+        results["4_vote_pack_receipt"] = await sendPurchaseReceipt({
+          to, buyerName: "Sample Buyer",
+          items: [{ description: "Mega Pack — 50 Votes", amount: "$29.99" }],
+          tax: "$2.40", total: "$32.39",
+          transactionId: txId + "-V",
+          competitionName: "CB Publishing Music 2026",
+          contestantName: "Sample Talent",
+        });
+
+        // 5. Vote Thank-You
+        results["5_vote_thankyou"] = await sendVoteThankYou({
+          to, voterName: "Sample Voter", contestantName: "Sample Talent",
+          competitionName: "CB Publishing Music 2026",
+          voteCount: 1, siteUrl,
+        });
+
+        // 6. Application Approved
+        results["6_application_approved"] = await sendApplicationApproved({
+          to, talentName: "Sample Talent",
+          competitionName: "CB Publishing Music 2026", siteUrl,
+        });
+
+        const sent = Object.values(results).filter(v => v === true).length;
+        return res.json({ success: true, message: `Sent ${sent}/6 email types to ${to}`, results });
+      }
+
+      // Individual template modes
       if (template === "welcome") {
         await sendInviteEmail({
-          to,
-          inviterName: "The Quest Admin",
-          role: "talent",
-          siteUrl,
-          nomineeName: "Sample Talent",
-          nominatorName: "The Quest Admin",
-          competitionName: "Sample Competition 2026",
-          defaultPassword: "CBP2026!",
-          accountCreated: true,
+          to, inviterName: "The Quest Admin", role: "talent", siteUrl,
+          nomineeName: "Sample Talent", nominatorName: "The Quest Admin",
+          competitionName: "CB Publishing Music 2026",
+          defaultPassword: "CBP2026!", accountCreated: true,
+        });
+      } else if (template === "nomination_congrats") {
+        await sendNominationCongrats({
+          to, nomineeName: "Sample Talent", nominatorName: "Jordan Smith",
+          competitionName: "CB Publishing Music 2026", siteUrl,
+          defaultPassword: "CBP2026!", accountCreated: true,
+        });
+      } else if (template === "nomination_receipt") {
+        await sendNominationReceipt({
+          to, nominatorName: "Jordan Smith", nomineeName: "Sample Talent",
+          competitionName: "CB Publishing Music 2026",
+          amount: "$25.00", transactionId: "TEST-" + Date.now(),
         });
       } else if (template === "receipt") {
         await sendPurchaseReceipt({
-          to,
-          buyerName: "Sample Buyer",
-          items: [
-            { description: "10 Votes Bundle", amount: "$9.99" },
-            { description: "25 Votes Bundle", amount: "$19.99" },
-          ],
-          tax: "$2.50",
-          total: "$32.48",
+          to, buyerName: "Sample Buyer",
+          items: [{ description: "Mega Pack — 50 Votes", amount: "$29.99" }],
+          tax: "$2.40", total: "$32.39",
           transactionId: "TEST-" + Date.now(),
-          competitionName: "Sample Competition 2026",
-          contestantName: "Sample Talent",
+          competitionName: "CB Publishing Music 2026", contestantName: "Sample Talent",
+        });
+      } else if (template === "vote_thankyou") {
+        await sendVoteThankYou({
+          to, voterName: "Sample Voter", contestantName: "Sample Talent",
+          competitionName: "CB Publishing Music 2026", voteCount: 1, siteUrl,
+        });
+      } else if (template === "application_approved") {
+        await sendApplicationApproved({
+          to, talentName: "Sample Talent",
+          competitionName: "CB Publishing Music 2026", siteUrl,
         });
       } else {
         await sendTestEmail(to);
       }
 
-      const templateLabel = template === "welcome" ? "Welcome/Invite" : template === "receipt" ? "Purchase Receipt" : "Generic Test";
-      res.json({ success: true, message: `${templateLabel} email sent to ${to}` });
+      const labels: Record<string, string> = {
+        welcome: "Welcome/Invite", nomination_congrats: "Nomination Congrats",
+        nomination_receipt: "Nomination Receipt", receipt: "Vote Pack Receipt",
+        vote_thankyou: "Vote Thank-You", application_approved: "Application Approved",
+      };
+      res.json({ success: true, message: `${labels[template] || "Generic Test"} email sent to ${to}` });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  /* ── Gmail OAuth re-auth ──────────────────────────────────────── */
+  app.get("/api/admin/gmail-auth-url", firebaseAuth, requireAdmin, (req, res) => {
+    try {
+      const redirectUri = "https://developers.google.com/oauthplayground";
+      const url = getGmailAuthUrl(redirectUri);
+      res.json({ url });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/gmail-exchange-code", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { code } = req.body;
+      if (!code) return res.status(400).json({ error: "Missing authorization code" });
+      const redirectUri = "https://developers.google.com/oauthplayground";
+      const newToken = await exchangeGmailCode(code.trim(), redirectUri);
+      // Apply in-process so emails work immediately without a restart
+      process.env.GMAIL_REFRESH_TOKEN = newToken;
+      // Also clear the cached transporter so it re-builds with the fresh token
+      resetTransporter();
+      res.json({ success: true, token: newToken, message: "Refresh token updated in memory. Copy the token and save it as the GMAIL_REFRESH_TOKEN secret to persist across restarts." });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/gmail-status", firebaseAuth, requireAdmin, async (_req, res) => {
+    const configured = isEmailConfigured();
+    let working = false;
+    if (configured) {
+      try {
+        // Attempt a lightweight token fetch to verify the refresh token is still valid
+        const { google } = await import("googleapis");
+        const clientId = process.env.GMAIL_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
+        const clientSecret = process.env.GMAIL_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+        const refreshToken = process.env.GMAIL_REFRESH_TOKEN!;
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, "https://developers.google.com/oauthplayground");
+        oauth2Client.setCredentials({ refresh_token: refreshToken });
+        const { token } = await oauth2Client.getAccessToken();
+        working = !!token;
+      } catch {}
+    }
+    res.json({ configured, working });
   });
 
   app.get("/api/admin/contestants", firebaseAuth, requireAdmin, async (_req, res) => {
@@ -2900,14 +3027,13 @@ export async function registerRoutes(
               if (comp) competitionName = comp.title;
             }
             const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get("host")}`;
-            emailSent = await sendInviteEmail({
+            // Send the specific nomination-congrats email (has credentials + call-to-action)
+            emailSent = await sendNominationCongrats({
               to: nomineeEmail,
-              inviterName: nominatorName.trim(),
-              role: "talent",
-              siteUrl,
               nomineeName,
               nominatorName: nominatorName.trim(),
               competitionName,
+              siteUrl,
               defaultPassword: DEFAULT_PASSWORD,
               accountCreated: true,
             });
@@ -2941,6 +3067,22 @@ export async function registerRoutes(
       });
 
       await firestoreJoinSubmissions.updateStatus(submission.id, "approved");
+
+      // Send receipt to the nominator (non-blocking)
+      if (isEmailConfigured() && nominatorEmail) {
+        const compNameForReceipt = competitionId
+          ? (await storage.getCompetition(Number(competitionId)))?.title || "The Quest"
+          : "The Quest";
+        sendNominationReceipt({
+          to: nominatorEmail.toLowerCase().trim(),
+          nominatorName: nominatorName.trim(),
+          nomineeName,
+          competitionName: compNameForReceipt,
+          amount: amountPaid ? `$${(amountPaid / 100).toFixed(2)}` : "$0.00",
+          transactionId: transactionId || undefined,
+          isFree: !amountPaid || amountPaid === 0,
+        }).catch((e: any) => console.error("Nomination receipt email error (non-blocking):", e.message));
+      }
 
       // Track free nomination promo code redemption with Chronic Brands USA
       if (promoValid && promoCode) {

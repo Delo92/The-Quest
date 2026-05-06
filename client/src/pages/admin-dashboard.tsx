@@ -578,6 +578,107 @@ function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: s
   );
 }
 
+/* ── Gmail OAuth Status Panel ──────────────────────────────────────── */
+function GmailStatusPanel() {
+  const { toast } = useToast();
+  const [authCode, setAuthCode] = useState("");
+  const [exchanging, setExchanging] = useState(false);
+  const [newToken, setNewToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const { data: status, isLoading, refetch } = useQuery<{ configured: boolean; working: boolean }>({
+    queryKey: ["/api/admin/gmail-status"],
+    refetchOnWindowFocus: false,
+  });
+
+  const openAuthUrl = async () => {
+    try {
+      const data = await apiRequest("GET", "/api/admin/gmail-auth-url") as any;
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      toast({ title: "Failed to get auth URL", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const exchangeCode = async () => {
+    if (!authCode.trim()) return;
+    setExchanging(true);
+    try {
+      const data = await apiRequest("POST", "/api/admin/gmail-exchange-code", { code: authCode.trim() }) as any;
+      setNewToken(data.token);
+      setAuthCode("");
+      toast({ title: "Token refreshed!", description: "Email is working again. Copy the token below and save it as GMAIL_REFRESH_TOKEN in Replit Secrets." });
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Exchange failed", description: err.message, variant: "destructive" });
+    } finally {
+      setExchanging(false);
+    }
+  };
+
+  const copyToken = () => {
+    if (!newToken) return;
+    navigator.clipboard.writeText(newToken).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+
+  const statusColor = isLoading ? "bg-zinc-600" : status?.working ? "bg-green-500" : status?.configured ? "bg-yellow-500" : "bg-red-500";
+  const statusText = isLoading ? "Checking…" : status?.working ? "Gmail Connected" : status?.configured ? "Token Expired" : "Not Configured";
+
+  return (
+    <div className="p-3 rounded bg-zinc-900 border border-white/15 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Mail className="h-3.5 w-3.5 text-orange-400" />
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-orange-400">Gmail Status</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2 h-2 rounded-full ${statusColor}`} />
+          <span className="text-[10px] text-white/60">{statusText}</span>
+          <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/30 hover:text-white/70" onClick={() => refetch()} data-testid="button-refresh-gmail-status"><RefreshCw className="h-3 w-3" /></Button>
+        </div>
+      </div>
+
+      {!status?.working && (
+        <div className="space-y-2">
+          <p className="text-[10px] text-white/50 leading-relaxed">
+            The Gmail refresh token has expired. Click <strong className="text-orange-400">Get Auth URL</strong>, sign in with <code className="text-orange-300">chronicstudios2021@gmail.com</code>, then paste the authorization code below.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={openAuthUrl} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-get-gmail-auth-url">
+              <ExternalLink className="h-3 w-3 mr-1" /> Get Auth URL
+            </Button>
+            <span className="text-[9px] text-white/30">→ sign in → copy the code from the page</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Paste authorization code here…"
+              value={authCode}
+              onChange={e => setAuthCode(e.target.value)}
+              className="bg-zinc-800 border-white/25 text-white text-xs h-7 flex-1"
+              data-testid="input-gmail-auth-code"
+            />
+            <Button size="sm" onClick={exchangeCode} disabled={!authCode.trim() || exchanging} className="bg-green-600 hover:bg-green-500 border-0 text-white text-[10px] h-7 px-3 shrink-0" data-testid="button-exchange-gmail-code">
+              {exchanging ? "…" : "Exchange"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {newToken && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] text-green-400 font-semibold">New refresh token — copy and save as <code>GMAIL_REFRESH_TOKEN</code> in Replit Secrets:</p>
+          <div className="flex items-center gap-2">
+            <code className="text-[9px] text-white/70 bg-black/40 rounded px-2 py-1 flex-1 truncate">{newToken}</code>
+            <Button size="sm" onClick={copyToken} className="h-6 px-2 text-[9px] bg-white/10 border border-white/20 text-white shrink-0" data-testid="button-copy-gmail-token">
+              {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard({ user }: { user: any }) {
   const { logout } = useAuth();
   const { toast } = useToast();
@@ -2074,14 +2175,22 @@ export default function AdminDashboard({ user }: { user: any }) {
                     </summary>
                     <div className="px-3 pb-3">
                       {group.label === "Email Templates" && (
-                        <div className="mb-3 p-2 rounded bg-zinc-800/80 border border-white/10">
-                          <p className="text-[10px] text-white/40 mb-2">Welcome email placeholders: <code className="text-orange-400">{"{inviterName}"}</code>, <code className="text-orange-400">{"{role}"}</code>, <code className="text-orange-400">{"{nomineeName}"}</code>, <code className="text-orange-400">{"{nominatorName}"}</code>, <code className="text-orange-400">{"{competitionName}"}</code>, <code className="text-orange-400">{"{email}"}</code>, <code className="text-orange-400">{"{defaultPassword}"}</code>. Receipt: <code className="text-orange-400">{"{buyerName}"}</code>.</p>
-                          <div className="flex items-center gap-2">
-                            <Input placeholder="Test email address" className="bg-zinc-800 border-white/25 text-white text-xs h-7 flex-1" data-testid="input-test-email" id="test-email-input" defaultValue="" />
-                          </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "welcome" }); toast({ title: "Welcome email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-send-test-welcome">Send Welcome/Invite</Button>
-                            <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "receipt" }); toast({ title: "Receipt email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-send-test-receipt">Send Purchase Receipt</Button>
+                        <div className="mb-3 space-y-3">
+                          {/* Gmail OAuth Status + Re-auth */}
+                          <GmailStatusPanel />
+                          {/* Test email sender */}
+                          <div className="p-2 rounded bg-zinc-800/80 border border-white/10">
+                            <p className="text-[10px] text-white/40 mb-2">Welcome email placeholders: <code className="text-orange-400">{"{inviterName}"}</code>, <code className="text-orange-400">{"{role}"}</code>, <code className="text-orange-400">{"{nomineeName}"}</code>, <code className="text-orange-400">{"{nominatorName}"}</code>, <code className="text-orange-400">{"{competitionName}"}</code>, <code className="text-orange-400">{"{email}"}</code>, <code className="text-orange-400">{"{defaultPassword}"}</code>. Receipt: <code className="text-orange-400">{"{buyerName}"}</code>.</p>
+                            <div className="flex items-center gap-2">
+                              <Input placeholder="Test email address" className="bg-zinc-800 border-white/25 text-white text-xs h-7 flex-1" data-testid="input-test-email" id="test-email-input" defaultValue="" />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "all" }); toast({ title: "All 6 emails sent!", description: `Check ${to}` }); } catch (err: any) { toast({ title: "Failed", description: err.message, variant: "destructive" }); } }} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-send-test-all">Send All (6)</Button>
+                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "welcome" }); toast({ title: "Welcome email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-welcome">Welcome</Button>
+                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "receipt" }); toast({ title: "Receipt email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-receipt">Receipt</Button>
+                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "vote_thankyou" }); toast({ title: "Vote thank-you sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-vote">Vote TY</Button>
+                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "application_approved" }); toast({ title: "Approval email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-approval">Approved</Button>
+                            </div>
                           </div>
                         </div>
                       )}
