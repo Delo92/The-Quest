@@ -29,7 +29,7 @@ import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 
-type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null };
+type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 
 interface AdminStats {
   totalCompetitions: number;
@@ -1660,6 +1660,11 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Badge className={`border-0 ${comp.status === "active" || comp.status === "voting" ? "bg-green-500/20 text-green-400" : "bg-white/10 text-white/60"}`}>
                           {comp.status === "voting" ? "Active" : comp.status}
                         </Badge>
+                        {comp.contestantCount !== undefined && (
+                          <Badge className="border-0 text-xs bg-orange-500/20 text-orange-300" data-testid={`badge-contestants-${comp.id}`}>
+                            {comp.approvedCount ?? comp.contestantCount} / {comp.contestantCount} contestants
+                          </Badge>
+                        )}
                         {(comp as any).inPersonOnly && (
                           <Badge className="border-0 text-xs bg-purple-500/20 text-purple-300">In-Person Only</Badge>
                         )}

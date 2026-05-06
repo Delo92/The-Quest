@@ -408,15 +408,16 @@ export async function registerRoutes(
         comps = await storage.getCompetitions();
       }
       const enriched = await Promise.all(comps.map(async (c: any) => {
-        if (c.createdBy) {
-          const creatorProfile = await storage.getTalentProfileByUserId(c.createdBy);
-          if (creatorProfile?.role === "admin") {
-            return { ...c, hostedBy: "admin" };
-          } else if (creatorProfile?.role === "host") {
-            return { ...c, hostedBy: creatorProfile.displayName || "Host" };
-          }
-        }
-        return { ...c, hostedBy: null };
+        const [contestants, creatorProfile] = await Promise.all([
+          storage.getContestantsByCompetition(c.id),
+          c.createdBy ? storage.getTalentProfileByUserId(c.createdBy) : Promise.resolve(null),
+        ]);
+        const contestantCount = contestants.length;
+        const approvedCount = contestants.filter((x: any) => x.applicationStatus === "approved").length;
+        let hostedBy: string | null = null;
+        if (creatorProfile?.role === "admin") hostedBy = "admin";
+        else if (creatorProfile?.role === "host") hostedBy = creatorProfile.displayName || "Host";
+        return { ...c, hostedBy, contestantCount, approvedCount };
       }));
       res.json(enriched);
     } catch (error: any) {
