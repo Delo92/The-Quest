@@ -1,0 +1,84 @@
+CHRONIC BRANDS USA — CHRONICTV
+The Pitch: "The Biggest Buyout in Media History"
+WHAT IS THIS?
+Chronic Brands USA is a vertically integrated cannabis culture media company. At the center of its portfolio sits ChronicTV — a fully built, live, multi-platform streaming network that does not just plan to be the Netflix of cannabis culture. It already is.
+
+This is not a concept. This is not a pitch for funding to build something. This is an acquisition pitch for a platform that is already live on seven major distribution channels, serving real content, real users, and real creators — today.
+
+THE MARKET OPPORTUNITY
+The legal cannabis industry in the United States is projected to exceed $45 billion by 2027. But here's the gap nobody has filled: there is no premium, dedicated media platform for cannabis culture. Not one with a real app. Not one on your TV. Not one on Roku. Not one on Xbox. Not one in the App Store.
+
+Until now.
+
+Cannabis culture is one of the fastest growing lifestyle demographics in America — crossing music, fashion, wellness, comedy, food, sports, and street culture. The audience exists. The creators exist. The content exists. What was missing was a real streaming home for all of it. ChronicTV built that home.
+
+DISTRIBUTION — WHERE YOU CAN WATCH RIGHT NOW
+This is not a website. This is a full multi-platform network:
+
+Platform	Status
+iOS App Store	Live
+Google Play (Android)	Live — Feb 7, 2026
+Roku	Live
+Xbox One / Xbox Series X|S	Live
+Android TV / Google TV	Live
+Amazon Fire TV	Submitted — In Review
+Web (PWA)	Live — Installable
+That is seven distribution endpoints built and operational. Every major living room screen in America is covered. Every major mobile platform is covered. When Fire TV approves (in process now), that adds tens of millions of Amazon device households.
+
+For comparison: most streaming startups pitch investors on a plan to eventually reach this distribution. ChronicTV has already done it.
+
+THE CONTENT ENGINE
+ChronicTV is not just a player — it is a content network with three distinct pillars:
+
+ORIGINALS
+Exclusive shows produced for or licensed exclusively to ChronicTV. These are the platform's tent poles — the content that builds brand identity and viewer loyalty. Multi-season support is built in, with full season/episode hierarchy baked into the database.
+
+CHANNELS
+Creator-driven content from established figures in cannabis culture — think individual creator channels in the YouTube/Patreon model, but living inside a premium TV-quality interface. Every creator gets their own page, their own episode library, their own season structure, and their own live streaming capability.
+
+MOVIES
+Feature-length content — documentaries, films, and long-form specials — housed in their own category for elevated discovery.
+
+Current scale: 300+ videos, 34+ creator categories in production.
+
+LIVE STREAMING — A BUILT NETWORK WITHIN A NETWORK
+ChronicTV is not just an on-demand library. It is a live broadcast network.
+
+Every creator on the platform has the ability to go live directly through their show page. The platform supports:
+
+WebRTC peer-to-peer live streaming — no third-party streaming infrastructure required
+Real-time "LIVE" status indicators across all apps, powered by Firebase Firestore
+External platform integration — if a creator is going live on YouTube, Twitch, Instagram, Facebook, or TikTok simultaneously, their ChronicTV show page automatically links to all of those streams in real time
+This means ChronicTV becomes the single destination where fans can find a creator live, regardless of where they're actually broadcasting. It is a live streaming aggregator and a live streaming platform at the same time.
+
+THE TV GUIDE — A REAL BROADCAST NETWORK
+ChronicTV runs a 24-hour, globally synchronized TV guide — like a real cable channel.
+
+Every user on every platform, in every time zone, sees the same deterministic broadcast schedule. The schedule is pre-generated server-side, seeded by UTC date so it never drifts. It runs continuously, auto-advancing through content, with the current program displayed in real time.
+
+On TV devices (Xbox, Roku, Android TV, Fire TV), the platform automatically enters fullscreen mode after 10 seconds on the Now Playing tab — just like turning on a TV. It behaves exactly like a cable channel.
+
+This is a feature that no other cannabis media company — and very few streaming platforms of any kind — have built. ChronicTV is not just VOD. It is a live cable-equivalent network with on-demand layered on top.
+
+AUDIO — A MUSIC STREAMING LAYER
+Beyond video, ChronicTV includes a full audio streaming platform:
+
+Music albums and tracks stored and served from Google Drive
+A custom built audio player with full controls
+YouTube Music playlist integration
+Tracks served through the platform's own audio proxy — no buffering, no ads
+This makes ChronicTV a triple-threat media platform: live TV + video on demand + music streaming. Think Spotify + Netflix + a cable channel, purpose-built for cannabis culture.
+
+USER EXPERIENCE — BUILT TO PREMIUM STANDARDS
+The product quality is not "startup MVP." It is production-grade streaming UI:
+
+Netflix-style splash screen with branded animation
+Continue Watching — picks up exactly where you left off, across all your devices
+Auto-play next episode with a "Still Watching" prompt after consecutive episodes
+Multiple profiles per account — including Kids Profile mode
+Full search across all content
+QR code sharing — generate a scannable code for any video or show
+Shareable links — every piece of content has a permanent URL
+Push notifications — native on iOS and Android
+Offline browsing — content metadata cached locally via IndexedDB
+The interface was designed mobile-first with a green accent (#4ade80) palette, Framer Motion animations, and a 16:9 immersive video player with auto-hiding controls — identical in behavior to the experience you expect from a major streaming platform.

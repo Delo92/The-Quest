@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /checkout/
+Disallow: /my-purchases
+Disallow: /api/
+
+Sitemap: https://thequest-2dc77.firebaseapp.com/sitemap.xml

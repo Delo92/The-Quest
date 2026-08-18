@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CB Publishing | Community. Brand. Entertainment</title>
+    <meta name="description" content="CB Publishing is an independent entertainment and digital media company offering artist management, artist development, brand development, and music promotion — with exclusive Empire Records distribution. Home of The Quest competition platform." />
+    <meta name="keywords" content="CB Publishing, CBP, artist management, artist development, brand development, music promotion, Empire Records, Empire Distribution, exclusive distribution, independent artist, talent competition, The Quest, competition platform, online voting, entertainment company, digital media, music industry, performer showcase, community brand entertainment, record label services, music marketing, event management, concert promotion, artist branding, music distribution" />
+    <meta name="author" content="CB Publishing" />
+    <meta name="theme-color" content="#02bf63" />
+    <meta name="robots" content="index, follow" />
+    <meta name="category" content="Entertainment, Music, Artist Management" />
+    <link rel="canonical" href="https://cbpublishing.live" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CB Publishing" />
+    <meta property="og:title" content="CB Publishing | Community. Brand. Entertainment" />
+    <meta property="og:description" content="Artist management, development and giving platforms that connect artists, performers, and audiences. Featuring exclusive Empire Records distribution and The Quest — where competitions live." />
+    <meta property="og:url" content="https://cbpublishing.live" />
+    <meta property="og:image" content="https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@CBPublishing" />
+    <meta name="twitter:title" content="CB Publishing | Community. Brand. Entertainment" />
+    <meta name="twitter:description" content="Artist management, development and giving platforms that connect artists, performers, and audiences. Exclusive Empire Records distribution." />
+    <meta name="twitter:image" content="https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg" />
+
+    <link rel="icon" href="/dynamic-favicon" />
+    <link rel="apple-touch-icon" href="/dynamic-favicon" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "CB Publishing",
+      "alternateName": ["CBP", "CB Publishing Entertainment"],
+      "url": "https://cbpublishing.live",
+      "logo": "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg",
+      "description": "Independent entertainment and digital media company specializing in artist management, artist development, brand development, and music promotion with exclusive Empire Records distribution.",
+      "slogan": "Community. Brand. Entertainment.",
+      "knowsAbout": [
+        "Artist Management",
+        "Artist Development",
+        "Brand Development",
+        "Music Promotion",
+        "Music Distribution",
+        "Empire Records Distribution",
+        "Talent Competition Platforms",
+        "Entertainment Media",
+        "Concert Promotion",
+        "Event Management"
+      ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "CB Publishing Services",
+        "itemListElement": [
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Artist Management" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Artist Development" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Brand Development" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Music Promotion" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Exclusive Empire Records Distribution" } }
+        ]
+      },
+      "sameAs": []
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "CB Publishing",
+      "url": "https://cbpublishing.live",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://cbpublishing.live/thequest/competitions?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-7LBW9HVXWE"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-7LBW9HVXWE');
+    </script>
+
+    <link rel="preconnect" href="https://player.vimeo.com">
+    <link rel="preconnect" href="https://i.vimeocdn.com">
+    <link rel="preconnect" href="https://f.vimeocdn.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        function darken(hex) {
+          var h = hex.replace('#', '');
+          if (h.length !== 6) return hex;
+          return '#' + [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]
+            .map(function(c) { return Math.round(c * 0.85).toString(16).padStart(2, '0'); }).join('');
+        }
+        function hexAlpha(hex, alpha) {
+          var h = hex.replace('#', '');
+          if (h.length !== 6) return hex;
+          var r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+          return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+        }
+        try {
+          var raw = localStorage.getItem('tq_livery_cache');
+          if (raw) {
+            var items = JSON.parse(raw);
+            var root = document.documentElement;
+            items.forEach(function(item) {
+              if (item.imageKey === 'quest_brand_color' && item.textContent) {
+                root.style.setProperty('--quest-brand', item.textContent);
+                root.style.setProperty('--quest-brand-dark', darken(item.textContent));
+              }
+              if (item.imageKey === 'home_brand_color' && item.textContent) {
+                root.style.setProperty('--cbp-brand', item.textContent);
+                root.style.setProperty('--cbp-brand-dark', darken(item.textContent));
+                root.style.setProperty('--cbp-feat-overlay-bg', hexAlpha(item.textContent, 0.7));
+              }
+            });
+          }
+        } catch(e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

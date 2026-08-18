@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "The Quest"
+description = "HiFitComp — a talent competition & voting platform where artists, models, bodybuilders, and performers compete for public votes. Dark entertainment theme with Firebase auth, Firestore database, and integrations with Google Drive, Vimeo, and Authorize.net."
+version = "1.0.0"
+id = "artifacts/the-quest"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/", "/api" ]
+localPort = 22558
+
+[services.development]
+run = "cd /home/runner/workspace && NODE_ENV=development npx tsx server/index.ts"
+
+[services.production]
+build = [ "bash", "-c", "cd /home/runner/workspace && npx tsx script/build.ts" ]
+serve = "static"
+publicDir = "dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22558"
+BASE_PATH = "/"
