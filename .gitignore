@@ -61,6 +61,19 @@ Thumbs.db
 # Uploaded asset files that may contain credentials
 attached_assets/
 
+# Images and media created in the workspace are not committed by default.
+# Existing tracked images remain tracked so the app's current assets are preserved.
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.ico
+*.bmp
+*.tif
+*.tiff
+
 # Firebase / Google service account keys
 *service-account*.json
 *service_account*.json
