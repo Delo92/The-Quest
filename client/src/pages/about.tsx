@@ -15,6 +15,28 @@ type CompetitionExt = Competition & { coverVideo?: string | null };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const CATEGORIES = ["All", "Music", "Dance", "Modeling", "Bodybuilding", "Comedy", "Acting", "Other"];
+const NONPROFIT_LINKS: Record<string, string> = {
+  "It Stops Now": "https://www.facebook.com/itstopsnowfoundation",
+  "Event Pro Group Foundation": "https://eventprogroupusa.com/Foundation",
+};
+
+function renderGivingTextWithLinks(text: string) {
+  return text.split(/(It Stops Now|Event Pro Group Foundation)/g).map((part, index) => {
+    const href = NONPROFIT_LINKS[part];
+    if (!href) return part;
+    return (
+      <a
+        key={`${part}-${index}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-[#FF5A09] underline decoration-[#FF5A09]/50 underline-offset-4 transition-colors hover:text-orange-300"
+      >
+        {part}
+      </a>
+    );
+  });
+}
 
 export default function AboutPage() {
   const { getImage, getMedia, getText } = useLivery();
@@ -124,7 +146,9 @@ export default function AboutPage() {
               <p className="text-white/75 text-[15px] leading-relaxed mb-4">
                 A portion of all proceeds from The Quest supports nonprofit giving as dictated by the artist and/or platform defaults.
               </p>
-              <p className="text-white/75 text-[15px] leading-relaxed">{givingText}</p>
+              <p className="text-white/75 text-[15px] leading-relaxed">
+                {renderGivingTextWithLinks(givingText)}
+              </p>
             </div>
           </div>
         </div>
