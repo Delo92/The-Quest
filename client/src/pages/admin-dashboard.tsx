@@ -2107,7 +2107,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               const allGroups = [
                 { label: "Home Page (CB Publishing)", site: "cbpublishing", keys: ["home_hero_title", "home_hero_subtitle", "home_quote_left", "home_quote_body", "home_about_title", "home_about_body", "home_feature_1_title", "home_feature_1_subtitle", "home_feature_2_title", "home_feature_2_subtitle", "home_feature_3_title", "home_feature_3_subtitle", "home_feature_4_title", "home_feature_4_subtitle", "home_feature_5_title", "home_feature_5_subtitle"], pairs: null },
                 { label: "Hero Section", site: "thequest", keys: ["hero_title_top", "hero_title_main", "hero_summary"], pairs: null },
-                { label: "About Page", site: "thequest", keys: ["about_rules_text", "about_details_text"], pairs: null },
+                { label: "About Page", site: "thequest", keys: ["about_rules_text", "about_giving_title", "about_giving_text", "about_details_text"], pairs: null },
                 { label: "Contact Info", site: "thequest", keys: ["contact_email", "contact_phone", "contact_address"], pairs: null },
                 { label: "Social Links", site: "thequest", keys: ["social_facebook", "social_instagram", "social_twitter", "social_youtube", "social_tiktok"], pairs: null },
                 { label: "Info Modals (Home Page)", site: "thequest", keys: ["how_voting_works", "how_nominations_work"], pairs: null },

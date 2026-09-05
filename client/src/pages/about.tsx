@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, ChevronDown, Calendar, Users, MapPin, Mail, Phone, ExternalLink } from "lucide-react";
+import { ChevronRight, ChevronDown, Calendar, Users, MapPin, Mail, Phone, ExternalLink, HeartHandshake } from "lucide-react";
 import { SiFacebook, SiInstagram, SiYoutube, SiTiktok } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
 import SiteNavbar from "@/components/site-navbar";
@@ -26,7 +26,7 @@ export default function AboutPage() {
 
   useSEO({
     title: "About The Quest",
-    description: "Learn about The Quest - the ultimate talent competition and voting platform. See our rules, upcoming events calendar, and how to get started as a competitor or host.",
+    description: "Learn about The Quest, our talent competitions, nonprofit giving, rules, upcoming events, and how to participate as a competitor or host.",
     canonical: "https://thequest-2dc77.firebaseapp.com/about",
   });
 
@@ -42,6 +42,11 @@ export default function AboutPage() {
   const rulesText = getText("about_rules_text", "Welcome to The Quest! Our platform connects talent with audiences through fair, transparent competitions.\n\n**Rules & Guidelines:**\n\n1. All participants must be 18 years or older.\n2. Each competitor may only enter a competition once.\n3. Voting is limited per IP address daily to ensure fairness.\n4. Content must be original and appropriate for all audiences.\n5. Hosts are responsible for managing their events and enforcing rules.\n6. Vote purchases are non-refundable once processed.\n7. The Quest reserves the right to remove content that violates community standards.");
 
   const detailsText = getText("about_details_text", "");
+  const givingTitle = getText("about_giving_title", "Talent That Gives Back");
+  const givingText = getText(
+    "about_giving_text",
+    "A portion of all proceeds from The Quest supports a state- or nationally accredited nonprofit selected by the artist or determined by the platform defaults."
+  );
 
   const socialFacebook = getText("social_facebook", "");
   const socialInstagram = getText("social_instagram", "");
@@ -101,6 +106,35 @@ export default function AboutPage() {
             if (boldMatch) return <h4 key={i} className="text-white text-lg font-bold mt-6 mb-3 uppercase" style={{ letterSpacing: "3px" }}>{boldMatch[1]}</h4>;
             return <p key={i} className="text-white/70 text-[15px] leading-relaxed mb-2">{line}</p>;
           })}
+        </div>
+
+        <div
+          className="mt-12 border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-6 sm:p-8"
+          data-testid="nonprofit-giving-section"
+        >
+          <div className="flex flex-col sm:flex-row gap-5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-[#FF5A09] text-white">
+              <HeartHandshake className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-[#FF5A09] text-xs uppercase font-bold mb-3" style={{ letterSpacing: "5px" }}>
+                Nonprofit Giving
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold uppercase text-white mb-4">{givingTitle}</h2>
+              <p className="text-white/75 text-[15px] leading-relaxed mb-5">{givingText}</p>
+              <p className="text-white/75 text-[15px] leading-relaxed mb-3">
+                Artists may direct the contribution to any qualifying nonprofit. When an artist does not make a selection, our platform defaults include:
+              </p>
+              <ul className="space-y-3 text-[15px] leading-relaxed">
+                <li className="border-l-2 border-[#FF5A09] pl-4 text-white/75">
+                  <strong className="text-white">It Stops Now</strong> — a foundation that supports families with incarcerated loved ones.
+                </li>
+                <li className="border-l-2 border-[#FF5A09] pl-4 text-white/75">
+                  <strong className="text-white">Event Pro Group Foundation</strong> — a foundation dedicated to education, workforce development, housing stability, and community support, serving veterans, underserved populations, and individuals in need.
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         {detailsText && (
