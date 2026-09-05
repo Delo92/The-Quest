@@ -5253,7 +5253,7 @@ export async function registerRoutes(
 
       const livery = await storage.getLiveryItems?.().catch(() => null);
       const siteImage = livery?.find?.((i: any) => i.imageKey === "site_favicon")?.imageUrl
-        || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg";
+        || "https://cbpublishing.live/cb-logo-favicon.png?v=cbp-20260905";
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const ogTitle = "The Quest — Where Competitions Live | CB Publishing";
@@ -5303,7 +5303,7 @@ export async function registerRoutes(
         ? host.bio.slice(0, 200)
         : `${hostName} hosts competitions on The Quest — CB Publishing's talent competition and voting platform. Browse their events and vote for your favorites.`;
       const ogImage = host.profileImageUrl
-        || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fsite_favicon.jpg";
+        || "https://cbpublishing.live/cb-logo-favicon.png?v=cbp-20260905";
       const ogUrl = `https://cbpublishing.live/thequest/host/${hostSlug}`;
 
       const ogTags = `
