@@ -45,7 +45,7 @@ export default function AboutPage() {
   const givingTitle = getText("about_giving_title", "Talent That Gives Back");
   const givingText = getText(
     "about_giving_text",
-    "A portion of all proceeds from The Quest supports a state- or nationally accredited nonprofit selected by the artist or determined by the platform defaults."
+    "Any state- or nationally accredited nonprofit. Our default options are It Stops Now, a foundation that supports families with incarcerated loved ones, and Event Pro Group Foundation, a foundation dedicated to education, workforce development, housing stability, and community support—serving veterans, underserved populations, and individuals in need."
   );
 
   const socialFacebook = getText("social_facebook", "");
@@ -121,18 +121,10 @@ export default function AboutPage() {
                 Nonprofit Giving
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold uppercase text-white mb-4">{givingTitle}</h2>
-              <p className="text-white/75 text-[15px] leading-relaxed mb-5">{givingText}</p>
-              <p className="text-white/75 text-[15px] leading-relaxed mb-3">
-                Artists may direct the contribution to any qualifying nonprofit. When an artist does not make a selection, our platform defaults include:
+              <p className="text-white/75 text-[15px] leading-relaxed mb-4">
+                A portion of all proceeds from The Quest supports nonprofit giving as dictated by the artist and/or platform defaults.
               </p>
-              <ul className="space-y-3 text-[15px] leading-relaxed">
-                <li className="border-l-2 border-[#FF5A09] pl-4 text-white/75">
-                  <strong className="text-white">It Stops Now</strong> — a foundation that supports families with incarcerated loved ones.
-                </li>
-                <li className="border-l-2 border-[#FF5A09] pl-4 text-white/75">
-                  <strong className="text-white">Event Pro Group Foundation</strong> — a foundation dedicated to education, workforce development, housing stability, and community support, serving veterans, underserved populations, and individuals in need.
-                </li>
-              </ul>
+              <p className="text-white/75 text-[15px] leading-relaxed">{givingText}</p>
             </div>
           </div>
         </div>
