@@ -50,6 +50,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 export default function JoinPage() {
+  const paymentIdempotencyKey = useRef(crypto.randomUUID());
   useSEO({
     title: "Nominate Now",
     description: "Ready to showcase your talent? Apply to join an active competition on The Quest. Compete in music, modeling, bodybuilding, dance, and more.",
@@ -253,6 +254,7 @@ export default function JoinPage() {
     const submitData = async (dataDescriptor?: string, dataValue?: string) => {
       try {
         await apiRequest("POST", "/api/join/nominate", {
+          idempotencyKey: paymentIdempotencyKey.current,
           fullName: form.fullName,
           email: form.email,
           phone: form.phone || "",

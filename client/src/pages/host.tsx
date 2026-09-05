@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 export default function HostPage() {
+  const paymentIdempotencyKey = useRef(crypto.randomUUID());
   useSEO({
     title: "Host Your Event",
     description: "Want to run your own talent competition? Host your event on The Quest with built-in voting, contestant management, and analytics. Get started today.",
@@ -199,6 +200,7 @@ export default function HostPage() {
     const submitData = async (dataDescriptor?: string, dataValue?: string) => {
       try {
         await apiRequest("POST", "/api/host/submit", {
+          idempotencyKey: paymentIdempotencyKey.current,
           ...form,
           referenceCompetitionId,
           inviteToken: inviteToken || undefined,

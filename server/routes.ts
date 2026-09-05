@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
@@ -35,6 +35,7 @@ import {
   firestoreContestants,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig } from "./authorize-net";
+import { completePayment, failPayment, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
   uploadImageToDrive,
@@ -150,10 +151,101 @@ const talentImageUpload = multer({
   },
 });
 
+async function secureAuthorizeCharge(
+  req: Request,
+  details: {
+    route: string;
+    amountDollars: number;
+    ownerKey: string;
+    packageKey: string;
+    competitionId?: number | null;
+    contestantId?: number | null;
+    dataDescriptor: string;
+    dataValue: string;
+    description: string;
+    customerEmail?: string;
+    customerName?: string;
+  },
+) {
+  const idempotencyKey = String(req.body?.idempotencyKey || req.headers["idempotency-key"] || "");
+  const reservation = await reservePayment({
+    idempotencyKey,
+    route: details.route,
+    amountCents: Math.round(details.amountDollars * 100),
+    ownerKey: details.ownerKey,
+    packageKey: details.packageKey,
+    competitionId: details.competitionId,
+    contestantId: details.contestantId,
+  });
+  if (reservation.state === "completed") return { replay: true as const, paymentId: reservation.paymentId, response: reservation.response };
+  if (reservation.state !== "reserved") {
+    throw Object.assign(new Error(reservation.state === "charged"
+      ? "Payment was charged and is awaiting fulfillment; contact support with the payment reference"
+      : "This payment request is already processing"), { status: 409 });
+  }
+  let charge;
+  try {
+    charge = await chargePaymentNonce(
+      details.amountDollars,
+      details.dataDescriptor,
+      details.dataValue,
+      details.description,
+      details.customerEmail,
+      details.customerName,
+      reservation.paymentId,
+    );
+  } catch (error) {
+    if ((error as any)?.indeterminate) {
+      console.error("[PaymentSecurity] Gateway result is indeterminate; payment remains locked", {
+        paymentId: reservation.paymentId,
+        errorCode: (error as any)?.errorCode,
+      });
+      throw Object.assign(new Error("Payment status is being reconciled; do not submit another payment"), { status: 503 });
+    }
+    // Only explicit gateway declines/rejections are retryable.
+    await failPayment(reservation.paymentId, error).catch(() => {});
+    throw error;
+  }
+  try {
+    await markPaymentCharged(reservation.paymentId, charge.transactionId, {
+      authCode: charge.authCode,
+      accountNumber: charge.accountNumber,
+      accountType: charge.accountType,
+    });
+  } catch (error) {
+    console.error("[PaymentSecurity] Gateway charged but result persistence is uncertain", {
+      paymentId: reservation.paymentId,
+      transactionId: charge.transactionId,
+    });
+    throw Object.assign(new Error("Payment status is being reconciled; do not submit another payment"), { status: 503 });
+  }
+  return { replay: false as const, paymentId: reservation.paymentId, charge };
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.post("/api/webhooks/authorize-net", async (req, res) => {
+    const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from("");
+    const signature = req.headers["x-anet-signature"] as string | undefined;
+    if (!verifyAuthorizeNetWebhook(rawBody, signature)) {
+      console.warn("[AuthorizeNetWebhook] Rejected invalid signature", {
+        ip: req.ip,
+        notificationId: req.body?.notificationId || null,
+      });
+      return res.status(401).json({ message: "Invalid webhook signature" });
+    }
+    try {
+      const result = await recordAuthorizeNetWebhook(req.body);
+      return res.status(200).json({ received: true, duplicate: result?.duplicate || false });
+    } catch (error: any) {
+      if (error.status) return res.status(error.status).json({ message: error.message });
+      console.error("[AuthorizeNetWebhook] Persistence failed:", error);
+      return res.status(500).json({ message: "Webhook persistence failed" });
+    }
+  });
 
   app.use(async (req, res, next) => {
     const originalJson = (res.json as Function).bind(res);
@@ -1081,6 +1173,10 @@ export async function registerRoutes(
 
     const comp = await storage.getCompetition(compId);
     if (!comp) return res.status(404).json({ message: "Competition not found" });
+    const boundContestant = await firestoreContestants.getById(contestantId);
+    if (!boundContestant || boundContestant.competitionId !== compId || boundContestant.applicationStatus !== "approved") {
+      return res.status(400).json({ message: "Contestant is not eligible for this competition" });
+    }
 
     if (comp.status !== "voting" && comp.status !== "active") {
       return res.status(400).json({ message: "Voting is not open for this competition" });
@@ -3071,25 +3167,30 @@ export async function registerRoutes(
       if (!competitionId) {
         return res.status(400).json({ message: "Please select a competition to apply for" });
       }
+      const targetCompetition = await storage.getCompetition(Number(competitionId));
+      if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
+        return res.status(400).json({ message: "This competition is not accepting applications" });
+      }
       if (settings.nonprofitRequired && !chosenNonprofit?.trim()) {
         return res.status(400).json({ message: "Choice of Non-Profit is required" });
       }
 
       let transactionId: string | null = null;
       let amountPaid = 0;
+      let paymentId: string | null = null;
       if (settings.mode === "purchase" && settings.price > 0) {
         if (!dataDescriptor || !dataValue) {
           return res.status(400).json({ message: "Payment is required to join" });
         }
-        const chargeResult = await chargePaymentNonce(
-          settings.price / 100,
-          dataDescriptor,
-          dataValue,
-          `Join competition application`,
-          email,
-          fullName,
-        );
-        transactionId = chargeResult.transactionId;
+        const secured = await secureAuthorizeCharge(req, {
+          route: "/api/join/submit", amountDollars: settings.price / 100,
+          ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `join:${competitionId}`,
+          competitionId: Number(competitionId), dataDescriptor, dataValue,
+          description: "Join competition application", customerEmail: email, customerName: fullName,
+        });
+        if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
+        paymentId = secured.paymentId;
+        transactionId = secured.charge.transactionId;
         amountPaid = settings.price;
       }
 
@@ -3139,12 +3240,15 @@ export async function registerRoutes(
         }
       }
 
-      res.status(201).json({ ...submission, status: autoApproved ? "approved" : submission.status });
+      const response = { ...submission, status: autoApproved ? "approved" : submission.status };
+      if (paymentId) await completePayment(paymentId, response);
+      res.status(201).json(response);
     } catch (error: any) {
       console.error("Join submission error:", error);
       if (error.errorMessage) {
         return res.status(400).json({ message: `Payment failed: ${error.errorMessage}` });
       }
+      if (error.status) return res.status(error.status).json({ message: error.message });
       res.status(500).json({ message: "Submission failed. Please try again." });
     }
   });
@@ -3196,6 +3300,10 @@ export async function registerRoutes(
       if (!competitionId) {
         return res.status(400).json({ message: "Please select a competition" });
       }
+      const targetCompetition = await storage.getCompetition(Number(competitionId));
+      if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
+        return res.status(400).json({ message: "This competition is not accepting nominations" });
+      }
       if (settings.nonprofitRequired && !chosenNonprofit?.trim()) {
         return res.status(400).json({ message: "Choice of Non-Profit is required" });
       }
@@ -3204,19 +3312,20 @@ export async function registerRoutes(
 
       let transactionId: string | null = null;
       let amountPaid = 0;
+      let paymentId: string | null = null;
       if (settings.nominationFee > 0 && !promoValid) {
         if (!dataDescriptor || !dataValue) {
           return res.status(400).json({ message: "Payment is required for nominations" });
         }
-        const chargeResult = await chargePaymentNonce(
-          settings.nominationFee / 100,
-          dataDescriptor,
-          dataValue,
-          `Nomination fee for ${fullName}`,
-          nominatorEmail,
-          nominatorName,
-        );
-        transactionId = chargeResult.transactionId;
+        const secured = await secureAuthorizeCharge(req, {
+          route: "/api/join/nominate", amountDollars: settings.nominationFee / 100,
+          ownerKey: `email:${nominatorEmail.toLowerCase().trim()}`, packageKey: `nomination:${competitionId}`,
+          competitionId: Number(competitionId), dataDescriptor, dataValue,
+          description: `Nomination fee for ${fullName}`, customerEmail: nominatorEmail, customerName: nominatorName,
+        });
+        if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
+        paymentId = secured.paymentId;
+        transactionId = secured.charge.transactionId;
         amountPaid = settings.nominationFee;
       }
 
@@ -3421,18 +3530,21 @@ export async function registerRoutes(
         }
       }
 
-      res.status(201).json({
+      const response = {
         ...submission,
         accountCreated: !!firebaseUid,
         talentProfileId,
         contestantId,
         emailSent,
-      });
+      };
+      if (paymentId) await completePayment(paymentId, response);
+      res.status(201).json(response);
     } catch (error: any) {
       console.error("Nomination submission error:", error);
       if (error.errorMessage) {
         return res.status(400).json({ message: `Payment failed: ${error.errorMessage}` });
       }
+      if (error.status) return res.status(error.status).json({ message: error.message });
       res.status(500).json({ message: "Nomination failed. Please try again." });
     }
   });
@@ -3511,6 +3623,7 @@ export async function registerRoutes(
 
       let transactionId: string | null = null;
       let amountPaid = 0;
+      let paymentId: string | null = null;
       let verifiedPackageName = selectedPackageName || null;
       let verifiedPackagePrice = 0;
 
@@ -3535,15 +3648,15 @@ export async function registerRoutes(
         if (!dataDescriptor || !dataValue) {
           return res.status(400).json({ message: "Payment is required for the selected hosting package" });
         }
-        const chargeResult = await chargePaymentNonce(
-          verifiedPackagePrice,
-          dataDescriptor,
-          dataValue,
-          `Host package (${verifiedPackageName}): ${eventName}`,
-          email,
-          fullName,
-        );
-        transactionId = chargeResult.transactionId;
+        const secured = await secureAuthorizeCharge(req, {
+          route: "/api/host/submit", amountDollars: verifiedPackagePrice,
+          ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `host:${verifiedPackageName}`,
+          dataDescriptor, dataValue, description: `Host package (${verifiedPackageName}): ${eventName}`,
+          customerEmail: email, customerName: fullName,
+        });
+        if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
+        paymentId = secured.paymentId;
+        transactionId = secured.charge.transactionId;
         amountPaid = Math.round(verifiedPackagePrice * 100);
       }
 
@@ -3594,12 +3707,14 @@ export async function registerRoutes(
         }).catch((err: any) => console.warn("[ChronicBrands] Host referral tracking failed (non-blocking):", err.message));
       }
 
+      if (paymentId) await completePayment(paymentId, submission);
       res.status(201).json(submission);
     } catch (error: any) {
       console.error("Host submission error:", error);
       if (error.errorMessage) {
         return res.status(400).json({ message: `Payment failed: ${error.errorMessage}` });
       }
+      if (error.status) return res.status(error.status).json({ message: error.message });
       res.status(500).json({ message: "Submission failed. Please try again." });
     }
   });
@@ -3659,6 +3774,7 @@ export async function registerRoutes(
     dataDescriptor: z.string().min(1, "Payment token is required"),
     dataValue: z.string().min(1, "Payment token is required"),
     referralCode: z.string().optional().nullable(),
+    idempotencyKey: z.string().min(16).max(128),
   });
 
   app.post("/api/guest/checkout", async (req, res) => {
@@ -3684,6 +3800,10 @@ export async function registerRoutes(
       if (!comp) return res.status(404).json({ message: "Competition not found" });
       if (comp.status !== "voting" && comp.status !== "active") {
         return res.status(400).json({ message: "Voting is not open for this competition" });
+      }
+      const boundContestant = await firestoreContestants.getById(contestantId);
+      if (!boundContestant || boundContestant.competitionId !== competitionId || boundContestant.applicationStatus !== "approved") {
+        return res.status(400).json({ message: "Contestant is not eligible for this competition" });
       }
 
       let pkg: { voteCount: number; bonusVotes: number; price: number; name: string } | null = null;
@@ -3725,14 +3845,15 @@ export async function registerRoutes(
       const taxAmount = subtotalDollars * (salesTaxPercent / 100);
       const amountInDollars = Math.round((subtotalDollars + taxAmount) * 100) / 100;
 
-      const chargeResult = await chargePaymentNonce(
-        amountInDollars,
-        dataDescriptor,
-        dataValue,
-        `${totalVotes} votes for ${comp.title}`,
-        email,
-        name,
-      );
+      const secured = await secureAuthorizeCharge(req, {
+        route: "/api/guest/checkout", amountDollars: amountInDollars,
+        ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}`,
+        competitionId, contestantId, dataDescriptor, dataValue,
+        description: `${totalVotes} votes for ${comp.title}`, customerEmail: email, customerName: name,
+      });
+      if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
+      const paymentId = secured.paymentId;
+      const chargeResult = secured.charge;
 
       let viewerId: string | null = null;
       if (createAccount) {
@@ -3749,7 +3870,7 @@ export async function registerRoutes(
         competitionId,
         contestantId,
         voteCount: totalVotes,
-        amount: pkg.price,
+        amount: Math.round(amountInDollars * 100),
         transactionId: chargeResult.transactionId,
         refCode: resolvedRefCode,
       });
@@ -3798,19 +3919,22 @@ export async function registerRoutes(
         }).catch(err => console.error("Receipt email send failed:", err));
       }
 
-      res.status(201).json({
+      const response = {
         success: true,
         purchase,
         transactionId: chargeResult.transactionId,
-        votesAdded: pkg.voteCount,
+        votesAdded: totalVotes,
         accountCreated: createAccount,
         viewerId,
-      });
+      };
+      await completePayment(paymentId, response);
+      res.status(201).json(response);
     } catch (error: any) {
       console.error("Guest checkout error:", error);
       if (error.errorMessage) {
         return res.status(400).json({ message: `Payment failed: ${error.errorMessage}` });
       }
+      if (error.status) return res.status(error.status).json({ message: error.message });
       res.status(500).json({ message: "Checkout failed. Please try again." });
     }
   });

@@ -1,2 +1,3 @@
 - [The Quest app routing](the-quest-routing.md) — full-stack monolith; /api must be claimed by the-quest artifact, not api-server
 - [The Quest artifact setup](the-quest-artifact.md) — dev command must cd to workspace root; PORT=22558 injected by artifact
+- [Payment outcome handling](payment-outcome-handling.md) — uncertain Authorize.net outcomes stay locked; never make them automatically retryable

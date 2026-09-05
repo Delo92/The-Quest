@@ -27,6 +27,7 @@ export interface ChargeError {
   success: false;
   errorCode: string;
   errorMessage: string;
+  indeterminate?: boolean;
 }
 
 export async function chargePaymentNonce(
@@ -36,6 +37,7 @@ export async function chargePaymentNonce(
   orderDescription: string,
   customerEmail?: string,
   customerName?: string,
+  merchantReference?: string,
 ): Promise<ChargeResult> {
   return new Promise((resolve, reject) => {
     const merchantAuth = getMerchantAuth();
@@ -74,6 +76,7 @@ export async function chargePaymentNonce(
 
     const createRequest = new APIContracts.CreateTransactionRequest();
     createRequest.setMerchantAuthentication(merchantAuth);
+    if (merchantReference) createRequest.setRefId(merchantReference.substring(0, 20));
     createRequest.setTransactionRequest(transactionRequestType);
 
     const ctrl = new APIControllers.CreateTransactionController(
@@ -90,6 +93,7 @@ export async function chargePaymentNonce(
           success: false,
           errorCode: "NULL_RESPONSE",
           errorMessage: "No response from payment gateway",
+          indeterminate: true,
         } as ChargeError);
       }
 

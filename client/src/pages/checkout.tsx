@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ interface PaymentConfig {
 }
 
 export default function CheckoutPage() {
+  const paymentIdempotencyKey = useRef(crypto.randomUUID());
   const params = useParams<{ competitionId: string; contestantId: string }>();
   const competitionId = params?.competitionId ? parseInt(params.competitionId) : null;
   const contestantId = params?.contestantId ? parseInt(params.contestantId) : null;
@@ -194,6 +195,7 @@ export default function CheckoutPage() {
       try {
         const pkgIndex = selectedPackage?.startsWith("pkg_") ? parseInt(selectedPackage.replace("pkg_", "")) : undefined;
         const body: any = {
+          idempotencyKey: paymentIdempotencyKey.current,
           name: name.trim(),
           email: email.trim(),
           competitionId,
