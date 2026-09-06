@@ -144,7 +144,9 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
       name,
       targetLevel: parseInt(targetLevel),
       message: message || undefined,
-      competitionId: competitionId && competitionId !== "none" ? parseInt(competitionId) : undefined,
+      competitionId: (targetLevel === "2" || targetLevel === "3") && competitionId && competitionId !== "none"
+        ? parseInt(competitionId)
+        : undefined,
       password: password || undefined,
     });
   };
@@ -199,7 +201,13 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
 
           <div className="space-y-1.5">
             <Label className="text-white/60">Role</Label>
-            <Select value={targetLevel} onValueChange={setTargetLevel}>
+            <Select
+              value={targetLevel}
+              onValueChange={(value) => {
+                setTargetLevel(value);
+                if (value !== "2" && value !== "3") setCompetitionId("");
+              }}
+            >
               <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-invite-level">
                 <SelectValue placeholder="Select role..." />
               </SelectTrigger>
@@ -230,12 +238,14 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
             </p>
           </div>
 
-          {targetLevel === "2" && (
+          {(targetLevel === "2" || targetLevel === "3") && (
             <div className="space-y-1.5">
-              <Label className="text-white/60">Competition <span className="text-orange-400">*</span></Label>
+              <Label className="text-white/60">
+                {targetLevel === "3" ? "Competition to Host" : "Competition"} <span className="text-orange-400">*</span>
+              </Label>
               <Select value={competitionId} onValueChange={setCompetitionId}>
                 <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-invite-competition">
-                  <SelectValue placeholder="Select competition..." />
+                  <SelectValue placeholder={targetLevel === "3" ? "Select competition to host..." : "Select competition..."} />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-white/10">
                   {competitions && competitions.length > 0 ? competitions.map((c) => (
@@ -264,7 +274,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
 
           <Button
             type="submit"
-            disabled={!email || !name || !targetLevel || (password.length > 0 && password.length < 6) || (targetLevel === "2" && (!competitionId || competitionId === "none")) || inviteMutation.isPending}
+            disabled={!email || !name || !targetLevel || (password.length > 0 && password.length < 6) || ((targetLevel === "2" || targetLevel === "3") && (!competitionId || competitionId === "none")) || inviteMutation.isPending}
             className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white"
             data-testid="button-send-invite"
           >
