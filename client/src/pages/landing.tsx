@@ -10,6 +10,7 @@ import FlipCountdown from "@/components/flip-countdown";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { buildVimeoSrc, detectMediaType } from "@/lib/media-utils";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -82,7 +83,15 @@ export default function Landing() {
 
       <section ref={heroRef} className="relative min-h-screen flex items-start justify-center pb-16" style={{ overflow: "visible" }}>
         <motion.div style={{ y: heroY }} className="absolute inset-0 overflow-hidden">
-          {getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
+          {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
+            <iframe
+              src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=1&autoplay=1&muted=1&loop=1&autopause=0") || ""}
+              className="absolute inset-0 h-full w-full scale-125 pointer-events-none"
+              allow="autoplay; fullscreen; picture-in-picture"
+              title="Hero background video"
+              aria-hidden="true"
+            />
+          ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
             <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-cover scale-110" autoPlay muted loop playsInline />
           ) : (
             <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-cover scale-110" />

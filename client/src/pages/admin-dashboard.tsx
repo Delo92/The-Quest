@@ -1332,6 +1332,33 @@ export default function AdminDashboard({ user }: { user: any }) {
 
   const handleFileSelect = async (imageKey: string, file: File) => {
     if (isVideoFile(file)) {
+      const maxDuration = imageKey === "hero_background" ? 35 : 15;
+      const duration = await new Promise<number>((resolve, reject) => {
+        const video = document.createElement("video");
+        const objectUrl = URL.createObjectURL(file);
+        video.preload = "metadata";
+        video.onloadedmetadata = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(video.duration);
+        };
+        video.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error("Could not read the video duration"));
+        };
+        video.src = objectUrl;
+      }).catch((error: Error) => {
+        toast({ title: "Video validation failed", description: error.message, variant: "destructive" });
+        return null;
+      });
+      if (duration === null) return;
+      if (!Number.isFinite(duration) || duration > maxDuration) {
+        toast({
+          title: "Video is too long",
+          description: `This slot accepts videos up to ${maxDuration} seconds. The selected video is approximately ${Math.ceil(duration)} seconds.`,
+          variant: "destructive",
+        });
+        return;
+      }
       setLiveryVideoUploading(imageKey);
       setLiveryVideoProgress(0);
       try {
@@ -1918,7 +1945,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               const current = questColorInput || saved;
               return (
                 <div className="mb-4 space-y-3">
-                  <p className="text-white/40 text-sm">Upload replacement images or short videos (15 seconds max) for any Quest template slot. Click "Upload" to replace or "Reset" to restore the original.</p>
+                  <p className="text-white/40 text-sm">Upload replacement images or short videos for Quest template slots. The main hero accepts videos up to 35 seconds; other slots accept up to 15 seconds. The hero also accepts a Vimeo URL.</p>
                   <div className="flex items-center gap-3 bg-zinc-900 border border-white/10 rounded-md px-3 py-2">
                     <span className="text-xs text-white/50 font-semibold uppercase tracking-wider whitespace-nowrap">Brand Color</span>
                     <input type="color" value={current} onChange={e => setQuestColorInput(e.target.value)} className="h-7 w-10 rounded cursor-pointer border-0 bg-transparent p-0" data-testid="input-quest-brand-color" />
@@ -2022,7 +2049,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                             <><Upload className="h-3 w-3 mr-1" /> Upload</>
                           )}
                         </Button>
-                        {isHomepageSlot && (
+                        {(isHomepageSlot || item.imageKey === "hero_background") && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -2073,14 +2100,18 @@ export default function AdminDashboard({ user }: { user: any }) {
                             type="url"
                             value={embedInputVal}
                             onChange={(e) => setEmbedInputs(prev => ({ ...prev, [item.imageKey]: e.target.value }))}
-                            placeholder="Paste YouTube, Vimeo, Facebook, Instagram, or direct URL…"
+                            placeholder={item.imageKey === "hero_background" ? "Paste a Vimeo URL…" : "Paste YouTube, Vimeo, Facebook, Instagram, or direct URL…"}
                             className="flex-1 bg-black/40 border border-white/20 rounded px-2 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#691cff]"
                             data-testid={`input-embed-url-${item.imageKey}`}
                           />
                           <Button
                             size="sm"
                             onClick={() => {
-                              if (!embedInputVal?.trim()) return;
+                               if (!embedInputVal?.trim()) return;
+                               if (item.imageKey === "hero_background" && !getVimeoId(embedInputVal.trim())) {
+                                 toast({ title: "Invalid Vimeo URL", description: "Paste a valid Vimeo video or player URL.", variant: "destructive" });
+                                 return;
+                               }
                               embedLiveryMutation.mutate({ imageKey: item.imageKey, url: embedInputVal.trim() }, {
                                 onSuccess: () => setEmbedInputs(prev => ({ ...prev, [item.imageKey]: undefined })),
                               });

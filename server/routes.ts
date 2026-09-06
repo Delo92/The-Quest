@@ -4129,7 +4129,11 @@ export async function registerRoutes(
     const { url } = req.body;
     const existing = await storage.getLiveryByKey(imageKey);
     if (!existing) return res.status(404).json({ message: "Livery item not found" });
-    const updated = await storage.updateLiveryImage(imageKey, url || null, "image");
+    if (imageKey === "hero_background" && url && !/(?:player\.)?vimeo\.com\/(?:video\/)?\d+/i.test(url)) {
+      return res.status(400).json({ message: "The Quest hero requires a valid Vimeo URL" });
+    }
+    const mediaType = imageKey === "hero_background" && url ? "video" : "image";
+    const updated = await storage.updateLiveryImage(imageKey, url || null, mediaType);
     res.json(updated);
   });
 
