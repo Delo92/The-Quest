@@ -141,7 +141,7 @@ const LIVERY_DEFAULTS = [
   { imageKey: "faq_2_q", label: "FAQ 2 - Question", defaultUrl: "", itemType: "text" as const, defaultText: "Can only Hawaii residents vote in the competition?" },
   { imageKey: "faq_2_a", label: "FAQ 2 - Answer", defaultUrl: "", itemType: "text" as const, defaultText: "No. Voting is open nationally, and supporters may participate from anywhere. Nominees are encouraged to rally votes from friends, fans, customers, and communities across the country." },
   { imageKey: "faq_3_q", label: "FAQ 3 - Question", defaultUrl: "", itemType: "text" as const, defaultText: "How many free votes can I cast?" },
-  { imageKey: "faq_3_a", label: "FAQ 3 - Answer", defaultUrl: "", itemType: "text" as const, defaultText: "Each participant may cast one free vote per category per day. This allows supporters to consistently show encouragement throughout the competition." },
+  { imageKey: "faq_3_a", label: "FAQ 3 - Answer", defaultUrl: "", itemType: "text" as const, defaultText: "Each competition sets its own daily free-vote allowance. After using those free votes, supporters can purchase additional votes or return when the allowance resets the next day." },
   { imageKey: "faq_4_q", label: "FAQ 4 - Question", defaultUrl: "", itemType: "text" as const, defaultText: "Can additional votes be purchased?" },
   { imageKey: "faq_4_a", label: "FAQ 4 - Answer", defaultUrl: "", itemType: "text" as const, defaultText: "Yes. Vote packages are available for those who wish to show extra support. There is no limit to the number of votes that may be purchased." },
   { imageKey: "faq_5_q", label: "FAQ 5 - Question", defaultUrl: "", itemType: "text" as const, defaultText: "Is there a limit on how often I can vote?" },

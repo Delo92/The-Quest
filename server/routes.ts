@@ -1206,8 +1206,11 @@ export async function registerRoutes(
     const voterIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
 
     const freeVotesToday = await firestoreVotes.getVotesTodayByIp(compId, voterIp);
-    if (freeVotesToday >= 1) {
-      return res.status(429).json({ message: `You've already used your free vote for this competition today. Purchase additional votes to keep supporting your favorite!` });
+    const maxFreeVotesPerDay = Math.max(1, Number(comp.maxVotesPerDay) || 1);
+    if (freeVotesToday >= maxFreeVotesPerDay) {
+      return res.status(429).json({
+        message: `You've used all ${maxFreeVotesPerDay} free votes for this competition today. Purchase additional votes to keep supporting your favorite!`,
+      });
     }
 
     const { source, refCode } = parsed.data;

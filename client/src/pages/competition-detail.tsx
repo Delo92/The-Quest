@@ -262,7 +262,7 @@ export default function CompetitionDetailPage() {
             )}
             <span className="flex items-center gap-1.5">
               <Vote className="h-4 w-4 text-white/30" />
-              1 free vote/competition/day
+              {competition.maxVotesPerDay} free {competition.maxVotesPerDay === 1 ? "vote" : "votes"}/competition/day
             </span>
           </div>
         </div>

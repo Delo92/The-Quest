@@ -507,7 +507,7 @@ export async function sendVoteThankYou(opts: {
         <a href="${compUrl}" class="btn">See the Leaderboard</a>
       </div>
       <hr class="divider" />
-      <p style="font-size:13px; color:#555;">You receive 1 free vote per competition per day. Come back tomorrow to vote again!</p>
+      <p style="font-size:13px; color:#555;">Each competition sets its own daily free-vote allowance. Come back tomorrow when your free votes reset!</p>
     `);
 
     await transporter.sendMail({
@@ -555,7 +555,7 @@ export async function sendApplicationApproved(opts: {
         <p style="margin:0; color:#ccc;">
           ✅ &nbsp;Complete your profile — add photos, bio, and social links<br/>
           ✅ &nbsp;Share your profile link with friends and fans<br/>
-          ✅ &nbsp;Ask your supporters to vote every day (1 free vote/day)<br/>
+          ✅ &nbsp;Ask your supporters to vote every day (the event sets the daily free-vote allowance)<br/>
           ✅ &nbsp;Monitor your rank from your dashboard
         </p>
       </div>
