@@ -74,6 +74,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
   const [targetLevel, setTargetLevel] = useState("2");
   const [competitionId, setCompetitionId] = useState("");
   const [message, setMessage] = useState("");
+  const [password, setPassword] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteLink, setNewInviteLink] = useState<string | null>(null);
 
@@ -95,7 +96,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
   };
 
   const inviteMutation = useMutation({
-    mutationFn: async (data: { email: string; name: string; targetLevel: number; message?: string; competitionId?: number }) => {
+    mutationFn: async (data: { email: string; name: string; targetLevel: number; message?: string; competitionId?: number; password?: string }) => {
       const res = await apiRequest("POST", "/api/invitations", data);
       return res.json();
     },
@@ -106,6 +107,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
       setTargetLevel("2");
       setCompetitionId("");
       setMessage("");
+      setPassword("");
       const link = buildInviteLink(data.token, data.targetLevel);
       setNewInviteLink(link);
       navigator.clipboard.writeText(link).then(() => {
@@ -143,6 +145,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
       targetLevel: parseInt(targetLevel),
       message: message || undefined,
       competitionId: competitionId && competitionId !== "none" ? parseInt(competitionId) : undefined,
+      password: password || undefined,
     });
   };
 
@@ -210,6 +213,23 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
             </Select>
           </div>
 
+          <div className="space-y-1.5">
+            <Label className="text-white/60">Temporary Password (optional)</Label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Leave blank to use the default password"
+              minLength={6}
+              autoComplete="new-password"
+              className="bg-white/5 border-white/10 text-white"
+              data-testid="input-invite-password"
+            />
+            <p className="text-[11px] text-white/35">
+              Used only when this invitation creates a new account. Minimum 6 characters.
+            </p>
+          </div>
+
           {targetLevel === "2" && (
             <div className="space-y-1.5">
               <Label className="text-white/60">Competition <span className="text-orange-400">*</span></Label>
@@ -244,7 +264,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
 
           <Button
             type="submit"
-            disabled={!email || !name || !targetLevel || (targetLevel === "2" && (!competitionId || competitionId === "none")) || inviteMutation.isPending}
+            disabled={!email || !name || !targetLevel || (password.length > 0 && password.length < 6) || (targetLevel === "2" && (!competitionId || competitionId === "none")) || inviteMutation.isPending}
             className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white"
             data-testid="button-send-invite"
           >

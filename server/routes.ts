@@ -2429,7 +2429,7 @@ export async function registerRoutes(
 
   app.post("/api/invitations", firebaseAuth, requireTalent, async (req, res) => {
     try {
-      const { email, name, phone, targetLevel, message, competitionId, suggestedCategory, suggestedEventName, mediaUrl } = req.body;
+      const { email, name, phone, targetLevel, message, competitionId, suggestedCategory, suggestedEventName, mediaUrl, password } = req.body;
       if (!email || !name || !targetLevel) {
         return res.status(400).json({ message: "Email, name, and target level are required" });
       }
@@ -2440,6 +2440,9 @@ export async function registerRoutes(
       }
       if (targetLevel < 1) {
         return res.status(400).json({ message: "Invalid target level" });
+      }
+      if (password !== undefined && (typeof password !== "string" || password.length < 6)) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
 
       let invitedCompetition = null;
@@ -2483,7 +2486,7 @@ export async function registerRoutes(
       const inviterName = senderUser?.displayName || req.firebaseUser!.email || "Someone";
       const roleName = targetLevel >= 4 ? "admin" : targetLevel >= 3 ? "host" : targetLevel >= 2 ? "talent" : "viewer";
 
-      const DEFAULT_PASSWORD = "CBP2026!";
+      const DEFAULT_PASSWORD = typeof password === "string" && password.length > 0 ? password : "CBP2026!";
       const inviteeEmail = email.toLowerCase().trim();
       const inviteeName = name.trim();
       let accountCreated = false;
