@@ -12,7 +12,7 @@ import {
   type FirestoreVotePurchase,
   type FirestoreLiveryItem,
 } from "./firestore-collections";
-import { getFirestoreUser, createFirestoreUser, updateFirestoreUser, type FirestoreUser } from "./firebase-admin";
+import { getFirestore, getFirestoreUser, createFirestoreUser, updateFirestoreUser, type FirestoreUser } from "./firebase-admin";
 
 export interface IStorage {
   getUser(id: string): Promise<FirestoreUser | null>;
@@ -39,7 +39,7 @@ export interface IStorage {
   updateCompetition(id: number, data: Partial<Omit<FirestoreCompetition, "id">>): Promise<FirestoreCompetition | null>;
   deleteCompetition(id: number): Promise<void>;
 
-  getContestantsByCompetition(competitionId: number): Promise<(FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number })[]>;
+  getContestantsByCompetition(competitionId: number): Promise<(FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number; rawVoteCount: number })[]>;
   getContestantsByTalent(talentProfileId: number): Promise<(FirestoreContestant & { competitionTitle: string })[]>;
   createContestant(contestant: Omit<FirestoreContestant, "id">): Promise<FirestoreContestant>;
   updateContestantStatus(id: number, status: string): Promise<FirestoreContestant | null>;
@@ -150,19 +150,23 @@ export class FirestoreStorage implements IStorage {
     return firestoreCompetitions.delete(id);
   }
 
-  async getContestantsByCompetition(competitionId: number): Promise<(FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number })[]> {
+  async getContestantsByCompetition(competitionId: number): Promise<(FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number; rawVoteCount: number })[]> {
     const allContestants = await firestoreContestants.getByCompetition(competitionId);
     const approved = allContestants.filter(c => c.applicationStatus === "approved");
+    const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
+    const freeVoteMultiplier = Math.max(1, Number(settingsDoc.data()?.freeVoteMultiplier) || 60);
+    const pointCounts = await firestoreVotes.getPointCountsByCompetition(competitionId, freeVoteMultiplier);
 
-    const results: (FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number })[] = [];
+    const results: (FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number; rawVoteCount: number })[] = [];
     for (const contestant of approved) {
       const profile = await firestoreTalentProfiles.get(contestant.talentProfileId);
       if (!profile) continue;
-      const voteCount = await firestoreVotes.getVoteCountForContestantInCompetition(contestant.id, competitionId);
+      const rawVoteCount = await firestoreVotes.getVoteCountForContestantInCompetition(contestant.id, competitionId);
       results.push({
         ...contestant,
         talentProfile: profile,
-        voteCount,
+        voteCount: pointCounts.get(contestant.id) || 0,
+        rawVoteCount,
       });
     }
     return results;

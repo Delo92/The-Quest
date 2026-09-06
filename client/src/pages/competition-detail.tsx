@@ -252,7 +252,7 @@ export default function CompetitionDetailPage() {
             )}
             <span className="flex items-center gap-1.5">
               <Vote className="h-4 w-4 text-white/30" />
-              {competition.totalVotes} total votes
+              {competition.totalVotes.toLocaleString()} tournament points
             </span>
             {competition.voteCost > 0 && (
               <span className="flex items-center gap-1.5">

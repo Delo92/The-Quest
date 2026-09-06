@@ -597,13 +597,18 @@ export const firestoreVotes = {
     const countDocId = `${data.competitionId}_${data.contestantId}`;
     const countRef = db().collection(COLLECTIONS.VOTE_COUNTS).doc(countDocId);
     const countDoc = await countRef.get();
+    const paidVote = data.purchaseId !== null && data.purchaseId !== undefined;
     const sourceInc = vote.source === "in_person"
       ? { inPersonCount: admin.firestore.FieldValue.increment(1) }
       : { onlineCount: admin.firestore.FieldValue.increment(1) };
+    const paymentInc = paidVote
+      ? { paidCount: admin.firestore.FieldValue.increment(1) }
+      : { freeCount: admin.firestore.FieldValue.increment(1) };
     if (countDoc.exists) {
       await countRef.update({
         count: admin.firestore.FieldValue.increment(1),
         ...sourceInc,
+        ...paymentInc,
         updatedAt: now(),
       });
     } else {
@@ -613,6 +618,8 @@ export const firestoreVotes = {
         count: 1,
         onlineCount: vote.source === "online" ? 1 : 0,
         inPersonCount: vote.source === "in_person" ? 1 : 0,
+        freeCount: paidVote ? 0 : 1,
+        paidCount: paidVote ? 1 : 0,
         updatedAt: now(),
       });
     }
@@ -751,6 +758,33 @@ export const firestoreVotes = {
       .where("competitionId", "==", competitionId)
       .get();
     return snapshot.docs.map(doc => doc.data() as FirestoreVote);
+  },
+
+  async getPointCountsByCompetition(competitionId: number, freeVoteMultiplier: number): Promise<Map<number, number>> {
+    const countSnapshot = await db()
+      .collection(COLLECTIONS.VOTE_COUNTS)
+      .where("competitionId", "==", competitionId)
+      .get();
+    const aggregateIsComplete = countSnapshot.docs.every(doc => {
+      const data = doc.data();
+      return Number(data.freeCount || 0) + Number(data.paidCount || 0) === Number(data.count || 0);
+    });
+    if (aggregateIsComplete) {
+      const points = new Map<number, number>();
+      for (const doc of countSnapshot.docs) {
+        const data = doc.data();
+        points.set(Number(data.contestantId), Number(data.freeCount || 0) * freeVoteMultiplier + Number(data.paidCount || 0));
+      }
+      return points;
+    }
+
+    const votes = await this.getVotesByCompetition(competitionId);
+    const points = new Map<number, number>();
+    for (const vote of votes) {
+      const pointValue = vote.purchaseId ? 1 : freeVoteMultiplier;
+      points.set(vote.contestantId, (points.get(vote.contestantId) || 0) + pointValue);
+    }
+    return points;
   },
 };
 

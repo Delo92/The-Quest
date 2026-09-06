@@ -4075,7 +4075,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                   <div className="rounded-md bg-white/5 border border-white/10 p-5 space-y-4">
                     <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Voting Rules</h4>
                     <p className="text-[10px] text-white/25">Purchased votes are unlimited. Only free votes have a daily cap.</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                       <div>
                         <Label className="text-white/50 text-xs">Max Free Votes Per Day</Label>
                         <Input
@@ -4085,6 +4085,19 @@ export default function AdminDashboard({ user }: { user: any }) {
                           className="bg-white/[0.08] border-white/20 text-white"
                           data-testid="input-free-votes"
                         />
+                      </div>
+                      <div>
+                        <Label className="text-white/50 text-xs">Free Vote Multiplier</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={form.freeVoteMultiplier ?? 60}
+                          onChange={(e) => updateForm("freeVoteMultiplier", Math.max(1, parseInt(e.target.value) || 1))}
+                          className="bg-white/[0.08] border-white/20 text-white"
+                          data-testid="input-free-vote-multiplier"
+                        />
+                        <p className="text-white/30 text-[10px] mt-0.5">Each free vote earns this many ranking points. Purchased votes earn 1 point each.</p>
                       </div>
                       <div>
                         <Label className="text-white/50 text-xs">Minimum Vote Cost ($)</Label>

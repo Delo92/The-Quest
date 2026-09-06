@@ -904,7 +904,8 @@ export async function registerRoutes(
     if (!comp) return res.status(404).json({ message: "Competition not found" });
 
     const contestantsData = await storage.getContestantsByCompetition(id);
-    const totalVotes = await storage.getTotalVotesByCompetition(id);
+    const totalRawVotes = await storage.getTotalVotesByCompetition(id);
+    const totalVotes = contestantsData.reduce((sum, contestant) => sum + contestant.voteCount, 0);
 
     const enrichedContestants = await Promise.all(
       contestantsData.map(async (contestant) => {
@@ -935,6 +936,7 @@ export async function registerRoutes(
       hostedBy,
       contestants: enrichedContestants,
       totalVotes,
+      totalRawVotes,
     });
   });
 
@@ -2087,7 +2089,8 @@ export async function registerRoutes(
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
       const contestantsData = await storage.getContestantsByCompetition(id);
-      const totalVotes = await storage.getTotalVotesByCompetition(id);
+      const totalRawVotes = await storage.getTotalVotesByCompetition(id);
+      const totalVotes = contestantsData.reduce((sum, contestant) => sum + contestant.voteCount, 0);
 
       const leaderboard = contestantsData
         .sort((a, b) => b.voteCount - a.voteCount)
@@ -2102,7 +2105,7 @@ export async function registerRoutes(
           votePercentage: totalVotes > 0 ? Math.round((c.voteCount / totalVotes) * 10000) / 100 : 0,
         }));
 
-      res.json({ competitionId: id, totalVotes, leaderboard });
+      res.json({ competitionId: id, totalVotes, totalRawVotes, leaderboard });
     } catch (error: any) {
       console.error("Leaderboard error:", error);
       res.status(500).json({ message: "Failed to get leaderboard" });
@@ -2670,7 +2673,10 @@ export async function registerRoutes(
 
       const allContestantsRaw = await storage.getAllContestants();
       const compContestants = allContestantsRaw.filter(c => c.competitionId === id);
-      const totalVotes = await storage.getTotalVotesByCompetition(id);
+      const totalRawVotes = await storage.getTotalVotesByCompetition(id);
+      const weightedContestants = await storage.getContestantsByCompetition(id);
+      const weightedByContestantId = new Map(weightedContestants.map(c => [c.id, c.voteCount]));
+      const totalVotes = weightedContestants.reduce((sum, contestant) => sum + contestant.voteCount, 0);
 
       let creatorRole: string | null = null;
       if (comp.createdBy) {
@@ -2686,7 +2692,8 @@ export async function registerRoutes(
 
       const contestantDetails = [];
       for (const c of compContestants) {
-        const voteCount = await storage.getVoteCountForContestantInCompetition(c.id, id);
+        const rawVoteCount = await storage.getVoteCountForContestantInCompetition(c.id, id);
+        const voteCount = weightedByContestantId.get(c.id) || 0;
         contestantDetails.push({
           id: c.id,
           talentProfileId: c.talentProfileId,
@@ -2702,12 +2709,14 @@ export async function registerRoutes(
           location: (c.talentProfile as any).location || null,
           socialLinks: (c.talentProfile as any).socialLinks || null,
           voteCount,
+          rawVoteCount,
         });
       }
 
       res.json({
         competition: comp,
         totalVotes,
+        totalRawVotes,
         createdByAdmin: creatorRole === "admin",
         hosts: matchingHosts.map(h => ({
           id: h.id,
@@ -4043,8 +4052,7 @@ export async function registerRoutes(
     try {
       const db = getFirestore();
       const doc = await db.collection("platformSettings").doc("global").get();
-      if (!doc.exists) {
-        res.json({
+      const defaults = {
           hostingPackages: [
             { name: "Starter", price: 49, maxContestants: 5, revenueSharePercent: 20, description: "Up to 5 competitors per event" },
             { name: "Pro", price: 149, maxContestants: 15, revenueSharePercent: 35, description: "Up to 15 competitors per event" },
@@ -4060,13 +4068,16 @@ export async function registerRoutes(
           maxVideosPerContestant: 3,
           defaultVoteCost: 0,
           freeVotesPerDay: 5,
+          freeVoteMultiplier: 60,
           votePricePerVote: 1,
           joinPrice: 0,
           hostPrice: 0,
-        });
+        };
+      if (!doc.exists) {
+        res.json(defaults);
         return;
       }
-      res.json(doc.data());
+      res.json({ ...defaults, ...doc.data() });
     } catch (error: any) {
       console.error("Platform settings error:", error);
       res.status(500).json({ message: "Failed to get platform settings" });
