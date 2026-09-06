@@ -1571,7 +1571,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="bg-zinc-900 border-white/10 text-white max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
+                  <DialogHeader className="px-4 py-4 sm:p-0 border-b sm:border-0 border-white/10">
                     <DialogTitle className="font-serif text-xl">Create Competition</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 mt-2">
@@ -3259,7 +3259,7 @@ export default function AdminDashboard({ user }: { user: any }) {
 
             <Dialog open={assignHostDialogOpen} onOpenChange={setAssignHostDialogOpen}>
               <DialogContent className="bg-zinc-900 border-white/10 text-white">
-                <DialogHeader>
+                <DialogHeader className="px-4 py-4 sm:p-0 border-b sm:border-0 border-white/10">
                   <DialogTitle className="font-serif text-xl">Assign Competitions to Host</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-2">
@@ -4224,8 +4224,8 @@ export default function AdminDashboard({ user }: { user: any }) {
       </main>
 
       <Dialog open={compDetailId !== null} onOpenChange={(open) => { if (!open) setCompDetailId(null); }}>
-        <DialogContent className="bg-zinc-900 border-white/10 text-white sm:max-w-2xl" data-testid="comp-detail-dialog">
-          <DialogHeader>
+        <DialogContent className="bg-zinc-900 border-white/10 text-white w-full max-w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-5xl sm:rounded-xl p-0 sm:p-6 flex flex-col overflow-hidden" data-testid="comp-detail-dialog">
+          <DialogHeader className="px-4 py-4 sm:p-0 border-b sm:border-0 border-white/10">
             <DialogTitle className="font-serif text-xl">Competition Details</DialogTitle>
           </DialogHeader>
           {compDetailId !== null && <CompetitionDetailModal compId={compDetailId} />}
@@ -4234,7 +4234,7 @@ export default function AdminDashboard({ user }: { user: any }) {
 
       <Dialog open={userDetailId !== null} onOpenChange={(open) => { if (!open) setUserDetailId(null); }}>
         <DialogContent className="bg-zinc-900 border-white/10 text-white sm:max-w-2xl" data-testid="user-detail-dialog">
-          <DialogHeader>
+          <DialogHeader className="px-4 py-4 sm:p-0 border-b sm:border-0 border-white/10">
             <DialogTitle className="font-serif text-xl">User Profile</DialogTitle>
           </DialogHeader>
           {userDetailId !== null && <TalentDetailModal profileId={userDetailId} competitions={competitions} />}
