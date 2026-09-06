@@ -1437,232 +1437,295 @@ export default function AdminDashboard({ user }: { user: any }) {
   }, [filteredUsers, userPage]);
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
-          <Link href="/" className="flex items-center gap-2" data-testid="link-home">
+    <Tabs defaultValue="competitions" className="flex flex-col md:flex-row min-h-[100dvh] bg-black text-white w-full overflow-hidden">
+      {/* Mobile Top Bar */}
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-zinc-950 sticky top-0 z-50">
+        <Link href="/" className="flex items-center gap-2" data-testid="link-home">
+          <CBLogo size="sm" showText={false} />
+          <span className="font-serif text-lg font-bold">Admin</span>
+        </Link>
+        <Button size="icon" variant="ghost" className="text-white/40 hover:text-white" onClick={() => logout()} data-testid="button-logout-mobile">
+          <LogOut className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 border-r border-white/5 bg-zinc-950 flex-shrink-0 h-screen sticky top-0 z-40">
+        <div className="p-6 border-b border-white/5 flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity" data-testid="link-home-desktop">
             <CBLogo size="sm" showText={false} />
             <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
+        </div>
+
+        <div className="p-5 border-b border-white/5 bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <Badge className="bg-orange-500/20 text-orange-400 border-0">Admin</Badge>
-            <Avatar className="h-8 w-8 ring-2 ring-white/10">
-              <AvatarImage src={user.profileImageUrl || ""} />
-              <AvatarFallback className="bg-gradient-to-br from-orange-500/20 to-amber-500/20 text-orange-400 text-xs font-bold">
-                {(user.displayName || user.email || "A").charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <Button size="icon" variant="ghost" className="text-white/40" onClick={() => logout()} data-testid="button-logout">
-              <LogOut className="h-4 w-4" />
-            </Button>
+             <Avatar className="h-10 w-10 ring-2 ring-white/10">
+               <AvatarImage src={user.profileImageUrl || ""} />
+               <AvatarFallback className="bg-gradient-to-br from-orange-500/20 to-amber-500/20 text-orange-400 text-sm font-bold">
+                 {(user.displayName || user.email || "A").charAt(0).toUpperCase()}
+               </AvatarFallback>
+             </Avatar>
+             <div className="flex-1 min-w-0">
+               <p className="text-sm font-medium text-white truncate">{user.displayName || "Admin"}</p>
+               <div className="flex items-center gap-2 mt-1">
+                 <Badge className="bg-orange-500/20 text-orange-400 border-0 text-[10px] px-1.5 py-0 h-4">Level 4</Badge>
+                 <button onClick={() => logout()} className="text-[10px] text-white/40 hover:text-white uppercase tracking-wider font-semibold transition-colors" data-testid="button-logout">Log out</button>
+               </div>
+             </div>
           </div>
         </div>
-      </nav>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold" data-testid="text-admin-title">Admin Dashboard</h1>
-            <p className="text-white/40 mt-1 text-sm sm:text-base">Manage competitions, applications, and analytics.</p>
-          </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white" data-testid="button-create-competition">
-                <Plus className="h-4 w-4 mr-2" /> New Competition
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-zinc-900 border-white/10 text-white max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="font-serif text-xl">Create Competition</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-2">
-                <div className="space-y-1.5">
-                  <Label className="text-white/60">Title</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Competition title"
-                    className="bg-white/5 border-white/10 text-white" data-testid="input-comp-title" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-white/60">Category</Label>
-                  <Select value={compCategory} onValueChange={setCompCategory}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-comp-category">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-white/10">
-                      {(firestoreCategories || []).map((cat: any) => (
-                        <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-white/60">Description</Label>
-                  <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the competition..."
-                    className="bg-white/5 border-white/10 text-white resize-none min-h-[80px]" data-testid="input-comp-description" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60">Status</Label>
-                    <Select value={compStatus} onValueChange={setCompStatus}>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-comp-status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-white/10">
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60">Expected Contestants</Label>
-                    <Input type="number" value={expectedContestants} onChange={(e) => setExpectedContestants(e.target.value)} placeholder="e.g., 20"
-                      className="bg-white/5 border-white/10 text-white" data-testid="input-expected-contestants" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60">Online Vote Weight (%)</Label>
-                    <Input type="number" min="1" max="100" value={onlineVoteWeight} onChange={(e) => setOnlineVoteWeight(e.target.value)} placeholder="100"
-                      className="bg-white/5 border-white/10 text-white" data-testid="input-online-vote-weight" />
-                    <p className="text-white/30 text-xs">Percentage value of online votes vs in-person (QR) votes at final count. 100% = equal weight.</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between rounded-md bg-white/[0.04] border border-white/10 px-4 py-3">
-                  <div>
-                    <Label className="text-white/70 text-sm font-medium">In-Person Only Event</Label>
-                    <p className="text-white/30 text-xs mt-0.5">When enabled, only QR code votes are accepted. Online voting is disabled.</p>
-                  </div>
-                  <Switch
-                    checked={inPersonOnly}
-                    onCheckedChange={setInPersonOnly}
-                    className="data-[state=checked]:bg-orange-500"
-                    data-testid="switch-in-person-only"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60">Max Votes/Day</Label>
-                    <Input type="number" value={maxVotes} onChange={(e) => setMaxVotes(e.target.value)}
-                      className="bg-white/5 border-white/10 text-white" data-testid="input-max-votes" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60">Vote Cost ($)</Label>
-                    <Input type="number" step="0.01" min={platformSettings?.defaultVoteCost ?? 0} value={voteCost} onChange={(e) => setVoteCost(e.target.value)} placeholder="0"
-                      className="bg-white/5 border-white/10 text-white" data-testid="input-vote-cost" />
-                    {(platformSettings?.defaultVoteCost ?? 0) > 0 && (
-                      <p className="text-orange-400/70 text-xs">Minimum: ${(platformSettings?.defaultVoteCost ?? 0).toFixed(2)} (set in platform settings)</p>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-white/60">Start Date & Time</Label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <span className="text-[10px] text-white/40 uppercase tracking-wider">TBD</span>
-                        <Switch checked={startDateTbd} onCheckedChange={(v) => { setStartDateTbd(v); if (v) setStartDate(""); }}
-                          className="data-[state=checked]:bg-orange-500 scale-75" data-testid="switch-start-tbd" />
-                      </label>
-                    </div>
-                    {startDateTbd ? (
-                      <div className="bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-orange-400 font-medium" data-testid="text-start-tbd">
-                        TBD — Starts once enough contestants enter
-                      </div>
-                    ) : (
-                      <Input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                        className="bg-white/5 border-white/10 text-white" data-testid="input-start-date" />
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-white/60">End Date & Time</Label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <span className="text-[10px] text-white/40 uppercase tracking-wider">TBD</span>
-                        <Switch checked={endDateTbd} onCheckedChange={(v) => { setEndDateTbd(v); if (v) setEndDate(""); }}
-                          className="data-[state=checked]:bg-orange-500 scale-75" data-testid="switch-end-tbd" />
-                      </label>
-                    </div>
-                    {endDateTbd ? (
-                      <div className="bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-orange-400 font-medium" data-testid="text-end-tbd">
-                        TBD — End date to be determined
-                      </div>
-                    ) : (
-                      <Input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                        className="bg-white/5 border-white/10 text-white" data-testid="input-end-date" />
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60">Voting Start</Label>
-                    <Input type="datetime-local" value={votingStartDate} onChange={(e) => setVotingStartDate(e.target.value)}
-                      className="bg-white/5 border-white/10 text-white" data-testid="input-voting-start-date" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60">Voting End</Label>
-                    <Input type="datetime-local" value={votingEndDate} onChange={(e) => setVotingEndDate(e.target.value)}
-                      className="bg-white/5 border-white/10 text-white" data-testid="input-voting-end-date" />
-                  </div>
-                </div>
-                <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !title.trim() || !compCategory.trim()}
-                  className="w-full bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white" data-testid="button-submit-competition">
-                  {createMutation.isPending ? "Creating..." : "Create Competition"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
+          <h2 className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-3 px-2">Menu</h2>
+          <TabsList className="bg-transparent border-0 flex flex-col p-0 gap-1 h-auto justify-start w-full items-stretch">
+            <TabsTrigger value="competitions" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none">
+              <Trophy className="h-4 w-4 mr-3 shrink-0" /> Competitions
+            </TabsTrigger>
+            <TabsTrigger value="livery" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-livery">
+              <Image className="h-4 w-4 mr-3 shrink-0" /> Site Livery
+            </TabsTrigger>
+            <TabsTrigger value="join" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-join">
+              <UserPlus className="h-4 w-4 mr-3 shrink-0" /> Nominations
+            </TabsTrigger>
+            <TabsTrigger value="host" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-host">
+              <Megaphone className="h-4 w-4 mr-3 shrink-0" /> Host Requests
+            </TabsTrigger>
+            <TabsTrigger value="users" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-users">
+              <Users className="h-4 w-4 mr-3 shrink-0" /> Users & Talent
+              {pending.length > 0 && <Badge className="ml-auto bg-orange-500 text-white border-0 text-[10px] px-1.5 py-0 h-5 flex items-center justify-center min-w-[20px] rounded-full">{pending.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-calendar">
+              <Calendar className="h-4 w-4 mr-3 shrink-0" /> Calendar
+            </TabsTrigger>
+
+            <div className="h-px bg-white/5 my-3 mx-2"></div>
+            <h2 className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-3 px-2 mt-2">System</h2>
+
+            <TabsTrigger value="storage" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-storage">
+              <HardDrive className="h-4 w-4 mr-3 shrink-0" /> Storage
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-analytics">
+              <BarChart3 className="h-4 w-4 mr-3 shrink-0" /> Analytics
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-settings">
+              <Settings className="h-4 w-4 mr-3 shrink-0" /> Settings
+            </TabsTrigger>
+          </TabsList>
         </div>
+      </aside>
 
-        {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-8">
-            {[
-              { label: "Competitions", value: stats.totalCompetitions, icon: Trophy },
-              { label: "Talent Profiles", value: stats.totalTalentProfiles, icon: Users },
-              { label: "Contestants", value: stats.totalContestants, icon: Flame },
-              { label: "Total Votes", value: stats.totalVotes, icon: Vote },
-              { label: "Pending", value: stats.pendingApplications, icon: BarChart3 },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-md bg-white/5 border border-white/5 p-4" data-testid={`stat-${stat.label.toLowerCase().replace(/\s/g, "-")}`}>
-                <stat.icon className="h-5 w-5 text-orange-400/60 mb-2" />
-                <p className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">{stat.value}</p>
-                <p className="text-xs text-white/30 mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0 flex flex-col h-[100dvh] overflow-hidden bg-black md:bg-[#080808]">
 
-        <Tabs defaultValue="competitions">
-          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
-            <TabsList className="bg-white/5 border border-white/5 inline-flex w-max sm:w-auto">
-              <TabsTrigger value="competitions" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white">
-                <Trophy className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Competitions</span>
+        {/* Mobile Tabs List (horizontal scroll) */}
+        <div className="md:hidden border-b border-white/5 bg-zinc-950/80 backdrop-blur flex-shrink-0 z-40">
+          <div className="overflow-x-auto scrollbar-hide px-4 py-3">
+            <TabsList className="bg-transparent border-0 flex flex-row p-0 gap-2 h-auto justify-start w-max">
+              <TabsTrigger value="competitions" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none">
+                Competitions
               </TabsTrigger>
-              <TabsTrigger value="livery" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-livery">
-                <Image className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Livery</span>
+              <TabsTrigger value="livery" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-livery-mobile">
+                Livery
               </TabsTrigger>
-              <TabsTrigger value="join" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-join">
-                <UserPlus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Nominations</span>
+              <TabsTrigger value="join" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-join-mobile">
+                Nominations
               </TabsTrigger>
-              <TabsTrigger value="host" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-host">
-                <Megaphone className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Host</span>
+              <TabsTrigger value="host" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-host-mobile">
+                Host
               </TabsTrigger>
-              <TabsTrigger value="users" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-users">
-                <Users className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Users</span> {pending.length > 0 && <Badge className="ml-1 bg-orange-500 text-white border-0 text-[10px] px-1.5 py-0">{pending.length}</Badge>}
+              <TabsTrigger value="users" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-users-mobile">
+                Users {pending.length > 0 && <span className="ml-1 text-orange-500 font-bold">{pending.length}</span>}
               </TabsTrigger>
-              <TabsTrigger value="calendar" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-calendar">
-                <Calendar className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Calendar</span>
+              <TabsTrigger value="calendar" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-calendar-mobile">
+                Calendar
               </TabsTrigger>
-              <TabsTrigger value="storage" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-storage">
-                <HardDrive className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Storage</span>
+              <TabsTrigger value="storage" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-storage-mobile">
+                Storage
               </TabsTrigger>
-              <TabsTrigger value="analytics" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-analytics">
-                <BarChart3 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Analytics</span>
+              <TabsTrigger value="analytics" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-analytics-mobile">
+                Analytics
               </TabsTrigger>
-              <TabsTrigger value="settings" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="tab-settings">
-                <Settings className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Settings</span>
+              <TabsTrigger value="settings" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-settings-mobile">
+                Settings
               </TabsTrigger>
             </TabsList>
           </div>
+        </div>
 
-          <TabsContent value="competitions">
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto scroll-smooth">
+          <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+              <div>
+                <h1 className="font-serif text-2xl sm:text-3xl font-bold" data-testid="text-admin-title">Dashboard</h1>
+                <p className="text-white/40 mt-1 text-sm sm:text-base">Manage platform operations and analytics.</p>
+              </div>
+              <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white" data-testid="button-create-competition">
+                    <Plus className="h-4 w-4 mr-2" /> New Competition
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-zinc-900 border-white/10 text-white max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="font-serif text-xl">Create Competition</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60">Title</Label>
+                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Competition title"
+                        className="bg-white/5 border-white/10 text-white" data-testid="input-comp-title" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60">Category</Label>
+                      <Select value={compCategory} onValueChange={setCompCategory}>
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-comp-category">
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-white/10">
+                          {(firestoreCategories || []).map((cat: any) => (
+                            <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60">Description</Label>
+                      <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the competition..."
+                        className="bg-white/5 border-white/10 text-white resize-none min-h-[80px]" data-testid="input-comp-description" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Status</Label>
+                        <Select value={compStatus} onValueChange={setCompStatus}>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-comp-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-white/10">
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Expected Contestants</Label>
+                        <Input type="number" value={expectedContestants} onChange={(e) => setExpectedContestants(e.target.value)} placeholder="e.g., 20"
+                          className="bg-white/5 border-white/10 text-white" data-testid="input-expected-contestants" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Online Vote Weight (%)</Label>
+                        <Input type="number" min="1" max="100" value={onlineVoteWeight} onChange={(e) => setOnlineVoteWeight(e.target.value)} placeholder="100"
+                          className="bg-white/5 border-white/10 text-white" data-testid="input-online-vote-weight" />
+                        <p className="text-white/30 text-xs">Percentage value of online votes vs in-person (QR) votes at final count. 100% = equal weight.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md bg-white/[0.04] border border-white/10 px-4 py-3">
+                      <div>
+                        <Label className="text-white/70 text-sm font-medium">In-Person Only Event</Label>
+                        <p className="text-white/30 text-xs mt-0.5">When enabled, only QR code votes are accepted. Online voting is disabled.</p>
+                      </div>
+                      <Switch
+                        checked={inPersonOnly}
+                        onCheckedChange={setInPersonOnly}
+                        className="data-[state=checked]:bg-orange-500"
+                        data-testid="switch-in-person-only"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Max Votes/Day</Label>
+                        <Input type="number" value={maxVotes} onChange={(e) => setMaxVotes(e.target.value)}
+                          className="bg-white/5 border-white/10 text-white" data-testid="input-max-votes" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Vote Cost ($)</Label>
+                        <Input type="number" step="0.01" min={platformSettings?.defaultVoteCost ?? 0} value={voteCost} onChange={(e) => setVoteCost(e.target.value)} placeholder="0"
+                          className="bg-white/5 border-white/10 text-white" data-testid="input-vote-cost" />
+                        {(platformSettings?.defaultVoteCost ?? 0) > 0 && (
+                          <p className="text-orange-400/70 text-xs">Minimum: ${(platformSettings?.defaultVoteCost ?? 0).toFixed(2)} (set in platform settings)</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-white/60">Start Date & Time</Label>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <span className="text-[10px] text-white/40 uppercase tracking-wider">TBD</span>
+                            <Switch checked={startDateTbd} onCheckedChange={(v) => { setStartDateTbd(v); if (v) setStartDate(""); }}
+                              className="data-[state=checked]:bg-orange-500 scale-75" data-testid="switch-start-tbd" />
+                          </label>
+                        </div>
+                        {startDateTbd ? (
+                          <div className="bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-orange-400 font-medium" data-testid="text-start-tbd">
+                            TBD — Starts once enough contestants enter
+                          </div>
+                        ) : (
+                          <Input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-white/5 border-white/10 text-white" data-testid="input-start-date" />
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-white/60">End Date & Time</Label>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <span className="text-[10px] text-white/40 uppercase tracking-wider">TBD</span>
+                            <Switch checked={endDateTbd} onCheckedChange={(v) => { setEndDateTbd(v); if (v) setEndDate(""); }}
+                              className="data-[state=checked]:bg-orange-500 scale-75" data-testid="switch-end-tbd" />
+                          </label>
+                        </div>
+                        {endDateTbd ? (
+                          <div className="bg-white/5 border border-white/10 rounded-md px-3 py-2 text-sm text-orange-400 font-medium" data-testid="text-end-tbd">
+                            TBD — End date to be determined
+                          </div>
+                        ) : (
+                          <Input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-white/5 border-white/10 text-white" data-testid="input-end-date" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Voting Start</Label>
+                        <Input type="datetime-local" value={votingStartDate} onChange={(e) => setVotingStartDate(e.target.value)}
+                          className="bg-white/5 border-white/10 text-white" data-testid="input-voting-start-date" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Voting End</Label>
+                        <Input type="datetime-local" value={votingEndDate} onChange={(e) => setVotingEndDate(e.target.value)}
+                          className="bg-white/5 border-white/10 text-white" data-testid="input-voting-end-date" />
+                      </div>
+                    </div>
+                    <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !title.trim() || !compCategory.trim()}
+                      className="w-full bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white" data-testid="button-submit-competition">
+                      {createMutation.isPending ? "Creating..." : "Create Competition"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {stats && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-8">
+                {[
+                  { label: "Competitions", value: stats.totalCompetitions, icon: Trophy },
+                  { label: "Talent Profiles", value: stats.totalTalentProfiles, icon: Users },
+                  { label: "Contestants", value: stats.totalContestants, icon: Flame },
+                  { label: "Total Votes", value: stats.totalVotes, icon: Vote },
+                  { label: "Pending", value: stats.pendingApplications, icon: BarChart3 },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-md bg-white/5 border border-white/5 p-4" data-testid={`stat-${stat.label.toLowerCase().replace(/\s/g, "-")}`}>
+                    <stat.icon className="h-5 w-5 text-orange-400/60 mb-2" />
+                    <p className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">{stat.value}</p>
+                    <p className="text-xs text-white/30 mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <TabsContent value="competitions" className="mt-0 outline-none">
             <div className="flex flex-wrap items-center gap-3 mb-6">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -4049,8 +4112,9 @@ export default function AdminDashboard({ user }: { user: any }) {
               </TabsContent>
             </Tabs>
           </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        </div>
+      </main>
 
       <Dialog open={compDetailId !== null} onOpenChange={(open) => { if (!open) setCompDetailId(null); }}>
         <DialogContent className="bg-zinc-900 border-white/10 text-white sm:max-w-2xl" data-testid="comp-detail-dialog">
@@ -4069,6 +4133,6 @@ export default function AdminDashboard({ user }: { user: any }) {
           {userDetailId !== null && <TalentDetailModal profileId={userDetailId} competitions={competitions} />}
         </DialogContent>
       </Dialog>
-    </div>
+    </Tabs>
   );
 }

@@ -71,3 +71,5 @@ A talent competition & voting platform where artists, models, bodybuilders, and 
 - Orange/amber accent (#FF5A09), black (#000) primary background
 - Uppercase headings with wide letter-spacing throughout
 - Firebase for all auth (NOT Replit Auth)
+- For every UI change, use `.agents/skills/quest-ui-design/SKILL.md` together with Replit's built-in `design` and `react-vite` guidance.
+- Apply TasteSkill's anti-generic design principles and `.agents/skills/responsive-cross-device-ui/SKILL.md`; verify changed UI at phone, tablet, and desktop widths.
