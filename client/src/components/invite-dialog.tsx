@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone } from "lucide-react";
+import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -34,6 +34,8 @@ interface Invitation {
   createdAt: string;
   acceptedAt: string | null;
   acceptedBy: string | null;
+  competitionId?: number | null;
+  mediaUrl?: string | null;
 }
 
 const LEVEL_LABELS: Record<number, string> = {
@@ -60,6 +62,8 @@ interface Competition {
   id: number;
   title: string;
   status: string;
+  coverImage?: string | null;
+  coverVideo?: string | null;
 }
 
 export function InviteDialog({ senderLevel }: { senderLevel: number }) {
@@ -474,12 +478,19 @@ export function InviteHostDialog() {
   const [phone, setPhone] = useState("");
   const [suggestedCategory, setSuggestedCategory] = useState("");
   const [suggestedEventName, setSuggestedEventName] = useState("");
+  const [competitionId, setCompetitionId] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
   const [message, setMessage] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteLink, setNewInviteLink] = useState<string | null>(null);
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
+    enabled: open,
+  });
+
+  const { data: competitions } = useQuery<Competition[]>({
+    queryKey: ["/api/competitions"],
     enabled: open,
   });
 
@@ -494,13 +505,14 @@ export function InviteHostDialog() {
     mutationFn: async (data: {
       email: string; name: string; phone?: string; targetLevel: number;
       message?: string; suggestedCategory?: string; suggestedEventName?: string;
+      competitionId?: number; mediaUrl?: string;
     }) => {
       const res = await apiRequest("POST", "/api/invitations", data);
       return res.json();
     },
     onSuccess: (data: Invitation) => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations/sent"] });
-      setEmail(""); setName(""); setPhone(""); setSuggestedCategory(""); setSuggestedEventName(""); setMessage("");
+      setEmail(""); setName(""); setPhone(""); setSuggestedCategory(""); setSuggestedEventName(""); setCompetitionId(""); setMediaUrl(""); setMessage("");
       const link = `${window.location.origin}/host?invite=${data.token}`;
       setNewInviteLink(link);
       navigator.clipboard.writeText(link).then(() => {
@@ -541,6 +553,8 @@ export function InviteHostDialog() {
       message: message || undefined,
       suggestedCategory: suggestedCategory || undefined,
       suggestedEventName: suggestedEventName || undefined,
+      competitionId: competitionId && competitionId !== "none" ? Number(competitionId) : undefined,
+      mediaUrl: mediaUrl.trim() || undefined,
     });
   };
 
@@ -558,7 +572,7 @@ export function InviteHostDialog() {
         <p className="text-xs text-white/40 -mt-2">Send a personalized invite to someone you'd like to host an event. They'll receive a link to the Become a Host page.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-white/60">Name <span className="text-orange-400">*</span></Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name"
@@ -577,7 +591,7 @@ export function InviteHostDialog() {
               className="bg-white/5 border-white/10 text-white" data-testid="input-host-invite-phone" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-white/60">Suggested Category</Label>
               <Select value={suggestedCategory} onValueChange={setSuggestedCategory}>
@@ -593,11 +607,43 @@ export function InviteHostDialog() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-white/60">Suggested Event Name</Label>
-              <Input value={suggestedEventName} onChange={(e) => setSuggestedEventName(e.target.value)}
-                placeholder="e.g. Summer Showcase" className="bg-white/5 border-white/10 text-white"
-                data-testid="input-host-invite-event-name" />
+              <Label className="text-white/60">Assign to Competition</Label>
+              <Select value={competitionId} onValueChange={setCompetitionId}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-host-invite-competition">
+                  <SelectValue placeholder="Choose an event..." />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-white/10">
+                  <SelectItem value="none">General host invitation</SelectItem>
+                  {(competitions || []).map((competition) => (
+                    <SelectItem key={competition.id} value={String(competition.id)}>
+                      {competition.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-white/60">Welcome Email Media (optional)</Label>
+            <div className="relative">
+              {/\.(mp4|webm|mov)(\?.*)?$/i.test(mediaUrl) ? (
+                <Video className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400" />
+              ) : (
+                <Image className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400" />
+              )}
+              <Input
+                type="url"
+                value={mediaUrl}
+                onChange={(e) => setMediaUrl(e.target.value)}
+                placeholder="Image, direct video, or Vimeo URL"
+                className="bg-white/5 border-white/10 text-white pl-10"
+                data-testid="input-host-invite-media-url"
+              />
+            </div>
+            <p className="text-[11px] text-white/35">
+              Leave blank to use the selected competition's cover media in the welcome email.
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -608,7 +654,7 @@ export function InviteHostDialog() {
           </div>
 
           <Button type="submit" disabled={!email || !name || inviteMutation.isPending}
-            className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white" data-testid="button-send-host-invite">
+            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white" data-testid="button-send-host-invite">
             {inviteMutation.isPending ? "Sending..." : "Send Host Invitation"}
           </Button>
         </form>

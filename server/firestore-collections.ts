@@ -1169,6 +1169,8 @@ export interface FirestoreInvitation {
   message: string | null;
   suggestedCategory?: string | null;
   suggestedEventName?: string | null;
+  competitionId?: number | null;
+  mediaUrl?: string | null;
   status: "pending" | "accepted" | "expired";
   createdAt: string;
   acceptedAt: string | null;
@@ -1191,6 +1193,8 @@ export const firestoreInvitations = {
     message?: string;
     suggestedCategory?: string;
     suggestedEventName?: string;
+    competitionId?: number;
+    mediaUrl?: string;
   }): Promise<FirestoreInvitation> {
     const docRef = db().collection(COLLECTIONS.INVITATIONS).doc();
     const invitation: FirestoreInvitation = {
@@ -1206,6 +1210,8 @@ export const firestoreInvitations = {
       message: data.message || null,
       suggestedCategory: data.suggestedCategory || null,
       suggestedEventName: data.suggestedEventName || null,
+      competitionId: data.competitionId ?? null,
+      mediaUrl: data.mediaUrl || null,
       status: "pending",
       createdAt: new Date().toISOString(),
       acceptedAt: null,

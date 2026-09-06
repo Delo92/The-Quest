@@ -128,6 +128,15 @@ function wrapInTemplate(bodyHtml: string, accentColor?: string): string {
 </html>`;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    1. INVITE / WELCOME  (general invite + nomination "congrats" path)
 ───────────────────────────────────────────────────────────────────────── */
@@ -142,6 +151,8 @@ export async function sendInviteEmail(opts: {
   competitionName?: string;
   defaultPassword?: string;
   accountCreated?: boolean;
+  invitationMessage?: string;
+  mediaUrl?: string;
 }): Promise<boolean> {
   try {
     const transporter = await getTransporter();
@@ -186,9 +197,30 @@ export async function sendInviteEmail(opts: {
         </div>`;
     }
 
+    const invitationMessageBlock = opts.invitationMessage
+      ? `<div class="credentials-box"><p class="cred-label">A message from ${escapeHtml(opts.inviterName)}</p><p style="white-space:pre-line">${escapeHtml(opts.invitationMessage)}</p></div>`
+      : "";
+
+    let mediaBlock = "";
+    if (opts.mediaUrl) {
+      const safeMediaUrl = escapeHtml(opts.mediaUrl);
+      const isImage = /\.(png|jpe?g|gif|webp)(\?.*)?$/i.test(opts.mediaUrl);
+      const isDirectVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(opts.mediaUrl);
+      if (isImage) {
+        mediaBlock = `<div style="margin:24px 0"><img src="${safeMediaUrl}" alt="${escapeHtml(opts.competitionName || "Event")}" style="display:block;width:100%;max-height:320px;object-fit:cover;border:1px solid #2a2a2a"></div>`;
+      } else if (isDirectVideo) {
+        mediaBlock = `<div style="margin:24px 0"><video controls poster="" style="display:block;width:100%;max-height:320px;background:#111"><source src="${safeMediaUrl}"></video><p class="fallback-link">If the video does not play in your email, <a href="${safeMediaUrl}">watch it here</a>.</p></div>`;
+      } else {
+        mediaBlock = `<div class="btn-wrap"><a href="${safeMediaUrl}" class="btn">View Event Media</a></div>`;
+      }
+    }
+
     const html = wrapInTemplate(`
       <h2>${applyPlaceholders(heading, vars)}</h2>
       <p>${applyPlaceholders(body, vars)}</p>
+      ${opts.competitionName ? `<div class="credentials-box"><p class="cred-label">Event invitation</p><p class="cred-row"><span class="cred-value">${escapeHtml(opts.competitionName)}</span></p></div>` : ""}
+      ${invitationMessageBlock}
+      ${mediaBlock}
       ${credentialBlock}
       <div class="btn-wrap">
         <a href="${actionUrl}" class="btn">${actionLabel}</a>

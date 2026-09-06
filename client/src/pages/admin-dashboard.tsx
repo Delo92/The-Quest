@@ -683,6 +683,11 @@ export default function AdminDashboard({ user }: { user: any }) {
   const { logout } = useAuth();
   const { toast } = useToast();
   const [createOpen, setCreateOpen] = useState(false);
+  const [createHostUid, setCreateHostUid] = useState<string>("admin");
+  const [createCoverType, setCreateCoverType] = useState<"upload" | "url">("upload");
+  const [createCoverFile, setCreateCoverFile] = useState<File | null>(null);
+  const [createCoverUrl, setCreateCoverUrl] = useState("");
+  const createCoverInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [compCategory, setCompCategory] = useState("");
@@ -871,7 +876,30 @@ export default function AdminDashboard({ user }: { user: any }) {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/competitions", {
+      let payloadCoverImage = undefined;
+      let payloadCoverVideo = undefined;
+
+      if (createCoverType === "url" && createCoverUrl.trim()) {
+        const urlStr = createCoverUrl.trim();
+        try {
+          new URL(urlStr);
+        } catch {
+          throw new Error("Invalid URL format");
+        }
+
+        const mediaType = detectMediaType(urlStr);
+        if (["youtube", "facebook", "instagram"].includes(mediaType)) {
+          throw new Error("Unsupported media URL. Please use an image, direct video, or Vimeo link.");
+        }
+
+        if (mediaType === "video" || mediaType === "vimeo") {
+          payloadCoverVideo = urlStr;
+        } else {
+          payloadCoverImage = urlStr;
+        }
+      }
+
+      const payload: any = {
         title,
         description,
         category: compCategory,
@@ -887,15 +915,48 @@ export default function AdminDashboard({ user }: { user: any }) {
         expectedContestants: expectedContestants ? parseInt(expectedContestants) : null,
         onlineVoteWeight: parseInt(onlineVoteWeight) || 100,
         inPersonOnly,
-      });
+      };
+
+      if (createHostUid !== "admin") {
+        payload.hostUid = createHostUid;
+      }
+      if (payloadCoverImage) payload.coverImage = payloadCoverImage;
+      if (payloadCoverVideo) payload.coverVideo = payloadCoverVideo;
+
+      const res = await apiRequest("POST", "/api/competitions", payload);
+      const created = await res.json();
+
+      let uploadError = null;
+      if (createCoverType === "upload" && createCoverFile) {
+        try {
+          await uploadCoverMutation.mutateAsync({ compId: created.id, file: createCoverFile });
+        } catch (err: any) {
+          uploadError = err.message || "Unknown error";
+        }
+      }
+
+      return { ...created, uploadError };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/competitions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+
+      if (data.uploadError) {
+        toast({ title: "Competition created without cover", description: `Cover upload failed: ${data.uploadError}`, variant: "destructive" });
+      } else {
+        toast({ title: "Competition created successfully!" });
+      }
+
       setCreateOpen(false);
+      setCreateHostUid("admin");
+      setCreateCoverType("upload");
+      setCreateCoverFile(null);
+      setCreateCoverUrl("");
+      if (createCoverInputRef.current) createCoverInputRef.current.value = "";
       setTitle("");
       setDescription("");
       setCompCategory("");
+      setCompStatus("active");
       setStartDate("");
       setEndDate("");
       setStartDateTbd(false);
@@ -903,13 +964,14 @@ export default function AdminDashboard({ user }: { user: any }) {
       setVotingStartDate("");
       setVotingEndDate("");
       setExpectedContestants("");
+      setMaxVotes("10");
+      setVoteCost("0");
       setOnlineVoteWeight("100");
       setInPersonOnly(false);
-      toast({ title: "Competition created!" });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
-    },
+      toast({ title: "Failed to create competition", description: err.message, variant: "destructive" });
+    }
   });
 
   const updateStatusMutation = useMutation({
@@ -1570,7 +1632,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     <Plus className="h-4 w-4 mr-2" /> New Competition
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-zinc-900 border-white/10 text-white max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-zinc-900 border-white/10 text-white max-h-[92vh] overflow-y-auto sm:max-w-2xl">
                   <DialogHeader className="px-4 py-4 sm:p-0 border-b sm:border-0 border-white/10">
                     <DialogTitle className="font-serif text-xl">Create Competition</DialogTitle>
                   </DialogHeader>
@@ -1598,7 +1660,120 @@ export default function AdminDashboard({ user }: { user: any }) {
                       <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the competition..."
                         className="bg-white/5 border-white/10 text-white resize-none min-h-[80px]" data-testid="input-comp-description" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+
+                    <div className="border-y border-white/10 py-4 space-y-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60">Assigned Promoter</Label>
+                        <Select value={createHostUid} onValueChange={setCreateHostUid}>
+                          <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-comp-host">
+                            <SelectValue placeholder="Choose a promoter" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-white/10">
+                            <SelectItem value="admin">Hosted by Admin</SelectItem>
+                            {(hostUsers || []).map((host) => (
+                              <SelectItem key={host.userId} value={host.userId}>
+                                {host.stageName || host.displayName} · {host.competitionCount} competition{host.competitionCount === 1 ? "" : "s"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-white/35">The selected promoter will manage this competition from their host dashboard.</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <Label className="text-white/60">Event Cover Media</Label>
+                          <div className="flex rounded-md border border-white/10 bg-black/20 p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCreateCoverType("upload");
+                                setCreateCoverUrl("");
+                              }}
+                              className={`rounded px-3 py-1 text-xs ${createCoverType === "upload" ? "bg-orange-500 text-white" : "text-white/45 hover:text-white"}`}
+                              data-testid="tab-cover-upload"
+                            >
+                              Upload
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCreateCoverType("url");
+                                setCreateCoverFile(null);
+                                if (createCoverInputRef.current) createCoverInputRef.current.value = "";
+                              }}
+                              className={`rounded px-3 py-1 text-xs ${createCoverType === "url" ? "bg-orange-500 text-white" : "text-white/45 hover:text-white"}`}
+                              data-testid="tab-cover-url"
+                            >
+                              Media URL
+                            </button>
+                          </div>
+                        </div>
+
+                        {createCoverType === "upload" ? (
+                          <div>
+                            <input
+                              ref={createCoverInputRef}
+                              type="file"
+                              accept="image/*,video/mp4,video/webm,video/quicktime"
+                              className="hidden"
+                              onChange={(event) => setCreateCoverFile(event.target.files?.[0] || null)}
+                              data-testid="input-create-cover-file"
+                            />
+                            {createCoverFile ? (
+                              <div className="flex items-center justify-between gap-3 rounded-md border border-orange-500/20 bg-orange-500/5 p-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  {createCoverFile.type.startsWith("video/") ? <Video className="h-4 w-4 shrink-0 text-orange-400" /> : <Image className="h-4 w-4 shrink-0 text-orange-400" />}
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm text-white">{createCoverFile.name}</p>
+                                    <p className="text-[10px] text-white/35">{createCoverFile.type.startsWith("video/") ? "Video, maximum 30 seconds" : "Image"}</p>
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-white/45"
+                                  onClick={() => {
+                                    setCreateCoverFile(null);
+                                    if (createCoverInputRef.current) createCoverInputRef.current.value = "";
+                                  }}
+                                  data-testid="button-clear-create-cover"
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-20 w-full border-dashed border-white/15 bg-white/[0.02] text-white/55 hover:border-orange-500/50 hover:bg-orange-500/5"
+                                onClick={() => createCoverInputRef.current?.click()}
+                                data-testid="button-create-cover-browse"
+                              >
+                                <Upload className="mr-2 h-4 w-4" /> Choose image or video
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <Input
+                              type="url"
+                              value={createCoverUrl}
+                              onChange={(event) => setCreateCoverUrl(event.target.value)}
+                              placeholder="Image, direct video, or Vimeo URL"
+                              className="bg-white/5 border-white/10 text-white"
+                              data-testid="input-create-cover-url"
+                            />
+                            <p className="text-[11px] text-white/35">
+                              {createCoverUrl.trim() ? `Detected as ${detectMediaType(createCoverUrl.trim())}` : "Paste a public image, direct video, or Vimeo link."}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-white/60">Status</Label>
                         <Select value={compStatus} onValueChange={setCompStatus}>
@@ -1636,7 +1811,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         data-testid="switch-in-person-only"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-white/60">Max Votes/Day</Label>
                         <Input type="number" value={maxVotes} onChange={(e) => setMaxVotes(e.target.value)}
@@ -1651,7 +1826,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <Label className="text-white/60">Start Date & Time</Label>
@@ -1689,7 +1864,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-white/60">Voting Start</Label>
                         <Input type="datetime-local" value={votingStartDate} onChange={(e) => setVotingStartDate(e.target.value)}

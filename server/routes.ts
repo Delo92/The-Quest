@@ -947,7 +947,9 @@ export async function registerRoutes(
     maxVotesPerDay: z.number().int().min(1).optional().default(10),
     maxImagesPerContestant: z.number().int().min(1).optional().nullable(),
     maxVideosPerContestant: z.number().int().min(1).optional().nullable(),
-    coverImage: z.string().optional(),
+    coverImage: z.string().url("Cover image must be a valid URL").optional(),
+    coverVideo: z.string().url("Cover video must be a valid URL").optional(),
+    hostUid: z.string().min(1).optional(),
     startDate: z.string().optional().nullable(),
     endDate: z.string().optional().nullable(),
     startDateTbd: z.boolean().optional().default(false),
@@ -963,6 +965,20 @@ export async function registerRoutes(
     const parsed = createCompetitionSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
+    }
+
+    const requesterUid = req.firebaseUser!.uid;
+    let assignedCreatorUid = requesterUid;
+    if (parsed.data.hostUid) {
+      if (req.firebaseUser!.level < 4) {
+        return res.status(403).json({ message: "Only admins can assign a competition promoter" });
+      }
+
+      const assignedHost = await storage.getTalentProfileByUserId(parsed.data.hostUid);
+      if (!assignedHost || assignedHost.role !== "host") {
+        return res.status(400).json({ message: "Selected promoter is not an eligible host" });
+      }
+      assignedCreatorUid = assignedHost.userId;
     }
 
     const platformDoc = await getFirestore().collection("platformSettings").doc("global").get();
@@ -983,13 +999,14 @@ export async function registerRoutes(
     if (compMaxImages !== null && compMaxImages > globalMaxImages) compMaxImages = globalMaxImages;
     if (compMaxVideos !== null && compMaxVideos > globalMaxVideos) compMaxVideos = globalMaxVideos;
 
+    const { hostUid: _hostUid, ...competitionData } = parsed.data;
     const comp = await storage.createCompetition({
-      ...parsed.data,
+      ...competitionData,
       voteCost: finalVoteCost,
       maxVotesPerDay: finalMaxVotesPerDay,
       description: parsed.data.description || null,
-      coverImage: parsed.data.coverImage || null,
-      coverVideo: null,
+      coverImage: parsed.data.coverVideo ? null : (parsed.data.coverImage || null),
+      coverVideo: parsed.data.coverVideo || null,
       maxImagesPerContestant: compMaxImages,
       maxVideosPerContestant: compMaxVideos,
       startDate: parsed.data.startDate || null,
@@ -998,7 +1015,7 @@ export async function registerRoutes(
       votingEndDate: parsed.data.votingEndDate || null,
       expectedContestants: parsed.data.expectedContestants ?? null,
       createdAt: new Date().toISOString(),
-      createdBy: req.firebaseUser!.uid,
+      createdBy: assignedCreatorUid,
     });
 
     try {
@@ -2176,6 +2193,10 @@ export async function registerRoutes(
       if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
       const { hostUid } = req.body;
       if (!hostUid) return res.status(400).json({ message: "hostUid is required" });
+      const assignedHost = await storage.getTalentProfileByUserId(hostUid);
+      if (!assignedHost || assignedHost.role !== "host") {
+        return res.status(400).json({ message: "Selected promoter is not an eligible host" });
+      }
       const updated = await storage.updateCompetition(id, { createdBy: hostUid });
       if (!updated) return res.status(404).json({ message: "Competition not found" });
       res.json(updated);
@@ -2408,7 +2429,7 @@ export async function registerRoutes(
 
   app.post("/api/invitations", firebaseAuth, requireTalent, async (req, res) => {
     try {
-      const { email, name, phone, targetLevel, message, competitionId, suggestedCategory, suggestedEventName } = req.body;
+      const { email, name, phone, targetLevel, message, competitionId, suggestedCategory, suggestedEventName, mediaUrl } = req.body;
       if (!email || !name || !targetLevel) {
         return res.status(400).json({ message: "Email, name, and target level are required" });
       }
@@ -2419,6 +2440,27 @@ export async function registerRoutes(
       }
       if (targetLevel < 1) {
         return res.status(400).json({ message: "Invalid target level" });
+      }
+
+      let invitedCompetition = null;
+      if (competitionId) {
+        invitedCompetition = await storage.getCompetition(Number(competitionId));
+        if (!invitedCompetition) {
+          return res.status(400).json({ message: "Selected competition does not exist" });
+        }
+        const canManageCompetition = senderLevel >= 4 || invitedCompetition.createdBy === req.firebaseUser!.uid;
+        if (!canManageCompetition) {
+          return res.status(403).json({ message: "You cannot invite a host to this competition" });
+        }
+      }
+
+      if (mediaUrl) {
+        try {
+          const parsedMediaUrl = new URL(String(mediaUrl));
+          if (!["http:", "https:"].includes(parsedMediaUrl.protocol)) throw new Error("Invalid protocol");
+        } catch {
+          return res.status(400).json({ message: "Media must be a valid HTTP or HTTPS URL" });
+        }
       }
 
       const senderUser = await getFirestoreUser(req.firebaseUser!.uid);
@@ -2433,6 +2475,8 @@ export async function registerRoutes(
         message: message || undefined,
         suggestedCategory: suggestedCategory || undefined,
         suggestedEventName: suggestedEventName || undefined,
+        competitionId: competitionId ? Number(competitionId) : undefined,
+        mediaUrl: mediaUrl || undefined,
       });
 
       const siteUrl = process.env.SITE_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host || ""}`;
@@ -2509,6 +2553,10 @@ export async function registerRoutes(
               console.error("Auto-add invited contestant error (non-fatal):", contestantErr.message);
             }
           }
+
+          if (invitedCompetition && targetLevel === 3) {
+            await storage.updateCompetition(invitedCompetition.id, { createdBy: firebaseUid });
+          }
         }
       } catch (autoCreateErr: any) {
         console.error("Auto-create invited user account error (non-fatal):", autoCreateErr.message);
@@ -2525,6 +2573,9 @@ export async function registerRoutes(
           nominatorName: inviterName,
           defaultPassword: accountCreated ? DEFAULT_PASSWORD : undefined,
           accountCreated,
+          competitionName: invitedCompetition?.title,
+          invitationMessage: message || undefined,
+          mediaUrl: mediaUrl || invitedCompetition?.coverImage || invitedCompetition?.coverVideo || undefined,
         }).catch(err => console.error("Invite email send failed:", err));
       }
 
@@ -2573,6 +2624,8 @@ export async function registerRoutes(
         message: invitation.message,
         suggestedCategory: invitation.suggestedCategory || null,
         suggestedEventName: invitation.suggestedEventName || null,
+        competitionId: invitation.competitionId || null,
+        mediaUrl: invitation.mediaUrl || null,
       });
     } catch (error: any) {
       console.error("Get invitation by token error:", error);
