@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
+import { Trophy, Type,  BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS, getVimeoId, buildVimeoSrc } from "@/lib/media-utils";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
@@ -760,7 +760,10 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [newCatDesc, setNewCatDesc] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
   const [embedInputs, setEmbedInputs] = useState<Record<string, string | undefined>>({});
+  const [liveryMode, setLiveryMode] = useState<"content" | "media">("content");
   const [liverySubTab, setLiverySubTab] = useState<"cbpublishing" | "thequest">("cbpublishing");
+  const [activeLiveryGroup, setActiveLiveryGroup] = useState<string>("Home Page (CB Publishing)");
+  const [liveryGroupSearch, setLiveryGroupSearch] = useState("");
   const [cbpColorInput, setCbpColorInput] = useState("");
   const [questColorInput, setQuestColorInput] = useState("");
   const [liveryVideoUploading, setLiveryVideoUploading] = useState<string | null>(null);
@@ -1969,23 +1972,45 @@ export default function AdminDashboard({ user }: { user: any }) {
           </TabsContent>
 
           <TabsContent value="livery">
-            {/* Sub-tab bar */}
-            <div className="flex items-center gap-1 mb-5 border-b border-white/10 pb-0">
-              <button
-                onClick={() => setLiverySubTab("cbpublishing")}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors -mb-px ${liverySubTab === "cbpublishing" ? "border-[#691cff] text-white" : "border-transparent text-white/40 hover:text-white/70"}`}
-                data-testid="subtab-livery-cbpublishing"
-              >
-                CB Publishing
-              </button>
-              <button
-                onClick={() => setLiverySubTab("thequest")}
-                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors -mb-px ${liverySubTab === "thequest" ? "border-[#691cff] text-white" : "border-transparent text-white/40 hover:text-white/70"}`}
-                data-testid="subtab-livery-thequest"
-              >
-                The Quest
-              </button>
+            {/* Top Workspace Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-white/10 pb-0">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setLiverySubTab("cbpublishing")}
+                  className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors -mb-px ${liverySubTab === "cbpublishing" ? "border-orange-500 text-white" : "border-transparent text-white/40 hover:text-white/70"}`}
+                  data-testid="subtab-livery-cbpublishing"
+                >
+                  CB Publishing
+                </button>
+                <button
+                  onClick={() => setLiverySubTab("thequest")}
+                  className={`px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors -mb-px ${liverySubTab === "thequest" ? "border-orange-500 text-white" : "border-transparent text-white/40 hover:text-white/70"}`}
+                  data-testid="subtab-livery-thequest"
+                >
+                  The Quest
+                </button>
+              </div>
+
+              <div className="flex items-center bg-zinc-900/50 rounded-md p-1 mb-2 sm:mb-0 border border-white/5">
+                <button
+                  onClick={() => setLiveryMode("content")}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors flex items-center ${liveryMode === "content" ? "bg-zinc-800 text-white shadow-sm" : "text-white/50 hover:text-white/80"}`}
+                  data-testid="livery-mode-content"
+                >
+                  <Type className="w-3.5 h-3.5 mr-2" /> Content
+                </button>
+                <button
+                  onClick={() => setLiveryMode("media")}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded transition-colors flex items-center ${liveryMode === "media" ? "bg-zinc-800 text-white shadow-sm" : "text-white/50 hover:text-white/80"}`}
+                  data-testid="livery-mode-media"
+                >
+                  <Image className="w-3.5 h-3.5 mr-2" /> Media
+                </button>
+              </div>
             </div>
+
+            {liveryMode === "media" && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
 
             {liverySubTab === "cbpublishing" && (() => {
               const saved = liveryItems?.find((i: any) => i.imageKey === "home_brand_color")?.textContent || "#691cff";
@@ -2192,6 +2217,11 @@ export default function AdminDashboard({ user }: { user: any }) {
                 );
               })}
             </div>
+              </div>
+            )}
+
+            {liveryMode === "content" && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             {(() => {
               const textItems = liveryItems?.filter((item: any) => item.itemType === "text") || [];
               const faqPairs: string[][] = [];
@@ -2211,6 +2241,12 @@ export default function AdminDashboard({ user }: { user: any }) {
                 { label: "Email Templates", site: "thequest", keys: ["email_welcome_subject", "email_welcome_heading", "email_welcome_body", "email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"], pairs: [["email_welcome_subject", "email_welcome_heading", "email_welcome_body"], ["email_receipt_subject", "email_receipt_heading", "email_receipt_body", "email_receipt_footer"]] },
               ];
               const groups = allGroups.filter(g => g.site === liverySubTab);
+              const normalizedGroupSearch = liveryGroupSearch.trim().toLowerCase();
+              const visibleGroups = normalizedGroupSearch
+                ? groups.filter(group => group.label.toLowerCase().includes(normalizedGroupSearch))
+                : groups;
+              const showCategoryCardsOption = liverySubTab === "thequest"
+                && (!normalizedGroupSearch || "category cards".includes(normalizedGroupSearch));
               const isLongField = (key: string) => key.includes("rules") || key.includes("details") || key.includes("summary") || key.includes("faq_") || key.includes("_desc") || key.includes("how_") || (key.startsWith("email_") && (key.includes("_body") || key.includes("_footer")));
               const renderField = (item: any) => {
                 const currentText = item.textContent || item.defaultText || "";
@@ -2220,14 +2256,14 @@ export default function AdminDashboard({ user }: { user: any }) {
                   <div key={item.imageKey} data-testid={`livery-item-${item.imageKey}`}>
                     <div className="flex items-center justify-between gap-1 mb-1 flex-wrap">
                       <label className="text-xs text-white/60 font-medium" data-testid={`livery-label-${item.imageKey}`}>{shortLabel}</label>
-                      {isCustomText && <Badge className="bg-orange-500/80 text-white border-0 text-[9px] leading-tight">Edited</Badge>}
+                      {isCustomText && <Badge className="bg-orange-500/80 text-white border-0 text-[9px] leading-tight px-1.5 py-0">Edited</Badge>}
                     </div>
                     {isLongField(item.imageKey) ? (
                       <Textarea
                         key={`${item.imageKey}-${currentText}`}
                         defaultValue={currentText}
                         rows={item.imageKey.startsWith("how_") || item.imageKey.includes("rules") || item.imageKey.includes("details") ? 8 : 3}
-                        className="bg-zinc-800 border-white/25 text-white text-xs mb-1"
+                        className="bg-zinc-800 border-white/25 text-white text-xs mb-1.5"
                         data-testid={`textarea-livery-${item.imageKey}`}
                         onBlur={(e) => {
                           const newText = e.target.value.trim();
@@ -2239,7 +2275,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         key={`${item.imageKey}-${currentText}`}
                         defaultValue={currentText}
                         rows={1}
-                        className="bg-zinc-800 border-white/25 text-white text-xs mb-1 resize-y min-h-[32px]"
+                        className="bg-zinc-800 border-white/25 text-white text-xs mb-1.5 resize-y min-h-[36px]"
                         data-testid={`textarea-livery-${item.imageKey}`}
                         onBlur={(e) => {
                           const newText = e.target.value.trim();
@@ -2247,247 +2283,318 @@ export default function AdminDashboard({ user }: { user: any }) {
                         }}
                       />
                     )}
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="textarea-livery-${item.imageKey}"]`) as HTMLInputElement; if (el) updateLiveryTextMutation.mutate({ imageKey: item.imageKey, textContent: el.value.trim() }); }} disabled={updateLiveryTextMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-2" data-testid={`button-save-text-${item.imageKey}`}>Save</Button>
-                      {isCustomText && <Button size="sm" variant="ghost" onClick={() => { updateLiveryTextMutation.mutate({ imageKey: item.imageKey, textContent: "" }); const el = document.querySelector(`[data-testid="textarea-livery-${item.imageKey}"]`) as HTMLInputElement; if (el) el.value = item.defaultText || ""; }} disabled={updateLiveryTextMutation.isPending} className="text-white/40 text-[10px] h-6 px-2" data-testid={`button-reset-text-${item.imageKey}`}><RotateCcw className="h-2.5 w-2.5 mr-0.5" />Reset</Button>}
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="textarea-livery-${item.imageKey}"]`) as HTMLInputElement; if (el) updateLiveryTextMutation.mutate({ imageKey: item.imageKey, textContent: el.value.trim() }); }} disabled={updateLiveryTextMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-3 shadow-none" data-testid={`button-save-text-${item.imageKey}`}>Save</Button>
+                      {isCustomText && <Button size="sm" variant="ghost" onClick={() => { updateLiveryTextMutation.mutate({ imageKey: item.imageKey, textContent: "" }); const el = document.querySelector(`[data-testid="textarea-livery-${item.imageKey}"]`) as HTMLInputElement; if (el) el.value = item.defaultText || ""; }} disabled={updateLiveryTextMutation.isPending} className="text-white/40 hover:text-white text-[10px] h-6 px-2 shadow-none" data-testid={`button-reset-text-${item.imageKey}`}><RotateCcw className="h-2.5 w-2.5 mr-1" />Reset</Button>}
                     </div>
                   </div>
                 );
               };
-              return groups.map((group) => {
-                const items = group.keys.map(k => textItems.find((t: any) => t.imageKey === k)).filter(Boolean) as any[];
-                if (items.length === 0) return null;
-                const hasLong = items.some((it: any) => isLongField(it.imageKey));
-                return (
-                  <details key={group.label} className="mt-4 rounded-md bg-zinc-900 border border-white/15 overflow-visible">
-                    <summary className="cursor-pointer px-3 py-2 flex items-center justify-between gap-2 select-none" data-testid={`livery-group-${group.label.toLowerCase().replace(/\s/g, "-")}`}>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold">{group.label}</h3>
-                        <Badge className="bg-white/10 text-white/50 border-0 text-[9px]">{items.length}</Badge>
-                      </div>
-                      <ChevronDown className="h-3.5 w-3.5 text-white/30 transition-transform [details[open]>&]:rotate-180" />
-                    </summary>
-                    <div className="px-3 pb-3">
-                      {group.label === "Email Templates" && (
-                        <div className="mb-3 space-y-3">
-                          {/* Gmail OAuth Status + Re-auth */}
-                          <GmailStatusPanel />
-                          {/* Test email sender */}
-                          <div className="p-2 rounded bg-zinc-800/80 border border-white/10">
-                            <p className="text-[10px] text-white/40 mb-2">Welcome email placeholders: <code className="text-orange-400">{"{inviterName}"}</code>, <code className="text-orange-400">{"{role}"}</code>, <code className="text-orange-400">{"{nomineeName}"}</code>, <code className="text-orange-400">{"{nominatorName}"}</code>, <code className="text-orange-400">{"{competitionName}"}</code>, <code className="text-orange-400">{"{email}"}</code>, <code className="text-orange-400">{"{defaultPassword}"}</code>. Receipt: <code className="text-orange-400">{"{buyerName}"}</code>.</p>
-                            <div className="flex items-center gap-2">
-                              <Input placeholder="Test email address" className="bg-zinc-800 border-white/25 text-white text-xs h-7 flex-1" data-testid="input-test-email" id="test-email-input" defaultValue="" />
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "all" }); toast({ title: "All 6 emails sent!", description: `Check ${to}` }); } catch (err: any) { toast({ title: "Failed", description: err.message, variant: "destructive" }); } }} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-send-test-all">Send All (6)</Button>
-                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "welcome" }); toast({ title: "Welcome email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-welcome">Welcome</Button>
-                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "receipt" }); toast({ title: "Receipt email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-receipt">Receipt</Button>
-                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "vote_thankyou" }); toast({ title: "Vote thank-you sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-vote">Vote TY</Button>
-                              <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "application_approved" }); toast({ title: "Approval email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-white/10 border border-white/20 text-white text-[10px] h-7 px-3" data-testid="button-send-test-approval">Approved</Button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {group.pairs ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {group.pairs.map((pair) => {
-                            const pairItems = pair.map(k => textItems.find((t: any) => t.imageKey === k)).filter(Boolean) as any[];
-                            if (pairItems.length === 0) return null;
-                            const rawLabel = pairItems[0]?.label || "";
-                            const pairLabel = rawLabel.startsWith("FAQ ") ? rawLabel.replace(/ - (Question|Answer)$/, "") : rawLabel.startsWith("Welcome Email") ? "Welcome / Invite Email" : rawLabel.startsWith("Purchase Receipt") ? "Purchase Receipt Email" : rawLabel.replace(/^Category (Title|Description) - /, "");
-                            return (
-                              <div key={pair[0]} className="rounded-md bg-zinc-800/60 border border-white/10 p-3">
-                                <h4 className="text-xs text-orange-300/80 font-semibold uppercase tracking-wider mb-2">{pairLabel}</h4>
-                                <div className="space-y-2">
-                                  {pairItems.map((item: any) => renderField(item))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : hasLong ? (
-                        <div className="space-y-3">{items.map((item: any) => renderField(item))}</div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{items.map((item: any) => renderField(item))}</div>
-                      )}
-                    </div>
-                  </details>
-                );
-              });
-            })()}
 
-            {liverySubTab === "thequest" && <details className="mt-4 rounded-md bg-zinc-900 border border-white/15 overflow-visible">
-              <summary className="cursor-pointer px-3 py-2 flex items-center justify-between gap-2 select-none" data-testid="livery-group-category-cards">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Category Cards</h3>
-                  <Badge className="bg-white/10 text-white/50 border-0 text-[9px]">{firestoreCategories?.length || 0}</Badge>
-                </div>
-                <ChevronDown className="h-3.5 w-3.5 text-white/30 transition-transform [details[open]>&]:rotate-180" />
-              </summary>
-              <div className="px-3 pb-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(firestoreCategories || []).map((cat: any) => (
-                    <div key={cat.id} className="rounded-md bg-zinc-800/60 border border-white/10 p-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <h4 className="text-xs text-orange-300/80 font-semibold uppercase tracking-wider">{cat.name}</h4>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { if (confirm(`Delete "${cat.name}" category?`)) deleteCategoryMutation.mutate(cat.id); }}
-                          disabled={deleteCategoryMutation.isPending}
-                          className="text-red-400/60 hover:text-red-400 text-[10px] h-6 px-2"
-                          data-testid={`button-delete-category-${cat.id}`}
+              const activeGroupObj = groups.find(g => g.label === activeLiveryGroup);
+              const showCategoryCards = liverySubTab === "thequest" && activeLiveryGroup === "Category Cards";
+              const actualActiveLabel = (activeGroupObj || showCategoryCards) ? activeLiveryGroup : (groups[0]?.label || "");
+              const actualActiveGroup = groups.find(g => g.label === actualActiveLabel);
+
+              return (
+                <div className="flex flex-col md:flex-row gap-6 mt-6 pb-10">
+                  {/* Left Sidebar */}
+                  <div className="md:w-64 flex-shrink-0">
+                    {liverySubTab === "thequest" && (
+                      <div className="relative mb-3">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+                        <Input
+                          type="search"
+                          value={liveryGroupSearch}
+                          onChange={(event) => setLiveryGroupSearch(event.target.value)}
+                          placeholder="Find a content section"
+                          className="h-9 bg-white/[0.04] border-white/10 pl-9 text-xs text-white placeholder:text-white/30"
+                          data-testid="input-livery-group-search"
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
+                      {visibleGroups.map((group) => {
+                        const isActive = actualActiveLabel === group.label;
+                        return (
+                          <button
+                            key={group.label}
+                            onClick={() => setActiveLiveryGroup(group.label)}
+                            className={`text-left px-3 py-2.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                              isActive
+                                ? "bg-orange-500/10 text-orange-400"
+                                : "text-white/60 hover:text-white hover:bg-white/5"
+                            }`}
+                            data-testid={`livery-group-btn-${group.label.toLowerCase().replace(/\s/g, "-")}`}
+                          >
+                            {group.label}
+                          </button>
+                        );
+                      })}
+                      {showCategoryCardsOption && (
+                        <button
+                          onClick={() => setActiveLiveryGroup("Category Cards")}
+                          className={`text-left px-3 py-2.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors flex items-center justify-between ${
+                            actualActiveLabel === "Category Cards"
+                              ? "bg-orange-500/10 text-orange-400"
+                              : "text-white/60 hover:text-white hover:bg-white/5"
+                          }`}
+                          data-testid="livery-group-btn-category-cards"
                         >
-                          <XIcon className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <label className="text-xs text-white/60 font-medium mb-1 block">Title</label>
-                          <Input
-                            key={`cat-name-${cat.id}-${cat.name}`}
-                            defaultValue={cat.name}
-                            className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1"
-                            data-testid={`input-category-name-${cat.id}`}
-                            onBlur={(e) => {
-                              const val = e.target.value.trim();
-                              if (val && val !== cat.name) updateCategoryMutation.mutate({ id: cat.id, name: val });
-                            }}
-                          />
-                          <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="input-category-name-${cat.id}"]`) as HTMLInputElement; if (el && el.value.trim() && el.value.trim() !== cat.name) updateCategoryMutation.mutate({ id: cat.id, name: el.value.trim() }); }} disabled={updateCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-2" data-testid={`button-save-category-name-${cat.id}`}>Save</Button>
-                        </div>
-                        <div>
-                          <label className="text-xs text-white/60 font-medium mb-1 block">Description</label>
-                          <Input
-                            key={`cat-desc-${cat.id}-${cat.description}`}
-                            defaultValue={cat.description || ""}
-                            className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1"
-                            data-testid={`input-category-desc-${cat.id}`}
-                            onBlur={(e) => {
-                              const val = e.target.value.trim();
-                              if (val !== (cat.description || "")) updateCategoryMutation.mutate({ id: cat.id, description: val });
-                            }}
-                          />
-                          <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="input-category-desc-${cat.id}"]`) as HTMLInputElement; if (el) updateCategoryMutation.mutate({ id: cat.id, description: el.value.trim() }); }} disabled={updateCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-2" data-testid={`button-save-category-desc-${cat.id}`}>Save</Button>
-                        </div>
-                        <div>
-                          <label className="text-xs text-white/60 font-medium mb-1 block">Thumbnail (Image or Video up to 15s)</label>
-                          {(cat.imageUrl || cat.videoUrl) && (
-                            <div className="relative rounded-md overflow-hidden mb-2 bg-black/40 border border-white/10" style={{ maxHeight: "120px" }}>
-                              {cat.videoUrl ? (
-                                <video src={cat.videoUrl} className="w-full object-cover" style={{ maxHeight: "120px" }} autoPlay muted loop playsInline data-testid={`preview-category-video-${cat.id}`} />
-                              ) : (
-                                <img src={cat.imageUrl!} alt={cat.name} className="w-full object-cover" style={{ maxHeight: "120px" }} data-testid={`preview-category-img-${cat.id}`} />
-                              )}
-                              <div className="absolute top-1 right-1 flex gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    if (confirm("Remove this thumbnail?")) {
-                                      updateCategoryMutation.mutate({ id: cat.id, imageUrl: null, videoUrl: null } as any);
-                                    }
-                                  }}
-                                  className="bg-black/60 text-red-400 border-0"
-                                  data-testid={`button-remove-category-media-${cat.id}`}
-                                >
-                                  <XIcon className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 mb-1">
-                            <input
-                              type="file"
-                              accept="image/*,video/mp4,video/webm,video/quicktime"
-                              className="hidden"
-                              data-testid={`input-category-file-${cat.id}`}
-                              id={`cat-file-${cat.id}`}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) uploadCategoryMediaMutation.mutate({ categoryId: cat.id, file });
-                                e.target.value = "";
-                              }}
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => (document.getElementById(`cat-file-${cat.id}`) as HTMLInputElement)?.click()}
-                              disabled={uploadCategoryMediaMutation.isPending}
-                              className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3"
-                              data-testid={`button-upload-category-media-${cat.id}`}
-                            >
-                              <Upload className="h-3 w-3 mr-1" />
-                              {uploadCategoryMediaMutation.isPending ? "Uploading..." : "Upload File"}
-                            </Button>
-                            <span className="text-[10px] text-white/25">or paste URL below</span>
-                          </div>
-                          <Input
-                            key={`cat-img-${cat.id}-${cat.imageUrl}`}
-                            defaultValue={cat.imageUrl || ""}
-                            placeholder="https://... or /images/template/a1.jpg"
-                            className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1"
-                            data-testid={`input-category-img-${cat.id}`}
-                            onBlur={(e) => {
-                              const val = e.target.value.trim();
-                              if (val !== (cat.imageUrl || "")) updateCategoryMutation.mutate({ id: cat.id, imageUrl: val || null } as any);
-                            }}
-                          />
-                          <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="input-category-img-${cat.id}"]`) as HTMLInputElement; if (el) updateCategoryMutation.mutate({ id: cat.id, imageUrl: el.value.trim() || null } as any); }} disabled={updateCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-2" data-testid={`button-save-category-img-${cat.id}`}>Save URL</Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {addingCategory ? (
-                  <div className="mt-3 rounded-md bg-zinc-800/60 border border-orange-500/30 p-3">
-                    <h4 className="text-xs text-orange-300/80 font-semibold uppercase tracking-wider mb-2">New Category</h4>
-                    <div className="space-y-2">
-                      <div>
-                        <label className="text-xs text-white/60 font-medium mb-1 block">Title</label>
-                        <Input
-                          value={newCatName}
-                          onChange={(e) => setNewCatName(e.target.value)}
-                          placeholder="Category name"
-                          className="bg-zinc-800 border-white/25 text-white text-xs h-8"
-                          data-testid="input-new-category-name"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-white/60 font-medium mb-1 block">Description</label>
-                        <Input
-                          value={newCatDesc}
-                          onChange={(e) => setNewCatDesc(e.target.value)}
-                          placeholder="Short description"
-                          className="bg-zinc-800 border-white/25 text-white text-xs h-8"
-                          data-testid="input-new-category-desc"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Button size="sm" onClick={() => { if (newCatName.trim()) addCategoryMutation.mutate({ name: newCatName.trim(), description: newCatDesc.trim() }); }} disabled={!newCatName.trim() || addCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-3" data-testid="button-save-new-category">
-                          <Check className="h-3 w-3 mr-1" />Add
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setAddingCategory(false); setNewCatName(""); setNewCatDesc(""); }} className="text-white/40 text-[10px] h-6 px-2" data-testid="button-cancel-new-category">Cancel</Button>
-                      </div>
+                          <span>Category Cards</span>
+                          <Badge className="bg-white/10 text-white/50 border-0 text-[9px] px-1.5 py-0 h-4">{firestoreCategories?.length || 0}</Badge>
+                        </button>
+                      )}
+                      {visibleGroups.length === 0 && !showCategoryCardsOption && (
+                        <p className="px-3 py-3 text-xs text-white/35 whitespace-nowrap" data-testid="text-livery-group-empty">
+                          No matching content sections
+                        </p>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={() => setAddingCategory(true)}
-                    className="mt-3 bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3"
-                    data-testid="button-add-category"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />Add Category
-                  </Button>
-                )}
-              </div>
-            </details>}
+
+                  {/* Right Content Area */}
+                  <div className="flex-1 min-w-0 bg-white/[0.02] border border-white/5 rounded-lg p-5">
+                    {actualActiveLabel === "Category Cards" ? (
+                      <div>
+                        <div className="flex items-center gap-2 mb-4">
+                          <h3 className="text-sm uppercase tracking-widest text-orange-400 font-bold">Category Cards</h3>
+                        </div>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                          {(firestoreCategories || []).map((cat: any) => (
+                            <div key={cat.id} className="rounded-md bg-zinc-900 border border-white/10 p-4">
+                              <div className="flex items-center justify-between gap-2 mb-3">
+                                <h4 className="text-sm text-orange-300/80 font-bold uppercase tracking-wider">{cat.name}</h4>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => { if (confirm(`Delete "${cat.name}" category?`)) deleteCategoryMutation.mutate(cat.id); }}
+                                  disabled={deleteCategoryMutation.isPending}
+                                  className="text-red-400/60 hover:text-red-400 text-xs h-7 px-2.5"
+                                  data-testid={`button-delete-category-${cat.id}`}
+                                >
+                                  <XIcon className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="text-xs text-white/60 font-medium mb-1.5 block">Title</label>
+                                  <Input
+                                    key={`cat-name-${cat.id}-${cat.name}`}
+                                    defaultValue={cat.name}
+                                    className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1.5"
+                                    data-testid={`input-category-name-${cat.id}`}
+                                    onBlur={(e) => {
+                                      const val = e.target.value.trim();
+                                      if (val && val !== cat.name) updateCategoryMutation.mutate({ id: cat.id, name: val });
+                                    }}
+                                  />
+                                  <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="input-category-name-${cat.id}"]`) as HTMLInputElement; if (el && el.value.trim() && el.value.trim() !== cat.name) updateCategoryMutation.mutate({ id: cat.id, name: el.value.trim() }); }} disabled={updateCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-2.5" data-testid={`button-save-category-name-${cat.id}`}>Save</Button>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-white/60 font-medium mb-1.5 block">Description</label>
+                                  <Input
+                                    key={`cat-desc-${cat.id}-${cat.description}`}
+                                    defaultValue={cat.description || ""}
+                                    className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1.5"
+                                    data-testid={`input-category-desc-${cat.id}`}
+                                    onBlur={(e) => {
+                                      const val = e.target.value.trim();
+                                      if (val !== (cat.description || "")) updateCategoryMutation.mutate({ id: cat.id, description: val });
+                                    }}
+                                  />
+                                  <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="input-category-desc-${cat.id}"]`) as HTMLInputElement; if (el) updateCategoryMutation.mutate({ id: cat.id, description: el.value.trim() }); }} disabled={updateCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-2.5" data-testid={`button-save-category-desc-${cat.id}`}>Save</Button>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-white/60 font-medium mb-1.5 block">Thumbnail (Image or Video up to 15s)</label>
+                                  {(cat.imageUrl || cat.videoUrl) && (
+                                    <div className="relative rounded-md overflow-hidden mb-3 bg-black/40 border border-white/10" style={{ maxHeight: "140px" }}>
+                                      {cat.videoUrl ? (
+                                        <video src={cat.videoUrl} className="w-full object-cover" style={{ maxHeight: "140px" }} autoPlay muted loop playsInline data-testid={`preview-category-video-${cat.id}`} />
+                                      ) : (
+                                        <img src={cat.imageUrl!} alt={cat.name} className="w-full object-cover" style={{ maxHeight: "140px" }} data-testid={`preview-category-img-${cat.id}`} />
+                                      )}
+                                      <div className="absolute top-1 right-1 flex gap-1">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            if (confirm("Remove this thumbnail?")) {
+                                              updateCategoryMutation.mutate({ id: cat.id, imageUrl: null, videoUrl: null } as any);
+                                            }
+                                          }}
+                                          className="bg-black/60 text-red-400 border-0 h-6 w-6"
+                                          data-testid={`button-remove-category-media-${cat.id}`}
+                                        >
+                                          <XIcon className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <input
+                                      type="file"
+                                      accept="image/*,video/mp4,video/webm,video/quicktime"
+                                      className="hidden"
+                                      data-testid={`input-category-file-${cat.id}`}
+                                      id={`cat-file-${cat.id}`}
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) uploadCategoryMediaMutation.mutate({ categoryId: cat.id, file });
+                                        e.target.value = "";
+                                      }}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      onClick={() => (document.getElementById(`cat-file-${cat.id}`) as HTMLInputElement)?.click()}
+                                      disabled={uploadCategoryMediaMutation.isPending}
+                                      className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3"
+                                      data-testid={`button-upload-category-media-${cat.id}`}
+                                    >
+                                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                                      {uploadCategoryMediaMutation.isPending ? "Uploading..." : "Upload File"}
+                                    </Button>
+                                    <span className="text-[10px] text-white/30">or paste URL</span>
+                                  </div>
+                                  <Input
+                                    key={`cat-img-${cat.id}-${cat.imageUrl}`}
+                                    defaultValue={cat.imageUrl || ""}
+                                    placeholder="https://... or /images/template/a1.jpg"
+                                    className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1.5"
+                                    data-testid={`input-category-img-${cat.id}`}
+                                    onBlur={(e) => {
+                                      const val = e.target.value.trim();
+                                      if (val !== (cat.imageUrl || "")) updateCategoryMutation.mutate({ id: cat.id, imageUrl: val || null } as any);
+                                    }}
+                                  />
+                                  <Button size="sm" onClick={() => { const el = document.querySelector(`[data-testid="input-category-img-${cat.id}"]`) as HTMLInputElement; if (el) updateCategoryMutation.mutate({ id: cat.id, imageUrl: el.value.trim() || null } as any); }} disabled={updateCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-6 px-2.5" data-testid={`button-save-category-img-${cat.id}`}>Save URL</Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {addingCategory ? (
+                          <div className="mt-4 rounded-md bg-zinc-900 border border-orange-500/30 p-4">
+                            <h4 className="text-sm text-orange-300/80 font-bold uppercase tracking-wider mb-3">New Category</h4>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="text-xs text-white/60 font-medium mb-1.5 block">Title</label>
+                                <Input
+                                  value={newCatName}
+                                  onChange={(e) => setNewCatName(e.target.value)}
+                                  placeholder="Category name"
+                                  className="bg-zinc-800 border-white/25 text-white text-sm h-9"
+                                  data-testid="input-new-category-name"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-white/60 font-medium mb-1.5 block">Description</label>
+                                <Input
+                                  value={newCatDesc}
+                                  onChange={(e) => setNewCatDesc(e.target.value)}
+                                  placeholder="Short description"
+                                  className="bg-zinc-800 border-white/25 text-white text-sm h-9"
+                                  data-testid="input-new-category-desc"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Button size="sm" onClick={() => { if (newCatName.trim()) addCategoryMutation.mutate({ name: newCatName.trim(), description: newCatDesc.trim() }); }} disabled={!newCatName.trim() || addCategoryMutation.isPending} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-xs h-8 px-4" data-testid="button-save-new-category">
+                                  <Check className="h-3.5 w-3.5 mr-1.5" />Add
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => { setAddingCategory(false); setNewCatName(""); setNewCatDesc(""); }} className="text-white/50 hover:text-white text-xs h-8 px-3" data-testid="button-cancel-new-category">Cancel</Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => setAddingCategory(true)}
+                            className="mt-4 bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-xs h-9 px-4"
+                            data-testid="button-add-category"
+                          >
+                            <Plus className="h-4 w-4 mr-1.5" />Add Category
+                          </Button>
+                        )}
+                      </div>
+                    ) : actualActiveGroup ? (
+                      <div>
+                        <div className="flex items-center gap-2 mb-4">
+                          <h3 className="text-sm uppercase tracking-widest text-orange-400 font-bold">{actualActiveGroup.label}</h3>
+                          <Badge className="bg-white/10 text-white/50 border-0 text-[10px] px-2">{actualActiveGroup.keys.length} fields</Badge>
+                        </div>
+
+                        {actualActiveLabel === "Email Templates" && (
+                          <div className="mb-6 space-y-4">
+                            <GmailStatusPanel />
+                            <div className="p-4 rounded-lg bg-zinc-900 border border-white/10">
+                              <p className="text-xs text-white/50 mb-3 leading-relaxed">
+                                Welcome email placeholders: <code className="text-orange-400">{"{inviterName}"}</code>, <code className="text-orange-400">{"{role}"}</code>, <code className="text-orange-400">{"{nomineeName}"}</code>, <code className="text-orange-400">{"{nominatorName}"}</code>, <code className="text-orange-400">{"{competitionName}"}</code>, <code className="text-orange-400">{"{email}"}</code>, <code className="text-orange-400">{"{defaultPassword}"}</code>.<br/>
+                                Receipt placeholder: <code className="text-orange-400">{"{buyerName}"}</code>.
+                              </p>
+                              <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-2">
+                                <Input placeholder="Test email address" className="bg-zinc-800 border-white/20 text-white text-sm h-9 flex-1 min-w-[200px]" data-testid="input-test-email" id="test-email-input" defaultValue="" />
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "all" }); toast({ title: "All 6 emails sent!", description: `Check ${to}` }); } catch (err: any) { toast({ title: "Failed", description: err.message, variant: "destructive" }); } }} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-xs h-9 px-3" data-testid="button-send-test-all">Send All (6)</Button>
+                                  <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "welcome" }); toast({ title: "Welcome email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-zinc-800 border border-white/20 text-white hover:bg-zinc-700 text-xs h-9 px-3" data-testid="button-send-test-welcome">Welcome</Button>
+                                  <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "receipt" }); toast({ title: "Receipt email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-zinc-800 border border-white/20 text-white hover:bg-zinc-700 text-xs h-9 px-3" data-testid="button-send-test-receipt">Receipt</Button>
+                                  <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "vote_thankyou" }); toast({ title: "Vote thank-you sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-zinc-800 border border-white/20 text-white hover:bg-zinc-700 text-xs h-9 px-3" data-testid="button-send-test-vote">Vote TY</Button>
+                                  <Button size="sm" onClick={async () => { const el = document.getElementById("test-email-input") as HTMLInputElement; const to = el?.value?.trim(); if (!to) return; try { await apiRequest("POST", "/api/admin/test-email", { to, template: "application_approved" }); toast({ title: "Approval email sent!", description: `Sent to ${to}` }); } catch (err: any) { toast({ title: "Failed to send", description: err.message, variant: "destructive" }); } }} className="bg-zinc-800 border border-white/20 text-white hover:bg-zinc-700 text-xs h-9 px-3" data-testid="button-send-test-approval">Approved</Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {(() => {
+                          const items = actualActiveGroup.keys.map(k => textItems.find((t: any) => t.imageKey === k)).filter(Boolean) as any[];
+                          if (items.length === 0) return <p className="text-white/40 text-sm">No text fields in this group.</p>;
+
+                          if (actualActiveGroup.pairs) {
+                            return (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                {actualActiveGroup.pairs.map((pair) => {
+                                  const pairItems = pair.map(k => textItems.find((t: any) => t.imageKey === k)).filter(Boolean) as any[];
+                                  if (pairItems.length === 0) return null;
+                                  const rawLabel = pairItems[0]?.label || "";
+                                  const pairLabel = rawLabel.startsWith("FAQ ") ? rawLabel.replace(/ - (Question|Answer)$/, "") : rawLabel.startsWith("Welcome Email") ? "Welcome / Invite Email" : rawLabel.startsWith("Purchase Receipt") ? "Purchase Receipt Email" : rawLabel.replace(/^Category (Title|Description) - /, "");
+                                  return (
+                                    <div key={pair[0]} className="rounded-md bg-zinc-900 border border-white/10 p-4">
+                                      <h4 className="text-xs text-orange-300/80 font-bold uppercase tracking-wider mb-3">{pairLabel}</h4>
+                                      <div className="space-y-4">
+                                        {pairItems.map((item: any) => renderField(item))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          }
+
+                          const hasLong = items.some((it: any) => isLongField(it.imageKey));
+                          if (hasLong) {
+                            return <div className="space-y-5 max-w-4xl">{items.map((item: any) => renderField(item))}</div>;
+                          }
+
+                          return <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">{items.map((item: any) => renderField(item))}</div>;
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="py-10 text-center">
+                        <p className="text-white/40 text-sm">Select a group to edit.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {(!liveryItems || liveryItems.length === 0) && (
               <div className="rounded-md bg-white/5 border border-white/5 p-6 text-center">
                 <Image className="h-8 w-8 text-white/10 mx-auto mb-2" />
                 <p className="text-sm text-white/30">No livery items configured yet. Restart the app to seed defaults.</p>
+              </div>
+            )}
               </div>
             )}
           </TabsContent>
