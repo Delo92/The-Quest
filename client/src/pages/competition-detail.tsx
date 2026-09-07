@@ -310,19 +310,7 @@ export default function CompetitionDetailPage() {
                   className="group cursor-pointer transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]"
                   data-testid={`card-contestant-${contestant.id}`}
                 >
-                  <div
-                    className={`relative overflow-hidden bg-black ${videos.length > 0 ? "p-1 space-y-1" : "h-52"}`}
-                    onClick={(event) => {
-                      if ((event.target as HTMLElement).closest("iframe")) return;
-                      window.location.href = contestantHref;
-                    }}
-                    role="link"
-                    tabIndex={0}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") window.location.href = contestantHref;
-                    }}
-                    aria-label={`View ${contestant.talentProfile.stageName || contestant.talentProfile.displayName}`}
-                  >
+                  <Link href={contestantHref} className={`block relative overflow-hidden bg-black ${videos.length > 0 ? "p-1 space-y-1" : "h-52"}`}>
                     {videos.length > 0 ? videos.map((video) => {
                       const playerUrl = `${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1`;
                       return (
@@ -351,11 +339,10 @@ export default function CompetitionDetailPage() {
                         {rankIcon}
                       </div>
                     )}
-                  </div>
+                  </Link>
                   <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
                     <Link
-                      href={`/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.stageName || contestant.talentProfile.displayName)}`}
-                      onClick={(e) => e.stopPropagation()}
+                      href={contestantHref}
                       data-testid={`link-contestant-name-${contestant.id}`}
                     >
                       <h4 className="text-white group-hover:text-black uppercase font-bold text-base mb-2 transition-colors duration-500 hover:text-[#FF5A09] group-hover:hover:text-[#FF5A09]" data-testid={`text-contestant-name-${contestant.id}`}>
