@@ -82,7 +82,10 @@ export default function Landing() {
       <SiteNavbar />
 
       <section ref={heroRef} className="relative min-h-screen flex items-start justify-center pb-16" style={{ overflow: "visible" }}>
-        <motion.div style={{ y: heroY }} className="absolute inset-0 overflow-hidden">
+        <motion.div
+          style={{ y: heroY }}
+          className="relative h-[250px] w-full shrink-0 overflow-hidden sm:h-[280px] md:absolute md:inset-0 md:h-auto md:w-auto"
+        >
           {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
             <iframe
               src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=1&autoplay=1&muted=1&loop=1&autopause=0") || ""}
@@ -99,7 +102,7 @@ export default function Landing() {
           <div className="absolute inset-0 bg-black/35" />
         </motion.div>
 
-        <div className="relative z-10 text-center px-4 sm:px-8 w-full pt-48 sm:pt-68">
+        <div className="relative z-10 text-center px-4 sm:px-8 w-full pt-8 md:pt-68">
           {getText("hero_title_top", "") && (
           <motion.h6
             initial={{ opacity: 0, y: 30 }}
