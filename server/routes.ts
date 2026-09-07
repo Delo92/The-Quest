@@ -1519,6 +1519,8 @@ export async function registerRoutes(
           link: v.link,
           embedUrl: v.player_embed_url,
           duration: v.duration,
+          width: v.width,
+          height: v.height,
           thumbnail: getVideoThumbnail(v),
           competitionFolder: v.competitionFolder,
         }));
@@ -5066,6 +5068,8 @@ export async function registerRoutes(
             link: v.link,
             embedUrl: v.player_embed_url,
             duration: v.duration,
+            width: v.width,
+            height: v.height,
             thumbnail: await resolveVideoThumbnail(v),
           })));
           return {

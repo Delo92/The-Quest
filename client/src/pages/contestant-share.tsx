@@ -43,6 +43,8 @@ interface ResolvedData {
       embedUrl: string;
       duration: number;
       thumbnail: string | null;
+      width?: number;
+      height?: number;
     }[];
     talentProfile: {
       id: number;
@@ -372,7 +374,7 @@ export default function ContestantSharePage() {
               {(mediaData?.videos || contestant.videos).map((video, i) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
                   {playingVideo === video.embedUrl ? (
-                    <div className="aspect-video">
+                    <div className={video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
                       <iframe
                         src={`${video.embedUrl}?autoplay=1`}
                         className="w-full h-full"
@@ -382,7 +384,7 @@ export default function ContestantSharePage() {
                     </div>
                   ) : (
                     <div
-                      className="relative aspect-video overflow-hidden group cursor-pointer"
+                      className={`relative overflow-hidden group cursor-pointer ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
                       onClick={() => setPlayingVideo(video.embedUrl)}
                     >
                       <img

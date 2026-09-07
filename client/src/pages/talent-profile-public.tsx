@@ -173,7 +173,7 @@ export default function TalentProfilePublic() {
               {videos.map((video: any, i: number) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
                   {playingVideo === video.embedUrl ? (
-                    <div className="aspect-video">
+                    <div className={video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
                       <iframe
                         src={`${video.embedUrl}?autoplay=1`}
                         className="w-full h-full"
@@ -183,7 +183,7 @@ export default function TalentProfilePublic() {
                     </div>
                   ) : (
                     <div
-                      className="relative aspect-video overflow-hidden group cursor-pointer"
+                      className={`relative overflow-hidden group cursor-pointer ${video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
                       onClick={() => setPlayingVideo(video.embedUrl)}
                     >
                       <img

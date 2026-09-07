@@ -160,7 +160,7 @@ export default function HomePage() {
         id="home"
         className="relative min-h-screen flex items-end justify-center overflow-hidden bg-black pb-32"
       >
-        <MediaSlot url={bannerBg} alt="Hero background" mode="bg" fit="contain" clickToUnmute />
+        <MediaSlot url={bannerBg} alt="Hero background" mode="bg" fit="contain" clickToUnmute className="home-hero-media" />
         <div className="absolute inset-0 bg-black/60 z-[1]" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-wider mb-6 drop-shadow-2xl">

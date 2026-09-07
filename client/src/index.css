@@ -546,6 +546,11 @@
   .hero-media-shift-up {
     top: -10% !important;
   }
+
+  .home-hero-media {
+    top: 92px !important;
+    transform: none !important;
+  }
 }
 
 /* ── Mobile-first global improvements ─────────────────────────── */
