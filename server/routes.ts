@@ -103,7 +103,7 @@ const compCoverUpload = multer({
 
 const liveryUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 35 * 1024 * 1024 },
   fileFilter: (_req: any, file: any, cb: any) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const allowedImage = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"];
@@ -2960,13 +2960,6 @@ export async function registerRoutes(
       if (!req.file) return res.status(400).json({ message: "No file provided" });
 
       const isVideo = isVideoFile(req.file.originalname);
-
-      if (isVideo) {
-        const duration = await getVideoDurationFromBuffer(req.file.buffer);
-        if (duration > 15) {
-          return res.status(400).json({ message: `Video must be 15 seconds or less. Uploaded video is ${Math.round(duration)} seconds.` });
-        }
-      }
 
       const ext = path.extname(req.file.originalname).toLowerCase();
       const storagePath = `categories/${id}-${Date.now()}${ext}`;

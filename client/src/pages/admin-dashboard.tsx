@@ -30,6 +30,7 @@ import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
+const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
 
 interface AdminStats {
   totalCompetitions: number;
@@ -771,8 +772,6 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [liveryGroupSearch, setLiveryGroupSearch] = useState("");
   const [cbpColorInput, setCbpColorInput] = useState("");
   const [questColorInput, setQuestColorInput] = useState("");
-  const [liveryVideoUploading, setLiveryVideoUploading] = useState<string | null>(null);
-  const [liveryVideoProgress, setLiveryVideoProgress] = useState(0);
   const [coverVideoUploading, setCoverVideoUploading] = useState<number | null>(null);
   const [coverVideoProgress, setCoverVideoProgress] = useState(0);
 
@@ -1035,7 +1034,7 @@ export default function AdminDashboard({ user }: { user: any }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/livery"] });
-      toast({ title: "Image updated!" });
+      toast({ title: "Media updated!" });
     },
     onError: (err: Error) => {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
@@ -1120,45 +1119,12 @@ export default function AdminDashboard({ user }: { user: any }) {
 
   const uploadCategoryMediaMutation = useMutation({
     mutationFn: async ({ categoryId, file }: { categoryId: string; file: File }) => {
+      if (isVideoFile(file) && file.size > MAX_LIVERY_VIDEO_BYTES) {
+        throw new Error("Uploaded videos must be 35 MB or smaller.");
+      }
       const token = getAuthToken();
       const authHeaders: Record<string, string> = {};
       if (token) authHeaders["Authorization"] = `Bearer ${token}`;
-
-      if (isVideoFile(file)) {
-        const ticketRes = await fetch(`/api/admin/categories/${categoryId}/vimeo-ticket`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify({ fileSize: file.size }),
-        });
-        if (!ticketRes.ok) {
-          const err = await ticketRes.json();
-          throw new Error(err.message || "Failed to create upload ticket");
-        }
-        const ticket = await ticketRes.json();
-
-        await new Promise<void>((resolve, reject) => {
-          const upload = new tus.Upload(file, {
-            uploadUrl: ticket.uploadLink,
-            onError: (error) => reject(new Error(error.message || "Upload failed")),
-            onSuccess: () => resolve(),
-          });
-          upload.start();
-        });
-
-        if (ticket.completeUri) {
-          try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
-        }
-
-        const playerUrl = await fetchVimeoEmbedUrl(ticket.videoUri);
-
-        const saveRes = await fetch(`/api/admin/categories/${categoryId}/video-url`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify({ videoUrl: playerUrl }),
-        });
-        if (!saveRes.ok) throw new Error("Failed to save category video URL");
-        return saveRes.json();
-      }
 
       const formData = new FormData();
       formData.append("file", file);
@@ -1395,91 +1361,16 @@ export default function AdminDashboard({ user }: { user: any }) {
     return `https://player.vimeo.com/video/${videoId}`;
   };
 
-  const handleFileSelect = async (imageKey: string, file: File) => {
-    if (isVideoFile(file)) {
-      const maxDuration = imageKey === "hero_background" ? 35 : 15;
-      const duration = await new Promise<number>((resolve, reject) => {
-        const video = document.createElement("video");
-        const objectUrl = URL.createObjectURL(file);
-        video.preload = "metadata";
-        video.onloadedmetadata = () => {
-          URL.revokeObjectURL(objectUrl);
-          resolve(video.duration);
-        };
-        video.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
-          reject(new Error("Could not read the video duration"));
-        };
-        video.src = objectUrl;
-      }).catch((error: Error) => {
-        toast({ title: "Video validation failed", description: error.message, variant: "destructive" });
-        return null;
+  const handleFileSelect = (imageKey: string, file: File) => {
+    if (isVideoFile(file) && file.size > MAX_LIVERY_VIDEO_BYTES) {
+      toast({
+        title: "Video is too large",
+        description: "Uploaded videos must be 35 MB or smaller.",
+        variant: "destructive",
       });
-      if (duration === null) return;
-      if (!Number.isFinite(duration) || duration > maxDuration) {
-        toast({
-          title: "Video is too long",
-          description: `This slot accepts videos up to ${maxDuration} seconds. The selected video is approximately ${Math.ceil(duration)} seconds.`,
-          variant: "destructive",
-        });
-        return;
-      }
-      setLiveryVideoUploading(imageKey);
-      setLiveryVideoProgress(0);
-      try {
-        const token = getAuthToken();
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
-        const ticketRes = await fetch(`/api/admin/livery/${imageKey}/vimeo-ticket`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ fileSize: file.size }),
-        });
-        if (!ticketRes.ok) {
-          const err = await ticketRes.json();
-          throw new Error(err.message || "Failed to create upload ticket");
-        }
-        const ticket = await ticketRes.json();
-
-        await new Promise<void>((resolve, reject) => {
-          const upload = new tus.Upload(file, {
-            uploadUrl: ticket.uploadLink,
-            onError: (error) => reject(new Error(error.message || "Upload failed")),
-            onProgress: (bytesUploaded, bytesTotal) => {
-              setLiveryVideoProgress(Math.round((bytesUploaded / bytesTotal) * 100));
-            },
-            onSuccess: () => resolve(),
-          });
-          upload.start();
-        });
-
-        if (ticket.completeUri) {
-          try {
-            await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" });
-          } catch {}
-        }
-
-        const playerUrl = await fetchVimeoEmbedUrl(ticket.videoUri);
-
-        const urlRes = await fetch(`/api/admin/livery/${imageKey}/url`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify({ url: playerUrl }),
-        });
-        if (!urlRes.ok) throw new Error("Failed to save video URL");
-
-        queryClient.invalidateQueries({ queryKey: ["/api/livery"] });
-        toast({ title: "Video uploaded to Vimeo!" });
-      } catch (err: any) {
-        toast({ title: "Upload failed", description: err.message, variant: "destructive" });
-      } finally {
-        setLiveryVideoUploading(null);
-        setLiveryVideoProgress(0);
-      }
-    } else {
-      uploadLiveryMutation.mutate({ imageKey, file });
+      return;
     }
+    uploadLiveryMutation.mutate({ imageKey, file });
   };
 
   const pending = allContestants?.filter((c) => c.applicationStatus === "pending") || [];
@@ -2208,7 +2099,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               const current = questColorInput || saved;
               return (
                 <div className="mb-4 space-y-3">
-                  <p className="text-white/40 text-sm">Upload replacement images or short videos for Quest template slots. The main hero accepts videos up to 35 seconds; other slots accept up to 15 seconds. The hero also accepts a Vimeo URL.</p>
+                  <p className="text-white/40 text-sm">Upload replacement images or videos up to 35 MB for Quest template slots, or embed a video from a URL. Uploaded videos stay in Quest storage; URL embeds remain external.</p>
                   <div className="flex items-center gap-3 bg-zinc-900 border border-white/10 rounded-md px-3 py-2">
                     <span className="text-xs text-white/50 font-semibold uppercase tracking-wider whitespace-nowrap">Brand Color</span>
                     <input type="color" value={current} onChange={e => setQuestColorInput(e.target.value)} className="h-7 w-10 rounded cursor-pointer border-0 bg-transparent p-0" data-testid="input-quest-brand-color" />
@@ -2302,15 +2193,11 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Button
                           size="sm"
                           onClick={() => fileInputRefs.current[item.imageKey]?.click()}
-                          disabled={uploadLiveryMutation.isPending || liveryVideoUploading === item.imageKey}
+                          disabled={uploadLiveryMutation.isPending}
                           className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-xs"
                           data-testid={`button-upload-${item.imageKey}`}
                         >
-                          {liveryVideoUploading === item.imageKey ? (
-                            <><Video className="h-3 w-3 mr-1 animate-pulse" /> {liveryVideoProgress}%</>
-                          ) : (
-                            <><Upload className="h-3 w-3 mr-1" /> Upload</>
-                          )}
+                          <><Upload className="h-3 w-3 mr-1" /> Upload</>
                         </Button>
                         {(isHomepageSlot || item.imageKey === "hero_background") && (
                           <Button
