@@ -158,12 +158,10 @@ export default function HomePage() {
       {/* Hero / Banner */}
       <section
         id="home"
-        className="relative min-h-screen flex items-end justify-center overflow-hidden bg-black pb-32"
+        className="relative min-h-screen flex flex-col items-center overflow-hidden bg-black px-4 pt-24 pb-16"
       >
-        <MediaSlot url={bannerBg} alt="Hero background" mode="bg" fit="contain" clickToUnmute className="home-hero-media" />
-        <div className="absolute inset-0 bg-black/60 z-[1]" />
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold uppercase tracking-wider mb-6 drop-shadow-2xl">
+        <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col items-center text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold uppercase tracking-wider mb-5 drop-shadow-2xl">
             {heroTitle.startsWith("CB") ? (
               <>
                 <span style={{ color: "#2a2a2a", WebkitTextStroke: "1px rgba(255,255,255,0.5)" }}>C</span>
@@ -177,7 +175,13 @@ export default function HomePage() {
               <span className="text-white">{heroTitle}</span>
             )}
           </h1>
-          <p className="text-lg md:text-xl uppercase tracking-[0.3em] text-white/70 mb-10">
+
+          <div className="relative w-full aspect-video bg-black overflow-hidden">
+            <MediaSlot url={bannerBg} alt="Hero background" mode="bg" fit="contain" clickToUnmute />
+            <div className="absolute inset-0 bg-black/45 pointer-events-none" />
+          </div>
+
+          <p className="text-base sm:text-lg md:text-xl uppercase tracking-[0.2em] sm:tracking-[0.3em] text-white/70 mt-6 max-w-4xl">
             {(() => {
               const parts = heroSubtitle.split(/\s*[–—\-]+\s*/).filter(Boolean);
               return parts.length > 1

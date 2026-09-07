@@ -35,6 +35,16 @@ interface ContestantWithProfile {
   };
 }
 
+interface ContestantVideo {
+  uri: string;
+  name: string;
+  embedUrl: string;
+  duration: number;
+  width?: number;
+  height?: number;
+  thumbnail?: string | null;
+}
+
 interface CompetitionDetail {
   id: number;
   title: string;
@@ -71,8 +81,17 @@ export default function CompetitionDetailPage() {
     queryKey: ["/api/resolve/competition", categorySlug, compSlug],
     enabled: !!categorySlug && !!compSlug,
   });
+  const { data: contestantVideoData = [] } = useQuery<{ contestantId: number; videos: ContestantVideo[] }[]>({
+    queryKey: ["/api/resolve/competition", categorySlug, compSlug, "videos"],
+    enabled: !!competition && !!categorySlug && !!compSlug,
+    staleTime: 60_000,
+  });
 
   const id = competition?.id?.toString();
+  const contestantVideos = useMemo(
+    () => new Map(contestantVideoData.map(({ contestantId, videos }) => [contestantId, videos])),
+    [contestantVideoData],
+  );
 
   useSEO({
     title: competition ? `${competition.title} - ${competition.category} Competition` : "Competition",
@@ -282,6 +301,8 @@ export default function CompetitionDetailPage() {
             {sorted.map((contestant, index) => {
               const pct = maxVotes > 0 ? (contestant.voteCount / maxVotes) * 100 : 0;
               const rankIcon = index === 0 ? <Crown className="h-4 w-4 text-yellow-400" /> : index === 1 ? <Award className="h-4 w-4 text-gray-300" /> : index === 2 ? <Award className="h-4 w-4 text-orange-400" /> : null;
+              const videos = contestantVideos.get(contestant.id) || [];
+              const contestantHref = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.stageName || contestant.talentProfile.displayName)}`;
 
               return (
                 <div
@@ -289,13 +310,43 @@ export default function CompetitionDetailPage() {
                   className="group cursor-pointer transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]"
                   data-testid={`card-contestant-${contestant.id}`}
                 >
-                  <div className="relative overflow-hidden h-52">
-                    <FallbackImage
-                      src={(contestant as any).videoThumbnail || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
-                      fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
-                      alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
+                  <div
+                    className={`relative overflow-hidden bg-black ${videos.length > 0 ? "p-1 space-y-1" : "h-52"}`}
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest("iframe")) return;
+                      window.location.href = contestantHref;
+                    }}
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") window.location.href = contestantHref;
+                    }}
+                    aria-label={`View ${contestant.talentProfile.stageName || contestant.talentProfile.displayName}`}
+                  >
+                    {videos.length > 0 ? videos.map((video) => {
+                      const playerUrl = `${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1`;
+                      return (
+                        <div
+                          key={video.uri}
+                          className={`relative w-full overflow-hidden ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
+                        >
+                          <iframe
+                            src={playerUrl}
+                            className="absolute inset-0 w-full h-full"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            allowFullScreen
+                            title={`${contestant.talentProfile.displayName} — ${video.name}`}
+                          />
+                        </div>
+                      );
+                    }) : (
+                      <FallbackImage
+                        src={(contestant as any).videoThumbnail || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                        fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                        alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    )}
                     {rankIcon && (
                       <div className="absolute top-3 left-3 w-8 h-8 bg-black/70 flex items-center justify-center">
                         {rankIcon}

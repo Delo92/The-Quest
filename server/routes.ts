@@ -4963,6 +4963,48 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/resolve/competition/:categorySlug/:compSlug/videos", async (req, res) => {
+    try {
+      const { categorySlug, compSlug } = req.params;
+      const media = await getCachedPublicResponse(
+        `competition-videos:${categorySlug}:${compSlug}`,
+        60_000,
+        async () => {
+          const competitions = await storage.getCompetitions();
+          const comp = competitions.find(c =>
+            slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+          );
+          if (!comp) return null;
+
+          const contestants = await storage.getContestantsByCompetition(comp.id);
+          return Promise.all(contestants.map(async contestant => {
+            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
+              .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
+              .trim();
+            const talentVideos = await listTalentVideos(comp.title, talentName);
+            const videos = talentVideos.map(v => ({
+              uri: v.uri,
+              name: v.name,
+              link: v.link,
+              embedUrl: v.player_embed_url,
+              duration: v.duration,
+              width: v.width,
+              height: v.height,
+              thumbnail: getVideoThumbnail(v),
+            }));
+            return { contestantId: contestant.id, videos };
+          }));
+        },
+      );
+      if (!media) return res.status(404).json({ message: "Competition not found" });
+      setPublicCacheHeaders(res, 60);
+      res.json(media);
+    } catch (error: any) {
+      console.error("Competition video resolution error:", error);
+      res.status(500).json({ message: "Failed to load competition videos" });
+    }
+  });
+
   app.get("/api/resolve/competition/:categorySlug/:compSlug", async (req, res) => {
     try {
       const { categorySlug, compSlug } = req.params;

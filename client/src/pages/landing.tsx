@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { ChevronRight, Info, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import SiteNavbar from "@/components/site-navbar";
@@ -32,9 +32,6 @@ export default function Landing() {
     canonical: "https://thequest-2dc77.firebaseapp.com",
   });
   const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 150]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
   const { getImage, getMedia, getText } = useLivery();
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
   const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured"] });
@@ -83,25 +80,8 @@ export default function Landing() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <SiteNavbar />
 
-      <section ref={heroRef} className="relative min-h-screen flex items-end justify-center pb-4" style={{ overflow: "visible" }}>
-        <motion.div style={{ y: heroY }} className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black">
-          {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
-            <iframe
-              src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=0&autoplay=1&muted=1&loop=1&autopause=0&controls=0&title=0&byline=0&portrait=0") || ""}
-              className="w-full aspect-video pointer-events-none shrink-0"
-              allow="autoplay; fullscreen; picture-in-picture"
-              title="Hero background video"
-              aria-hidden="true"
-            />
-          ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
-            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full aspect-video object-contain shrink-0" autoPlay muted loop playsInline />
-          ) : (
-            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full aspect-video object-contain shrink-0" />
-          )}
-          <div className="absolute inset-0 bg-black/35" />
-        </motion.div>
-
-        <div className="relative z-10 text-center px-4 sm:px-8 w-full">
+      <section ref={heroRef} className="relative min-h-screen bg-black flex flex-col items-center px-4 sm:px-8 pt-28 pb-10">
+        <div className="relative z-10 text-center w-full max-w-6xl">
           {getText("hero_title_top", "") && (
           <motion.h6
             initial={{ opacity: 0, y: 30 }}
@@ -132,6 +112,28 @@ export default function Landing() {
             {getText("hero_title_main", "Talent Platform")}
           </motion.h2>
           )}
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.7 }}
+            className="relative mt-6 sm:mt-8 w-full aspect-video overflow-hidden bg-black"
+          >
+            {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
+              <iframe
+                src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=0&autoplay=1&muted=1&loop=1&autopause=0&controls=0&title=0&byline=0&portrait=0") || ""}
+                className="absolute inset-0 h-full w-full pointer-events-none"
+                allow="autoplay; fullscreen; picture-in-picture"
+                title="Hero background video"
+                aria-hidden="true"
+              />
+            ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
+              <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="absolute inset-0 w-full h-full object-contain" autoPlay muted loop playsInline />
+            ) : (
+              <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="absolute inset-0 w-full h-full object-contain" />
+            )}
+            <div className="absolute inset-0 bg-black/35 pointer-events-none" />
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}
