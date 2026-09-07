@@ -127,7 +127,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider">Votes</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider">Tournament points</p>
           <p className="text-lg font-bold text-orange-400">{report?.totalVotes ?? 0}</p>
         </div>
         <div>
@@ -178,7 +178,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
                   <span className="text-white/70">{entry.displayName}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-white/40">{entry.voteCount} votes</span>
+                  <span className="text-white/40">{entry.voteCount.toLocaleString()} points</span>
                   <span className="text-orange-400">{entry.votePercentage}%</span>
                 </div>
               </div>
@@ -414,17 +414,24 @@ export default function HostDashboard({ user }: { user: any }) {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white" data-testid="host-dashboard">
-      <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5">
+    <div className="min-h-screen bg-[#090909] text-white" data-testid="host-dashboard">
+      <nav className="sticky top-0 z-50 bg-[#090909]/90 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
           <Link href="/" className="flex items-center gap-2" data-testid="link-home">
             <CBLogo size="sm" showText={false} />
             <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-sm text-white/40 hidden sm:inline truncate max-w-[150px]">{user?.displayName || user?.email}</span>
-            <Badge className="bg-purple-500/20 text-purple-300 border-0">Host</Badge>
-            <Button variant="ghost" size="icon" onClick={() => logout()} data-testid="button-logout">
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] pl-1.5 pr-3 py-1.5">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-orange-500/20 text-orange-300 text-xs font-semibold">
+                  {(user?.displayName || user?.email || "H").charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-xs text-white/60 truncate max-w-[160px]">{user?.displayName || user?.email}</span>
+            </div>
+            <Badge className="bg-orange-500/15 text-orange-300 border border-orange-500/20">Host workspace</Badge>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-white/10" onClick={() => logout()} data-testid="button-logout" aria-label="Sign out">
               <LogOut className="h-4 w-4 text-white/60" />
             </Button>
           </div>
@@ -432,91 +439,98 @@ export default function HostDashboard({ user }: { user: any }) {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="font-serif text-xl sm:text-2xl font-bold" data-testid="host-dashboard-title">Host Dashboard</h1>
-            <p className="text-white/40 text-sm mt-1">Manage your competitions and contestants</p>
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-5 sm:p-6 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80 mb-2">Operations center</p>
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold" data-testid="host-dashboard-title">Host Dashboard</h1>
+              <p className="text-white/45 text-sm mt-2 max-w-xl">Keep your events moving, review applications, and monitor tournament performance from one place.</p>
+            </div>
+            <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="h-11 rounded-lg bg-orange-500 hover:bg-orange-400 border-0 text-white shadow-lg shadow-orange-950/30" data-testid="button-create-event">
+                  <Plus className="h-4 w-4 mr-2" /> New event
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-[#111] border-white/10 text-white max-w-lg">
+                <DialogHeader>
+                  <DialogTitle className="font-serif text-xl">Event Packages</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-white/50 mb-4">Choose a package to host your competition on The Quest.</p>
+                <div className="space-y-4">
+                  {eventPackages.map((pkg, i) => (
+                    <div key={i} className="rounded-md border border-white/10 p-4 hover:bg-white/5 transition-colors" data-testid={`package-${pkg.name.toLowerCase()}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-serif font-bold text-lg">{pkg.name}</h3>
+                        <span className="text-xl font-bold text-orange-400">${pkg.price}</span>
+                      </div>
+                      <p className="text-sm text-white/50 mb-3">{pkg.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-white/30">
+                          {pkg.maxEvents === 0 ? "Unlimited events" : `Up to ${pkg.maxEvents} event${pkg.maxEvents > 1 ? "s" : ""}`}
+                        </span>
+                        <Button
+                          size="sm"
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                          onClick={() => {
+                            toast({ title: "Coming soon", description: "Payment processing will be available shortly." });
+                          }}
+                          data-testid={`button-buy-${pkg.name.toLowerCase()}`}
+                        >
+                          <ShoppingCart className="h-3 w-3 mr-1" /> Purchase
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-white/20 text-center mt-2">Contact admin for custom enterprise pricing</p>
+              </DialogContent>
+            </Dialog>
           </div>
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white" data-testid="button-create-event">
-                <Plus className="h-4 w-4 mr-2" /> New Event
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-[#111] border-white/10 text-white max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="font-serif text-xl">Event Packages</DialogTitle>
-              </DialogHeader>
-              <p className="text-sm text-white/50 mb-4">Choose a package to host your competition on The Quest.</p>
-              <div className="space-y-4">
-                {eventPackages.map((pkg, i) => (
-                  <div key={i} className="rounded-md border border-white/10 p-4 hover:bg-white/5 transition-colors" data-testid={`package-${pkg.name.toLowerCase()}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-serif font-bold text-lg">{pkg.name}</h3>
-                      <span className="text-xl font-bold text-orange-400">${pkg.price}</span>
-                    </div>
-                    <p className="text-sm text-white/50 mb-3">{pkg.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-white/30">
-                        {pkg.maxEvents === 0 ? "Unlimited events" : `Up to ${pkg.maxEvents} event${pkg.maxEvents > 1 ? "s" : ""}`}
-                      </span>
-                      <Button
-                        size="sm"
-                        className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
-                        onClick={() => {
-                          toast({ title: "Coming soon", description: "Payment processing will be available shortly." });
-                        }}
-                        data-testid={`button-buy-${pkg.name.toLowerCase()}`}
-                      >
-                        <ShoppingCart className="h-3 w-3 mr-1" /> Purchase
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-white/20 text-center mt-2">Contact admin for custom enterprise pricing</p>
-            </DialogContent>
-          </Dialog>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="stat-competitions">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 sm:p-5 hover:border-orange-500/30 transition-colors" data-testid="stat-competitions">
             <div className="flex items-center gap-2 mb-1">
               <Trophy className="h-4 w-4 text-orange-400" />
               <span className="text-xs text-white/40 uppercase tracking-wider">My Events</span>
             </div>
-            <p className="text-2xl font-bold">{stats?.totalCompetitions ?? 0}</p>
+            <p className="text-2xl sm:text-3xl font-bold tabular-nums">{stats?.totalCompetitions ?? 0}</p>
           </div>
-          <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="stat-contestants">
+          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 sm:p-5 hover:border-blue-500/30 transition-colors" data-testid="stat-contestants">
             <div className="flex items-center gap-2 mb-1">
               <Users className="h-4 w-4 text-blue-400" />
               <span className="text-xs text-white/40 uppercase tracking-wider">Contestants</span>
             </div>
-            <p className="text-2xl font-bold">{stats?.totalContestants ?? 0}</p>
+            <p className="text-2xl sm:text-3xl font-bold tabular-nums">{stats?.totalContestants ?? 0}</p>
           </div>
-          <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="stat-votes">
+          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 sm:p-5 hover:border-green-500/30 transition-colors" data-testid="stat-votes">
             <div className="flex items-center gap-2 mb-1">
               <Vote className="h-4 w-4 text-green-400" />
-              <span className="text-xs text-white/40 uppercase tracking-wider">Total Votes</span>
+              <span className="text-xs text-white/40 uppercase tracking-wider">Tournament points</span>
             </div>
-            <p className="text-2xl font-bold">{stats?.totalVotes ?? 0}</p>
+            <p className="text-2xl sm:text-3xl font-bold tabular-nums">{(stats?.totalVotes ?? 0).toLocaleString()}</p>
           </div>
-          <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="stat-pending">
+          <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 sm:p-5 hover:border-yellow-500/30 transition-colors" data-testid="stat-pending">
             <div className="flex items-center gap-2 mb-1">
               <Award className="h-4 w-4 text-yellow-400" />
               <span className="text-xs text-white/40 uppercase tracking-wider">Pending</span>
             </div>
-            <p className="text-2xl font-bold">{stats?.pendingApplications ?? 0}</p>
+            <p className="text-2xl sm:text-3xl font-bold tabular-nums">{stats?.pendingApplications ?? 0}</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-white/90">Workspace</h2>
+            <p className="text-xs text-white/35 mt-1">Manage events, applications, and performance.</p>
+          </div>
           <InviteDialog senderLevel={3} />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
-            <TabsList className="bg-white/5 border border-white/10 inline-flex w-max sm:w-auto">
+            <TabsList className="bg-white/[0.04] border border-white/10 rounded-xl inline-flex w-max sm:w-auto p-1">
               <TabsTrigger value="overview" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300" data-testid="tab-overview">
                 <Trophy className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Events</span>
               </TabsTrigger>
