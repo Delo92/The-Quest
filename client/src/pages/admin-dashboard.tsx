@@ -236,15 +236,18 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
 
   const vimeoVideos = videosData?.vimeoVideos ?? [];
   const mediaCompetitions = useMemo(() => {
-    if (!data) return [];
-    const stats = [...data.activeStats, ...data.pastStats, ...data.upcomingEvents];
-    const seen = new Set<number>();
-    return stats.filter((stat) => {
-      if (seen.has(stat.competitionId)) return false;
-      seen.add(stat.competitionId);
-      return true;
-    });
-  }, [data]);
+    const assigned = data ? [...data.activeStats, ...data.pastStats, ...data.upcomingEvents] : [];
+    const assignedIds = new Set(assigned.map((stat) => stat.competitionId));
+    const otherCompetitions = (competitions || [])
+      .filter((competition) => !assignedIds.has(competition.id))
+      .map((competition) => ({
+        competitionId: competition.id,
+        competitionTitle: competition.title,
+        competitionStatus: competition.status,
+        applicationStatus: "admin-selected",
+      }));
+    return [...assigned, ...otherCompetitions];
+  }, [data, competitions]);
 
   useEffect(() => {
     if (!mediaCompetitionInitializedRef.current && mediaCompetitions.length > 0) {
