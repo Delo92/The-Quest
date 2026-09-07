@@ -34,7 +34,9 @@ export default function Landing() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { getImage, getMedia, getText } = useLivery();
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
-  const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured"] });
+  const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured?placement=hero"] });
+  const featuredCountdownDate = featuredComp?.votingEndDate ? new Date(featuredComp.votingEndDate) : null;
+  const hasFeaturedCountdown = !!featuredCountdownDate && !Number.isNaN(featuredCountdownDate.getTime()) && featuredCountdownDate > new Date();
 
   const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
     if (cat.videoUrl) return { url: cat.videoUrl, type: "video" };
@@ -144,6 +146,41 @@ export default function Landing() {
             <HeroCoverflowGallery />
           </motion.div>
 
+          {featuredComp && (
+            <motion.div
+              initial={false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mt-8 sm:mt-10 w-full max-w-3xl"
+              data-testid="featured-countdown-panel"
+            >
+              <div className="relative overflow-hidden border border-[#FF5A09]/40 bg-[#111] px-5 py-6 sm:px-8 shadow-[0_18px_50px_rgba(0,0,0,0.45)]">
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#FF5A09] to-transparent" />
+                <p className="text-[#FF5A09] text-[10px] sm:text-xs uppercase tracking-[4px] text-center mb-2">
+                  Featured Competition
+                </p>
+                <p className="text-white text-base sm:text-lg uppercase tracking-[2px] text-center font-semibold" data-testid="text-featured-comp-name">
+                  {featuredComp.title}
+                </p>
+                <div className="mt-6">
+                  {hasFeaturedCountdown && featuredCountdownDate ? (
+                    <FlipCountdown
+                      targetDate={featuredCountdownDate}
+                      title="Voting Closes In"
+                    />
+                  ) : (
+                    <div className="text-center border border-white/10 bg-black/30 px-4 py-5" data-testid="featured-countdown-unavailable">
+                      <p className="text-white/70 text-xs sm:text-sm uppercase tracking-[3px]">Countdown unavailable</p>
+                      <p className="text-white/40 text-xs mt-2">
+                        Set a voting end date for this competition to activate the timer.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -202,22 +239,6 @@ export default function Landing() {
             </motion.p>
           )}
 
-          {featuredComp && featuredComp.votingEndDate && new Date(featuredComp.votingEndDate) > new Date() && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 2.0 }}
-              className="mt-12 sm:mt-16"
-            >
-              <FlipCountdown
-                targetDate={new Date(featuredComp.votingEndDate)}
-                title="Voting Closes In"
-              />
-              <p className="text-center text-white/40 text-xs uppercase tracking-widest mt-3" data-testid="text-featured-comp-name">
-                {featuredComp.title}
-              </p>
-            </motion.div>
-          )}
         </div>
       </section>
 

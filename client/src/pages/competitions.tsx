@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Users, Search, Megaphone, ArrowRight } from "lucide-react";
+import { Calendar, Users, Search, Megaphone, ArrowRight, Star } from "lucide-react";
 import { Link } from "wouter";
 import type { Competition } from "@shared/schema";
 import { slugify } from "@shared/slugify";
@@ -161,12 +161,18 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
   const websiteName = getText("site_name", "The Quest");
   return (
     <div
-      className="group transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]"
+      className="group relative overflow-hidden rounded-sm border border-white/10 bg-[#101010] shadow-[0_16px_35px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FF5A09]/60 hover:shadow-[0_20px_45px_rgba(0,0,0,0.65)]"
       data-testid={`card-competition-${competition.id}`}
     >
       <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
         <div className="cursor-pointer">
-          <div className="overflow-hidden relative h-52">
+          <div className="overflow-hidden relative h-52 border-b border-white/10 bg-[#080808]">
+            {competition.isFeatured && (
+              <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 border border-[#FF5A09]/60 bg-black/85 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[2px] text-[#FF5A09] shadow-lg">
+                <Star className="h-3 w-3 fill-current" />
+                Featured
+              </div>
+            )}
             {competition.coverVideo ? (
               competition.coverVideo.includes("vimeo.com") ? (
                 <iframe
@@ -193,31 +199,31 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
               />
             )}
           </div>
-          <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
+          <div className="bg-[#101010] group-hover:bg-[#171717] text-center py-6 px-4 transition-colors duration-300">
             <h4
-              className="text-white group-hover:text-black uppercase font-bold text-base mb-3 transition-colors duration-500"
+              className="text-white uppercase font-bold text-base mb-3 transition-colors duration-300"
               data-testid={`text-title-${competition.id}`}
             >
               {competition.title}
             </h4>
             <div className="mb-4">
-              <span className="text-white/60 group-hover:text-black/60 text-[15px] transition-colors duration-500 inline-flex items-center gap-1.5">
+              <span className="text-white/60 text-[15px] inline-flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" />
                 {(competition as any).endDateTbd ? "TBD" : competition.endDate ? new Date(competition.endDate).toLocaleDateString() : "Open"}
               </span>
-              <span className="text-white/40 group-hover:text-black/40 mx-3 transition-colors duration-500">|</span>
-              <span className="text-white/60 group-hover:text-black/60 text-[15px] transition-colors duration-500 inline-flex items-center gap-1.5">
+              <span className="text-white/30 mx-3">|</span>
+              <span className="text-white/60 text-[15px] inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" />
                 {competition.category}
               </span>
             </div>
             {competition.hostedBy && (
-              <p className="text-white/40 group-hover:text-black/40 text-[13px] mb-3 transition-colors duration-500" data-testid={`text-hosted-by-${competition.id}`}>
+              <p className="text-white/40 text-[13px] mb-3" data-testid={`text-hosted-by-${competition.id}`}>
                 Hosted by {competition.hostedBy === "admin" ? websiteName : competition.hostedBy}
               </p>
             )}
             <span
-              className="inline-block bg-white/20 group-hover:bg-black/80 text-white text-[11px] font-bold uppercase px-5 py-2 tracking-widest transition-all duration-500 backdrop-blur-sm"
+              className="inline-block border border-white/20 bg-white/10 text-white text-[11px] font-bold uppercase px-5 py-2 tracking-widest transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
               style={{ letterSpacing: "4px" }}
             >
               See Competition
@@ -225,7 +231,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
           </div>
         </div>
       </Link>
-      <div className="bg-black group-hover:bg-[#f5f9fa] border-t border-white/5 group-hover:border-black/10 px-4 pb-6 pt-4 flex flex-wrap items-center justify-center gap-3 transition-all duration-500">
+      <div className="bg-[#101010] border-t border-white/10 px-4 pb-6 pt-4 flex flex-wrap items-center justify-center gap-3">
         <Link
           href={`/join?competition=${competition.id}`}
           className="inline-block bg-[#FF5A09] text-white font-bold text-xs uppercase px-5 leading-[36px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"

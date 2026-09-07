@@ -958,7 +958,10 @@ export async function registerRoutes(
         const all = await storage.getCompetitions();
         const nonDraft = all.filter(c => c.status !== "draft");
 
-        const explicitly = nonDraft.find(c => (c as any).isFeatured && c.votingEndDate && new Date(c.votingEndDate) > now);
+        const explicitly = nonDraft.find(c =>
+          (c as any).isFeatured &&
+          (c.status === "active" || c.status === "voting")
+        );
         if (explicitly) return explicitly;
 
         const withEnd = nonDraft.filter(c => c.votingEndDate && new Date(c.votingEndDate) > now);
@@ -966,7 +969,9 @@ export async function registerRoutes(
         withEnd.sort((a, b) => new Date(a.votingEndDate!).getTime() - new Date(b.votingEndDate!).getTime());
         return withEnd[0];
       });
-      setPublicCacheHeaders(res, 30);
+      // The featured selection can be changed from the admin dashboard.
+      // Avoid browser-sticking an old null response after that change.
+      res.setHeader("Cache-Control", "no-store");
       return res.json(featured);
     } catch (error: any) {
       console.error("Featured competition error:", error);
