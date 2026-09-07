@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "CqFu9KVAsHn6498pJpVq7"
+uri = "file://attached_assets/music-quest-launchpad-voting-clarified.html"
+type = "text"
+title = "Music Quest Launchpad — Voting Rules Explained"
+description = "A responsive standalone HTML explainer that separates free votes, purchased votes, ranking points, the default 60-point free-vote multiplier, and online-versus-in-person weighting."
+logical_id = "77dc6a47-dbd5-4b61-8979-18e9079b8967"
+content_hash = "sha256:6376221809522e27fc50477f849fe7803840d8a4fbb68a5860c2584726d8f317"
+size = 17209
+mtime_ms = 1788803466492
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/77dc6a47-dbd5-4b61-8979-18e9079b8967/e81e33ce-9e26-4cd1-90aa-db68305c52a6"
+storage_version_token = "1788803478676213"
+content_type = "text/html"
