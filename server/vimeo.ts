@@ -143,7 +143,11 @@ export async function listTalentVideos(competitionName: string, talentName: stri
     const folder = await getChronicTVContestantVimeoFolder(competitionName, talentName);
     const videosUri = folder.metadata?.connections?.videos?.uri || `${folder.uri}/videos`;
     const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
-    return data.data || [];
+    const videos = data.data || [];
+    if (videos.length > 0) return videos;
+    const prefix = `${safeCompName} - ${safeTalentName} -`;
+    const searchData = await vimeoRequest(`/me/videos?per_page=50&sort=date&direction=desc&query=${encodeURIComponent(prefix)}`);
+    return (searchData.data || []).filter((v: VimeoVideo) => v.name?.startsWith(prefix));
   } catch {
     try {
       const prefix = `${safeCompName} - ${safeTalentName} -`;

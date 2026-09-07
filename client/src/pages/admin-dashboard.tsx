@@ -250,11 +250,6 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   }, [data, competitions]);
 
   useEffect(() => {
-    if (!mediaCompetitionInitializedRef.current && mediaCompetitions.length > 0) {
-      setMediaCompetitionId(String(mediaCompetitions[0].competitionId));
-      mediaCompetitionInitializedRef.current = true;
-      return;
-    }
     if (mediaCompetitionId !== "none" && !mediaCompetitions.some((stat) => String(stat.competitionId) === mediaCompetitionId)) {
       setMediaCompetitionId("none");
     }
@@ -415,16 +410,22 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
         throw new Error(error?.message || "Video finalization failed");
       }
 
-      await refetchVideos();
-      let pollCount = 0;
-      const pollInterval = setInterval(() => {
-        pollCount += 1;
-        queryClient.invalidateQueries({ queryKey: ["/api/admin/users", profileId, "videos"] });
-        if (pollCount >= 6) clearInterval(pollInterval);
-      }, 5000);
+      let videoVisible = false;
+      const videoId = String(ticket.videoUri || "").split("/").pop();
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const refreshed = await refetchVideos();
+        videoVisible = !!refreshed.data?.vimeoVideos?.some((video) => {
+          const listedId = String(video.uri || "").split("/").pop();
+          return video.uri === ticket.videoUri || (!!videoId && listedId === videoId);
+        });
+        if (videoVisible || attempt === 7) break;
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
       toast({
-        title: "Video uploaded",
-        description: "One video was saved to the selected competition.",
+        title: videoVisible ? "Video uploaded" : "Video upload processing",
+        description: videoVisible
+          ? "One video was saved to the selected competition and is now visible."
+          : "The upload completed, but Vimeo is still indexing it. It will appear in the Videos section when processing finishes.",
       });
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
