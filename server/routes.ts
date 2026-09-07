@@ -2993,15 +2993,15 @@ export async function registerRoutes(
         )
       ).flat();
 
-      const vimeoVideos = rawVideos.map((v: any) => ({
-        uri: v.uri,
-        name: v.name,
-        link: v.link,
-        embedUrl: v.player_embed_url,
-        duration: v.duration,
-        thumbnail: getVideoThumbnail(v),
-        competitionFolder: v.competitionFolder,
-      }));
+       const vimeoVideos = await Promise.all(rawVideos.map(async (v: any) => ({
+         uri: v.uri,
+         name: v.name,
+         link: v.link,
+         embedUrl: v.player_embed_url,
+         duration: v.duration,
+         thumbnail: await resolveVideoThumbnail(v),
+         competitionFolder: v.competitionFolder,
+       })));
 
       res.json({ vimeoVideos });
     } catch (error: any) {

@@ -617,7 +617,13 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
                 {vimeoVideos.map((vid) => (
                   <div key={vid.uri} className="flex items-center gap-3 rounded-md bg-white/5 p-2" data-testid={`vimeo-vid-${vid.uri}`}>
                     <a href={vid.link} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-center gap-3">
-                      {vid.thumbnail && <img src={vid.thumbnail} alt={vid.name} className="w-16 h-10 object-cover rounded shrink-0" />}
+                      {vid.thumbnail ? (
+                        <img src={vid.thumbnail} alt={vid.name} className="w-16 h-10 object-cover rounded shrink-0" />
+                      ) : (
+                        <div className="w-16 h-10 rounded shrink-0 bg-white/10 flex items-center justify-center">
+                          <Video className="h-4 w-4 text-white/40" aria-hidden="true" />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{vid.name}</p>
                         {vid.competitionFolder && <p className="text-xs text-white/30">{vid.competitionFolder}</p>}
