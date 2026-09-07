@@ -228,7 +228,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
     queryKey: ["/api/admin/users", profileId, "detail"],
   });
 
-  const { data: videosData, isLoading: videosLoading } = useQuery<{ vimeoVideos: VimeoVideo[] }>({
+  const { data: videosData, isLoading: videosLoading, refetch: refetchVideos } = useQuery<{ vimeoVideos: VimeoVideo[] }>({
     queryKey: ["/api/admin/users", profileId, "videos"],
     enabled: !!data, // only fetch after profile is loaded
     staleTime: 60_000,
@@ -395,8 +395,20 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
       });
 
       await uploadToVimeo(ticket.uploadLink);
-      if (ticket.chronicTV?.uploadLink) await uploadToVimeo(ticket.chronicTV.uploadLink);
-      if (ticket.customFolder?.uploadLink) await uploadToVimeo(ticket.customFolder.uploadLink);
+      const backupCompleteUris: string[] = [];
+      const backupFailures: string[] = [];
+      const uploadBackup = async (label: string, backup: { uploadLink?: string; completeUri?: string } | null | undefined) => {
+        if (!backup?.uploadLink) return;
+        try {
+          await uploadToVimeo(backup.uploadLink);
+          if (backup.completeUri) backupCompleteUris.push(backup.completeUri);
+        } catch (error: any) {
+          backupFailures.push(label);
+          console.warn(`Admin ${label} video backup failed:`, error.message);
+        }
+      };
+      await uploadBackup("ChronicTV", ticket.chronicTV);
+      await uploadBackup("custom-folder", ticket.customFolder);
 
       const finalizeResponse = await fetch("/api/vimeo/finalize-upload", {
         method: "POST",
@@ -408,8 +420,8 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
           videoUri: ticket.videoUri,
           competitionId: uploadCompetitionId,
           completeUri: ticket.completeUri || null,
-          chronicTVCompleteUri: ticket.chronicTV?.completeUri || null,
-          customFolderCompleteUri: ticket.customFolder?.completeUri || null,
+          chronicTVCompleteUri: backupCompleteUris[0] || null,
+          customFolderCompleteUri: backupCompleteUris[1] || null,
         }),
       });
       if (!finalizeResponse.ok) {
@@ -417,8 +429,19 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
         throw new Error(error?.message || "Video finalization failed");
       }
 
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", profileId, "videos"] });
-      toast({ title: "Video uploaded", description: "The video may take a moment to appear." });
+      await refetchVideos();
+      let pollCount = 0;
+      const pollInterval = setInterval(() => {
+        pollCount += 1;
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/users", profileId, "videos"] });
+        if (pollCount >= 6) clearInterval(pollInterval);
+      }, 5000);
+      toast({
+        title: "Video uploaded",
+        description: backupFailures.length > 0
+          ? `Saved to Quest. Backup copy unavailable: ${backupFailures.join(", ")}.`
+          : "The video may take a moment to appear.",
+      });
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {

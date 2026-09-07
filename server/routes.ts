@@ -4739,26 +4739,28 @@ export async function registerRoutes(
 
       const callCompleteUri = async (uri: string | undefined) => {
         if (!uri) return;
-        try {
-          await fetch(`https://api.vimeo.com${uri}`, {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${process.env.VIMEO_ACCESS_TOKEN}`,
-              Accept: "application/vnd.vimeo.*+json;version=3.4",
-            },
-          });
-        } catch (e: any) {
-          console.warn("Vimeo completeUri call failed:", e.message);
+        const response = await fetch(`https://api.vimeo.com${uri}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${process.env.VIMEO_ACCESS_TOKEN}`,
+            Accept: "application/vnd.vimeo.*+json;version=3.4",
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Vimeo completion failed with status ${response.status}`);
         }
       };
 
-      await Promise.all([
-        callCompleteUri(completeUri),
+      await callCompleteUri(completeUri);
+      const backupResults = await Promise.allSettled([
         callCompleteUri(chronicTVCompleteUri),
         callCompleteUri(customFolderCompleteUri),
       ]);
+      const warnings = backupResults
+        .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+        .map((result) => result.reason?.message || "Backup completion failed");
 
-      res.json({ success: true });
+      res.json({ success: true, warnings });
     } catch (error: any) {
       console.error("Finalize upload error:", error);
       res.status(500).json({ message: "Failed to finalize upload" });
