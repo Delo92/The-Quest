@@ -22,6 +22,7 @@ interface ContestantWithProfile {
   talentProfileId: number;
   applicationStatus: string;
   voteCount: number;
+  tournamentPoints?: number;
   talentProfile: {
     id: number;
     displayName: string;
@@ -126,7 +127,9 @@ export default function CompetitionDetailPage() {
   const isVotingOpen = competition.status === "voting" || competition.status === "active";
   const isInPersonOnlyEvent = (competition as any).inPersonOnly === true;
   const canVote = isVotingOpen && (!isInPersonOnlyEvent || isInPersonVoting);
-  const sorted = [...(competition.contestants || [])].sort((a, b) => b.voteCount - a.voteCount);
+  const sorted = [...(competition.contestants || [])].sort(
+    (a, b) => (b.tournamentPoints ?? b.voteCount) - (a.tournamentPoints ?? a.voteCount)
+  );
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -252,7 +255,7 @@ export default function CompetitionDetailPage() {
             )}
             <span className="flex items-center gap-1.5">
               <Vote className="h-4 w-4 text-white/30" />
-              {competition.totalVotes.toLocaleString()} tournament points
+              {competition.totalVotes.toLocaleString()} total votes
             </span>
             {competition.voteCost > 0 && (
               <span className="flex items-center gap-1.5">

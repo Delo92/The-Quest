@@ -34,6 +34,7 @@ interface ResolvedData {
     competitionId: number;
     talentProfileId: number;
     voteCount: number;
+    tournamentPoints?: number;
     videoThumbnail: string | null;
     videos: {
       uri: string;

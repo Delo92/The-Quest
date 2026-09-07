@@ -4700,7 +4700,12 @@ export async function registerRoutes(
               videoThumbnail = await resolveVideoThumbnail(videos[0]);
             }
           } catch {}
-          return { ...contestant, videoThumbnail };
+          return {
+            ...contestant,
+            voteCount: contestant.rawVoteCount,
+            tournamentPoints: contestant.voteCount,
+            videoThumbnail,
+          };
         })
       );
 
@@ -4798,7 +4803,13 @@ export async function registerRoutes(
 
       res.json({
         competition: comp,
-        contestant: { ...contestant, videoThumbnail, videos },
+        contestant: {
+          ...contestant,
+          voteCount: contestant.rawVoteCount,
+          tournamentPoints: contestant.voteCount,
+          videoThumbnail,
+          videos,
+        },
         totalVotes,
       });
     } catch (error: any) {
