@@ -964,9 +964,16 @@ export async function registerRoutes(
         );
         if (explicitly) return explicitly;
 
-        const withEnd = nonDraft.filter(c => c.votingEndDate && new Date(c.votingEndDate) > now);
+        const withEnd = nonDraft.filter(c => {
+          const end = c.votingEndDate || c.endDate;
+          return end && new Date(end) > now;
+        });
         if (withEnd.length === 0) return null;
-        withEnd.sort((a, b) => new Date(a.votingEndDate!).getTime() - new Date(b.votingEndDate!).getTime());
+        withEnd.sort((a, b) => {
+          const aEnd = a.votingEndDate || a.endDate;
+          const bEnd = b.votingEndDate || b.endDate;
+          return new Date(aEnd!).getTime() - new Date(bEnd!).getTime();
+        });
         return withEnd[0];
       });
       // The featured selection can be changed from the admin dashboard.
