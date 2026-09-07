@@ -20,3 +20,9 @@ The admin media competition selector must remain empty until the administrator e
 **Why:** Defaulting to the first competition can route media incorrectly, and Vimeo indexing can lag behind upload completion.
 
 **How to apply:** Block video upload when no competition is selected and poll the selected folder briefly after finalization.
+
+Admin can create profile-only talent records without email or login credentials; these records can still be assigned to a competition and receive admin-managed media.
+
+**Why:** Some talent submissions arrive with names and media only, so inventing login credentials or sending invitations is inappropriate.
+
+**How to apply:** Use a non-login internal profile identity, set role to talent, and create the approved competition assignment before adding media.
