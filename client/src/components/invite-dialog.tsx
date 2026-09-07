@@ -225,16 +225,27 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
 
           <div className="space-y-1.5">
             <Label className="text-white/60">Temporary Password (optional)</Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Leave blank to use the default password"
-              minLength={6}
-              autoComplete="new-password"
-              className="bg-white/5 border-white/10 text-white"
-              data-testid="input-invite-password"
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Leave blank to use the default password"
+                minLength={6}
+                autoComplete="new-password"
+                className="bg-white/5 border-white/10 text-white pr-10"
+                data-testid="input-invite-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-white/45 hover:bg-white/10 hover:text-white"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                data-testid="button-toggle-invite-password"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             <p className="text-[11px] text-white/35">
               Used only when this invitation creates a new account. Minimum 6 characters.
             </p>
@@ -453,14 +464,25 @@ export function CreateUserDialog() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-white/60">Password</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 6 characters"
-                className="bg-white/5 border-white/10 text-white"
-                data-testid="input-create-password"
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="bg-white/5 border-white/10 text-white pr-10"
+                  data-testid="input-create-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-white/45 hover:bg-white/10 hover:text-white"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  data-testid="button-toggle-create-password"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-white/60">Role</Label>
