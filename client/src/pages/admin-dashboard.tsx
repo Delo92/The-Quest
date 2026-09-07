@@ -120,6 +120,9 @@ interface HostProfile {
   bio: string | null;
   category: string | null;
   imageUrls: string[];
+  email?: string | null;
+  profileImageUrl?: string | null;
+  socialLinks?: Record<string, string> | string | null;
   role: string;
   competitionCount: number;
   activeCompetitions: number;
@@ -3562,14 +3565,19 @@ export default function AdminDashboard({ user }: { user: any }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {paginatedHosts.map((host) => (
                     <div key={host.userId} className="rounded-md bg-white/5 border border-white/5 overflow-visible" data-testid={`host-card-${host.userId}`}>
-                      <div className="relative h-[200px] rounded-t-md flex flex-col justify-end bg-gradient-to-b from-purple-900/40 to-black">
-                        <div className="absolute inset-0 rounded-t-md flex items-center justify-center">
-                          <Users className="h-16 w-16 text-white/10" />
-                        </div>
+                      <div className="relative h-[200px] rounded-t-md flex flex-col justify-end bg-gradient-to-b from-purple-900/40 to-black overflow-hidden">
+                        {(host.profileImageUrl || host.imageUrls?.[0]) ? (
+                          <img src={host.profileImageUrl || host.imageUrls?.[0]} alt={`${host.displayName} profile`} className="absolute inset-0 w-full h-full object-cover opacity-75" />
+                        ) : (
+                          <div className="absolute inset-0 rounded-t-md flex items-center justify-center">
+                            <Users className="h-16 w-16 text-white/10" />
+                          </div>
+                        )}
                         <div className="absolute inset-0 rounded-t-md bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                         <div className="relative z-10 p-4">
                           <h3 className="font-bold text-lg text-white drop-shadow-md">{host.displayName}</h3>
                           {host.stageName && <p className="text-xs text-white/50">{host.stageName}</p>}
+                          {host.email && <p className="text-xs text-white/45 truncate max-w-[280px]">{host.email}</p>}
                           <div className="flex flex-wrap items-center gap-3 mt-1">
                             <Badge className="border-0 bg-purple-500/20 text-purple-300">Host</Badge>
                             <span className="text-xs text-white/60">{host.competitionCount} competition{host.competitionCount !== 1 ? "s" : ""}</span>
@@ -3579,6 +3587,9 @@ export default function AdminDashboard({ user }: { user: any }) {
                           </div>
                         </div>
                       </div>
+                      {host.bio && (
+                        <div className="px-4 pt-3 text-xs leading-relaxed text-white/50 line-clamp-2">{host.bio}</div>
+                      )}
                       <div className="flex flex-wrap items-center justify-between gap-2 p-4">
                         <Button
                           variant="ghost"

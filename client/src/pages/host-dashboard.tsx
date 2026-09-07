@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download } from "lucide-react";
+import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download, Settings, UserCircle, EyeOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteDialog } from "@/components/invite-dialog";
@@ -210,6 +210,61 @@ export default function HostDashboard({ user }: { user: any }) {
   const [calendarSelectedComp, setCalendarSelectedComp] = useState<number | null>(null);
   const [editingCompId, setEditingCompId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountForm, setAccountForm] = useState<any>({});
+  const [accountPassword, setAccountPassword] = useState("");
+  const [showAccountPassword, setShowAccountPassword] = useState(false);
+  const [profileImageUploading, setProfileImageUploading] = useState(false);
+
+  const { data: myProfile, refetch: refetchMyProfile } = useQuery<any>({
+    queryKey: ["/api/talent-profiles/me"],
+  });
+
+  const updateAccountMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("PATCH", "/api/auth/profile", data);
+      return res.json();
+    },
+    onSuccess: (updated) => {
+      setAccountForm((current: any) => ({ ...current, ...updated }));
+      setAccountPassword("");
+      refetchMyProfile();
+      toast({ title: "Account updated", description: "Your host profile changes are saved." });
+    },
+    onError: (err: Error) => toast({ title: "Could not update account", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" }),
+  });
+
+  const uploadProfileImage = async (file: File) => {
+    setProfileImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("/api/talent-profiles/me/image", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload failed");
+      setAccountForm((current: any) => ({ ...current, profileImageUrl: data.url }));
+      await refetchMyProfile();
+      toast({ title: "Profile image updated" });
+    } catch (err: any) {
+      toast({ title: "Image upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setProfileImageUploading(false);
+    }
+  };
+
+  const openAccountEditor = () => {
+    setAccountForm({
+      email: user?.email || "",
+      displayName: user?.displayName || "",
+      stageName: user?.stageName || "",
+      bio: myProfile?.bio || "",
+      category: myProfile?.category || "",
+      location: myProfile?.location || "",
+      profileImageUrl: user?.profileImageUrl || myProfile?.imageUrls?.[0] || "",
+    });
+    setAccountPassword("");
+    setAccountOpen(true);
+  };
 
   const { data: stats } = useQuery<HostStats>({
     queryKey: ["/api/host/stats"],
@@ -423,14 +478,19 @@ export default function HostDashboard({ user }: { user: any }) {
             <span className="font-serif text-xl font-bold">The Quest</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] pl-1.5 pr-3 py-1.5">
+            <Button variant="ghost" onClick={openAccountEditor} className="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] pl-1.5 pr-3 py-1.5 h-auto hover:bg-white/10" data-testid="button-host-account">
               <Avatar className="h-7 w-7">
+                <AvatarImage src={accountForm.profileImageUrl || user?.profileImageUrl || myProfile?.imageUrls?.[0] || ""} />
                 <AvatarFallback className="bg-orange-500/20 text-orange-300 text-xs font-semibold">
-                  {(user?.displayName || user?.email || "H").charAt(0).toUpperCase()}
+                  {(accountForm.displayName || user?.displayName || user?.email || "H").charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-white/60 truncate max-w-[160px]">{user?.displayName || user?.email}</span>
-            </div>
+              <span className="text-xs text-white/60 truncate max-w-[160px]">{accountForm.displayName || user?.displayName || user?.email}</span>
+              <Settings className="h-3.5 w-3.5 text-white/35" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={openAccountEditor} className="sm:hidden h-9 w-9 rounded-full hover:bg-white/10" aria-label="Edit account" data-testid="button-host-account-mobile">
+              <UserCircle className="h-5 w-5 text-white/60" />
+            </Button>
             <Badge className="bg-orange-500/15 text-orange-300 border border-orange-500/20">Host workspace</Badge>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-white/10" onClick={() => logout()} data-testid="button-logout" aria-label="Sign out">
               <LogOut className="h-4 w-4 text-white/60" />
@@ -438,6 +498,92 @@ export default function HostDashboard({ user }: { user: any }) {
           </div>
         </div>
       </nav>
+
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <DialogContent className="bg-[#111] border-white/10 text-white w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl">Host account</DialogTitle>
+            <p className="text-sm text-white/45">Manage your login and public host profile.</p>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={accountForm.profileImageUrl || user?.profileImageUrl || myProfile?.imageUrls?.[0] || ""} />
+                <AvatarFallback className="bg-orange-500/20 text-orange-300 text-2xl">
+                  {(accountForm.displayName || user?.displayName || "H").charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <p className="font-semibold">{accountForm.displayName || user?.displayName || "Host"}</p>
+                <p className="text-xs text-white/40 mt-1">{accountForm.email || user?.email}</p>
+                <label className="inline-flex items-center gap-2 mt-3 cursor-pointer text-xs text-orange-300 hover:text-orange-200">
+                  <ImageUp className="h-4 w-4" />
+                  {profileImageUploading ? "Uploading..." : "Upload profile image"}
+                  <input type="file" accept="image/*" className="hidden" disabled={profileImageUploading} onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadProfileImage(file);
+                    e.target.value = "";
+                  }} data-testid="input-host-profile-image" />
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Login email</Label>
+                <Input value={accountForm.email || ""} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2" type="email" data-testid="input-host-account-email" />
+              </div>
+              <div>
+                <Label>New password</Label>
+                <div className="relative mt-2">
+                  <Input value={accountPassword} onChange={(e) => setAccountPassword(e.target.value)} className="bg-white/[0.06] border-white/15 text-white pr-10" type={showAccountPassword ? "text" : "password"} placeholder="Leave blank to keep current" minLength={6} data-testid="input-host-account-password" />
+                  <button type="button" onClick={() => setShowAccountPassword(!showAccountPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/45 hover:text-white" aria-label={showAccountPassword ? "Hide password" : "Show password"}>
+                    {showAccountPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label>Display name</Label>
+                <Input value={accountForm.displayName || ""} onChange={(e) => setAccountForm({ ...accountForm, displayName: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2" data-testid="input-host-account-name" />
+              </div>
+              <div>
+                <Label>Public/stage name</Label>
+                <Input value={accountForm.stageName || ""} onChange={(e) => setAccountForm({ ...accountForm, stageName: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2" data-testid="input-host-account-stage-name" />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Input value={accountForm.category || ""} onChange={(e) => setAccountForm({ ...accountForm, category: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2" placeholder="Music, dance, community..." data-testid="input-host-account-category" />
+              </div>
+              <div>
+                <Label>Location</Label>
+                <Input value={accountForm.location || ""} onChange={(e) => setAccountForm({ ...accountForm, location: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2" placeholder="City, State" data-testid="input-host-account-location" />
+              </div>
+            </div>
+            <div>
+              <Label>Bio</Label>
+              <Textarea value={accountForm.bio || ""} onChange={(e) => setAccountForm({ ...accountForm, bio: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2 min-h-28" placeholder="Tell contestants and viewers about you." data-testid="input-host-account-bio" />
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 border-t border-white/10 pt-4">
+              <Button variant="ghost" onClick={() => setAccountOpen(false)} className="text-white/55">Cancel</Button>
+              <Button
+                disabled={updateAccountMutation.isPending || (!!accountPassword && accountPassword.length < 6) || !accountForm.email?.trim() || !accountForm.displayName?.trim()}
+                onClick={() => updateAccountMutation.mutate({
+                  email: accountForm.email.trim(),
+                  displayName: accountForm.displayName.trim(),
+                  stageName: accountForm.stageName?.trim() || null,
+                  bio: accountForm.bio?.trim() || null,
+                  category: accountForm.category?.trim() || null,
+                  location: accountForm.location?.trim() || null,
+                  ...(accountPassword ? { password: accountPassword } : {}),
+                })}
+                className="bg-orange-500 hover:bg-orange-400 border-0 text-white"
+                data-testid="button-save-host-account"
+              >
+                {updateAccountMutation.isPending ? "Saving..." : "Save account"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-5 sm:p-6 mb-6">

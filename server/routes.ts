@@ -2268,14 +2268,18 @@ export async function registerRoutes(
       }));
       const hostProfiles = await storage.getHostProfiles();
       const allComps = await storage.getCompetitions();
-      const hosts = hostProfiles.map(h => {
+      const hosts = await Promise.all(hostProfiles.map(async (h) => {
         const hostComps = allComps.filter(c => c.createdBy === h.userId);
+        const fsUser = await getFirestoreUser(h.userId);
         return {
           ...h,
+          email: fsUser?.email || null,
+          profileImageUrl: fsUser?.profileImageUrl || (h as any).imageUrls?.[0] || null,
+          socialLinks: fsUser?.socialLinks || (h as any).socialLinks || null,
           competitionCount: hostComps.length,
           activeCompetitions: hostComps.filter(c => c.status === "active" || c.status === "voting").length,
         };
-      });
+      }));
       res.json(hosts);
     } catch (error: any) {
       console.error("Get hosts error:", error);
@@ -4940,16 +4944,38 @@ export async function registerRoutes(
   app.patch("/api/auth/profile", firebaseAuth, async (req, res) => {
     try {
       const { uid } = req.firebaseUser!;
-      const { displayName, stageName, socialLinks, billingAddress } = req.body;
+      const { displayName, stageName, bio, category, location, socialLinks, billingAddress, email, password } = req.body;
 
       const updateData: Record<string, any> = {};
       if (displayName !== undefined) updateData.displayName = displayName;
       if (stageName !== undefined) updateData.stageName = stageName;
       if (socialLinks !== undefined) updateData.socialLinks = socialLinks;
       if (billingAddress !== undefined) updateData.billingAddress = billingAddress;
+      if (email !== undefined) updateData.email = email;
+
+      if (email !== undefined || password !== undefined || displayName !== undefined) {
+        const firebaseUpdate: Record<string, string> = {};
+        if (email !== undefined) firebaseUpdate.email = String(email).trim().toLowerCase();
+        if (password !== undefined && String(password).length > 0) firebaseUpdate.password = String(password);
+        if (displayName !== undefined) firebaseUpdate.displayName = String(displayName).trim();
+        if (Object.keys(firebaseUpdate).length > 0) {
+          await getFirebaseAuth().updateUser(uid, firebaseUpdate);
+        }
+      }
 
       if (Object.keys(updateData).length > 0) {
         await updateFirestoreUser(uid, updateData);
+      }
+
+      const profileUpdate: Record<string, any> = {};
+      if (displayName !== undefined) profileUpdate.displayName = String(displayName).trim();
+      if (stageName !== undefined) profileUpdate.stageName = stageName;
+      if (bio !== undefined) profileUpdate.bio = bio;
+      if (category !== undefined) profileUpdate.category = category;
+      if (location !== undefined) profileUpdate.location = location;
+      if (socialLinks !== undefined) profileUpdate.socialLinks = typeof socialLinks === "string" ? socialLinks : JSON.stringify(socialLinks);
+      if (Object.keys(profileUpdate).length > 0) {
+        await storage.updateTalentProfile(uid, profileUpdate);
       }
 
       const firestoreUser = await getFirestoreUser(uid);
@@ -4970,6 +4996,26 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Update profile error:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.post("/api/talent-profiles/me/image", firebaseAuth, talentImageUpload.single("image"), async (req, res) => {
+    try {
+      const uid = req.firebaseUser!.uid;
+      const profile = await storage.getTalentProfileByUserId(uid);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+
+      const extension = path.extname(req.file.originalname).toLowerCase() || ".jpg";
+      const storagePath = `talent-profiles/${uid}/profile-${Date.now()}${extension}`;
+      const imageUrl = await uploadToFirebaseStorage(storagePath, req.file.buffer, req.file.mimetype);
+      const currentImages = Array.isArray((profile as any).imageUrls) ? (profile as any).imageUrls : [];
+      await storage.updateTalentProfile(uid, { imageUrls: [imageUrl, ...currentImages.filter((url: string) => url !== imageUrl)] } as any);
+      await updateFirestoreUser(uid, { profileImageUrl: imageUrl });
+      res.json({ url: imageUrl });
+    } catch (error: any) {
+      console.error("Profile image upload error:", error);
+      res.status(500).json({ message: error.message || "Image upload failed" });
     }
   });
 
