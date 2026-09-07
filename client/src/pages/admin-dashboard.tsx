@@ -691,6 +691,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   const createCoverInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [vimeoFolderUrl, setVimeoFolderUrl] = useState("");
   const [compCategory, setCompCategory] = useState("");
   const [compStatus, setCompStatus] = useState("active");
   const [maxVotes, setMaxVotes] = useState("10");
@@ -914,6 +915,7 @@ export default function AdminDashboard({ user }: { user: any }) {
         expectedContestants: expectedContestants ? parseInt(expectedContestants) : null,
         onlineVoteWeight: parseInt(onlineVoteWeight) || 100,
         inPersonOnly,
+        vimeoFolderUrl: vimeoFolderUrl.trim() || null,
       };
 
       if (createHostUid !== "admin") {
@@ -954,6 +956,7 @@ export default function AdminDashboard({ user }: { user: any }) {
       if (createCoverInputRef.current) createCoverInputRef.current.value = "";
       setTitle("");
       setDescription("");
+       setVimeoFolderUrl("");
       setCompCategory("");
       setCompStatus("active");
       setStartDate("");
@@ -1550,6 +1553,17 @@ export default function AdminDashboard({ user }: { user: any }) {
                       <Label className="text-white/60">Description</Label>
                       <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the competition..."
                         className="bg-white/5 border-white/10 text-white resize-none min-h-[80px]" data-testid="input-comp-description" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60">Competition Vimeo Folder (Optional)</Label>
+                      <Input
+                        value={vimeoFolderUrl}
+                        onChange={(e) => setVimeoFolderUrl(e.target.value)}
+                        placeholder="https://vimeo.com/user/241595897/folder/30314439"
+                        className="bg-white/5 border-white/10 text-white"
+                        data-testid="input-comp-vimeo-folder"
+                      />
+                      <p className="text-[11px] text-white/35">Talent videos upload here first for this competition. The standard Vimeo destinations remain backup copies.</p>
                     </div>
 
                     <div className="border-y border-white/10 py-4 space-y-4">

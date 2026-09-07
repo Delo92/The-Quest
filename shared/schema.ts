@@ -19,6 +19,7 @@ export interface Competition {
   expectedContestants: number | null;
   onlineVoteWeight: number;
   inPersonOnly: boolean;
+  vimeoFolderUrl: string | null;
   isFeatured?: boolean;
   createdAt: string | null;
   createdBy: string | null;

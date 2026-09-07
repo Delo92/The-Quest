@@ -88,6 +88,30 @@ export async function findOrCreateFolder(name: string, parentUri?: string): Prom
   return created;
 }
 
+export function parseVimeoFolderUri(folderUrl: string): string {
+  try {
+    const parsed = new URL(folderUrl.trim());
+    if (parsed.hostname !== "vimeo.com" && !parsed.hostname.endsWith(".vimeo.com")) {
+      throw new Error("Folder link must be a Vimeo URL");
+    }
+    const match = parsed.pathname.match(/\/folder\/(\d+)(?:\/|$)/);
+    if (!match) throw new Error("Folder link must include a Vimeo folder ID");
+    return `/me/projects/${match[1]}`;
+  } catch (error: any) {
+    if (error?.message?.startsWith("Folder link")) throw error;
+    throw new Error("Folder link must be a valid Vimeo folder URL");
+  }
+}
+
+export async function getVimeoFolderFromUrl(folderUrl: string): Promise<VimeoFolder> {
+  const folderUri = parseVimeoFolderUri(folderUrl);
+  const folder = await vimeoRequest(folderUri);
+  if (!folder?.uri || !folder?.name) {
+    throw new Error("The Vimeo folder could not be found or accessed");
+  }
+  return folder as VimeoFolder;
+}
+
 export async function getRootFolder(): Promise<VimeoFolder> {
   return findOrCreateFolder("The Quest");
 }
@@ -185,13 +209,8 @@ export async function createUploadTicket(
   videoUri: string;
   completeUri: string;
 }> {
-  let folderUri: string | undefined;
-  try {
-    const folder = await getTalentFolderInCompetition(competitionName, talentName);
-    folderUri = folder.uri;
-  } catch (folderErr: any) {
-    console.warn("Could not create/find Vimeo folder (uploading without folder):", folderErr.message);
-  }
+  const folder = await getTalentFolderInCompetition(competitionName, talentName);
+  const folderUri = folder.uri;
 
   const videoName = `${competitionName} - ${talentName} - ${fileName}`;
   const body: any = {
@@ -217,6 +236,30 @@ export async function createUploadTicket(
   };
 }
 
+export async function createCustomFolderUploadTicket(
+  folderUrl: string,
+  competitionName: string,
+  talentName: string,
+  fileName: string,
+  fileSize: number
+): Promise<{ uploadLink: string; videoUri: string; completeUri: string }> {
+  const folder = await getVimeoFolderFromUrl(folderUrl);
+  const videoName = `${competitionName} - ${talentName} - ${fileName}`;
+  const data = await vimeoRequest("/me/videos", {
+    method: "POST",
+    body: JSON.stringify({
+      upload: { approach: "tus", size: fileSize },
+      name: videoName,
+      folder_uri: folder.uri,
+    }),
+  });
+  return {
+    uploadLink: data.upload.upload_link,
+    videoUri: data.uri,
+    completeUri: data.upload.complete_uri || "",
+  };
+}
+
 export async function createChronicTVUploadTicket(
   competitionName: string,
   talentName: string,
@@ -228,13 +271,8 @@ export async function createChronicTVUploadTicket(
   videoUri: string;
   completeUri: string;
 }> {
-  let folderUri: string | undefined;
-  try {
-    const folder = await getChronicTVContestantVimeoFolder(competitionName, chronicTVName);
-    folderUri = folder.uri;
-  } catch (folderErr: any) {
-    console.warn("Could not create/find ChronicTV Vimeo folder (uploading without folder):", folderErr.message);
-  }
+  const folder = await getChronicTVContestantVimeoFolder(competitionName, chronicTVName);
+  const folderUri = folder.uri;
 
   const videoName = `${competitionName} - ${talentName} - ${fileName}`;
   const body: any = {

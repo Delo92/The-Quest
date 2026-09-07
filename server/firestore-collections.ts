@@ -79,6 +79,7 @@ export interface FirestoreCompetition {
   expectedContestants: number | null;
   onlineVoteWeight: number;
   inPersonOnly: boolean;
+  vimeoFolderUrl: string | null;
   createdAt: string | null;
   createdBy: string | null;
 }
@@ -349,6 +350,7 @@ function normalizeCompetition(data: any): FirestoreCompetition {
     maxVideosPerContestant: data.maxVideosPerContestant ?? null,
     onlineVoteWeight: data.onlineVoteWeight ?? 100,
     inPersonOnly: data.inPersonOnly ?? false,
+    vimeoFolderUrl: data.vimeoFolderUrl ?? null,
   } as FirestoreCompetition;
 }
 

@@ -45,6 +45,7 @@ interface HostCompetition {
   maxVideosPerContestant: number | null;
   startDate: string | null;
   endDate: string | null;
+  vimeoFolderUrl: string | null;
   createdAt: string | null;
   createdBy: string | null;
 }
@@ -654,6 +655,7 @@ export default function HostDashboard({ user }: { user: any }) {
                                 voteCost: comp.voteCost,
                                 maxImagesPerContestant: comp.maxImagesPerContestant,
                                 maxVideosPerContestant: comp.maxVideosPerContestant,
+                                 vimeoFolderUrl: comp.vimeoFolderUrl || "",
                                 inPersonOnly: (comp as any).inPersonOnly || false,
                               });
                               setExpandedCompId(comp.id);
@@ -850,6 +852,17 @@ export default function HostDashboard({ user }: { user: any }) {
                             rows={3}
                             data-testid={`edit-desc-${comp.id}`}
                           />
+                        </div>
+                        <div>
+                          <Label className="text-white/50 text-xs">Competition Vimeo Folder (Optional)</Label>
+                          <Input
+                            value={editForm.vimeoFolderUrl || ""}
+                            onChange={(e) => setEditForm({ ...editForm, vimeoFolderUrl: e.target.value })}
+                            placeholder="https://vimeo.com/user/241595897/folder/30314439"
+                            className="bg-white/[0.08] border-white/20 text-white"
+                            data-testid={`edit-vimeo-folder-${comp.id}`}
+                          />
+                          <p className="text-[10px] text-white/25 mt-1">Talent videos upload here first for this event. The standard Vimeo destinations remain backups.</p>
                         </div>
                         <div>
                           <Label className="text-white/50 text-xs">Cover Image / Thumbnail</Label>

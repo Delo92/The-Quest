@@ -378,21 +378,32 @@ export default function TalentDashboard({ user, profile }: Props) {
         if (eta) setVideoUploadEta(eta);
       });
 
-      if (ticket.chronicTV?.uploadLink) {
+      if (ticket.chronicTV?.uploadLink || ticket.customFolder?.uploadLink) {
         setVideoUploadStep("syncing");
         setVideoUploadProgress(0);
-        setUploadStatus("Syncing for backup...");
+        setUploadStatus("Creating backup copies...");
         setVideoUploadSpeed("");
         setVideoUploadEta("");
         setChronicTVUploadProgress(0);
 
-        await doTusUpload(ticket.chronicTV.uploadLink, (pct, mbUp, mbTotal, speed, eta) => {
-          setVideoUploadProgress(pct);
-          setChronicTVUploadProgress(pct);
-          setUploadStatus(`${mbUp} MB / ${mbTotal} MB`);
-          if (speed) setVideoUploadSpeed(speed);
-          if (eta) setVideoUploadEta(eta);
-        });
+        if (ticket.chronicTV?.uploadLink) {
+          await doTusUpload(ticket.chronicTV.uploadLink, (pct, mbUp, mbTotal, speed, eta) => {
+            setVideoUploadProgress(pct);
+            setChronicTVUploadProgress(pct);
+            setUploadStatus(`${mbUp} MB / ${mbTotal} MB`);
+            if (speed) setVideoUploadSpeed(speed);
+            if (eta) setVideoUploadEta(eta);
+          });
+        }
+
+        if (ticket.customFolder?.uploadLink) {
+          await doTusUpload(ticket.customFolder.uploadLink, (pct, mbUp, mbTotal, speed, eta) => {
+            setVideoUploadProgress(pct);
+            setUploadStatus(`${mbUp} MB / ${mbTotal} MB`);
+            if (speed) setVideoUploadSpeed(speed);
+            if (eta) setVideoUploadEta(eta);
+          });
+        }
       }
 
       setVideoUploadStep("finalizing");
@@ -415,6 +426,7 @@ export default function TalentDashboard({ user, profile }: Props) {
             completeUri: ticket.completeUri || null,
             chronicTVVideoUri: ticket.chronicTV?.videoUri || null,
             chronicTVCompleteUri: ticket.chronicTV?.completeUri || null,
+            customFolderCompleteUri: ticket.customFolder?.completeUri || null,
           }),
         });
       } catch {}
@@ -1069,8 +1081,8 @@ export default function TalentDashboard({ user, profile }: Props) {
                           </Button>
                         </div>
                       </div>
-                      {!videoUploading && (
-                        <p className="text-xs text-white/30">Videos are uploaded to Vimeo in your competition folder.</p>
+                       {!videoUploading && (
+                         <p className="text-xs text-white/30">Videos are uploaded to Vimeo in the Quest folder and the competition&apos;s configured backup destinations.</p>
                       )}
 
                       {videoUploading && (
@@ -1100,7 +1112,7 @@ export default function TalentDashboard({ user, profile }: Props) {
                                 <p className={`text-sm font-medium ${videoUploadStep === "done" ? "text-green-300" : "text-orange-300"}`}>
                                   {videoUploadStep === "preparing" && "Preparing upload..."}
                                   {videoUploadStep === "uploading" && `Uploading to The Quest — ${videoUploadProgress}%`}
-                                  {videoUploadStep === "syncing" && `Syncing for backup — ${videoUploadProgress}%`}
+                                  {videoUploadStep === "syncing" && `Creating backup copies — ${videoUploadProgress}%`}
                                   {videoUploadStep === "finalizing" && "Processing video..."}
                                   {videoUploadStep === "done" && "Upload complete!"}
                                 </p>

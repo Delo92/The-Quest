@@ -27,6 +27,7 @@ interface CompDetailResponse {
     endDate: string | null;
     onlineVoteWeight: number;
     inPersonOnly: boolean;
+    vimeoFolderUrl: string | null;
   };
   totalVotes: number;
   createdByAdmin?: boolean;
@@ -80,6 +81,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   const [maxImages, setMaxImages] = useState("");
   const [maxVideos, setMaxVideos] = useState("");
   const [onlineVoteWeight, setOnlineVoteWeight] = useState("");
+  const [vimeoFolderUrl, setVimeoFolderUrl] = useState("");
 
   // Search/filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -121,6 +123,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       setMaxImages(String(c.maxImagesPerContestant ?? ""));
       setMaxVideos(String(c.maxVideosPerContestant ?? ""));
       setOnlineVoteWeight(String(c.onlineVoteWeight ?? 100));
+      setVimeoFolderUrl(c.vimeoFolderUrl || "");
     }
   }, [data]);
 
@@ -163,6 +166,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       maxImagesPerContestant: maxImages ? parseInt(maxImages) : null,
       maxVideosPerContestant: maxVideos ? parseInt(maxVideos) : null,
       onlineVoteWeight: parseInt(onlineVoteWeight) || 100,
+      vimeoFolderUrl: vimeoFolderUrl.trim() || null,
     });
   };
 
@@ -301,6 +305,18 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors min-h-[100px]" data-testid="input-comp-description" />
                           </div>
 
+                          <div className="md:col-span-2 space-y-1.5">
+                            <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Competition Vimeo Folder</Label>
+                            <Input
+                              value={vimeoFolderUrl}
+                              onChange={(e) => setVimeoFolderUrl(e.target.value)}
+                              placeholder="https://vimeo.com/user/241595897/folder/30314439"
+                              className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors"
+                              data-testid="input-comp-vimeo-folder"
+                            />
+                            <p className="text-[10px] text-white/35">Optional. Talent videos for this competition upload here first; the standard Vimeo destinations remain backups. Leave blank to use the defaults only.</p>
+                          </div>
+
                           <div className="space-y-1.5">
                             <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Start Date</Label>
                             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors [&::-webkit-calendar-picker-indicator]:invert-[0.8]" data-testid="input-comp-start" />
@@ -345,6 +361,17 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                             <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap max-w-3xl">{competition.description}</p>
                           </div>
                         )}
+
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Competition Vimeo Folder</p>
+                          {competition.vimeoFolderUrl ? (
+                            <a href={competition.vimeoFolderUrl} target="_blank" rel="noreferrer" className="text-sm text-orange-400 hover:text-orange-300 break-all">
+                              {competition.vimeoFolderUrl}
+                            </a>
+                          ) : (
+                            <p className="text-sm text-white/50">Using default Vimeo destinations</p>
+                          )}
+                        </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-5 gap-x-4">
                           <div>

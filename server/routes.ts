@@ -68,6 +68,8 @@ import {
   createAdminLiveryUploadTicket,
   createCompetitionCoverUploadTicket,
   createChronicTVUploadTicket,
+  createCustomFolderUploadTicket,
+  parseVimeoFolderUri,
   getVideoById,
   getChronicTVEventVimeoFolder,
   getChronicTVContestantVimeoFolder,
@@ -961,6 +963,14 @@ export async function registerRoutes(
     expectedContestants: z.number().int().min(0).optional().nullable(),
     onlineVoteWeight: z.number().int().min(1).max(100).optional().default(100),
     inPersonOnly: z.boolean().optional().default(false),
+    vimeoFolderUrl: z.string().trim().refine((value) => {
+      try {
+        parseVimeoFolderUri(value);
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Vimeo folder link must be a valid Vimeo folder URL").optional().nullable(),
   });
 
   app.post("/api/competitions", firebaseAuth, requireHost, async (req, res) => {
@@ -1018,6 +1028,7 @@ export async function registerRoutes(
       expectedContestants: parsed.data.expectedContestants ?? null,
       createdAt: new Date().toISOString(),
       createdBy: assignedCreatorUid,
+       vimeoFolderUrl: parsed.data.vimeoFolderUrl || null,
     });
 
     try {
@@ -1062,6 +1073,19 @@ export async function registerRoutes(
     }
 
     const updateData = { ...req.body };
+
+    if ("vimeoFolderUrl" in updateData) {
+      if (updateData.vimeoFolderUrl === "" || updateData.vimeoFolderUrl === null) {
+        updateData.vimeoFolderUrl = null;
+      } else {
+        try {
+          parseVimeoFolderUri(String(updateData.vimeoFolderUrl));
+          updateData.vimeoFolderUrl = String(updateData.vimeoFolderUrl).trim();
+        } catch (error: any) {
+          return res.status(400).json({ message: error.message || "Invalid Vimeo folder link" });
+        }
+      }
+    }
 
     const platformDoc = await getFirestore().collection("platformSettings").doc("global").get();
     const platformData = platformDoc.exists ? platformDoc.data() : {};
@@ -1574,6 +1598,18 @@ export async function registerRoutes(
     }
 
     const updateData = { ...req.body };
+    if ("vimeoFolderUrl" in updateData) {
+      if (updateData.vimeoFolderUrl === "" || updateData.vimeoFolderUrl === null) {
+        updateData.vimeoFolderUrl = null;
+      } else {
+        try {
+          parseVimeoFolderUri(String(updateData.vimeoFolderUrl));
+          updateData.vimeoFolderUrl = String(updateData.vimeoFolderUrl).trim();
+        } catch (error: any) {
+          return res.status(400).json({ message: error.message || "Invalid Vimeo folder link" });
+        }
+      }
+    }
     if (updateData.maxImagesPerContestant !== undefined || updateData.maxVideosPerContestant !== undefined) {
       const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
       const globalMaxImages = settingsDoc.exists ? (settingsDoc.data()?.maxImagesPerContestant ?? 10) : 10;
@@ -4452,9 +4488,12 @@ export async function registerRoutes(
 
       const chronicTVName = (profile.displayName || profile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
-      const [questTicket, chronicTVTicket] = await Promise.all([
+      const [questTicket, chronicTVTicket, customFolderTicket] = await Promise.all([
         createUploadTicket(comp.title, talentName, fileName, fileSize),
         createChronicTVUploadTicket(comp.title, talentName, chronicTVName, fileName, fileSize),
+        comp.vimeoFolderUrl
+          ? createCustomFolderUploadTicket(comp.vimeoFolderUrl, comp.title, talentName, fileName, fileSize)
+          : Promise.resolve(null),
       ]);
 
       res.json({
@@ -4466,6 +4505,11 @@ export async function registerRoutes(
           videoUri: chronicTVTicket.videoUri,
           completeUri: chronicTVTicket.completeUri,
         },
+        customFolder: customFolderTicket ? {
+          uploadLink: customFolderTicket.uploadLink,
+          videoUri: customFolderTicket.videoUri,
+          completeUri: customFolderTicket.completeUri,
+        } : null,
       });
     } catch (error: any) {
       console.error("Vimeo upload ticket error:", error);
@@ -4476,6 +4520,8 @@ export async function registerRoutes(
         userMessage = "Vimeo API access denied. Please contact the administrator to check API permissions.";
       } else if (error.message?.includes("quota") || error.message?.includes("limit")) {
         userMessage = "Vimeo storage quota reached. Please contact the administrator.";
+      } else if (error.message?.toLowerCase().includes("folder")) {
+        userMessage = error.message;
       }
       res.status(500).json({ message: userMessage });
     }
@@ -4483,7 +4529,7 @@ export async function registerRoutes(
 
   app.post("/api/vimeo/finalize-upload", firebaseAuth, async (req, res) => {
     try {
-      const { videoUri, competitionId, completeUri, chronicTVVideoUri, chronicTVCompleteUri } = req.body;
+      const { videoUri, competitionId, completeUri, chronicTVVideoUri, chronicTVCompleteUri, customFolderCompleteUri } = req.body;
       if (!videoUri || !competitionId) {
         return res.status(400).json({ message: "videoUri and competitionId are required" });
       }
@@ -4506,6 +4552,7 @@ export async function registerRoutes(
       await Promise.all([
         callCompleteUri(completeUri),
         callCompleteUri(chronicTVCompleteUri),
+        callCompleteUri(customFolderCompleteUri),
       ]);
 
       res.json({ success: true });
