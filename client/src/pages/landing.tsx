@@ -92,9 +92,9 @@ export default function Landing() {
               aria-hidden="true"
             />
           ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
-            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-contain" autoPlay muted loop playsInline />
           ) : (
-            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-cover" />
+            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-contain" />
           )}
           <div className="absolute inset-0 bg-black/35" />
         </motion.div>

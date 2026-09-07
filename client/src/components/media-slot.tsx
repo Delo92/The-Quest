@@ -7,11 +7,12 @@ interface MediaSlotProps {
   alt?: string;
   className?: string;
   mode?: "img" | "bg";
+  fit?: "cover" | "contain";
   clickToUnmute?: boolean;
   muteButtonClassName?: string;
 }
 
-export default function MediaSlot({ url, alt = "", className = "", mode = "img", clickToUnmute = false, muteButtonClassName }: MediaSlotProps) {
+export default function MediaSlot({ url, alt = "", className = "", mode = "img", fit = "cover", clickToUnmute = false, muteButtonClassName }: MediaSlotProps) {
   const type = detectMediaType(url);
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -73,7 +74,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
         src={url}
         alt={alt}
         className={`object-cover ${className}`}
-        style={mode === "bg" ? { ...bgStyle, objectFit: "cover" } : undefined}
+        style={mode === "bg" ? { ...bgStyle, objectFit: fit } : undefined}
       />
     );
   }
@@ -84,7 +85,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
         ref={videoRef}
         src={url}
         className={`object-cover ${className}`}
-        style={mode === "bg" ? { ...bgStyle, objectFit: "cover" } : { width: "100%", height: "100%", objectFit: "cover" }}
+        style={mode === "bg" ? { ...bgStyle, objectFit: fit } : { width: "100%", height: "100%", objectFit: fit }}
         muted
         loop
         autoPlay
