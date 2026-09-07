@@ -54,7 +54,6 @@ import {
 import {
   listTalentVideos,
   listAllTalentVideos,
-  createUploadTicket,
   deleteVideo,
   renameVideo,
   addVideoToFolder,
@@ -68,7 +67,6 @@ import {
   createAdminLiveryUploadTicket,
   createCompetitionCoverUploadTicket,
   createChronicTVUploadTicket,
-  createCustomFolderUploadTicket,
   parseVimeoFolderUri,
   getVideoById,
   getChronicTVEventVimeoFolder,

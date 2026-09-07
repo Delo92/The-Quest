@@ -58,14 +58,13 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [imageUploading, setImageUploading] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
-  const [videoUploadStep, setVideoUploadStep] = useState<"preparing" | "uploading" | "syncing" | "finalizing" | "done">("preparing");
+  const [videoUploadStep, setVideoUploadStep] = useState<"preparing" | "uploading" | "finalizing" | "done">("preparing");
   const [videoUploadSpeed, setVideoUploadSpeed] = useState("");
   const [videoUploadEta, setVideoUploadEta] = useState("");
   const [videoUploadFileName, setVideoUploadFileName] = useState("");
   const [videoUploadFileSize, setVideoUploadFileSize] = useState("");
   const [videoUploadComplete, setVideoUploadComplete] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
-  const [chronicTVUploadProgress, setChronicTVUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<{ type: "image" | "video"; message: string } | null>(null);
   const uploadStartTimeRef = useRef<number>(0);
   const lastBytesRef = useRef<number>(0);
@@ -378,34 +377,6 @@ export default function TalentDashboard({ user, profile }: Props) {
         if (eta) setVideoUploadEta(eta);
       });
 
-      if (ticket.chronicTV?.uploadLink || ticket.customFolder?.uploadLink) {
-        setVideoUploadStep("syncing");
-        setVideoUploadProgress(0);
-        setUploadStatus("Creating backup copies...");
-        setVideoUploadSpeed("");
-        setVideoUploadEta("");
-        setChronicTVUploadProgress(0);
-
-        if (ticket.chronicTV?.uploadLink) {
-          await doTusUpload(ticket.chronicTV.uploadLink, (pct, mbUp, mbTotal, speed, eta) => {
-            setVideoUploadProgress(pct);
-            setChronicTVUploadProgress(pct);
-            setUploadStatus(`${mbUp} MB / ${mbTotal} MB`);
-            if (speed) setVideoUploadSpeed(speed);
-            if (eta) setVideoUploadEta(eta);
-          });
-        }
-
-        if (ticket.customFolder?.uploadLink) {
-          await doTusUpload(ticket.customFolder.uploadLink, (pct, mbUp, mbTotal, speed, eta) => {
-            setVideoUploadProgress(pct);
-            setUploadStatus(`${mbUp} MB / ${mbTotal} MB`);
-            if (speed) setVideoUploadSpeed(speed);
-            if (eta) setVideoUploadEta(eta);
-          });
-        }
-      }
-
       setVideoUploadStep("finalizing");
       setVideoUploadProgress(100);
       setUploadStatus("Processing your video...");
@@ -424,9 +395,6 @@ export default function TalentDashboard({ user, profile }: Props) {
             videoUri: ticket.videoUri,
             competitionId: selectedCompId,
             completeUri: ticket.completeUri || null,
-            chronicTVVideoUri: ticket.chronicTV?.videoUri || null,
-            chronicTVCompleteUri: ticket.chronicTV?.completeUri || null,
-            customFolderCompleteUri: ticket.customFolder?.completeUri || null,
           }),
         });
       } catch {}
@@ -1111,15 +1079,13 @@ export default function TalentDashboard({ user, profile }: Props) {
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-medium ${videoUploadStep === "done" ? "text-green-300" : "text-orange-300"}`}>
                                   {videoUploadStep === "preparing" && "Preparing upload..."}
-                                  {videoUploadStep === "uploading" && `Uploading to The Quest — ${videoUploadProgress}%`}
-                                  {videoUploadStep === "syncing" && `Creating backup copies — ${videoUploadProgress}%`}
+                                  {videoUploadStep === "uploading" && `Uploading to ChronicTV — ${videoUploadProgress}%`}
                                   {videoUploadStep === "finalizing" && "Processing video..."}
                                   {videoUploadStep === "done" && "Upload complete!"}
                                 </p>
                                 <p className="text-xs text-white/40 mt-0.5">
                                   {videoUploadStep === "preparing" && "Getting things ready, one moment..."}
                                   {videoUploadStep === "uploading" && (uploadStatus || "Transferring file...")}
-                                  {videoUploadStep === "syncing" && (uploadStatus || "Creating backup copy...")}
                                   {videoUploadStep === "finalizing" && "Vimeo is processing your video, almost done..."}
                                   {videoUploadStep === "done" && "Your video will appear below shortly."}
                                 </p>
@@ -1138,23 +1104,23 @@ export default function TalentDashboard({ user, profile }: Props) {
                               <div className="flex items-center justify-between text-xs text-white/40">
                                 <span>
                                   {videoUploadStep === "preparing" && "Waiting..."}
-                                  {(videoUploadStep === "uploading" || videoUploadStep === "syncing") && (videoUploadSpeed || "Calculating speed...")}
+                                  {videoUploadStep === "uploading" && (videoUploadSpeed || "Calculating speed...")}
                                   {videoUploadStep === "finalizing" && "Almost there..."}
                                   {videoUploadStep === "done" && "Finished"}
                                 </span>
                                 <span>
-                                  {(videoUploadStep === "uploading" || videoUploadStep === "syncing") && videoUploadEta}
+                                  {videoUploadStep === "uploading" && videoUploadEta}
                                   {videoUploadStep === "done" && "100%"}
                                 </span>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2 pt-1">
-                              {["preparing", "uploading", "syncing", "finalizing", "done"].map((step, i) => {
-                                const steps = ["preparing", "uploading", "syncing", "finalizing", "done"];
+                              {["preparing", "uploading", "finalizing", "done"].map((step, i) => {
+                                const steps = ["preparing", "uploading", "finalizing", "done"];
                                 const currentIdx = steps.indexOf(videoUploadStep);
                                 const isActive = i <= currentIdx;
-                                const labels = ["Prepare", "Upload", "Sync", "Process", "Done"];
+                                const labels = ["Prepare", "Upload", "Process", "Done"];
                                 return (
                                   <div key={step} className="flex items-center gap-1 flex-1">
                                     <div className={`h-2 w-2 rounded-full flex-shrink-0 ${

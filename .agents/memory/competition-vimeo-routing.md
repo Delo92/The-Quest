@@ -1,10 +1,10 @@
 ---
 name: Competition Vimeo routing
-description: Rules for routing contestant video uploads to optional competition-specific Vimeo folders and standard backups
+description: Rules for routing contestant video uploads to the single ChronicTV competition/artist folder
 ---
 
-An optional Vimeo folder link may be stored on a competition. When present, talent uploads receive a copy in that folder while the standard Quest and CB Publishing destinations remain backup copies. When absent, the standard destinations are used.
+Talent video uploads use exactly one Vimeo destination: ChronicTV > Originals > CB Publishing The Quest > the competition folder > the artist folder. Quest, custom-folder, and other backup copies are not created.
 
-**Why:** The project needs a competition-specific delivery folder without losing the existing default backup coverage, and silent uploads to the Vimeo account root are unacceptable.
+**Why:** The artist and admin upload flows must create one video per upload, and the ChronicTV hierarchy is the required publishing destination.
 
-**How to apply:** Validate the folder link and confirm folder access before issuing upload tickets. Treat any required-folder failure as a ticket error; never continue by omitting `folder_uri`.
+**How to apply:** Use the ChronicTV folder ticket for both self-service and admin uploads. Treat folder creation/access failures as ticket errors; never continue by omitting `folder_uri`.
