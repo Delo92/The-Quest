@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video, Upload, Loader2, X } from "lucide-react";
+import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video, Upload, Loader2, X, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -75,6 +75,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
   const [competitionId, setCompetitionId] = useState("");
   const [message, setMessage] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteLink, setNewInviteLink] = useState<string | null>(null);
 
@@ -108,6 +109,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
       setCompetitionId("");
       setMessage("");
       setPassword("");
+      setShowPassword(false);
       const link = buildInviteLink(data.token, data.targetLevel);
       setNewInviteLink(link);
       navigator.clipboard.writeText(link).then(() => {
@@ -372,6 +374,7 @@ export function CreateUserDialog() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [level, setLevel] = useState("");
   const [stageName, setStageName] = useState("");
@@ -386,6 +389,7 @@ export function CreateUserDialog() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       setEmail("");
       setPassword("");
+      setShowPassword(false);
       setDisplayName("");
       setLevel("");
       setStageName("");
