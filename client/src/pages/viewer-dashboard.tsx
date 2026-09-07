@@ -90,21 +90,21 @@ export default function ViewerDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[#090909] text-white">
       <SiteNavbar />
 
-      <section className="relative h-[270px] md:h-[350px] overflow-hidden">
+      <section className="relative h-[230px] md:h-[290px] overflow-hidden">
         {getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").type === "video" ? (
           <video src={getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
         ) : (
           <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${getImage("breadcrumb_bg", "/images/template/breadcumb.jpg")}')` }} />
         )}
         <div className="absolute inset-0 bg-black/65" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-8 pb-5 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
-          <p className="text-black/50 text-base leading-relaxed mb-1">Welcome back</p>
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/[0.88] backdrop-blur-sm text-center rounded-2xl pt-6 pb-5 px-6 sm:px-10 z-10 w-[calc(100%-32px)] max-w-[552px] shadow-2xl shadow-black/30">
+          <p className="text-black/50 text-xs uppercase tracking-[0.2em] leading-relaxed mb-2">Voter account</p>
           <h2
-            className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none"
-            style={{ letterSpacing: "10px" }}
+            className="text-[22px] md:text-[28px] uppercase text-black/80 font-normal leading-none truncate"
+            style={{ letterSpacing: "6px" }}
             data-testid="text-viewer-name"
           >
             {viewer.displayName}
@@ -112,9 +112,12 @@ export default function ViewerDashboard() {
         </div>
       </section>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-8 border-b border-white/10 pb-5">
-          <p className="text-white/50 text-sm">{viewer.email}</p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-10">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-8 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/35">Signed in as</p>
+            <p className="text-white/70 text-sm mt-1 truncate max-w-[260px]">{viewer.email}</p>
+          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
@@ -146,30 +149,36 @@ export default function ViewerDashboard() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4 mb-10">
-              <div className="border border-white/15 bg-white/[0.04] p-5 text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center hover:border-orange-500/30 transition-colors">
                 <Heart className="h-6 w-6 text-[#FF5A09] mx-auto mb-2" />
                 <span className="text-3xl font-bold text-white" data-testid="text-total-votes">
-                  {viewer.totalVotesPurchased}
+                  {viewer.totalVotesPurchased.toLocaleString()}
                 </span>
                 <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Votes Purchased</p>
               </div>
-              <div className="border border-white/15 bg-white/[0.04] p-5 text-center">
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center hover:border-orange-500/30 transition-colors">
                 <Receipt className="h-6 w-6 text-[#FF5A09] mx-auto mb-2" />
                 <span className="text-3xl font-bold text-white" data-testid="text-total-spent">
                   ${(viewer.totalSpent / 100).toFixed(2)}
                 </span>
                 <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Total Spent</p>
               </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center hover:border-orange-500/30 transition-colors">
+                <Trophy className="h-6 w-6 text-[#FF5A09] mx-auto mb-2" />
+                <span className="text-3xl font-bold text-white">{uniqueCompetitions.length}</span>
+                <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Competitions Supported</p>
+              </div>
             </div>
 
             {uniqueCompetitions.length > 0 && (
-              <div className="mb-10 border border-white/15 bg-white/[0.03] p-5">
-                <div className="text-center mb-5">
-                  <p className="text-white/50 text-sm mb-1">Your activity</p>
-                  <h3 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "8px" }}>
-                    Competitions
-                  </h3>
+              <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+                <div className="flex flex-wrap items-end justify-between gap-2 mb-5">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-orange-300/70 mb-1">Your activity</p>
+                    <h3 className="text-xl text-white font-semibold">Competitions supported</h3>
+                  </div>
+                  <span className="text-xs text-white/35">{uniqueCompetitions.length} record{uniqueCompetitions.length !== 1 ? "s" : ""}</span>
                 </div>
                 <div className="space-y-3">
                   {uniqueCompetitions.map((comp) => {
@@ -182,7 +191,7 @@ export default function ViewerDashboard() {
                         href={`/${slugify(comp.competitionCategory)}/${slugify(comp.competitionTitle)}`}
                         data-testid={`card-competition-${comp.competitionId}`}
                       >
-                        <div className="border border-white/15 bg-white/[0.04] p-4 transition-colors hover:border-[#FF5A09]/40 hover:bg-white/[0.06] cursor-pointer">
+                        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 transition-colors hover:border-[#FF5A09]/40 hover:bg-white/[0.06] cursor-pointer">
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2">
                               <Trophy className="h-4 w-4 text-[#FF5A09]" />
@@ -208,12 +217,13 @@ export default function ViewerDashboard() {
               </div>
             )}
 
-            <div className="mb-10 border border-white/15 bg-white/[0.03] p-5">
-              <div className="text-center mb-5">
-                <p className="text-white/50 text-sm mb-1">Purchase history</p>
-                <h3 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "8px" }}>
-                  Transactions ({purchases.length})
-                </h3>
+            <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+              <div className="flex flex-wrap items-end justify-between gap-2 mb-5">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-orange-300/70 mb-1">Purchase history</p>
+                  <h3 className="text-xl text-white font-semibold">Transactions</h3>
+                </div>
+                <span className="text-xs text-white/35">{purchases.length} transaction{purchases.length !== 1 ? "s" : ""}</span>
               </div>
 
               {purchases.length > 0 ? (
@@ -221,7 +231,7 @@ export default function ViewerDashboard() {
                   {purchases.map((purchase) => (
                     <div
                       key={purchase.id}
-                      className="border border-white/15 bg-white/[0.04] p-4 transition-colors hover:border-white/25"
+                      className="rounded-xl border border-white/10 bg-white/[0.04] p-4 transition-colors hover:border-white/25"
                       data-testid={`card-purchase-${purchase.id}`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">

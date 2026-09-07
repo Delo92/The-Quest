@@ -583,16 +583,16 @@ export default function TalentDashboard({ user, profile }: Props) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-[#090909] text-white">
       {/* Top Nav */}
-      <nav className="sticky top-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/10">
+      <nav className="sticky top-0 z-50 bg-[#090909]/90 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <Link href="/" className="flex items-center gap-2.5" data-testid="link-home">
             <CBLogo size="sm" showText={false} />
             <span className="font-serif text-lg font-bold tracking-tight">The Quest</span>
           </Link>
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 bg-white/[0.06] border border-white/10 rounded-full pl-1 pr-3 py-1">
+            <div className="hidden sm:flex items-center gap-2 bg-white/[0.06] border border-white/10 rounded-full pl-1 pr-3 py-1.5">
               <Avatar className="h-6 w-6">
                 <AvatarImage src={user.profileImageUrl || ""} />
                 <AvatarFallback className="bg-orange-500/20 text-orange-400 text-[10px] font-bold">
@@ -601,7 +601,7 @@ export default function TalentDashboard({ user, profile }: Props) {
               </Avatar>
               <span className="text-xs text-white/60">{user.displayName || user.email}</span>
             </div>
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-white/30 hover:text-white/60" onClick={() => logout()} data-testid="button-logout">
+            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full text-white/40 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout" aria-label="Sign out">
               <LogOut className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -610,32 +610,35 @@ export default function TalentDashboard({ user, profile }: Props) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center flex-shrink-0">
-              <LayoutDashboard className="h-5 w-5 text-white" />
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-5 sm:p-6 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-xl bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                <LayoutDashboard className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80 mb-1">Creator workspace</p>
+                <h1 className="text-xl sm:text-2xl font-bold leading-none" data-testid="text-dashboard-title">Talent Dashboard</h1>
+                <p className="text-white/35 text-xs mt-0.5">Welcome back, {displayName || user.displayName || "Competitor"}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold leading-none" data-testid="text-dashboard-title">Talent Dashboard</h1>
-              <p className="text-white/35 text-xs mt-0.5">Welcome back, {displayName || user.displayName || "Competitor"}</p>
-            </div>
+            <InviteDialog senderLevel={2} />
           </div>
-          <InviteDialog senderLevel={2} />
         </div>
 
         {/* Stats strip */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
           {[
             { label: "Competitions", value: approvedCount, icon: Trophy, color: "text-orange-400" },
-            { label: "Total Votes", value: totalVotes.toLocaleString(), icon: Star, color: "text-amber-400" },
+            { label: "Tournament points", value: totalVotes.toLocaleString(), icon: Star, color: "text-amber-400" },
             { label: "Pending", value: pendingCount, icon: AlertTriangle, color: "text-yellow-500" },
           ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white/[0.04] border border-white/8 rounded-xl p-3 sm:p-4 flex items-center gap-3">
+            <div key={label} className="bg-white/[0.04] border border-white/10 rounded-xl p-3 sm:p-4 flex items-center gap-3 hover:border-orange-500/25 transition-colors">
               <div className={`hidden sm:flex h-9 w-9 rounded-lg bg-white/[0.06] items-center justify-center flex-shrink-0 ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-lg sm:text-2xl font-bold leading-none">{value}</p>
+                <p className="text-lg sm:text-2xl font-bold leading-none tabular-nums">{value}</p>
                 <p className="text-[11px] text-white/35 mt-0.5">{label}</p>
               </div>
             </div>
@@ -645,7 +648,7 @@ export default function TalentDashboard({ user, profile }: Props) {
         {/* Layout: sidebar + content */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar nav - desktop */}
-          <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 gap-1">
+          <aside className="hidden lg:flex flex-col w-60 flex-shrink-0 gap-1 rounded-2xl border border-white/10 bg-white/[0.025] p-2">
             {navItems.map(({ id, label, sublabel, icon: Icon }) => (
               <button
                 key={id}
@@ -695,7 +698,7 @@ export default function TalentDashboard({ user, profile }: Props) {
             <Tabs value={activeSection} onValueChange={(v) => setActiveSection(v as any)}>
 
           <TabsContent value="profile">
-            <div className="rounded-md bg-white/[0.04] border border-white/15 p-4 sm:p-6 space-y-5 pb-28 lg:pb-6">
+            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 sm:p-6 space-y-5 pb-28 lg:pb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="displayName" className="text-white/60">Display Name</Label>

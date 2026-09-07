@@ -1054,7 +1054,7 @@ export default function HostDashboard({ user }: { user: any }) {
                   <p className="text-2xl font-bold">{stats?.totalContestants ?? 0}</p>
                 </div>
                 <div className="rounded-md bg-white/5 border border-white/5 p-4">
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Total Votes</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Tournament points</p>
                   <p className="text-2xl font-bold text-orange-400">{stats?.totalVotes ?? 0}</p>
                 </div>
                 <div className="rounded-md bg-white/5 border border-white/5 p-4">
@@ -1223,7 +1223,7 @@ export default function HostDashboard({ user }: { user: any }) {
                                         </div>
                                         <div className="bg-white/5 rounded-md p-2.5 text-center">
                                           <p className="text-xl font-bold text-orange-400">{calendarReport.totalVotes}</p>
-                                          <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Total Votes</p>
+                                          <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Tournament points</p>
                                         </div>
                                         <div className="bg-white/5 rounded-md p-2.5 text-center">
                                           <p className="text-xl font-bold text-orange-400">${(calendarReport.totalRevenue / 100).toFixed(2)}</p>
