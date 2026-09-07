@@ -99,7 +99,7 @@ export default function Landing() {
           <div className="absolute inset-0 bg-black/35" />
         </motion.div>
 
-        <div className="relative z-10 text-center px-4 sm:px-8 w-full pt-64 sm:pt-68">
+        <div className="relative z-10 text-center px-4 sm:px-8 w-full pt-48 sm:pt-68">
           {getText("hero_title_top", "") && (
           <motion.h6
             initial={{ opacity: 0, y: 30 }}
