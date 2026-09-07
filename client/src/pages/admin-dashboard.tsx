@@ -222,6 +222,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const mediaCompetitionInitializedRef = useRef(false);
 
   const { data, isLoading } = useQuery<UserDetailResponse>({
     queryKey: ["/api/admin/users", profileId, "detail"],
@@ -246,6 +247,11 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   }, [data]);
 
   useEffect(() => {
+    if (!mediaCompetitionInitializedRef.current && mediaCompetitions.length > 0) {
+      setMediaCompetitionId(String(mediaCompetitions[0].competitionId));
+      mediaCompetitionInitializedRef.current = true;
+      return;
+    }
     if (mediaCompetitionId !== "none" && !mediaCompetitions.some((stat) => String(stat.competitionId) === mediaCompetitionId)) {
       setMediaCompetitionId("none");
     }
@@ -338,11 +344,18 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   };
 
   const handleAdminVideoUpload = async (file: File) => {
-    if (mediaCompetitionId === "none") {
+    const uploadCompetitionId = mediaCompetitionId !== "none"
+      ? mediaCompetitionId
+      : mediaCompetitions[0]?.competitionId
+        ? String(mediaCompetitions[0].competitionId)
+        : null;
+
+    if (!uploadCompetitionId) {
       toast({ title: "Choose a competition", description: "Videos must be assigned to one of the user's competitions.", variant: "destructive" });
       if (videoInputRef.current) videoInputRef.current.value = "";
       return;
     }
+    if (mediaCompetitionId === "none") setMediaCompetitionId(uploadCompetitionId);
 
     setMediaUploadType("video");
     setMediaUploadProgress(0);
@@ -357,7 +370,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
         body: JSON.stringify({
           fileName: file.name,
           fileSize: file.size,
-          competitionId: mediaCompetitionId,
+          competitionId: uploadCompetitionId,
         }),
       });
       if (!ticketResponse.ok) {
@@ -390,7 +403,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
         },
         body: JSON.stringify({
           videoUri: ticket.videoUri,
-          competitionId: mediaCompetitionId,
+          competitionId: uploadCompetitionId,
           completeUri: ticket.completeUri || null,
           chronicTVCompleteUri: ticket.chronicTV?.completeUri || null,
           customFolderCompleteUri: ticket.customFolder?.completeUri || null,
