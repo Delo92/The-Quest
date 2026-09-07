@@ -7,11 +7,12 @@ interface MediaSlotProps {
   alt?: string;
   className?: string;
   mode?: "img" | "bg";
+  fit?: "cover" | "contain";
   clickToUnmute?: boolean;
   muteButtonClassName?: string;
 }
 
-export default function MediaSlot({ url, alt = "", className = "", mode = "img", clickToUnmute = false, muteButtonClassName }: MediaSlotProps) {
+export default function MediaSlot({ url, alt = "", className = "", mode = "img", fit = "cover", clickToUnmute = false, muteButtonClassName }: MediaSlotProps) {
   const type = detectMediaType(url);
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -19,7 +20,9 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
   const [fullPlayer, setFullPlayer] = useState(false);
 
   const bgStyle: React.CSSProperties = mode === "bg"
-    ? { position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }
+    ? fit === "contain"
+      ? { position: "absolute", top: "50%", left: 0, width: "100%", aspectRatio: "16 / 9", transform: "translateY(-50%)", border: "none" }
+      : { position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }
     : {};
 
   useEffect(() => {
@@ -72,8 +75,8 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
       <img
         src={url}
         alt={alt}
-        className={`object-cover ${className}`}
-        style={mode === "bg" ? { ...bgStyle, objectFit: "cover" } : undefined}
+        className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className}`}
+        style={mode === "bg" ? { ...bgStyle, objectFit: fit } : undefined}
       />
     );
   }
@@ -83,8 +86,8 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
       <video
         ref={videoRef}
         src={url}
-        className={`object-cover ${className}`}
-        style={mode === "bg" ? { ...bgStyle, objectFit: "cover" } : { width: "100%", height: "100%", objectFit: "cover" }}
+        className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className}`}
+        style={mode === "bg" ? { ...bgStyle, objectFit: fit } : { width: "100%", height: "100%", objectFit: fit }}
         muted
         loop
         autoPlay
@@ -133,7 +136,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
     if (clickToUnmute && mode === "bg") {
       const src = fullPlayer
         ? buildVimeoSrc(url, "autoplay=1&muted=0&loop=1&background=0&controls=0&autopause=0&title=0&byline=0&portrait=0")!
-        : buildVimeoSrc(url, "autoplay=1&muted=1&loop=1&background=1")!;
+        : buildVimeoSrc(url, `autoplay=1&muted=1&loop=1&autopause=0&background=${fit === "contain" ? "0" : "1"}&controls=0&title=0&byline=0&portrait=0`)!;
 
       return (
         <>
@@ -158,7 +161,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
       );
     }
 
-    const src = buildVimeoSrc(url, "autoplay=1&muted=1&loop=1&background=1")!;
+    const src = buildVimeoSrc(url, `autoplay=1&muted=1&loop=1&autopause=0&background=${fit === "contain" ? "0" : "1"}&controls=0&title=0&byline=0&portrait=0`)!;
     return (
       <iframe
         src={src}
