@@ -84,19 +84,19 @@ export default function Landing() {
       <SiteNavbar />
 
       <section ref={heroRef} className="relative min-h-screen flex items-end justify-center pb-4" style={{ overflow: "visible" }}>
-        <motion.div style={{ y: heroY }} className="absolute inset-0 overflow-hidden">
+        <motion.div style={{ y: heroY }} className="absolute inset-0 flex items-center justify-center overflow-hidden bg-black">
           {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
             <iframe
-              src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=1&autoplay=1&muted=1&loop=1&autopause=0") || ""}
-              className="absolute inset-0 h-full w-full pointer-events-none"
+              src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=0&autoplay=1&muted=1&loop=1&autopause=0&controls=0&title=0&byline=0&portrait=0") || ""}
+              className="w-full aspect-video pointer-events-none shrink-0"
               allow="autoplay; fullscreen; picture-in-picture"
               title="Hero background video"
               aria-hidden="true"
             />
           ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
-            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-cover" autoPlay muted loop playsInline />
+            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full aspect-video object-contain shrink-0" autoPlay muted loop playsInline />
           ) : (
-            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-cover" />
+            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full aspect-video object-contain shrink-0" />
           )}
           <div className="absolute inset-0 bg-black/35" />
         </motion.div>
