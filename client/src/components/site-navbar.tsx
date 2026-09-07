@@ -113,7 +113,7 @@ export default function SiteNavbar() {
         </a>
 
         <button
-          className="md:hidden text-white"
+          className="lg:hidden text-white"
           onClick={() => setMenuOpen(!menuOpen)}
           data-testid="button-mobile-menu"
         >
@@ -126,7 +126,7 @@ export default function SiteNavbar() {
           </svg>
         </button>
 
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden lg:flex items-center gap-8">
           <a
             href="/"
             className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
@@ -164,7 +164,7 @@ export default function SiteNavbar() {
           </Link>
         </div>
 
-        <div className="hidden md:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-6">
           <Link
             href="/competitions"
             className="inline-flex items-center gap-1 bg-[var(--quest-brand)] text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-full transition-all duration-300 hover:bg-[var(--quest-brand-dark)]"
@@ -200,7 +200,7 @@ export default function SiteNavbar() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden bg-black/98 backdrop-blur-xl border-t border-white/10 px-4 pb-safe">
+        <div className="lg:hidden bg-black/98 backdrop-blur-xl border-t border-white/10 px-4 pb-safe">
           <div className="py-2 space-y-0.5">
             {[
               { href: "/", label: "Home", testid: "link-mobile-home", isAnchor: true },
