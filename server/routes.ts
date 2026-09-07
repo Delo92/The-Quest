@@ -3041,29 +3041,14 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
       }
 
-      const chronicTVName = (profile.displayName || profile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-      const [questTicket, chronicTVTicket, customFolderTicket] = await Promise.all([
-        createUploadTicket(comp.title, talentName, fileName, fileSize),
-        createChronicTVUploadTicket(comp.title, talentName, chronicTVName, fileName, fileSize),
-        comp.vimeoFolderUrl
-          ? createCustomFolderUploadTicket(comp.vimeoFolderUrl, comp.title, talentName, fileName, fileSize)
-          : Promise.resolve(null),
-      ]);
+      const questTicket = await createUploadTicket(comp.title, talentName, fileName, fileSize);
 
       res.json({
         uploadLink: questTicket.uploadLink,
         videoUri: questTicket.videoUri,
         completeUri: questTicket.completeUri,
-        chronicTV: {
-          uploadLink: chronicTVTicket.uploadLink,
-          videoUri: chronicTVTicket.videoUri,
-          completeUri: chronicTVTicket.completeUri,
-        },
-        customFolder: customFolderTicket ? {
-          uploadLink: customFolderTicket.uploadLink,
-          videoUri: customFolderTicket.videoUri,
-          completeUri: customFolderTicket.completeUri,
-        } : null,
+        chronicTV: null,
+        customFolder: null,
       });
     } catch (error: any) {
       console.error("Admin Vimeo upload ticket error:", error);

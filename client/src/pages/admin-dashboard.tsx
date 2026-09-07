@@ -395,20 +395,6 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
       });
 
       await uploadToVimeo(ticket.uploadLink);
-      const backupCompleteUris: string[] = [];
-      const backupFailures: string[] = [];
-      const uploadBackup = async (label: string, backup: { uploadLink?: string; completeUri?: string } | null | undefined) => {
-        if (!backup?.uploadLink) return;
-        try {
-          await uploadToVimeo(backup.uploadLink);
-          if (backup.completeUri) backupCompleteUris.push(backup.completeUri);
-        } catch (error: any) {
-          backupFailures.push(label);
-          console.warn(`Admin ${label} video backup failed:`, error.message);
-        }
-      };
-      await uploadBackup("ChronicTV", ticket.chronicTV);
-      await uploadBackup("custom-folder", ticket.customFolder);
 
       const finalizeResponse = await fetch("/api/vimeo/finalize-upload", {
         method: "POST",
@@ -420,8 +406,8 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
           videoUri: ticket.videoUri,
           competitionId: uploadCompetitionId,
           completeUri: ticket.completeUri || null,
-          chronicTVCompleteUri: backupCompleteUris[0] || null,
-          customFolderCompleteUri: backupCompleteUris[1] || null,
+          chronicTVCompleteUri: null,
+          customFolderCompleteUri: null,
         }),
       });
       if (!finalizeResponse.ok) {
@@ -438,9 +424,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
       }, 5000);
       toast({
         title: "Video uploaded",
-        description: backupFailures.length > 0
-          ? `Saved to Quest. Backup copy unavailable: ${backupFailures.join(", ")}.`
-          : "The video may take a moment to appear.",
+        description: "One video was saved to the selected competition.",
       });
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
