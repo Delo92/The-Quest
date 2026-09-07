@@ -86,15 +86,15 @@ export default function Landing() {
           {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
             <iframe
               src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=1&autoplay=1&muted=1&loop=1&autopause=0") || ""}
-              className="absolute inset-0 h-full w-full scale-125 pointer-events-none"
+              className="absolute inset-0 h-full w-full pointer-events-none"
               allow="autoplay; fullscreen; picture-in-picture"
               title="Hero background video"
               aria-hidden="true"
             />
           ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
-            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-cover scale-110" autoPlay muted loop playsInline />
+            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-cover" autoPlay muted loop playsInline />
           ) : (
-            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-cover scale-110" />
+            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-black/35" />
         </motion.div>
