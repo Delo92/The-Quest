@@ -95,6 +95,12 @@ type PublicCacheEntry = {
 const publicResponseCache = new Map<string, PublicCacheEntry>();
 const publicResponseInflight = new Map<string, Promise<unknown>>();
 
+function invalidatePublicResponseCache(...keys: string[]) {
+  for (const key of keys) {
+    publicResponseCache.delete(key);
+  }
+}
+
 async function getCachedPublicResponse<T>(
   key: string,
   ttlMs: number,
@@ -855,6 +861,7 @@ export async function registerRoutes(
           let displayName: string | null = null;
           let coverVideoUrl: string | null = null;
           let thumbnail: string | null = cat.imageUrl || null;
+           const featuredCompetition = catComps.find((comp: any) => comp.isFeatured);
           if (cat.videoUrl) {
             coverVideoUrl = cat.videoUrl;
           }
@@ -892,6 +899,26 @@ export async function registerRoutes(
               coverVideoUrl = null;
             }
           }
+
+           // An explicitly featured competition should drive its category card,
+           // regardless of whether another competition currently has more votes.
+           // This keeps the dashboard's Featured control meaningful on the homepage.
+           if (featuredCompetition) {
+             if (featuredCompetition.coverImage) {
+               thumbnail = featuredCompetition.coverImage;
+             }
+
+             if (featuredCompetition.coverVideo) {
+               const featuredVimeoMatch = featuredCompetition.coverVideo.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+               if (featuredVimeoMatch) {
+                 videoEmbedUrl = `https://player.vimeo.com/video/${featuredVimeoMatch[1]}`;
+                 coverVideoUrl = null;
+               } else {
+                 coverVideoUrl = featuredCompetition.coverVideo;
+                 videoEmbedUrl = null;
+               }
+             }
+           }
 
           let competitionSlug: string | null = null;
           let contestantSlug: string | null = null;
@@ -964,6 +991,7 @@ export async function registerRoutes(
     if (!isAlreadyFeatured) {
       await storage.updateCompetition(id, { isFeatured: true } as any);
     }
+    invalidatePublicResponseCache("hero-gallery", "competitions:featured");
     const updated = await storage.getCompetition(id);
     res.json(updated);
   });
