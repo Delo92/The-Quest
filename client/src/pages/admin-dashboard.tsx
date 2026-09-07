@@ -217,6 +217,11 @@ interface UserDetailResponse {
 function TalentDetailModal({ profileId, competitions }: { profileId: number; competitions: Competition[] | undefined }) {
   const { toast } = useToast();
   const [assignCompId, setAssignCompId] = useState("");
+  const [mediaCompetitionId, setMediaCompetitionId] = useState("none");
+  const [mediaUploadType, setMediaUploadType] = useState<"image" | "video" | null>(null);
+  const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery<UserDetailResponse>({
     queryKey: ["/api/admin/users", profileId, "detail"],
@@ -229,6 +234,22 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   });
 
   const vimeoVideos = videosData?.vimeoVideos ?? [];
+  const mediaCompetitions = useMemo(() => {
+    if (!data) return [];
+    const stats = [...data.activeStats, ...data.pastStats, ...data.upcomingEvents];
+    const seen = new Set<number>();
+    return stats.filter((stat) => {
+      if (seen.has(stat.competitionId)) return false;
+      seen.add(stat.competitionId);
+      return true;
+    });
+  }, [data]);
+
+  useEffect(() => {
+    if (mediaCompetitionId !== "none" && !mediaCompetitions.some((stat) => String(stat.competitionId) === mediaCompetitionId)) {
+      setMediaCompetitionId("none");
+    }
+  }, [mediaCompetitionId, mediaCompetitions]);
 
   const assignMutation = useMutation({
     mutationFn: async ({ pId, competitionId }: { pId: number; competitionId: number }) => {
@@ -259,6 +280,137 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
     },
   });
+
+  const deleteImageMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      await apiRequest("DELETE", `/api/admin/users/${profileId}/images/${fileId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", profileId, "detail"] });
+      toast({ title: "Photo removed" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const deleteVideoMutation = useMutation({
+    mutationFn: async (videoUri: string) => {
+      const videoId = videoUri.split("/").pop();
+      await apiRequest("DELETE", `/api/admin/users/${profileId}/videos/${videoId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", profileId, "videos"] });
+      toast({ title: "Video removed" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const handleAdminImageUpload = async (file: File) => {
+    setMediaUploadType("image");
+    setMediaUploadProgress(0);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      if (mediaCompetitionId !== "none") formData.append("competitionId", mediaCompetitionId);
+      const token = getAuthToken();
+      const response = await fetch(`/api/admin/users/${profileId}/images`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || "Photo upload failed");
+      }
+      setMediaUploadProgress(100);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", profileId, "detail"] });
+      toast({ title: "Photo uploaded" });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setMediaUploadType(null);
+      setMediaUploadProgress(0);
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  };
+
+  const handleAdminVideoUpload = async (file: File) => {
+    if (mediaCompetitionId === "none") {
+      toast({ title: "Choose a competition", description: "Videos must be assigned to one of the user's competitions.", variant: "destructive" });
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      return;
+    }
+
+    setMediaUploadType("video");
+    setMediaUploadProgress(0);
+    try {
+      const token = getAuthToken();
+      const ticketResponse = await fetch(`/api/admin/users/${profileId}/videos/upload-ticket`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileSize: file.size,
+          competitionId: mediaCompetitionId,
+        }),
+      });
+      if (!ticketResponse.ok) {
+        const error = await ticketResponse.json().catch(() => null);
+        throw new Error(error?.message || "Failed to create video upload ticket");
+      }
+      const ticket = await ticketResponse.json();
+
+      const uploadToVimeo = (uploadLink: string) => new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(file, {
+          uploadUrl: uploadLink,
+          onError: (error) => reject(new Error(error.message || "Video upload failed")),
+          onProgress: (bytesUploaded, bytesTotal) => {
+            setMediaUploadProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+          },
+          onSuccess: () => resolve(),
+        });
+        upload.start();
+      });
+
+      await uploadToVimeo(ticket.uploadLink);
+      if (ticket.chronicTV?.uploadLink) await uploadToVimeo(ticket.chronicTV.uploadLink);
+      if (ticket.customFolder?.uploadLink) await uploadToVimeo(ticket.customFolder.uploadLink);
+
+      const finalizeResponse = await fetch("/api/vimeo/finalize-upload", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          videoUri: ticket.videoUri,
+          competitionId: mediaCompetitionId,
+          completeUri: ticket.completeUri || null,
+          chronicTVCompleteUri: ticket.chronicTV?.completeUri || null,
+          customFolderCompleteUri: ticket.customFolder?.completeUri || null,
+        }),
+      });
+      if (!finalizeResponse.ok) {
+        const error = await finalizeResponse.json().catch(() => null);
+        throw new Error(error?.message || "Video finalization failed");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", profileId, "videos"] });
+      toast({ title: "Video uploaded", description: "The video may take a moment to appear." });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setMediaUploadType(null);
+      setMediaUploadProgress(0);
+      if (videoInputRef.current) videoInputRef.current.value = "";
+    }
+  };
 
   if (isLoading) {
     return (
@@ -337,21 +489,105 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
         </div>
       </div>
 
-      {(driveImages.length > 0 || videosLoading || vimeoVideos.length > 0) && (
-        <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="user-detail-media">
-          <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold mb-3">Media</h3>
+      <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="user-detail-media">
+        <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Media</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={mediaCompetitionId} onValueChange={setMediaCompetitionId}>
+              <SelectTrigger className="h-8 w-full sm:w-[210px] bg-white/5 border-white/10 text-xs text-white" data-testid="select-admin-media-competition">
+                <SelectValue placeholder="Optional competition" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-white/10">
+                <SelectItem value="none">No competition (photo only)</SelectItem>
+                {mediaCompetitions.map((stat) => (
+                  <SelectItem key={stat.competitionId} value={String(stat.competitionId)}>
+                    {stat.competitionTitle}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleAdminImageUpload(file);
+              }}
+              data-testid="input-admin-user-image"
+            />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleAdminVideoUpload(file);
+              }}
+              data-testid="input-admin-user-video"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 border-white/15 text-xs"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={mediaUploadType !== null}
+              data-testid="button-admin-add-photo"
+            >
+              <Upload className="h-3 w-3 mr-1.5" /> Photo
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 border-white/15 text-xs"
+              onClick={() => videoInputRef.current?.click()}
+              disabled={mediaUploadType !== null || mediaCompetitions.length === 0}
+              data-testid="button-admin-add-video"
+            >
+              <Upload className="h-3 w-3 mr-1.5" /> Video
+            </Button>
+          </div>
+        </div>
+        {mediaUploadType && (
+          <div className="mb-4 rounded-md border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-xs text-orange-200" data-testid="admin-media-upload-status">
+            Uploading {mediaUploadType}... {mediaUploadProgress}%
+          </div>
+        )}
+        <p className="text-[11px] text-white/30 mb-3">
+          Select a competition before adding a video. Photos can be added without one; the selected competition also chooses the Drive/Vimeo destination.
+        </p>
           {driveImages.length > 0 && (
             <div className="mb-3">
               <p className="text-xs text-white/40 mb-2 flex items-center gap-1"><Image className="h-3 w-3" /> Photos ({driveImages.length})</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {driveImages.slice(0, 8).map((img) => (
-                  <a key={img.id} href={img.imageUrl} target="_blank" rel="noopener noreferrer" className="block" data-testid={`drive-img-${img.id}`}>
-                    <img src={img.thumbnailUrl} alt={img.name} className="w-full aspect-square object-cover rounded-md" />
-                  </a>
+                {driveImages.map((img) => (
+                  <div key={img.id} className="relative group" data-testid={`drive-img-${img.id}`}>
+                    <a href={img.imageUrl} target="_blank" rel="noopener noreferrer" className="block">
+                      <img src={img.thumbnailUrl} alt={img.name} className="w-full aspect-square object-cover rounded-md" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm("Remove this photo from the user's profile?")) deleteImageMutation.mutate(img.id);
+                      }}
+                      className="absolute top-1 right-1 inline-flex items-center justify-center rounded-full bg-red-600/90 p-1.5 text-white shadow-lg hover:bg-red-500 disabled:opacity-50"
+                      disabled={deleteImageMutation.isPending}
+                      aria-label={`Delete ${img.name}`}
+                      data-testid={`button-admin-delete-photo-${img.id}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 ))}
               </div>
-              {driveImages.length > 8 && <p className="text-xs text-white/20 mt-1">+{driveImages.length - 8} more</p>}
             </div>
+          )}
+          {driveImages.length === 0 && (
+            <p className="mb-3 text-xs text-white/20">No photos found.</p>
           )}
           <div>
             <p className="text-xs text-white/40 mb-2 flex items-center gap-1"><Video className="h-3 w-3" /> Videos{!videosLoading && ` (${vimeoVideos.length})`}</p>
@@ -361,21 +597,34 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
               <p className="text-xs text-white/20">No videos found</p>
             ) : (
               <div className="space-y-2">
-                {vimeoVideos.slice(0, 4).map((vid) => (
-                  <a key={vid.uri} href={vid.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-md bg-white/5 p-2" data-testid={`vimeo-vid-${vid.uri}`}>
-                    {vid.thumbnail && <img src={vid.thumbnail} alt={vid.name} className="w-16 h-10 object-cover rounded" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{vid.name}</p>
-                      {vid.competitionFolder && <p className="text-xs text-white/30">{vid.competitionFolder}</p>}
-                    </div>
-                    <ExternalLink className="h-3 w-3 text-white/30 shrink-0" />
-                  </a>
+                {vimeoVideos.map((vid) => (
+                  <div key={vid.uri} className="flex items-center gap-3 rounded-md bg-white/5 p-2" data-testid={`vimeo-vid-${vid.uri}`}>
+                    <a href={vid.link} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-center gap-3">
+                      {vid.thumbnail && <img src={vid.thumbnail} alt={vid.name} className="w-16 h-10 object-cover rounded shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{vid.name}</p>
+                        {vid.competitionFolder && <p className="text-xs text-white/30">{vid.competitionFolder}</p>}
+                      </div>
+                      <ExternalLink className="h-3 w-3 text-white/30 shrink-0" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm("Remove this video from the user's profile?")) deleteVideoMutation.mutate(vid.uri);
+                      }}
+                      className="inline-flex items-center justify-center rounded bg-red-600/80 p-1.5 text-white hover:bg-red-500 disabled:opacity-50"
+                      disabled={deleteVideoMutation.isPending}
+                      aria-label={`Delete ${vid.name}`}
+                      data-testid={`button-admin-delete-video-${vid.uri.replace(/\//g, "-")}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
-      )}
+      </div>
 
       {(activeStats.length > 0 || pastStats.length > 0) && (
         <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="user-detail-voting">

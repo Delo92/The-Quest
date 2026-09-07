@@ -2848,6 +2848,125 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/users/:profileId/images", firebaseAuth, requireAdmin, talentImageUpload.single("image"), async (req, res) => {
+    try {
+      const profileId = parseInt(req.params.profileId);
+      if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
+      if (!req.file) return res.status(400).json({ message: "No image provided" });
+
+      const profile = await storage.getTalentProfile(profileId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const competitionId = req.body.competitionId ? parseInt(req.body.competitionId) : null;
+      const comp = competitionId ? await storage.getCompetition(competitionId) : null;
+      if (competitionId && !comp) return res.status(404).json({ message: "Competition not found" });
+
+      const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
+      const globalMaxImages = settingsDoc.exists ? (settingsDoc.data()?.maxImagesPerContestant ?? 10) : 10;
+      const currentUrls = profile.imageUrls || [];
+      if (currentUrls.length >= globalMaxImages) {
+        return res.status(400).json({ message: `Upload limit reached. Maximum ${globalMaxImages} images allowed per contestant.` });
+      }
+
+      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const uniqueName = generateUniqueFilename(req.file.originalname);
+      const storagePath = `talent-images/${(comp?.title || "Admin Uploads").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim()}/${talentName}/${uniqueName}`;
+      const firebaseUrl = await uploadToFirebaseStorage(storagePath, req.file.buffer, req.file.mimetype);
+
+      let primaryUrl = firebaseUrl;
+      let driveFileId: string | null = null;
+      if (comp) {
+        try {
+          const result = await uploadImageToDrive(
+            comp.title,
+            talentName,
+            req.file.originalname,
+            req.file.mimetype,
+            req.file.buffer,
+          );
+          driveFileId = result.id;
+          primaryUrl = getDriveImageUrl(result.id);
+        } catch (driveErr: any) {
+          console.log("Google Drive admin upload skipped, using Firebase Storage:", driveErr.message?.substring(0, 100));
+        }
+      }
+
+      await getFirestore().collection("imageBackups").add({
+        talentProfileId: profile.id,
+        userId: profile.userId,
+        primaryUrl,
+        firebaseUrl,
+        storagePath,
+        driveFileId,
+        competitionId: comp?.id ?? null,
+        createdAt: new Date().toISOString(),
+      });
+
+      const currentBackupUrls = (profile as any).imageBackupUrls || [];
+      const updated = await storage.updateTalentProfile(profile.userId, {
+        imageUrls: [...currentUrls, primaryUrl],
+        imageBackupUrls: [...currentBackupUrls, firebaseUrl],
+      });
+
+      res.json({
+        message: "Image uploaded",
+        image: {
+          id: `img-${(updated?.imageUrls || currentUrls).length - 1}`,
+          name: req.file.originalname,
+          imageUrl: primaryUrl,
+          thumbnailUrl: driveFileId ? getDriveThumbnailUrl(driveFileId) : firebaseUrl,
+          fallbackUrl: firebaseUrl,
+        },
+      });
+    } catch (error: any) {
+      console.error("Admin image upload error:", error);
+      res.status(500).json({ message: error.message || "Failed to upload image" });
+    }
+  });
+
+  app.delete("/api/admin/users/:profileId/images/:fileId", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const profileId = parseInt(req.params.profileId);
+      if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
+
+      const profile = await storage.getTalentProfile(profileId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const currentUrls = profile.imageUrls || [];
+      const imageIndex = parseInt(req.params.fileId.replace("img-", ""));
+      const imageUrl = currentUrls[imageIndex];
+      if (isNaN(imageIndex) || !imageUrl) return res.status(404).json({ message: "Image not found" });
+
+      const backupUrls = (profile as any).imageBackupUrls || [];
+      const backupSnapshot = await getFirestore()
+        .collection("imageBackups")
+        .where("talentProfileId", "==", profileId)
+        .get();
+      const backupDoc = backupSnapshot.docs.find(doc => doc.data()?.primaryUrl === imageUrl || doc.data()?.firebaseUrl === backupUrls[imageIndex]);
+      const backupData = backupDoc?.data();
+
+      if (backupData?.storagePath) await deleteFromFirebaseStorage(backupData.storagePath);
+      if (backupData?.driveFileId) {
+        try {
+          await deleteFile(backupData.driveFileId);
+        } catch (driveErr: any) {
+          console.warn("Admin Drive image delete skipped:", driveErr.message);
+        }
+      }
+      if (backupDoc) await backupDoc.ref.delete();
+
+      await storage.updateTalentProfile(profile.userId, {
+        imageUrls: currentUrls.filter((_: string, i: number) => i !== imageIndex),
+        imageBackupUrls: backupUrls.filter((_: string, i: number) => i !== imageIndex),
+      });
+
+      res.json({ message: "Image removed" });
+    } catch (error: any) {
+      console.error("Admin image delete error:", error);
+      res.status(500).json({ message: "Failed to remove image" });
+    }
+  });
+
   // Separate lazy endpoint for Vimeo videos — only looks in competitions the talent is actually in
   app.get("/api/admin/users/:profileId/videos", firebaseAuth, requireAdmin, async (req, res) => {
     try {
@@ -2892,6 +3011,95 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("User videos error:", error);
       res.status(500).json({ message: "Failed to get videos" });
+    }
+  });
+
+  app.post("/api/admin/users/:profileId/videos/upload-ticket", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const profileId = parseInt(req.params.profileId);
+      if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
+
+      const { fileName, fileSize, competitionId } = req.body;
+      if (!fileName || !fileSize || !competitionId) {
+        return res.status(400).json({ message: "fileName, fileSize, and competitionId are required" });
+      }
+
+      const [profile, comp] = await Promise.all([
+        storage.getTalentProfile(profileId),
+        storage.getCompetition(parseInt(competitionId)),
+      ]);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+
+      const contestant = await storage.getContestant(comp.id, profileId);
+      if (!contestant) return res.status(400).json({ message: "User is not assigned to this competition" });
+
+      const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
+      const globalMaxVideos = settingsDoc.exists ? (settingsDoc.data()?.maxVideosPerContestant ?? 3) : 3;
+      const compMaxVideos = comp.maxVideosPerContestant;
+      const maxVideos = compMaxVideos != null ? Math.min(compMaxVideos, globalMaxVideos) : globalMaxVideos;
+      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+
+      const existingVideos = await listTalentVideos(comp.title, talentName);
+      const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
+      if (existingVideos.filter(v => !hiddenUris.includes(v.uri)).length >= maxVideos) {
+        return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
+      }
+
+      const chronicTVName = (profile.displayName || profile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const [questTicket, chronicTVTicket, customFolderTicket] = await Promise.all([
+        createUploadTicket(comp.title, talentName, fileName, fileSize),
+        createChronicTVUploadTicket(comp.title, talentName, chronicTVName, fileName, fileSize),
+        comp.vimeoFolderUrl
+          ? createCustomFolderUploadTicket(comp.vimeoFolderUrl, comp.title, talentName, fileName, fileSize)
+          : Promise.resolve(null),
+      ]);
+
+      res.json({
+        uploadLink: questTicket.uploadLink,
+        videoUri: questTicket.videoUri,
+        completeUri: questTicket.completeUri,
+        chronicTV: {
+          uploadLink: chronicTVTicket.uploadLink,
+          videoUri: chronicTVTicket.videoUri,
+          completeUri: chronicTVTicket.completeUri,
+        },
+        customFolder: customFolderTicket ? {
+          uploadLink: customFolderTicket.uploadLink,
+          videoUri: customFolderTicket.videoUri,
+          completeUri: customFolderTicket.completeUri,
+        } : null,
+      });
+    } catch (error: any) {
+      console.error("Admin Vimeo upload ticket error:", error);
+      res.status(500).json({ message: error.message || "Failed to create upload ticket" });
+    }
+  });
+
+  app.delete("/api/admin/users/:profileId/videos/:videoId", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const profileId = parseInt(req.params.profileId);
+      if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
+      const profile = await storage.getTalentProfile(profileId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const videoUri = `/videos/${req.params.videoId}`;
+      try {
+        await deleteVideo(videoUri);
+      } catch (vimeoErr: any) {
+        console.warn("Admin Vimeo delete failed, hiding locally instead:", vimeoErr.message);
+        const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
+        if (!hiddenUris.includes(videoUri)) {
+          await storage.updateTalentProfile(profile.userId, {
+            hiddenVideoUris: [...hiddenUris, videoUri],
+          } as any);
+        }
+      }
+
+      res.json({ message: "Video deleted" });
+    } catch (error: any) {
+      console.error("Admin Vimeo delete error:", error);
+      res.status(500).json({ message: "Failed to delete video" });
     }
   });
 
