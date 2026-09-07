@@ -159,6 +159,31 @@ export async function listTalentVideos(competitionName: string, talentName: stri
   }
 }
 
+export async function listLegacyQuestTalentVideos(competitionName: string, talentName: string): Promise<VimeoVideo[]> {
+  const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  const safeCompName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  try {
+    const root = await getRootFolder();
+    const competitionItems = await vimeoRequest(`${root.uri}/items?type=folder&per_page=100`);
+    const competitionFolder = (competitionItems.data || [])
+      .map((item: any) => item.folder || item)
+      .find((folder: any) => folder.name === safeCompName);
+    if (!competitionFolder?.uri) return [];
+
+    const talentItems = await vimeoRequest(`${competitionFolder.uri}/items?type=folder&per_page=100`);
+    const talentFolder = (talentItems.data || [])
+      .map((item: any) => item.folder || item)
+      .find((folder: any) => folder.name === safeTalentName);
+    if (!talentFolder?.uri) return [];
+
+    const videosUri = talentFolder.metadata?.connections?.videos?.uri || `${talentFolder.uri}/videos`;
+    const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function listAllTalentVideos(talentName: string): Promise<(VimeoVideo & { competitionFolder: string })[]> {
   const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   try {

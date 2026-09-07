@@ -53,6 +53,7 @@ import {
 } from "./google-drive";
 import {
   listTalentVideos,
+  listLegacyQuestTalentVideos,
   listAllTalentVideos,
   deleteVideo,
   renameVideo,
@@ -2985,11 +2986,20 @@ export async function registerRoutes(
 
       const rawVideos = (
         await Promise.all(
-          knownCompetitions.map(comp =>
-            listTalentVideos(comp.title, talentName)
-              .then(vids => vids.map(v => ({ ...v, competitionFolder: comp.title })))
-              .catch(() => [])
-          )
+           knownCompetitions.map(async (comp) => {
+             const [chronicVideos, legacyVideos] = await Promise.all([
+               listTalentVideos(comp.title, talentName).catch(() => []),
+               listLegacyQuestTalentVideos(comp.title, talentName).catch(() => []),
+             ]);
+             const seen = new Set<string>();
+             return [...chronicVideos, ...legacyVideos]
+               .filter((video) => {
+                 if (seen.has(video.uri)) return false;
+                 seen.add(video.uri);
+                 return true;
+               })
+               .map(v => ({ ...v, competitionFolder: comp.title }));
+           })
         )
       ).flat();
 
