@@ -537,6 +537,8 @@ export function InviteHostDialog() {
   const [competitionId, setCompetitionId] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaUploading, setMediaUploading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteLink, setNewInviteLink] = useState<string | null>(null);
