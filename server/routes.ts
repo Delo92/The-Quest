@@ -3041,12 +3041,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
       }
 
-      const questTicket = await createUploadTicket(comp.title, talentName, fileName, fileSize);
+      const chronicTVTicket = await createChronicTVUploadTicket(comp.title, talentName, talentName, fileName, fileSize);
 
       res.json({
-        uploadLink: questTicket.uploadLink,
-        videoUri: questTicket.videoUri,
-        completeUri: questTicket.completeUri,
+        uploadLink: chronicTVTicket.uploadLink,
+        videoUri: chronicTVTicket.videoUri,
+        completeUri: chronicTVTicket.completeUri,
         chronicTV: null,
         customFolder: null,
       });
@@ -4674,30 +4674,14 @@ export async function registerRoutes(
         }
       } catch {}
 
-      const chronicTVName = (profile.displayName || profile.stageName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-
-      const [questTicket, chronicTVTicket, customFolderTicket] = await Promise.all([
-        createUploadTicket(comp.title, talentName, fileName, fileSize),
-        createChronicTVUploadTicket(comp.title, talentName, chronicTVName, fileName, fileSize),
-        comp.vimeoFolderUrl
-          ? createCustomFolderUploadTicket(comp.vimeoFolderUrl, comp.title, talentName, fileName, fileSize)
-          : Promise.resolve(null),
-      ]);
+      const chronicTVTicket = await createChronicTVUploadTicket(comp.title, talentName, talentName, fileName, fileSize);
 
       res.json({
-        uploadLink: questTicket.uploadLink,
-        videoUri: questTicket.videoUri,
-        completeUri: questTicket.completeUri,
-        chronicTV: {
-          uploadLink: chronicTVTicket.uploadLink,
-          videoUri: chronicTVTicket.videoUri,
-          completeUri: chronicTVTicket.completeUri,
-        },
-        customFolder: customFolderTicket ? {
-          uploadLink: customFolderTicket.uploadLink,
-          videoUri: customFolderTicket.videoUri,
-          completeUri: customFolderTicket.completeUri,
-        } : null,
+        uploadLink: chronicTVTicket.uploadLink,
+        videoUri: chronicTVTicket.videoUri,
+        completeUri: chronicTVTicket.completeUri,
+        chronicTV: null,
+        customFolder: null,
       });
     } catch (error: any) {
       console.error("Vimeo upload ticket error:", error);
@@ -4717,7 +4701,7 @@ export async function registerRoutes(
 
   app.post("/api/vimeo/finalize-upload", firebaseAuth, async (req, res) => {
     try {
-      const { videoUri, competitionId, completeUri, chronicTVVideoUri, chronicTVCompleteUri, customFolderCompleteUri } = req.body;
+      const { videoUri, competitionId, completeUri } = req.body;
       if (!videoUri || !competitionId) {
         return res.status(400).json({ message: "videoUri and competitionId are required" });
       }
@@ -4737,15 +4721,7 @@ export async function registerRoutes(
       };
 
       await callCompleteUri(completeUri);
-      const backupResults = await Promise.allSettled([
-        callCompleteUri(chronicTVCompleteUri),
-        callCompleteUri(customFolderCompleteUri),
-      ]);
-      const warnings = backupResults
-        .filter((result): result is PromiseRejectedResult => result.status === "rejected")
-        .map((result) => result.reason?.message || "Backup completion failed");
-
-      res.json({ success: true, warnings });
+      res.json({ success: true });
     } catch (error: any) {
       console.error("Finalize upload error:", error);
       res.status(500).json({ message: "Failed to finalize upload" });

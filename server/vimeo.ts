@@ -140,7 +140,7 @@ export async function listTalentVideos(competitionName: string, talentName: stri
   const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   const safeCompName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   try {
-    const folder = await getTalentFolderInCompetition(competitionName, talentName);
+    const folder = await getChronicTVContestantVimeoFolder(competitionName, talentName);
     const videosUri = folder.metadata?.connections?.videos?.uri || `${folder.uri}/videos`;
     const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
     return data.data || [];
@@ -158,7 +158,7 @@ export async function listTalentVideos(competitionName: string, talentName: stri
 export async function listAllTalentVideos(talentName: string): Promise<(VimeoVideo & { competitionFolder: string })[]> {
   const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   try {
-    const root = await getRootFolder();
+    const root = await getChronicTVQuestSeriesFolder();
     const listPath = `${root.uri}/items?type=folder&per_page=100`;
     const data = await vimeoRequest(listPath);
     const compFolders = data.data || [];
