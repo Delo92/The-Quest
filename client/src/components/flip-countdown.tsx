@@ -125,7 +125,7 @@ export default function FlipCountdown({ targetDate, title }: FlipCountdownProps)
       {isExpired ? (
         <p className="text-[#FF5A09] text-lg sm:text-2xl uppercase tracking-[6px] font-bold">Voting Closed</p>
       ) : (
-        <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
+        <div className="flex w-full items-center justify-center gap-2 sm:gap-4 md:gap-6">
           <FlipCard value={pad(timeLeft.days)} label="Days" />
           <span className="text-[#FF5A09] text-2xl sm:text-3xl font-bold mt-[-20px]">:</span>
           <FlipCard value={pad(timeLeft.hours)} label="Hours" />
