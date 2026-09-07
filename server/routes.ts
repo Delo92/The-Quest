@@ -5082,7 +5082,7 @@ export async function registerRoutes(
       const { categorySlug, compSlug, talentSlug } = req.params;
       const media = await getCachedPublicResponse(
         `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
-        60_000,
+        10 * 60_000,
         async () => {
           const competitions = await storage.getCompetitions();
           const comp = competitions.find(c =>
@@ -5104,7 +5104,7 @@ export async function registerRoutes(
             .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
             .trim();
           const talentVideos = await listTalentVideos(comp.title, talentName);
-          const videos = await Promise.all(talentVideos.map(async v => ({
+          const videos = talentVideos.map(v => ({
             uri: v.uri,
             name: v.name,
             link: v.link,
@@ -5112,8 +5112,8 @@ export async function registerRoutes(
             duration: v.duration,
             width: v.width,
             height: v.height,
-            thumbnail: await resolveVideoThumbnail(v),
-          })));
+            thumbnail: getVideoThumbnail(v),
+          }));
           return {
             videoThumbnail: videos[0]?.thumbnail || null,
             videos,

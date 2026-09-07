@@ -60,32 +60,57 @@ async function vimeoRequest(path: string, options: RequestInit = {}): Promise<an
   return res.json();
 }
 
+// In-process folder cache — folders virtually never change so we cache for 30 minutes.
+const folderCache = new Map<string, { folder: VimeoFolder; expiresAt: number }>();
+const folderInflight = new Map<string, Promise<VimeoFolder>>();
+
 export async function findOrCreateFolder(name: string, parentUri?: string): Promise<VimeoFolder> {
-  const listPath = parentUri
-    ? `${parentUri}/items?type=folder&per_page=100`
-    : `/me/projects?per_page=100`;
+  const cacheKey = `${name}::${parentUri ?? "root"}`;
+  const now = Date.now();
 
-  try {
-    const data = await vimeoRequest(listPath);
-    const items = data.data || [];
-    for (const item of items) {
-      const folder = parentUri ? (item.folder || item) : item;
-      if (folder.name === name) return folder;
+  const cached = folderCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.folder;
+
+  // Deduplicate concurrent calls for the same folder
+  const inflight = folderInflight.get(cacheKey);
+  if (inflight) return inflight;
+
+  const promise = (async (): Promise<VimeoFolder> => {
+    const listPath = parentUri
+      ? `${parentUri}/items?type=folder&per_page=100`
+      : `/me/projects?per_page=100`;
+
+    try {
+      const data = await vimeoRequest(listPath);
+      const items = data.data || [];
+      for (const item of items) {
+        const folder = parentUri ? (item.folder || item) : item;
+        if (folder.name === name) {
+          folderCache.set(cacheKey, { folder, expiresAt: now + 30 * 60_000 });
+          return folder;
+        }
+      }
+    } catch (err: any) {
+      console.warn(`Could not list folders at ${listPath}:`, err.message);
     }
-  } catch (err: any) {
-    console.warn(`Could not list folders at ${listPath}:`, err.message);
-  }
 
-  const body: any = { name };
-  if (parentUri) {
-    body.parent_folder_uri = parentUri;
-  }
-  const created = await vimeoRequest("/me/projects", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+    const body: any = { name };
+    if (parentUri) body.parent_folder_uri = parentUri;
+    const created = await vimeoRequest("/me/projects", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
 
-  return created;
+    folderCache.set(cacheKey, { folder: created, expiresAt: now + 30 * 60_000 });
+    return created;
+  })();
+
+  folderInflight.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    folderInflight.delete(cacheKey);
+  }
 }
 
 export function parseVimeoFolderUri(folderUrl: string): string {
