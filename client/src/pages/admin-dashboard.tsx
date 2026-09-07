@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Trophy, Type,  BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
+import { Trophy, Type,  BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Play, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS, getVimeoId, buildVimeoSrc } from "@/lib/media-utils";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
@@ -220,6 +220,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   const [mediaCompetitionId, setMediaCompetitionId] = useState("none");
   const [mediaUploadType, setMediaUploadType] = useState<"image" | "video" | null>(null);
   const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
+  const [playingVideoUri, setPlayingVideoUri] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -613,29 +614,48 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
             ) : vimeoVideos.length === 0 ? (
               <p className="text-xs text-white/20">No videos found</p>
             ) : (
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {vimeoVideos.map((vid) => (
-                  <div key={vid.uri} className="flex items-center gap-3 rounded-md bg-white/5 p-2" data-testid={`vimeo-vid-${vid.uri}`}>
-                    <a href={vid.link} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-center gap-3">
-                      {vid.thumbnail ? (
-                        <img src={vid.thumbnail} alt={vid.name} className="w-16 h-10 object-cover rounded shrink-0" />
-                      ) : (
-                        <div className="w-16 h-10 rounded shrink-0 bg-white/10 flex items-center justify-center">
-                          <Video className="h-4 w-4 text-white/40" aria-hidden="true" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{vid.name}</p>
-                        {vid.competitionFolder && <p className="text-xs text-white/30">{vid.competitionFolder}</p>}
-                      </div>
-                      <ExternalLink className="h-3 w-3 text-white/30 shrink-0" />
-                    </a>
+                  <div key={vid.uri} className="relative group rounded-md overflow-hidden bg-white/5 aspect-square" data-testid={`vimeo-vid-${vid.uri}`}>
+                    {playingVideoUri === vid.uri ? (
+                      <iframe
+                        src={`${vid.embedUrl || `https://player.vimeo.com/video/${vid.uri.split("/").pop()}`}?autoplay=1&title=0&byline=0&portrait=0`}
+                        className="w-full h-full"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        frameBorder="0"
+                        title={vid.name}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setPlayingVideoUri(vid.uri)}
+                        className="relative block w-full h-full text-left"
+                        aria-label={`Play ${vid.name}`}
+                      >
+                        {vid.thumbnail ? (
+                          <img src={vid.thumbnail} alt={vid.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <Video className="h-8 w-8 text-white/40" aria-hidden="true" />
+                          </div>
+                        )}
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/35 transition-colors">
+                          <span className="inline-flex items-center justify-center rounded-full bg-orange-500/95 text-white w-11 h-11 shadow-lg">
+                            <Play className="h-5 w-5 ml-0.5 fill-current" aria-hidden="true" />
+                          </span>
+                        </span>
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 pt-6 pb-2">
+                          <span className="block text-xs font-medium text-white truncate">{vid.name}</span>
+                        </span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
                         if (window.confirm("Remove this video from the user's profile?")) deleteVideoMutation.mutate(vid.uri);
                       }}
-                      className="inline-flex items-center justify-center rounded bg-red-600/80 p-1.5 text-white hover:bg-red-500 disabled:opacity-50"
+                      className="absolute top-1 right-1 z-10 inline-flex items-center justify-center rounded bg-red-600/80 p-1.5 text-white hover:bg-red-500 disabled:opacity-50"
                       disabled={deleteVideoMutation.isPending}
                       aria-label={`Delete ${vid.name}`}
                       data-testid={`button-admin-delete-video-${vid.uri.replace(/\//g, "-")}`}
