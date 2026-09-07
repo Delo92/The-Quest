@@ -332,9 +332,8 @@ export default function CompetitionDetailPage() {
                         >
                           <iframe
                             src={playerUrl}
-                            className="absolute inset-0 w-full h-full"
+                            className="absolute inset-0 w-full h-full pointer-events-none"
                             allow="autoplay; fullscreen; picture-in-picture"
-                            allowFullScreen
                             title={`${contestant.talentProfile.displayName} — ${video.name}`}
                           />
                         </div>

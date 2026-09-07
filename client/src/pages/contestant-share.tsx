@@ -209,6 +209,18 @@ export default function ContestantSharePage() {
       <div className="relative z-10">
       <SiteNavbar />
 
+      {/* Back to competition breadcrumb */}
+      <div className="bg-black/80 border-b border-white/10 px-4 py-2 flex items-center gap-2 text-sm sticky top-0 z-40 backdrop-blur-sm">
+        <Link href={`/${categorySlug}/${compSlug}`}>
+          <span className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors cursor-pointer">
+            <ChevronRight className="h-3.5 w-3.5 rotate-180 shrink-0" />
+            {competition?.title || "Competition"}
+          </span>
+        </Link>
+        <span className="text-white/20">/</span>
+        <span className="text-white/90 truncate max-w-[200px]">{profile?.stageName || profile?.displayName}</span>
+      </div>
+
       <section
         className="relative h-[270px] md:h-[400px] overflow-hidden"
       >
@@ -373,32 +385,15 @@ export default function ContestantSharePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {(mediaData?.videos || contestant.videos).map((video, i) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
-                  {playingVideo === video.embedUrl ? (
-                    <div className={video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
-                      <iframe
-                        src={`${video.embedUrl}?autoplay=1`}
-                        className="w-full h-full"
-                        allow="autoplay; fullscreen; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className={`relative overflow-hidden group cursor-pointer ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
-                      onClick={() => setPlayingVideo(video.embedUrl)}
-                    >
-                      <img
-                        src={video.thumbnail || profile.imageUrls?.[0] || competition.coverImage || ""}
-                        alt={video.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500 flex items-center justify-center">
-                        <div className="w-16 h-16 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110 shadow-lg" style={{ backgroundColor: accentColor }}>
-                          <Play className="h-7 w-7 text-white fill-white ml-1" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <div className={video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
+                    <iframe
+                      src={`${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=0`}
+                      className="w-full h-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                      title={video.name}
+                    />
+                  </div>
                   <p className="text-white/50 text-sm mt-2 text-center truncate">{video.name}</p>
                 </div>
               ))}
