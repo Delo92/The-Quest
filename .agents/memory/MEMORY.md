@@ -3,4 +3,4 @@
 - [Payment outcome handling](payment-outcome-handling.md) — uncertain Authorize.net outcomes stay locked; never make them automatically retryable
 - [Dashboard visual verification](dashboard-visual-verification.md) — protected pages need authenticated browser passes plus element-bound checks for clipping
 - [Competition Vimeo routing](competition-vimeo-routing.md) — optional per-competition Vimeo folder is preferred; standard Quest/CB destinations remain backups and folder failures must block unfiled uploads
-- [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos require a user competition for correct Vimeo routing
+- [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing

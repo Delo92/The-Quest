@@ -2967,25 +2967,23 @@ export async function registerRoutes(
     }
   });
 
-  // Separate lazy endpoint for Vimeo videos — only looks in competitions the talent is actually in
+  // Separate lazy endpoint for Vimeo videos — admins can manage media across all competitions
   app.get("/api/admin/users/:profileId/videos", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const profileId = parseInt(req.params.profileId);
       if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
 
-      const [profile, contestantEntries] = await Promise.all([
+      const [profile, knownCompetitions] = await Promise.all([
         storage.getTalentProfile(profileId),
-        storage.getContestantsByTalent(profileId),
+        storage.getCompetitions(),
       ]);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
 
       const talentName = ((profile as any).stageName || (profile as any).displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
-      // Only fetch from competitions this talent is actually enrolled in
       const competitions = await Promise.all(
-        contestantEntries.map(e => storage.getCompetition(e.competitionId))
+        knownCompetitions.map(comp => Promise.resolve(comp))
       );
-      const knownCompetitions = competitions.filter(Boolean) as any[];
 
       const rawVideos = (
         await Promise.all(
@@ -3030,9 +3028,6 @@ export async function registerRoutes(
       ]);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
       if (!comp) return res.status(404).json({ message: "Competition not found" });
-
-      const contestant = await storage.getContestant(comp.id, profileId);
-      if (!contestant) return res.status(400).json({ message: "User is not assigned to this competition" });
 
       const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
       const globalMaxVideos = settingsDoc.exists ? (settingsDoc.data()?.maxVideosPerContestant ?? 3) : 3;
