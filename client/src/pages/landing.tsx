@@ -35,8 +35,10 @@ export default function Landing() {
   const { getImage, getMedia, getText } = useLivery();
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
   const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured?placement=hero"] });
-  const featuredCountdownDate = featuredComp?.votingEndDate ? new Date(featuredComp.votingEndDate) : null;
-  const hasFeaturedCountdown = !!featuredCountdownDate && !Number.isNaN(featuredCountdownDate.getTime()) && featuredCountdownDate > new Date();
+  const featuredCountdownSource = featuredComp?.votingEndDate || featuredComp?.endDate || null;
+  const featuredCountdownDate = featuredCountdownSource ? new Date(featuredCountdownSource) : null;
+  const hasFeaturedCountdown = !!featuredCountdownDate && !Number.isNaN(featuredCountdownDate.getTime());
+  const featuredCountdownTitle = featuredComp?.votingEndDate ? "Voting Closes In" : "Competition Ends In";
 
   const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
     if (cat.videoUrl) return { url: cat.videoUrl, type: "video" };
@@ -166,13 +168,13 @@ export default function Landing() {
                   {hasFeaturedCountdown && featuredCountdownDate ? (
                     <FlipCountdown
                       targetDate={featuredCountdownDate}
-                      title="Voting Closes In"
+                      title={featuredCountdownTitle}
                     />
                   ) : (
                     <div className="text-center border border-white/10 bg-black/30 px-4 py-5" data-testid="featured-countdown-unavailable">
                       <p className="text-white/70 text-xs sm:text-sm uppercase tracking-[3px]">Countdown unavailable</p>
                       <p className="text-white/40 text-xs mt-2">
-                        Set a voting end date for this competition to activate the timer.
+                        Set a voting or competition end date to activate the timer.
                       </p>
                     </div>
                   )}
