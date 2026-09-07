@@ -4780,6 +4780,7 @@ export async function registerRoutes(
 
   app.post("/api/vimeo/finalize-upload", firebaseAuth, async (req, res) => {
     try {
+      const uid = req.firebaseUser!.uid;
       const { videoUri, competitionId, completeUri } = req.body;
       if (!videoUri || !competitionId) {
         return res.status(400).json({ message: "videoUri and competitionId are required" });
@@ -4800,6 +4801,24 @@ export async function registerRoutes(
       };
 
       await callCompleteUri(completeUri);
+
+      // Write the Vimeo URI back to Firestore so future page loads can read it
+      // directly instead of walking the Vimeo folder tree.
+      try {
+        const profile = await storage.getTalentProfileByUserId(uid);
+        if (profile) {
+          const existing: string[] = profile.videoUrls || [];
+          if (!existing.includes(videoUri)) {
+            await storage.updateTalentProfile(uid, {
+              videoUrls: [...existing, videoUri],
+            });
+          }
+        }
+      } catch (saveErr: any) {
+        // Non-fatal — video is on Vimeo; we just won't have the fast path yet
+        console.warn("Could not save videoUri to profile:", saveErr.message);
+      }
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("Finalize upload error:", error);
@@ -4818,6 +4837,13 @@ export async function registerRoutes(
 
       try {
         await deleteVideo(videoUri);
+        // Remove from stored videoUrls so the fast-path stays clean
+        const storedUrls: string[] = (profile as any).videoUrls || [];
+        if (storedUrls.includes(videoUri)) {
+          await storage.updateTalentProfile(uid, {
+            videoUrls: storedUrls.filter((u: string) => u !== videoUri),
+          } as any);
+        }
       } catch (vimeoErr: any) {
         console.warn("Vimeo delete failed, hiding locally instead:", vimeoErr.message);
         const current = (profile as any).hiddenVideoUris || [];
@@ -5103,8 +5129,24 @@ export async function registerRoutes(
           const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
             .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
             .trim();
-          const talentVideos = await listTalentVideos(comp.title, talentName);
-          const videos = talentVideos.map(v => ({
+          // Fast path: URIs stored on the profile — no Vimeo API walk needed.
+          const storedUris: string[] = (contestant.talentProfile as any).videoUrls || [];
+          const hiddenUris: string[] = (contestant.talentProfile as any).hiddenVideoUris || [];
+          const visibleUris = storedUris.filter(u => !hiddenUris.includes(u));
+
+          let talentVideos: any[];
+          if (visibleUris.length > 0) {
+            talentVideos = await Promise.all(visibleUris.map(uri => {
+              const videoId = uri.replace("/videos/", "");
+              return getVideoById(videoId).catch(() => null);
+            }));
+            talentVideos = talentVideos.filter(Boolean);
+          } else {
+            // Fallback: walk the Vimeo folder tree (slow, but only when no URIs stored yet)
+            talentVideos = await listTalentVideos(comp.title, talentName);
+          }
+
+          const videos = talentVideos.map((v: any) => ({
             uri: v.uri,
             name: v.name,
             link: v.link,

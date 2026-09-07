@@ -158,7 +158,7 @@ export default function HomePage() {
       {/* Hero / Banner */}
       <section
         id="home"
-        className="relative min-h-screen flex flex-col items-center overflow-hidden bg-black px-4 pt-24 pb-16"
+        className="relative flex flex-col items-center overflow-hidden bg-black px-4 pt-24 pb-5"
       >
         <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col items-center text-center">
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold uppercase tracking-wider mb-5 drop-shadow-2xl">
@@ -191,10 +191,10 @@ export default function HomePage() {
                 : heroSubtitle;
             })()}
           </p>
-        </div>
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce z-10">
-          <div className="w-6 h-10 border-2 border-white/40 rounded-full flex items-start justify-center pt-2">
-            <div className="w-1 h-3 bg-white/60 rounded-full" />
+          <div className="mt-5 sm:mt-6 animate-bounce">
+            <div className="w-6 h-10 border-2 border-white/40 rounded-full flex items-start justify-center pt-2">
+              <div className="w-1 h-3 bg-white/60 rounded-full" />
+            </div>
           </div>
         </div>
       </section>
