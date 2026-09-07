@@ -195,6 +195,19 @@ const talentImageUpload = multer({
   },
 });
 
+const invitationMediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+    if (allowed.test(path.extname(file.originalname))) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
+});
+
 async function secureAuthorizeCharge(
   req: Request,
   details: {
@@ -2745,6 +2758,22 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Get invitation by token error:", error);
       res.status(500).json({ message: "Failed to get invitation" });
+    }
+  });
+
+  app.post("/api/invitations/media", firebaseAuth, requireTalent, invitationMediaUpload.single("media"), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No image file provided" });
+
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+      const storagePath = `host-invitations/${req.firebaseUser!.uid}/${uniqueName}`;
+      const url = await uploadToFirebaseStorage(storagePath, req.file.buffer, req.file.mimetype);
+
+      res.json({ url });
+    } catch (error: any) {
+      console.error("Host invitation media upload error:", error);
+      res.status(500).json({ message: error.message || "Failed to upload image" });
     }
   });
 

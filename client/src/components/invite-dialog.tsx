@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video } from "lucide-react";
+import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video, Upload, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -510,6 +510,7 @@ export function InviteHostDialog() {
   const [suggestedEventName, setSuggestedEventName] = useState("");
   const [competitionId, setCompetitionId] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newInviteLink, setNewInviteLink] = useState<string | null>(null);
@@ -542,7 +543,7 @@ export function InviteHostDialog() {
     },
     onSuccess: (data: Invitation) => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations/sent"] });
-      setEmail(""); setName(""); setPhone(""); setSuggestedCategory(""); setSuggestedEventName(""); setCompetitionId(""); setMediaUrl(""); setMessage("");
+      setEmail(""); setName(""); setPhone(""); setSuggestedCategory(""); setSuggestedEventName(""); setCompetitionId(""); setMediaUrl(""); setMediaUploading(false); setMessage("");
       const link = `${window.location.origin}/host?invite=${data.token}`;
       setNewInviteLink(link);
       navigator.clipboard.writeText(link).then(() => {
@@ -573,6 +574,27 @@ export function InviteHostDialog() {
       setTimeout(() => setCopiedToken(null), 3000);
       toast({ title: "Invite link copied!" });
     });
+  };
+
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setMediaUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("media", file);
+      const res = await fetch("/api/invitations/media", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload failed");
+      setMediaUrl(data.url);
+      toast({ title: "Image uploaded", description: "It will be included in the welcome email." });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message || "Could not upload image.", variant: "destructive" });
+    } finally {
+      setMediaUploading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -656,20 +678,58 @@ export function InviteHostDialog() {
 
           <div className="space-y-1.5">
             <Label className="text-white/60">Welcome Email Media (optional)</Label>
-            <div className="relative">
-              {/\.(mp4|webm|mov)(\?.*)?$/i.test(mediaUrl) ? (
-                <Video className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400" />
-              ) : (
-                <Image className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400" />
+            <div className="rounded-md border border-white/10 bg-white/5 p-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <label
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-orange-400/30 bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-300 transition-colors hover:bg-orange-500/20 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+                  data-testid="button-upload-host-invite-media"
+                >
+                  {mediaUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  {mediaUploading ? "Uploading..." : "Upload image"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    className="sr-only"
+                    onChange={handleMediaUpload}
+                    disabled={mediaUploading}
+                    data-testid="input-host-invite-media-file"
+                  />
+                </label>
+                <span className="text-[11px] text-white/35">JPG, PNG, GIF, or WebP up to 10 MB</span>
+              </div>
+
+              <div className="relative">
+                {/\.(mp4|webm|mov)(\?.*)?$/i.test(mediaUrl) ? (
+                  <Video className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400" />
+                ) : (
+                  <Image className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400" />
+                )}
+                <Input
+                  type="url"
+                  value={mediaUrl}
+                  onChange={(e) => setMediaUrl(e.target.value)}
+                  placeholder="Or paste an image, direct video, or Vimeo URL"
+                  className="bg-black/20 border-white/10 text-white pl-10 pr-10"
+                  data-testid="input-host-invite-media-url"
+                />
+                {mediaUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setMediaUrl("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-white/40 hover:bg-white/10 hover:text-white"
+                    aria-label="Clear welcome email media"
+                    data-testid="button-clear-host-invite-media"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {mediaUrl && /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(mediaUrl) && (
+                <div className="overflow-hidden rounded-md border border-white/10 bg-black/20">
+                  <img src={mediaUrl} alt="Welcome email media preview" className="max-h-36 w-full object-cover" />
+                </div>
               )}
-              <Input
-                type="url"
-                value={mediaUrl}
-                onChange={(e) => setMediaUrl(e.target.value)}
-                placeholder="Image, direct video, or Vimeo URL"
-                className="bg-white/5 border-white/10 text-white pl-10"
-                data-testid="input-host-invite-media-url"
-              />
             </div>
             <p className="text-[11px] text-white/35">
               Leave blank to use the selected competition's cover media in the welcome email.
@@ -683,7 +743,7 @@ export function InviteHostDialog() {
               rows={2} data-testid="input-host-invite-message" />
           </div>
 
-          <Button type="submit" disabled={!email || !name || inviteMutation.isPending}
+          <Button type="submit" disabled={!email || !name || mediaUploading || inviteMutation.isPending}
             className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white" data-testid="button-send-host-invite">
             {inviteMutation.isPending ? "Sending..." : "Send Host Invitation"}
           </Button>
