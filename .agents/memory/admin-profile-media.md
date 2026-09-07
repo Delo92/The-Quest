@@ -14,3 +14,9 @@ Admin video uploads use the same single ChronicTV destination as artist self-ser
 **Why:** Admin-managed media should behave exactly like the artist upload flow and create only one Vimeo video.
 
 **How to apply:** Require a selected competition, create the ChronicTV competition/artist folder ticket, and list videos from that same folder.
+
+The admin media competition selector must remain empty until the administrator explicitly chooses a competition; upload completion should wait for the uploaded Vimeo URI to appear in the listing before showing it as visible.
+
+**Why:** Defaulting to the first competition can route media incorrectly, and Vimeo indexing can lag behind upload completion.
+
+**How to apply:** Block video upload when no competition is selected and poll the selected folder briefly after finalization.

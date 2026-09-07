@@ -222,7 +222,6 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
-  const mediaCompetitionInitializedRef = useRef(false);
 
   const { data, isLoading } = useQuery<UserDetailResponse>({
     queryKey: ["/api/admin/users", profileId, "detail"],
@@ -342,19 +341,13 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   };
 
   const handleAdminVideoUpload = async (file: File) => {
-    const uploadCompetitionId = mediaCompetitionId !== "none"
-      ? mediaCompetitionId
-      : mediaCompetitions[0]?.competitionId
-        ? String(mediaCompetitions[0].competitionId)
-        : null;
+    const uploadCompetitionId = mediaCompetitionId !== "none" ? mediaCompetitionId : null;
 
     if (!uploadCompetitionId) {
       toast({ title: "Choose a competition", description: "Videos must be assigned to one of the user's competitions.", variant: "destructive" });
       if (videoInputRef.current) videoInputRef.current.value = "";
       return;
     }
-    if (mediaCompetitionId === "none") setMediaCompetitionId(uploadCompetitionId);
-
     setMediaUploadType("video");
     setMediaUploadProgress(0);
     try {
