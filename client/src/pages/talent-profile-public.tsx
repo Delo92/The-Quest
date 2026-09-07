@@ -22,6 +22,11 @@ export default function TalentProfilePublic() {
     queryKey: ["/api/talent-profiles", id],
     enabled: !!id,
   });
+  const { data: videos = [] } = useQuery<any[]>({
+    queryKey: ["/api/talent-profiles", id, "videos"],
+    enabled: !!id,
+    staleTime: 60_000,
+  });
 
   if (isLoading) {
     return (
@@ -156,7 +161,7 @@ export default function TalentProfilePublic() {
           </div>
         )}
 
-        {profile.videos && profile.videos.length > 0 && (
+        {videos.length > 0 && (
           <div className="mb-10">
             <div className="text-center mb-10">
               <p className="text-[#5f5f5f] text-sm mb-1">Watch performances</p>
@@ -165,7 +170,7 @@ export default function TalentProfilePublic() {
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {profile.videos.map((video: any, i: number) => (
+              {videos.map((video: any, i: number) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
                   {playingVideo === video.embedUrl ? (
                     <div className="aspect-video">

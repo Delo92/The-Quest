@@ -214,13 +214,14 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                           />
                           <div className="absolute inset-0 z-10" />
                         </>
-                      ) : item.coverVideoUrl ? (
+                      ) : item.coverVideoUrl && index === currentIndex ? (
                         <video
                           src={item.coverVideoUrl}
                           autoPlay
                           loop
                           muted
                           playsInline
+                          preload="metadata"
                           className="w-full h-full object-cover"
                         />
                       ) : (

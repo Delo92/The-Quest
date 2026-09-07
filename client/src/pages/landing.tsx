@@ -35,7 +35,7 @@ export default function Landing() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 150]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
-  const { items, isLoading: liveryLoading, getImage, getMedia, getText } = useLivery();
+  const { getImage, getMedia, getText } = useLivery();
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
   const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured"] });
 
@@ -58,7 +58,9 @@ export default function Landing() {
 
   const cats = useInView();
   const featured = useInView();
+  const featureMedia = useInView(0.01);
   const steps = useInView();
+  const ctaMedia = useInView(0.01);
   const cta = useInView();
 
   const [showVotingModal, setShowVotingModal] = useState(false);
@@ -78,7 +80,7 @@ export default function Landing() {
   };
 
   return (
-    <div className={`min-h-screen bg-black text-white overflow-x-hidden transition-opacity duration-500 ${liveryLoading ? "opacity-0" : "opacity-100"}`}>
+    <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <SiteNavbar />
 
       <section ref={heroRef} className="relative min-h-screen flex items-end justify-center pb-4" style={{ overflow: "visible" }}>
@@ -86,15 +88,15 @@ export default function Landing() {
           {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
             <iframe
               src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=1&autoplay=1&muted=1&loop=1&autopause=0") || ""}
-              className="absolute inset-0 h-full w-full scale-125 pointer-events-none"
+              className="absolute inset-0 h-full w-full pointer-events-none"
               allow="autoplay; fullscreen; picture-in-picture"
               title="Hero background video"
               aria-hidden="true"
             />
           ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
-            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-cover scale-110" autoPlay muted loop playsInline />
+            <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="w-full h-full object-cover" autoPlay muted loop playsInline />
           ) : (
-            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-cover scale-110" />
+            <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-black/35" />
         </motion.div>
@@ -238,9 +240,13 @@ export default function Landing() {
                 >
                   <div className="overflow-hidden">
                     {media.type === "video" ? (
-                      <video src={media.url} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline />
+                      cats.isVisible ? (
+                        <video src={media.url} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline preload="metadata" />
+                      ) : (
+                        <img src={cat.imageUrl || getImage("competition_card_fallback", "/images/template/e1.jpg")} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                      )
                     ) : (
-                      <img src={media.url} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" />
+                      <img src={media.url} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
                     )}
                   </div>
                   <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
@@ -265,11 +271,11 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="relative py-24 md:py-28 overflow-hidden">
-        {getMedia("feature_background", "/images/template/bg-2.jpg").type === "video" ? (
-          <video src={getMedia("feature_background", "/images/template/bg-2.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+      <section ref={featureMedia.ref} className="relative py-24 md:py-28 overflow-hidden">
+        {getMedia("feature_background", "/images/template/bg-2.jpg").type === "video" && featureMedia.isVisible ? (
+          <video src={getMedia("feature_background", "/images/template/bg-2.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
         ) : (
-          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${getImage("feature_background", "/images/template/bg-2.jpg")}')` }} />
+          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${getMedia("feature_background", "/images/template/bg-2.jpg").type === "video" ? "/images/template/bg-2.jpg" : getImage("feature_background", "/images/template/bg-2.jpg")}')` }} />
         )}
         <div className="absolute inset-0 bg-black/65" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -337,11 +343,11 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="relative py-24 md:py-28 overflow-hidden">
-        {getMedia("cta_background", "/images/template/breadcumb.jpg").type === "video" ? (
-          <video src={getMedia("cta_background", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+      <section ref={ctaMedia.ref} className="relative py-24 md:py-28 overflow-hidden">
+        {getMedia("cta_background", "/images/template/breadcumb.jpg").type === "video" && ctaMedia.isVisible ? (
+          <video src={getMedia("cta_background", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
         ) : (
-          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${getImage("cta_background", "/images/template/breadcumb.jpg")}')` }} />
+          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${getMedia("cta_background", "/images/template/breadcumb.jpg").type === "video" ? "/images/template/breadcumb.jpg" : getImage("cta_background", "/images/template/breadcumb.jpg")}')` }} />
         )}
         <div className="absolute inset-0 bg-black/65" />
         <div ref={cta.ref} className={`relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-1000 ${cta.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>

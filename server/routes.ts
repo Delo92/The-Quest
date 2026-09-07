@@ -87,6 +87,49 @@ function generateUniqueFilename(originalName: string): string {
   return `${timestamp}-${random}${ext}`;
 }
 
+type PublicCacheEntry = {
+  value: unknown;
+  expiresAt: number;
+};
+
+const publicResponseCache = new Map<string, PublicCacheEntry>();
+const publicResponseInflight = new Map<string, Promise<unknown>>();
+
+async function getCachedPublicResponse<T>(
+  key: string,
+  ttlMs: number,
+  loader: () => Promise<T>,
+): Promise<T> {
+  const now = Date.now();
+  const cached = publicResponseCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const inflight = publicResponseInflight.get(key);
+  if (inflight) {
+    return inflight as Promise<T>;
+  }
+
+  const request = loader()
+    .then((value) => {
+      publicResponseCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+      return value;
+    })
+    .finally(() => {
+      publicResponseInflight.delete(key);
+    });
+  publicResponseInflight.set(key, request);
+  return request;
+}
+
+function setPublicCacheHeaders(res: any, maxAgeSeconds: number) {
+  res.setHeader(
+    "Cache-Control",
+    `public, max-age=${maxAgeSeconds}, stale-while-revalidate=${maxAgeSeconds * 2}`,
+  );
+}
+
 const compCoverUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
@@ -713,7 +756,10 @@ export async function registerRoutes(
 
   app.get("/api/stats/total-votes", async (req, res) => {
     try {
-      const total = await firestoreVotes.getTotalPlatformVotes();
+      const total = await getCachedPublicResponse("stats:total-votes", 15_000, () =>
+        firestoreVotes.getTotalPlatformVotes(),
+      );
+      setPublicCacheHeaders(res, 15);
       res.json({ totalVotes: total });
     } catch (error: any) {
       console.error("Total votes error:", error);
@@ -724,28 +770,32 @@ export async function registerRoutes(
   app.get("/api/competitions", async (req, res) => {
     try {
       const { category, status } = req.query;
-      let comps;
-      if (category && status) {
-        comps = await storage.getCompetitionsByCategoryAndStatus(String(category), String(status));
-      } else if (category) {
-        comps = await storage.getCompetitionsByCategory(String(category));
-      } else if (status) {
-        comps = await storage.getCompetitionsByStatus(String(status));
-      } else {
-        comps = await storage.getCompetitions();
-      }
-      const enriched = await Promise.all(comps.map(async (c: any) => {
-        const [contestants, creatorProfile] = await Promise.all([
-          storage.getContestantsByCompetition(c.id),
-          c.createdBy ? storage.getTalentProfileByUserId(c.createdBy) : Promise.resolve(null),
-        ]);
-        const contestantCount = contestants.length;
-        const approvedCount = contestants.filter((x: any) => x.applicationStatus === "approved").length;
-        let hostedBy: string | null = null;
-        if (creatorProfile?.role === "admin") hostedBy = "admin";
-        else if (creatorProfile?.role === "host") hostedBy = creatorProfile.displayName || "Host";
-        return { ...c, hostedBy, contestantCount, approvedCount };
-      }));
+      const cacheKey = `competitions:${String(category || "")}:${String(status || "")}`;
+      const enriched = await getCachedPublicResponse(cacheKey, 15_000, async () => {
+        let comps;
+        if (category && status) {
+          comps = await storage.getCompetitionsByCategoryAndStatus(String(category), String(status));
+        } else if (category) {
+          comps = await storage.getCompetitionsByCategory(String(category));
+        } else if (status) {
+          comps = await storage.getCompetitionsByStatus(String(status));
+        } else {
+          comps = await storage.getCompetitions();
+        }
+        return Promise.all(comps.map(async (c: any) => {
+          const [contestants, creatorProfile] = await Promise.all([
+            storage.getContestantsByCompetition(c.id),
+            c.createdBy ? storage.getTalentProfileByUserId(c.createdBy) : Promise.resolve(null),
+          ]);
+          const contestantCount = contestants.length;
+          const approvedCount = contestants.filter((x: any) => x.applicationStatus === "approved").length;
+          let hostedBy: string | null = null;
+          if (creatorProfile?.role === "admin") hostedBy = "admin";
+          else if (creatorProfile?.role === "host") hostedBy = creatorProfile.displayName || "Host";
+          return { ...c, hostedBy, contestantCount, approvedCount };
+        }));
+      });
+      setPublicCacheHeaders(res, 15);
       res.json(enriched);
     } catch (error: any) {
       console.error("Get competitions error:", error);
@@ -755,13 +805,15 @@ export async function registerRoutes(
 
   app.get("/api/hero-gallery", async (req, res) => {
     try {
-      const categories = await firestoreCategories.getAll();
-      const activeCategories = categories.filter((c: any) => c.isActive !== false);
-      const competitions = await storage.getCompetitions();
-      const liveryItems = await storage.getAllLivery();
+      const galleryItems = await getCachedPublicResponse("hero-gallery", 30_000, async () => {
+        const [categories, competitions] = await Promise.all([
+        firestoreCategories.getAll(),
+        storage.getCompetitions(),
+        ]);
+        const activeCategories = categories.filter((c: any) => c.isActive !== false);
 
-      const galleryItems = await Promise.all(
-        activeCategories.map(async (cat: any) => {
+        return Promise.all(
+          activeCategories.map(async (cat: any) => {
           const catComps = competitions.filter(c =>
             (c.status === "active" || c.status === "voting") &&
             c.category === cat.name
@@ -771,8 +823,12 @@ export async function registerRoutes(
           let topVoteCount = 0;
           let topCompetition: any = null;
 
-          for (const comp of catComps) {
-            const contestants = await storage.getContestantsByCompetition(comp.id);
+          const contestantsByCompetition = await Promise.all(
+            catComps.map((comp) => storage.getContestantsByCompetition(comp.id)),
+          );
+          for (let i = 0; i < catComps.length; i++) {
+            const comp = catComps[i];
+            const contestants = contestantsByCompetition[i];
             for (const contestant of contestants) {
               if (contestant.voteCount > topVoteCount) {
                 topVoteCount = contestant.voteCount;
@@ -807,11 +863,6 @@ export async function registerRoutes(
               if (vimeoMatch) {
                 const vimeoId = vimeoMatch[1];
                 videoEmbedUrl = `https://player.vimeo.com/video/${vimeoId}`;
-                try {
-                  const vimeoData = await getVideoById(vimeoId);
-                  const vimeoThumb = getVideoThumbnail(vimeoData, 640);
-                  if (vimeoThumb) thumbnail = vimeoThumb;
-                } catch {}
               }
             }
           }
@@ -822,15 +873,11 @@ export async function registerRoutes(
               thumbnail = topContestant.talentProfile.imageUrls[0];
             }
             coverVideoUrl = topCompetition.coverVideo || null;
-            try {
-              const talentName = (topContestant.talentProfile.stageName || topContestant.talentProfile.displayName || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-              const videos = await listTalentVideos(topCompetition.title, talentName);
-              if (videos.length > 0 && videos[0].player_embed_url) {
-                const baseUrl = videos[0].player_embed_url;
-                const separator = baseUrl.includes("?") ? "&" : "?";
-                videoEmbedUrl = baseUrl + separator + "autoplay=1&muted=1&loop=1&background=1";
-              }
-            } catch {}
+            const coverVimeoMatch = coverVideoUrl?.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+            if (coverVimeoMatch) {
+              videoEmbedUrl = `https://player.vimeo.com/video/${coverVimeoMatch[1]}`;
+              coverVideoUrl = null;
+            }
           }
 
           let competitionSlug: string | null = null;
@@ -851,10 +898,12 @@ export async function registerRoutes(
             competitionCount: catComps.length,
             competitionSlug,
             contestantSlug,
-          };
-        })
-      );
+            };
+          }),
+        );
+      });
 
+      setPublicCacheHeaders(res, 30);
       res.json(galleryItems);
     } catch (error: any) {
       console.error("Hero gallery error:", error);
@@ -863,17 +912,26 @@ export async function registerRoutes(
   });
 
   app.get("/api/competitions/featured", async (_req, res) => {
-    const now = new Date();
-    const all = await storage.getCompetitions();
-    const nonDraft = all.filter(c => c.status !== "draft");
+    try {
+      const featured = await getCachedPublicResponse("competitions:featured", 30_000, async () => {
+        const now = new Date();
+        const all = await storage.getCompetitions();
+        const nonDraft = all.filter(c => c.status !== "draft");
 
-    const explicitly = nonDraft.find(c => (c as any).isFeatured && c.votingEndDate && new Date(c.votingEndDate) > now);
-    if (explicitly) return res.json(explicitly);
+        const explicitly = nonDraft.find(c => (c as any).isFeatured && c.votingEndDate && new Date(c.votingEndDate) > now);
+        if (explicitly) return explicitly;
 
-    const withEnd = nonDraft.filter(c => c.votingEndDate && new Date(c.votingEndDate) > now);
-    if (withEnd.length === 0) return res.json(null);
-    withEnd.sort((a, b) => new Date(a.votingEndDate!).getTime() - new Date(b.votingEndDate!).getTime());
-    return res.json(withEnd[0]);
+        const withEnd = nonDraft.filter(c => c.votingEndDate && new Date(c.votingEndDate) > now);
+        if (withEnd.length === 0) return null;
+        withEnd.sort((a, b) => new Date(a.votingEndDate!).getTime() - new Date(b.votingEndDate!).getTime());
+        return withEnd[0];
+      });
+      setPublicCacheHeaders(res, 30);
+      return res.json(featured);
+    } catch (error: any) {
+      console.error("Featured competition error:", error);
+      return res.status(500).json({ message: "Failed to get featured competition" });
+    }
   });
 
   app.post("/api/competitions/:id/feature", firebaseAuth, requireAdmin, async (req, res) => {
@@ -901,44 +959,43 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
 
-    const comp = await storage.getCompetition(id);
-    if (!comp) return res.status(404).json({ message: "Competition not found" });
+    const result = await getCachedPublicResponse(`competition-detail:${id}`, 15_000, async () => {
+      const comp = await storage.getCompetition(id);
+      if (!comp) return null;
 
-    const contestantsData = await storage.getContestantsByCompetition(id);
-    const totalRawVotes = await storage.getTotalVotesByCompetition(id);
-    const totalVotes = contestantsData.reduce((sum, contestant) => sum + contestant.voteCount, 0);
+      const [contestantsData, totalRawVotes] = await Promise.all([
+        storage.getContestantsByCompetition(id),
+        storage.getTotalVotesByCompetition(id),
+      ]);
+      const totalVotes = contestantsData.reduce((sum, contestant) => sum + contestant.voteCount, 0);
 
-    const enrichedContestants = await Promise.all(
-      contestantsData.map(async (contestant) => {
-        let videoThumbnail: string | null = null;
-        try {
-          const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-          const videos = await listTalentVideos(comp.title, talentName);
-          if (videos.length > 0) {
-            videoThumbnail = await resolveVideoThumbnail(videos[0]);
-          }
-        } catch {}
-        return { ...contestant, videoThumbnail };
-      })
-    );
+      const enrichedContestants = await Promise.all(
+        contestantsData.map(async (contestant) => {
+          return { ...contestant, videoThumbnail: null };
+        })
+      );
 
-    let hostedBy: string | null = null;
-    if (comp.createdBy) {
-      const creatorProfile = await storage.getTalentProfileByUserId(comp.createdBy);
-      if (creatorProfile?.role === "admin") {
-        hostedBy = "admin";
-      } else if (creatorProfile?.role === "host") {
-        hostedBy = creatorProfile.displayName || "Host";
+      let hostedBy: string | null = null;
+      if (comp.createdBy) {
+        const creatorProfile = await storage.getTalentProfileByUserId(comp.createdBy);
+        if (creatorProfile?.role === "admin") {
+          hostedBy = "admin";
+        } else if (creatorProfile?.role === "host") {
+          hostedBy = creatorProfile.displayName || "Host";
+        }
       }
-    }
 
-    res.json({
-      ...comp,
-      hostedBy,
-      contestants: enrichedContestants,
-      totalVotes,
-      totalRawVotes,
+      return {
+        ...comp,
+        hostedBy,
+        contestants: enrichedContestants,
+        totalVotes,
+        totalRawVotes,
+      };
     });
+    if (!result) return res.status(404).json({ message: "Competition not found" });
+    setPublicCacheHeaders(res, 15);
+    res.json(result);
   });
 
   const createCompetitionSchema = z.object({
@@ -1443,22 +1500,34 @@ export async function registerRoutes(
     const profile = await storage.getTalentProfile(id);
     if (!profile) return res.status(404).json({ message: "Profile not found" });
 
-    let videos: any[] = [];
-    try {
-      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-      const rawVideos = await listAllTalentVideos(talentName);
-      videos = rawVideos.map(v => ({
-        uri: v.uri,
-        name: v.name,
-        link: v.link,
-        embedUrl: v.player_embed_url,
-        duration: v.duration,
-        thumbnail: getVideoThumbnail(v),
-        competitionFolder: v.competitionFolder,
-      }));
-    } catch {}
+    res.json(profile);
+  });
 
-    res.json({ ...profile, videos });
+  app.get("/api/talent-profiles/:id/videos", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid profile ID" });
+    const profile = await storage.getTalentProfile(id);
+    if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+    try {
+      const videos = await getCachedPublicResponse(`talent-videos:${id}`, 60_000, async () => {
+        const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+        const rawVideos = await listAllTalentVideos(talentName);
+        return rawVideos.map(v => ({
+          uri: v.uri,
+          name: v.name,
+          link: v.link,
+          embedUrl: v.player_embed_url,
+          duration: v.duration,
+          thumbnail: getVideoThumbnail(v),
+          competitionFolder: v.competitionFolder,
+        }));
+      });
+      setPublicCacheHeaders(res, 60);
+      res.json(videos);
+    } catch {
+      res.json([]);
+    }
   });
 
   app.get("/api/contestants/me", firebaseAuth, async (req, res) => {
@@ -4904,24 +4973,12 @@ export async function registerRoutes(
       const contestantsData = await storage.getContestantsByCompetition(comp.id);
       const totalVotes = await storage.getTotalVotesByCompetition(comp.id);
 
-      const enrichedContestants = await Promise.all(
-        contestantsData.map(async (contestant) => {
-          let videoThumbnail: string | null = null;
-          try {
-            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-            const videos = await listTalentVideos(comp.title, talentName);
-            if (videos.length > 0) {
-              videoThumbnail = await resolveVideoThumbnail(videos[0]);
-            }
-          } catch {}
-          return {
-            ...contestant,
-            voteCount: contestant.rawVoteCount,
-            tournamentPoints: contestant.voteCount,
-            videoThumbnail,
-          };
-        })
-      );
+      const enrichedContestants = contestantsData.map((contestant) => ({
+        ...contestant,
+        voteCount: contestant.rawVoteCount,
+        tournamentPoints: contestant.voteCount,
+        videoThumbnail: null,
+      }));
 
       let hostedBy: string | null = null;
       if (comp.createdBy) {
@@ -4976,6 +5033,56 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/resolve/:categorySlug/:compSlug/:talentSlug/videos", async (req, res) => {
+    try {
+      const { categorySlug, compSlug, talentSlug } = req.params;
+      const media = await getCachedPublicResponse(
+        `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
+        60_000,
+        async () => {
+          const competitions = await storage.getCompetitions();
+          const comp = competitions.find(c =>
+            slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+          );
+          if (!comp) return null;
+
+          const contestants = await storage.getContestantsByCompetition(comp.id);
+          const { id: talentId } = extractIdFromSlug(talentSlug);
+          const contestant = talentId
+            ? contestants.find(c => c.talentProfile.id === talentId)
+            : contestants.find(c =>
+                slugify(c.talentProfile.displayName) === talentSlug ||
+                (c.talentProfile.stageName && slugify(c.talentProfile.stageName) === talentSlug)
+              );
+          if (!contestant) return null;
+
+          const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
+            .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
+            .trim();
+          const talentVideos = await listTalentVideos(comp.title, talentName);
+          const videos = await Promise.all(talentVideos.map(async v => ({
+            uri: v.uri,
+            name: v.name,
+            link: v.link,
+            embedUrl: v.player_embed_url,
+            duration: v.duration,
+            thumbnail: await resolveVideoThumbnail(v),
+          })));
+          return {
+            videoThumbnail: videos[0]?.thumbnail || null,
+            videos,
+          };
+        },
+      );
+      if (!media) return res.status(404).json({ message: "Contestant not found" });
+      setPublicCacheHeaders(res, 60);
+      res.json(media);
+    } catch (error: any) {
+      console.error("Contestant video resolution error:", error);
+      res.status(500).json({ message: "Failed to load contestant videos" });
+    }
+  });
+
   app.get("/api/resolve/:categorySlug/:compSlug/:talentSlug", async (req, res) => {
     try {
       const { categorySlug, compSlug, talentSlug } = req.params;
@@ -4995,24 +5102,6 @@ export async function registerRoutes(
           );
       if (!contestant) return res.status(404).json({ message: "Contestant not found in this competition" });
 
-      let videoThumbnail: string | null = null;
-      let videos: any[] = [];
-      try {
-        const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-        const talentVideos = await listTalentVideos(comp.title, talentName);
-        if (talentVideos.length > 0) {
-          videoThumbnail = await resolveVideoThumbnail(talentVideos[0]);
-        }
-        videos = await Promise.all(talentVideos.map(async v => ({
-          uri: v.uri,
-          name: v.name,
-          link: v.link,
-          embedUrl: v.player_embed_url,
-          duration: v.duration,
-          thumbnail: await resolveVideoThumbnail(v),
-        })));
-      } catch {}
-
       const totalVotes = await storage.getTotalVotesByCompetition(comp.id);
 
       res.json({
@@ -5021,8 +5110,8 @@ export async function registerRoutes(
           ...contestant,
           voteCount: contestant.rawVoteCount,
           tournamentPoints: contestant.voteCount,
-          videoThumbnail,
-          videos,
+          videoThumbnail: null,
+          videos: [],
         },
         totalVotes,
       });

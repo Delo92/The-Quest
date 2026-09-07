@@ -78,6 +78,14 @@ export default function ContestantSharePage() {
     queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug],
     enabled: !!categorySlug && !!compSlug && !!talentSlug,
   });
+  const { data: mediaData } = useQuery<{
+    videoThumbnail: string | null;
+    videos: ResolvedData["contestant"]["videos"];
+  }>({
+    queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "videos"],
+    enabled: !!data && !!categorySlug && !!compSlug && !!talentSlug,
+    staleTime: 60_000,
+  });
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({
     queryKey: ["/api/referral/my-code"],
@@ -153,7 +161,7 @@ export default function ContestantSharePage() {
   const accentColor = profile.profileColor || "#FF5A09";
   const bgImage = profile.profileBgImage || null;
   const fallbackDefault = getImage("talent_profile_fallback", "/images/template/a1.jpg");
-  const mainImage = contestant.videoThumbnail || profile.imageUrls?.[0] || fallbackDefault;
+  const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0) || fallbackDefault;
   const isVotingOpen = competition.status === "active" || competition.status === "voting";
   const votePercentage = totalVotes > 0 ? Math.round((contestant.voteCount / totalVotes) * 100) : 0;
@@ -352,7 +360,7 @@ export default function ContestantSharePage() {
           </div>
         )}
 
-        {contestant.videos && contestant.videos.length > 0 && (
+        {(mediaData?.videos || contestant.videos)?.length > 0 && (
           <div className="mb-10">
             <div className="text-center mb-10">
               <p className="text-[#5f5f5f] text-sm mb-1">Watch performances</p>
@@ -361,7 +369,7 @@ export default function ContestantSharePage() {
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {contestant.videos.map((video, i) => (
+              {(mediaData?.videos || contestant.videos).map((video, i) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
                   {playingVideo === video.embedUrl ? (
                     <div className="aspect-video">

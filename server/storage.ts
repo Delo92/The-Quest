@@ -151,25 +151,35 @@ export class FirestoreStorage implements IStorage {
   }
 
   async getContestantsByCompetition(competitionId: number): Promise<(FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number; rawVoteCount: number })[]> {
-    const allContestants = await firestoreContestants.getByCompetition(competitionId);
+    const [allContestants, settingsDoc] = await Promise.all([
+      firestoreContestants.getByCompetition(competitionId),
+      getFirestore().collection("platformSettings").doc("global").get(),
+    ]);
     const approved = allContestants.filter(c => c.applicationStatus === "approved");
-    const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
     const freeVoteMultiplier = Math.max(1, Number(settingsDoc.data()?.freeVoteMultiplier) || 60);
-    const pointCounts = await firestoreVotes.getPointCountsByCompetition(competitionId, freeVoteMultiplier);
+    const [pointCounts, results] = await Promise.all([
+      firestoreVotes.getPointCountsByCompetition(competitionId, freeVoteMultiplier),
+      Promise.all(approved.map(async (contestant) => {
+        const [profile, rawVoteCount] = await Promise.all([
+          firestoreTalentProfiles.get(contestant.talentProfileId),
+          firestoreVotes.getVoteCountForContestantInCompetition(contestant.id, competitionId),
+        ]);
+        if (!profile) return null;
+        return {
+          ...contestant,
+          talentProfile: profile,
+          voteCount: 0,
+          rawVoteCount,
+        };
+      })),
+    ]);
 
-    const results: (FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number; rawVoteCount: number })[] = [];
-    for (const contestant of approved) {
-      const profile = await firestoreTalentProfiles.get(contestant.talentProfileId);
-      if (!profile) continue;
-      const rawVoteCount = await firestoreVotes.getVoteCountForContestantInCompetition(contestant.id, competitionId);
-      results.push({
-        ...contestant,
-        talentProfile: profile,
-        voteCount: pointCounts.get(contestant.id) || 0,
-        rawVoteCount,
-      });
-    }
-    return results;
+    return results
+      .filter((result): result is FirestoreContestant & { talentProfile: FirestoreTalentProfile; voteCount: number; rawVoteCount: number } => result !== null)
+      .map((result) => ({
+        ...result,
+        voteCount: pointCounts.get(result.id) || 0,
+      }));
   }
 
   async getContestantsByTalent(talentProfileId: number): Promise<(FirestoreContestant & { competitionTitle: string })[]> {
