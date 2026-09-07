@@ -564,14 +564,14 @@ export function InviteHostDialog() {
     mutationFn: async (data: {
       email: string; name: string; phone?: string; targetLevel: number;
       message?: string; suggestedCategory?: string; suggestedEventName?: string;
-      competitionId?: number; mediaUrl?: string;
+      competitionId?: number; mediaUrl?: string; password?: string;
     }) => {
       const res = await apiRequest("POST", "/api/invitations", data);
       return res.json();
     },
     onSuccess: (data: Invitation) => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations/sent"] });
-      setEmail(""); setName(""); setPhone(""); setSuggestedCategory(""); setSuggestedEventName(""); setCompetitionId(""); setMediaUrl(""); setMediaUploading(false); setMessage("");
+      setEmail(""); setName(""); setPhone(""); setSuggestedCategory(""); setSuggestedEventName(""); setCompetitionId(""); setMediaUrl(""); setMediaUploading(false); setPassword(""); setShowPassword(false); setMessage("");
       const link = `${window.location.origin}/host?invite=${data.token}`;
       setNewInviteLink(link);
       navigator.clipboard.writeText(link).then(() => {
@@ -635,6 +635,7 @@ export function InviteHostDialog() {
       suggestedEventName: suggestedEventName || undefined,
       competitionId: competitionId && competitionId !== "none" ? Number(competitionId) : undefined,
       mediaUrl: mediaUrl.trim() || undefined,
+      password: password || undefined,
     });
   };
 
