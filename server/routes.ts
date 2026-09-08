@@ -75,6 +75,7 @@ import {
   getVideoById,
   getChronicTVEventVimeoFolder,
   getChronicTVContestantVimeoFolder,
+  listCompetitionVideos,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -3221,7 +3222,7 @@ export async function registerRoutes(
       const rawVideos = (
         await Promise.all(
            knownCompetitions.map(async (comp) => {
-             const [chronicVideos, legacyVideos] = await Promise.all([
+        const [chronicVideos, legacyVideos] = await Promise.all([
                listTalentVideos(comp.title, talentName).catch(() => []),
                listLegacyQuestTalentVideos(comp.title, talentName).catch(() => []),
              ]);
@@ -6526,28 +6527,17 @@ export async function registerRoutes(
     try {
       const competitions = await storage.getCompetitions();
       const nonDraft = competitions.filter((c: any) => c.status !== "draft");
-      const allContestants = await storage.getAllContestants();
-      const approved = allContestants.filter((c: any) => c.applicationStatus === "approved");
-
       const results: any[] = [];
 
-      for (const contestant of approved) {
-        const comp = nonDraft.find((c: any) => c.id === contestant.competitionId);
-        if (!comp) continue;
-        const profile = await storage.getTalentProfile(contestant.talentProfileId);
-        if (!profile) continue;
-
-        const safeFn = (s: string) => (s || "").replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-        const questName = safeFn((profile as any).stageName || (profile as any).displayName || `talent-${contestant.talentProfileId}`);
-        const chronicTVName = safeFn((profile as any).displayName || (profile as any).stageName || `talent-${contestant.talentProfileId}`);
-
-        const entry: any = { contestant: chronicTVName, competition: comp.title, questFolder: questName, videos: [] };
-
+      for (const comp of nonDraft) {
+        const entry: any = { competition: comp.title, competitionFolder: null, videos: [] };
         try {
-          const videos = await listTalentVideos(comp.title, questName);
+          const folder = await getChronicTVEventVimeoFolder(comp.title);
+          entry.competitionFolder = folder.uri;
+          const videos = await listCompetitionVideos(comp.title);
           for (const video of videos) {
             try {
-              await syncVideoToChronicTV(video.uri, comp.title, questName, chronicTVName);
+              await syncVideoToChronicTV(video.uri, comp.title, "", "");
               entry.videos.push({ uri: video.uri, status: "synced" });
             } catch (e: any) {
               entry.videos.push({ uri: video.uri, status: "error", error: e.message });

@@ -76,22 +76,42 @@ export async function findOrCreateFolder(name: string, parentUri?: string): Prom
   if (inflight) return inflight;
 
   const promise = (async (): Promise<VimeoFolder> => {
-    const listPath = parentUri
-      ? `${parentUri}/items?type=folder&per_page=100`
-      : `/me/projects?per_page=100`;
-
+    const listDescription = parentUri ? `${parentUri}/items?per_page=100` : "/me/projects?per_page=100&page=1..20";
     try {
-      const data = await vimeoRequest(listPath);
-      const items = data.data || [];
-      for (const item of items) {
-        const folder = parentUri ? (item.folder || item) : item;
-        if (folder.name === name) {
-          folderCache.set(cacheKey, { folder, expiresAt: now + 30 * 60_000 });
-          return folder;
+      const items: any[] = [];
+      if (parentUri) {
+        const data = await vimeoRequest(`${parentUri}/items?per_page=100`);
+        items.push(...(data.data || []));
+      } else {
+        for (let page = 1; page <= 20; page++) {
+          const data = await vimeoRequest(`/me/projects?per_page=100&page=${page}`);
+          const pageItems = data.data || [];
+          items.push(...pageItems);
+          if (pageItems.length < 100) break;
         }
       }
+
+      const matchingFolders = [];
+      for (const item of items) {
+        const folder = item.folder || item;
+        const isFolder = parentUri ? Boolean(item.folder || item.type === "folder" || item.resource_key) : true;
+        const isRootFolder = parentUri || !folder.metadata?.connections?.parent_folder?.uri;
+        if (isFolder && isRootFolder && folder.name === name) {
+          matchingFolders.push(folder);
+        }
+      }
+      if (matchingFolders.length > 0) {
+        matchingFolders.sort((a: VimeoFolder, b: VimeoFolder) => {
+          const aId = Number(a.uri?.match(/\/(\d+)$/)?.[1] || Number.MAX_SAFE_INTEGER);
+          const bId = Number(b.uri?.match(/\/(\d+)$/)?.[1] || Number.MAX_SAFE_INTEGER);
+          return aId - bId;
+        });
+        const folder = matchingFolders[0];
+        folderCache.set(cacheKey, { folder, expiresAt: now + 30 * 60_000 });
+        return folder;
+      }
     } catch (err: any) {
-      console.warn(`Could not list folders at ${listPath}:`, err.message);
+      console.warn(`Could not list folders at ${listDescription}:`, err.message);
     }
 
     const body: any = { name };
@@ -154,30 +174,52 @@ export async function getTalentFolderInCompetition(competitionName: string, tale
 }
 
 export async function createCompetitionVimeoFolder(competitionName: string): Promise<VimeoFolder> {
-  return getCompetitionFolder(competitionName);
+  return getChronicTVEventVimeoFolder(competitionName);
 }
 
-export async function createContestantVimeoFolder(competitionName: string, talentName: string): Promise<VimeoFolder> {
-  return getTalentFolderInCompetition(competitionName, talentName);
+export async function createContestantVimeoFolder(competitionName: string, _talentName: string): Promise<VimeoFolder> {
+  // Contestant uploads share the competition folder. Keep this function for
+  // existing callers, but never create a contestant-level Vimeo folder.
+  return getChronicTVEventVimeoFolder(competitionName);
 }
 
 export async function listTalentVideos(competitionName: string, talentName: string): Promise<VimeoVideo[]> {
   const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   const safeCompName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   try {
-    const folder = await getChronicTVContestantVimeoFolder(competitionName, talentName);
+    const folder = await getChronicTVEventVimeoFolder(competitionName);
     const videosUri = folder.metadata?.connections?.videos?.uri || `${folder.uri}/videos`;
     const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
-    const videos = data.data || [];
-    if (videos.length > 0) return videos;
     const prefix = `${safeCompName} - ${safeTalentName} -`;
-    const searchData = await vimeoRequest(`/me/videos?per_page=50&sort=date&direction=desc&query=${encodeURIComponent(prefix)}`);
-    return (searchData.data || []).filter((v: VimeoVideo) => v.name?.startsWith(prefix));
+    return (data.data || []).filter((v: VimeoVideo) => v.name?.startsWith(prefix));
   } catch {
     try {
       const prefix = `${safeCompName} - ${safeTalentName} -`;
       const data = await vimeoRequest(`/me/videos?per_page=50&sort=date&direction=desc&query=${encodeURIComponent(prefix)}`);
       return (data.data || []).filter((v: VimeoVideo) => v.name?.startsWith(prefix));
+    } catch {
+      return [];
+    }
+  }
+}
+
+export async function listCompetitionVideos(competitionName: string): Promise<VimeoVideo[]> {
+  const safeCompName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+  const prefix = `${safeCompName} -`;
+  try {
+    const folder = await getChronicTVEventVimeoFolder(competitionName);
+    const videosUri = folder.metadata?.connections?.videos?.uri || `${folder.uri}/videos`;
+    const folderData = await vimeoRequest(`${videosUri}?per_page=100&sort=date&direction=desc`);
+    const inCompetitionFolder = (folderData.data || []).filter((v: VimeoVideo) => v.name?.startsWith(prefix));
+    const searchData = await vimeoRequest(`/me/videos?per_page=100&sort=date&direction=desc&query=${encodeURIComponent(prefix)}`);
+    const allMatches = (searchData.data || []).filter((v: VimeoVideo) => v.name?.startsWith(prefix));
+    const byUri = new Map<string, VimeoVideo>();
+    [...inCompetitionFolder, ...allMatches].forEach((video: VimeoVideo) => byUri.set(video.uri, video));
+    return Array.from(byUri.values());
+  } catch {
+    try {
+      const searchData = await vimeoRequest(`/me/videos?per_page=100&sort=date&direction=desc&query=${encodeURIComponent(prefix)}`);
+      return (searchData.data || []).filter((v: VimeoVideo) => v.name?.startsWith(prefix));
     } catch {
       return [];
     }
@@ -223,14 +265,12 @@ export async function listAllTalentVideos(talentName: string): Promise<(VimeoVid
         const compFolder = compItem.folder || compItem;
         if (!compFolder.uri) return [];
         try {
-          const talentData = await vimeoRequest(`${compFolder.uri}/items?type=folder&per_page=100`);
-          const talentFolder = (talentData.data || [])
-            .map((t: any) => t.folder || t)
-            .find((f: any) => f.name === safeTalentName);
-          if (!talentFolder) return [];
-          const videosUri = talentFolder.metadata?.connections?.videos?.uri || `${talentFolder.uri}/videos`;
+          const videosUri = compFolder.metadata?.connections?.videos?.uri || `${compFolder.uri}/videos`;
           const videosData = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
-          return (videosData.data || []).map((v: VimeoVideo) => ({ ...v, competitionFolder: compFolder.name }));
+          const prefix = `${compFolder.name} - ${safeTalentName} -`;
+          return (videosData.data || [])
+            .filter((v: VimeoVideo) => v.name?.startsWith(prefix))
+            .map((v: VimeoVideo) => ({ ...v, competitionFolder: compFolder.name }));
         } catch {
           return [];
         }
@@ -263,7 +303,7 @@ export async function createUploadTicket(
   videoUri: string;
   completeUri: string;
 }> {
-  const folder = await getTalentFolderInCompetition(competitionName, talentName);
+  const folder = await getChronicTVEventVimeoFolder(competitionName);
   const folderUri = folder.uri;
 
   const videoName = `${competitionName} - ${talentName} - ${fileName}`;
@@ -325,7 +365,7 @@ export async function createChronicTVUploadTicket(
   videoUri: string;
   completeUri: string;
 }> {
-  const folder = await getChronicTVContestantVimeoFolder(competitionName, chronicTVName);
+  const folder = await getChronicTVEventVimeoFolder(competitionName);
   const folderUri = folder.uri;
 
   const videoName = `${competitionName} - ${talentName} - ${fileName}`;
@@ -440,9 +480,7 @@ export async function syncVideoToChronicTV(
   talentName: string,
   chronicTVName?: string
 ): Promise<void> {
-  const folderName = chronicTVName || talentName;
-  const contestantFolder = await getChronicTVContestantVimeoFolder(competitionName, folderName);
-  await addVideoToFolder(videoUri, contestantFolder.uri);
+  await addVideoToFolder(videoUri, (await getChronicTVEventVimeoFolder(competitionName)).uri);
 }
 
 // Admin10151992 folder (The Quest > Admin10151992, folder ID 28559983)
@@ -473,7 +511,7 @@ export async function createCompetitionCoverUploadTicket(
 ): Promise<{ uploadLink: string; videoUri: string; completeUri: string }> {
   let folderUri: string | undefined;
   try {
-    const folder = await getCompetitionFolder(competitionName);
+    const folder = await getChronicTVEventVimeoFolder(competitionName);
     folderUri = folder.uri;
   } catch (err: any) {
     console.warn("Could not find/create competition folder for cover:", err.message);
@@ -515,7 +553,7 @@ export async function getVimeoStorageUsage(): Promise<{
       totalGB = Math.round(((quota.space.max || 0) / (1024 * 1024 * 1024)) * 100) / 100;
     }
 
-    const root = await getRootFolder();
+    const root = await getChronicTVQuestSeriesFolder();
     const listPath = `${root.uri}/items?type=folder&per_page=100`;
     const data = await vimeoRequest(listPath);
     const compFolders = data.data || [];
