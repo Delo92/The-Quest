@@ -36,7 +36,7 @@ import {
   firestoreContestants,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
-import { completePayment, enforcePaymentVelocity, failPayment, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
+import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
   uploadImageToDrive,
@@ -260,6 +260,8 @@ async function secureAuthorizeCharge(
     packageKey: details.packageKey,
     competitionId: details.competitionId,
     contestantId: details.contestantId,
+    customerEmail: details.customerEmail?.trim().toLowerCase() || null,
+    customerName: details.customerName?.trim() || null,
   });
   if (reservation.state === "completed") return { replay: true as const, paymentId: reservation.paymentId, response: reservation.response };
   if (reservation.state !== "reserved") {
@@ -5865,6 +5867,76 @@ export async function registerRoutes(
     } catch (err: any) {
       console.error("Nominations analytics error:", err);
       res.status(500).json({ message: "Failed to get nomination data" });
+    }
+  });
+
+  app.get("/api/admin/payment-attempts", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const rawStatus = typeof req.query.status === "string" ? req.query.status : "";
+      const status = rawStatus && ["processing", "charged", "completed", "failed"].includes(rawStatus)
+        ? rawStatus as "processing" | "charged" | "completed" | "failed"
+        : undefined;
+      const route = typeof req.query.route === "string" && req.query.route.length <= 100
+        ? req.query.route
+        : undefined;
+      const parseDate = (value: unknown, endOfDay = false) => {
+        if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+        const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
+        return Number.isNaN(date.getTime()) ? undefined : date;
+      };
+      const from = parseDate(req.query.from);
+      const to = parseDate(req.query.to, true);
+      const attempts = await getPaymentAttempts({ status, route, from, to, limit: 250 });
+
+      const toIso = (value: unknown): string | null => {
+        if (!value) return null;
+        if (typeof (value as any)?.toDate === "function") return (value as any).toDate().toISOString();
+        if (typeof value === "string") return value;
+        if (value instanceof Date) return value.toISOString();
+        if (typeof value === "object" && typeof (value as any)?._seconds === "number") {
+          return new Date((value as any)._seconds * 1000).toISOString();
+        }
+        return null;
+      };
+
+      const report = attempts.map((attempt) => ({
+        id: attempt.id,
+        route: attempt.route || null,
+        status: attempt.status || "processing",
+        amountCents: Number(attempt.amountCents || 0),
+        packageKey: attempt.packageKey || null,
+        competitionId: attempt.competitionId ?? null,
+        contestantId: attempt.contestantId ?? null,
+        customerEmail: attempt.customerEmail || null,
+        customerName: attempt.customerName || null,
+        transactionId: attempt.transactionId || null,
+        attemptCount: Number(attempt.attemptCount || 0),
+        failureMessage: attempt.failureMessage || null,
+        latestWebhookEvent: attempt.latestWebhookEvent || null,
+        createdAt: toIso(attempt.createdAt),
+        updatedAt: toIso(attempt.updatedAt),
+        chargedAt: toIso(attempt.chargedAt),
+        completedAt: toIso(attempt.completedAt),
+        failedAt: toIso(attempt.failedAt),
+      }));
+
+      const summary = report.reduce((result, attempt) => {
+        const statusKey = attempt.status as keyof typeof result.byStatus;
+        if (statusKey in result.byStatus) result.byStatus[statusKey]++;
+        if (attempt.status === "charged" || attempt.status === "completed") {
+          result.capturedCents += attempt.amountCents;
+        }
+        return result;
+      }, {
+        total: report.length,
+        capturedCents: 0,
+        byStatus: { processing: 0, charged: 0, completed: 0, failed: 0 },
+      });
+
+      res.json({ summary, attempts: report });
+    } catch (err: any) {
+      console.error("Payment attempts report error:", err);
+      res.status(500).json({ message: "Failed to load payment tracking data" });
     }
   });
 

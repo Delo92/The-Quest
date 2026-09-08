@@ -14,7 +14,8 @@ import {
 import {
   BarChart3, Trophy, Users, Vote, TrendingUp, Copy, Check, Share2,
   Trash2, Search, Globe, MapPin, DollarSign, RefreshCw, Link2,
-  ChevronLeft, ChevronRight, Eye, Plus, UserPlus, Mail, Pencil
+  ChevronLeft, ChevronRight, Eye, Plus, UserPlus, Mail, Pencil,
+  CreditCard, CheckCircle2, Clock3, AlertTriangle, LockKeyhole, Filter
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useToast } from "@/hooks/use-toast";
@@ -85,6 +86,41 @@ interface ReferralData {
   codes: ReferralCode[];
 }
 
+interface PaymentAttempt {
+  id: string;
+  route: string | null;
+  status: "processing" | "charged" | "completed" | "failed";
+  amountCents: number;
+  packageKey: string | null;
+  competitionId: number | null;
+  contestantId: number | null;
+  customerEmail: string | null;
+  customerName: string | null;
+  transactionId: string | null;
+  attemptCount: number;
+  failureMessage: string | null;
+  latestWebhookEvent: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  chargedAt: string | null;
+  completedAt: string | null;
+  failedAt: string | null;
+}
+
+interface PaymentReport {
+  summary: {
+    total: number;
+    capturedCents: number;
+    byStatus: {
+      processing: number;
+      charged: number;
+      completed: number;
+      failed: number;
+    };
+  };
+  attempts: PaymentAttempt[];
+}
+
 interface VoteDetail {
   total: number;
   online: number;
@@ -106,6 +142,23 @@ interface VoteDetail {
 
 const PIE_COLORS = ["#3b82f6", "#22c55e", "#f97316", "#a855f7", "#ef4444", "#eab308"];
 const PAGE_SIZE = 10;
+const PAYMENT_ROUTES = [
+  { value: "/api/guest/checkout", label: "Vote packs" },
+  { value: "/api/join/submit", label: "Applications" },
+  { value: "/api/join/nominate", label: "Nominations" },
+  { value: "/api/host/submit", label: "Host packages" },
+];
+
+function formatPaymentRoute(route: string | null) {
+  return PAYMENT_ROUTES.find((item) => item.value === route)?.label || route || "Unknown";
+}
+
+function paymentStatusLabel(status: PaymentAttempt["status"]) {
+  if (status === "processing") return "Processing";
+  if (status === "charged") return "Charged / reconcile";
+  if (status === "completed") return "Completed";
+  return "Declined";
+}
 
 export default function AdminAnalyticsTab() {
   const { toast } = useToast();
@@ -126,6 +179,10 @@ export default function AdminAnalyticsTab() {
   const [editRefEmail, setEditRefEmail] = useState("");
   const [editRefType, setEditRefType] = useState("");
   const [editRefCompId, setEditRefCompId] = useState<number | null>(null);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
+  const [paymentRouteFilter, setPaymentRouteFilter] = useState("all");
+  const [paymentFrom, setPaymentFrom] = useState("");
+  const [paymentTo, setPaymentTo] = useState("");
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<AnalyticsOverview>({
     queryKey: ["/api/analytics/overview"],
@@ -153,6 +210,24 @@ export default function AdminAnalyticsTab() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch submissions");
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  const { data: paymentReport, isLoading: paymentReportLoading } = useQuery<PaymentReport>({
+    queryKey: ["/api/admin/payment-attempts", paymentStatusFilter, paymentRouteFilter, paymentFrom, paymentTo],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (paymentStatusFilter !== "all") params.set("status", paymentStatusFilter);
+      if (paymentRouteFilter !== "all") params.set("route", paymentRouteFilter);
+      if (paymentFrom) params.set("from", paymentFrom);
+      if (paymentTo) params.set("to", paymentTo);
+      const token = await getAuthToken();
+      const res = await fetch(`/api/admin/payment-attempts?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch payment tracking data");
       return res.json();
     },
     staleTime: 30000,
@@ -322,6 +397,9 @@ export default function AdminAnalyticsTab() {
         </TabsTrigger>
         <TabsTrigger value="referrals" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="analytics-tab-referrals">
           <Link2 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Referral System</span>
+        </TabsTrigger>
+        <TabsTrigger value="payments" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="analytics-tab-payments">
+          <CreditCard className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Payment Tracking</span>
         </TabsTrigger>
       </TabsList>
 
@@ -589,6 +667,151 @@ export default function AdminAnalyticsTab() {
         ) : (
           <div className="text-center py-20 text-white/40">Failed to load analytics</div>
         )}
+      </TabsContent>
+
+      {/* ── Payment Tracking Sub-Tab ───────────────────── */}
+      <TabsContent value="payments">
+        <div className="space-y-6">
+          <div className="rounded-md bg-white/5 border border-white/5 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="h-4 w-4 text-orange-400" />
+              <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Payment report filters</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <label className="space-y-1.5">
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">Status</span>
+                <select
+                  value={paymentStatusFilter}
+                  onChange={(event) => setPaymentStatusFilter(event.target.value)}
+                  className="w-full h-9 rounded-md bg-zinc-900 border border-white/10 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  data-testid="select-payment-status"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="processing">Processing</option>
+                  <option value="charged">Charged / reconcile</option>
+                  <option value="completed">Completed</option>
+                  <option value="failed">Declined / failed</option>
+                </select>
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">Payment route</span>
+                <select
+                  value={paymentRouteFilter}
+                  onChange={(event) => setPaymentRouteFilter(event.target.value)}
+                  className="w-full h-9 rounded-md bg-zinc-900 border border-white/10 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  data-testid="select-payment-route"
+                >
+                  <option value="all">All routes</option>
+                  {PAYMENT_ROUTES.map((route) => <option key={route.value} value={route.value}>{route.label}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">From</span>
+                <Input type="date" value={paymentFrom} onChange={(event) => setPaymentFrom(event.target.value)} className="h-9 bg-zinc-900 border-white/10 text-white" data-testid="input-payment-from" />
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-[10px] text-white/40 uppercase tracking-wider">To</span>
+                <Input type="date" value={paymentTo} onChange={(event) => setPaymentTo(event.target.value)} className="h-9 bg-zinc-900 border-white/10 text-white" data-testid="input-payment-to" />
+              </label>
+            </div>
+          </div>
+
+          {paymentReportLoading ? (
+            <div className="text-center py-20 text-white/40">Loading payment tracking...</div>
+          ) : paymentReport ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard icon={CreditCard} label="Attempts Shown" value={String(paymentReport.summary.total)} color="text-orange-400" />
+                <StatCard icon={CheckCircle2} label="Captured" value={String(paymentReport.summary.byStatus.charged + paymentReport.summary.byStatus.completed)} color="text-emerald-400" />
+                <StatCard icon={LockKeyhole} label="Needs Reconciliation" value={String(paymentReport.summary.byStatus.processing + paymentReport.summary.byStatus.charged)} color="text-amber-400" />
+                <StatCard icon={DollarSign} label="Captured Value" value={`$${(paymentReport.summary.capturedCents / 100).toFixed(2)}`} color="text-blue-400" />
+              </div>
+
+              <div className="rounded-md bg-white/5 border border-white/5 p-5">
+                <div className="flex items-start justify-between gap-4 flex-wrap mb-1">
+                  <div>
+                    <h3 className="text-white font-semibold text-sm uppercase tracking-wider">Payment Attempts</h3>
+                    <p className="text-xs text-white/35 mt-1">Gateway attempts and fulfillment state. Charged or processing records stay locked until reconciled.</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white/50"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/payment-attempts"] })}
+                    data-testid="button-refresh-payments"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+                  </Button>
+                </div>
+                <div className="overflow-x-auto mt-4">
+                  <table className="w-full text-sm min-w-[980px]">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left text-white/50 pb-3 pr-4 font-medium">Date</th>
+                        <th className="text-left text-white/50 pb-3 pr-4 font-medium">Customer</th>
+                        <th className="text-left text-white/50 pb-3 pr-4 font-medium">Route</th>
+                        <th className="text-right text-white/50 pb-3 pr-4 font-medium">Amount</th>
+                        <th className="text-left text-white/50 pb-3 pr-4 font-medium">Status</th>
+                        <th className="text-left text-white/50 pb-3 pr-4 font-medium">Transaction</th>
+                        <th className="text-left text-white/50 pb-3 font-medium">Reference</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentReport.attempts.map((attempt) => {
+                        const locked = attempt.status === "processing" || attempt.status === "charged";
+                        const statusClass = attempt.status === "completed"
+                          ? "bg-green-500/20 text-green-300"
+                          : attempt.status === "failed"
+                            ? "bg-red-500/20 text-red-300"
+                            : "bg-amber-500/20 text-amber-300";
+                        return (
+                          <tr key={attempt.id} className="border-b border-white/5 align-top" data-testid={`payment-attempt-${attempt.id}`}>
+                            <td className="py-3 pr-4 text-white/50 text-xs whitespace-nowrap">
+                              {attempt.createdAt ? new Date(attempt.createdAt).toLocaleDateString() : "—"}
+                              {attempt.createdAt && <span className="block text-white/25">{new Date(attempt.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+                            </td>
+                            <td className="py-3 pr-4 max-w-[190px]">
+                              <p className="text-white truncate">{attempt.customerName || "Guest customer"}</p>
+                              <p className="text-xs text-white/35 truncate">{attempt.customerEmail || "Email unavailable"}</p>
+                            </td>
+                            <td className="py-3 pr-4">
+                              <p className="text-white/70">{formatPaymentRoute(attempt.route)}</p>
+                              {attempt.packageKey && <p className="text-[10px] text-white/25 font-mono truncate max-w-[180px]">{attempt.packageKey}</p>}
+                              {(attempt.competitionId !== null || attempt.contestantId !== null) && (
+                                <p className="text-[10px] text-white/30">
+                                  {attempt.competitionId !== null ? `Competition #${attempt.competitionId}` : ""}
+                                  {attempt.contestantId !== null ? ` · Contestant #${attempt.contestantId}` : ""}
+                                </p>
+                              )}
+                            </td>
+                            <td className="py-3 pr-4 text-right text-emerald-400 font-semibold">${(attempt.amountCents / 100).toFixed(2)}</td>
+                            <td className="py-3 pr-4">
+                              <Badge className={`border-0 text-[10px] ${statusClass}`}>
+                                {locked ? <LockKeyhole className="h-3 w-3 mr-1 inline" /> : attempt.status === "completed" ? <CheckCircle2 className="h-3 w-3 mr-1 inline" /> : <AlertTriangle className="h-3 w-3 mr-1 inline" />}
+                                {paymentStatusLabel(attempt.status)}
+                              </Badge>
+                              {attempt.failureMessage && <p className="text-[10px] text-red-300/60 mt-1 max-w-[180px]">{attempt.failureMessage}</p>}
+                            </td>
+                            <td className="py-3 pr-4 font-mono text-[10px] text-white/45">{attempt.transactionId || <span className="text-white/20 italic">pending</span>}</td>
+                            <td className="py-3 font-mono text-[10px] text-white/30">
+                              <span title={attempt.id}>{attempt.id.slice(0, 12)}…</span>
+                              <span className="block text-white/20">try {attempt.attemptCount || 1}{attempt.latestWebhookEvent ? ` · ${attempt.latestWebhookEvent}` : ""}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {paymentReport.attempts.length === 0 && (
+                        <tr><td colSpan={7} className="py-10 text-center text-white/30">No payment attempts match these filters.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-20 text-white/40">Failed to load payment tracking</div>
+          )}
+        </div>
       </TabsContent>
 
       {/* ── Referral System Sub-Tab ──────────────────── */}

@@ -12,6 +12,8 @@ export interface PaymentRequest {
   packageKey: string;
   competitionId?: number | null;
   contestantId?: number | null;
+  customerEmail?: string | null;
+  customerName?: string | null;
 }
 
 const PAYMENT_RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -59,6 +61,41 @@ export async function enforcePaymentVelocity(ip: string, email?: string): Promis
       });
     });
   }));
+}
+
+export interface PaymentAttemptFilters {
+  status?: "processing" | "charged" | "completed" | "failed";
+  route?: string;
+  from?: Date;
+  to?: Date;
+  limit?: number;
+}
+
+export async function getPaymentAttempts(filters: PaymentAttemptFilters = {}): Promise<Array<Record<string, unknown> & { id: string }>> {
+  let query: admin.firestore.Query = getFirestore().collection("paymentAttempts");
+
+  if (filters.status) {
+    query = query.where("status", "==", filters.status);
+  }
+  if (filters.route) {
+    query = query.where("route", "==", filters.route);
+  }
+  if (filters.from) {
+    query = query.where("createdAt", ">=", admin.firestore.Timestamp.fromDate(filters.from));
+  }
+  if (filters.to) {
+    query = query.where("createdAt", "<=", admin.firestore.Timestamp.fromDate(filters.to));
+  }
+
+  const snapshot = await query
+    .orderBy("createdAt", "desc")
+    .limit(Math.min(Math.max(filters.limit || 100, 1), 250))
+    .get();
+
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  } as Record<string, unknown> & { id: string }));
 }
 
 function requestHash(request: PaymentRequest): string {
