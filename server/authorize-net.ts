@@ -30,6 +30,14 @@ export interface ChargeError {
   indeterminate?: boolean;
 }
 
+export interface BillingAddress {
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  country?: string;
+}
+
 export async function chargePaymentNonce(
   amount: number,
   dataDescriptor: string,
@@ -38,6 +46,8 @@ export async function chargePaymentNonce(
   customerEmail?: string,
   customerName?: string,
   merchantReference?: string,
+  billingAddress?: BillingAddress,
+  customerIp?: string,
 ): Promise<ChargeResult> {
   return new Promise((resolve, reject) => {
     const merchantAuth = getMerchantAuth();
@@ -60,19 +70,34 @@ export async function chargePaymentNonce(
     transactionRequestType.setAmount(amount);
     transactionRequestType.setOrder(orderDetails);
 
+    const duplicateWindow = new APIContracts.SettingType();
+    duplicateWindow.setSettingName(APIContracts.SettingNameEnum.DUPLICATEWINDOW);
+    duplicateWindow.setSettingValue("120");
+    const transactionSettings = new APIContracts.ArrayOfSetting();
+    transactionSettings.setSetting([duplicateWindow]);
+    transactionRequestType.setTransactionSettings(transactionSettings);
+
     if (customerEmail) {
       const customer = new APIContracts.CustomerDataType();
       customer.setEmail(customerEmail);
       transactionRequestType.setCustomer(customer);
     }
 
-    if (customerName) {
+    if (customerName || billingAddress) {
       const billTo = new APIContracts.CustomerAddressType();
-      const parts = customerName.trim().split(/\s+/);
-      billTo.setFirstName(parts[0] || "");
-      billTo.setLastName(parts.slice(1).join(" ") || parts[0] || "");
+      const parts = (customerName || "").trim().split(/\s+/);
+      billTo.setFirstName((parts[0] || "").substring(0, 50));
+      billTo.setLastName((parts.slice(1).join(" ") || parts[0] || "").substring(0, 50));
+      if (billingAddress) {
+        billTo.setAddress(billingAddress.address.substring(0, 60));
+        billTo.setCity(billingAddress.city.substring(0, 40));
+        billTo.setState(billingAddress.state.substring(0, 40));
+        billTo.setZip(billingAddress.zip.substring(0, 20));
+        billTo.setCountry((billingAddress.country || "US").substring(0, 60));
+      }
       transactionRequestType.setBillTo(billTo);
     }
+    if (customerIp) transactionRequestType.setCustomerIP(customerIp.substring(0, 45));
 
     const createRequest = new APIContracts.CreateTransactionRequest();
     createRequest.setMerchantAuthentication(merchantAuth);

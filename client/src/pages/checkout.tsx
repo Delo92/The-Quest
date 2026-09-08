@@ -77,6 +77,12 @@ export default function CheckoutPage() {
   const [expMonth, setExpMonth] = useState("");
   const [expYear, setExpYear] = useState("");
   const [cvv, setCvv] = useState("");
+  const [billingAddress, setBillingAddress] = useState({
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+  });
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState<{ transactionId: string; votesAdded: number } | null>(null);
@@ -154,12 +160,16 @@ export default function CheckoutPage() {
       toast({ title: "Please enter your card details", variant: "destructive" });
       return false;
     }
+    if (!billingAddress.address.trim() || !billingAddress.city.trim() || !billingAddress.state.trim() || !billingAddress.zip.trim()) {
+      toast({ title: "Please enter your billing address", variant: "destructive" });
+      return false;
+    }
     if (!paymentConfig || !window.Accept) {
       toast({ title: "Payment system not ready. Please try again.", variant: "destructive" });
       return false;
     }
     return true;
-  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, paymentConfig, toast]);
+  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast]);
 
   const processCheckout = useCallback(async () => {
     setShowConfirmModal(false);
@@ -206,6 +216,7 @@ export default function CheckoutPage() {
           dataDescriptor: tokenResponse.opaqueData.dataDescriptor,
           dataValue: tokenResponse.opaqueData.dataValue,
           referralCode: referralCode || undefined,
+          billingAddress,
         };
         if (isIndividual) {
           body.individualVoteCount = individualVoteCount;
@@ -222,7 +233,7 @@ export default function CheckoutPage() {
         setProcessing(false);
       }
     });
-  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode]);
+  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode]);
 
   const handlePayClick = useCallback(() => {
     if (!validateCheckout()) return;
@@ -492,6 +503,49 @@ export default function CheckoutPage() {
                 required
                 data-testid="input-email"
               />
+            </div>
+            <div className="border-t border-white/10 pt-4 mt-5">
+              <p className="text-white/60 uppercase text-xs tracking-wider mb-3">Billing Address</p>
+              <div className="space-y-3">
+                <Input
+                  aria-label="Billing street address"
+                  autoComplete="billing street-address"
+                  value={billingAddress.address}
+                  onChange={(e) => setBillingAddress((current) => ({ ...current, address: e.target.value }))}
+                  className="bg-white/[0.08] border-white/20 text-white"
+                  placeholder="Street address"
+                  data-testid="input-billing-address"
+                />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Input
+                    aria-label="Billing city"
+                    autoComplete="billing address-level2"
+                    value={billingAddress.city}
+                    onChange={(e) => setBillingAddress((current) => ({ ...current, city: e.target.value }))}
+                    className="bg-white/[0.08] border-white/20 text-white"
+                    placeholder="City"
+                    data-testid="input-billing-city"
+                  />
+                  <Input
+                    aria-label="Billing state"
+                    autoComplete="billing address-level1"
+                    value={billingAddress.state}
+                    onChange={(e) => setBillingAddress((current) => ({ ...current, state: e.target.value }))}
+                    className="bg-white/[0.08] border-white/20 text-white"
+                    placeholder="State"
+                    data-testid="input-billing-state"
+                  />
+                  <Input
+                    aria-label="Billing ZIP code"
+                    autoComplete="billing postal-code"
+                    value={billingAddress.zip}
+                    onChange={(e) => setBillingAddress((current) => ({ ...current, zip: e.target.value }))}
+                    className="bg-white/[0.08] border-white/20 text-white"
+                    placeholder="ZIP code"
+                    data-testid="input-billing-zip"
+                  />
+                </div>
+              </div>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer mt-4" data-testid="label-create-account">

@@ -35,8 +35,8 @@ import {
   firestoreTalentProfiles,
   firestoreContestants,
 } from "./firestore-collections";
-import { chargePaymentNonce, getPublicConfig } from "./authorize-net";
-import { completePayment, failPayment, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
+import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
+import { completePayment, enforcePaymentVelocity, failPayment, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
   uploadImageToDrive,
@@ -216,6 +216,13 @@ const invitationMediaUpload = multer({
   },
 });
 
+function isValidBillingAddress(value: unknown): value is BillingAddress {
+  if (!value || typeof value !== "object") return false;
+  const address = value as Partial<BillingAddress>;
+  return [address.address, address.city, address.state, address.zip]
+    .every((part) => typeof part === "string" && part.trim().length > 0);
+}
+
 async function secureAuthorizeCharge(
   req: Request,
   details: {
@@ -230,9 +237,21 @@ async function secureAuthorizeCharge(
     description: string;
     customerEmail?: string;
     customerName?: string;
+    billingAddress?: BillingAddress;
   },
 ) {
+  const billingAddress = details.billingAddress;
+  if (!isValidBillingAddress(billingAddress)) {
+    throw Object.assign(new Error("Billing address is required for payment"), { status: 400 });
+  }
+
   const idempotencyKey = String(req.body?.idempotencyKey || req.headers["idempotency-key"] || "");
+  try {
+    await enforcePaymentVelocity(req.ip || "unknown", details.customerEmail);
+  } catch (error: any) {
+    if (error.retryAfterSeconds) req.res?.set("Retry-After", String(error.retryAfterSeconds));
+    throw error;
+  }
   const reservation = await reservePayment({
     idempotencyKey,
     route: details.route,
@@ -258,6 +277,8 @@ async function secureAuthorizeCharge(
       details.customerEmail,
       details.customerName,
       reservation.paymentId,
+      billingAddress,
+      req.ip,
     );
   } catch (error) {
     if ((error as any)?.indeterminate) {
@@ -3779,7 +3800,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Nominations are not currently accepted" });
       }
 
-      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, chosenNonprofit, mediaUrls, promoCode, referralCode } = req.body;
+      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Nominee name and email are required" });
       }
@@ -3811,6 +3832,7 @@ export async function registerRoutes(
           ownerKey: `email:${nominatorEmail.toLowerCase().trim()}`, packageKey: `nomination:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
           description: `Nomination fee for ${fullName}`, customerEmail: nominatorEmail, customerName: nominatorName,
+          billingAddress,
         });
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
         paymentId = secured.paymentId;
@@ -4105,7 +4127,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Host applications are currently closed" });
       }
 
-      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, selectedPackageName, selectedPackagePrice, inviteToken, referralCode } = req.body;
+      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
       if (!fullName || !email || !eventName) {
         return res.status(400).json({ message: "Name, email, and event name are required" });
       }
@@ -4142,6 +4164,7 @@ export async function registerRoutes(
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `host:${verifiedPackageName}`,
           dataDescriptor, dataValue, description: `Host package (${verifiedPackageName}): ${eventName}`,
           customerEmail: email, customerName: fullName,
+          billingAddress,
         });
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
         paymentId = secured.paymentId;
@@ -4264,6 +4287,13 @@ export async function registerRoutes(
     dataValue: z.string().min(1, "Payment token is required"),
     referralCode: z.string().optional().nullable(),
     idempotencyKey: z.string().min(16).max(128),
+    billingAddress: z.object({
+      address: z.string().trim().min(1, "Billing street address is required").max(60),
+      city: z.string().trim().min(1, "Billing city is required").max(40),
+      state: z.string().trim().min(1, "Billing state is required").max(40),
+      zip: z.string().trim().min(1, "Billing ZIP code is required").max(20),
+      country: z.string().trim().max(60).optional(),
+    }),
   });
 
   app.post("/api/guest/checkout", async (req, res) => {
@@ -4273,7 +4303,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
       }
 
-      const { name, email, competitionId, contestantId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode } = parsed.data;
+      const { name, email, competitionId, contestantId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode, billingAddress } = parsed.data;
 
       let resolvedRefCode: string | null = referralCode || null;
       if (referralCode) {
@@ -4339,6 +4369,7 @@ export async function registerRoutes(
         ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}`,
         competitionId, contestantId, dataDescriptor, dataValue,
         description: `${totalVotes} votes for ${comp.title}`, customerEmail: email, customerName: name,
+        billingAddress,
       });
       if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
       const paymentId = secured.paymentId;

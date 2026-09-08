@@ -14,8 +14,51 @@ export interface PaymentRequest {
   contestantId?: number | null;
 }
 
+const PAYMENT_RATE_WINDOW_MS = 60 * 60 * 1000;
+const PAYMENT_RATE_LIMIT = 10;
+
 function paymentDocId(key: string): string {
   return crypto.createHash("sha256").update(key).digest("hex");
+}
+
+function rateLimitDocId(scope: string, value: string): string {
+  return crypto.createHash("sha256").update(`${scope}:${value}`).digest("hex");
+}
+
+/**
+ * Limits charge attempts by both source IP and normalized customer email.
+ * The counter is stored in Firestore so the limit remains effective when
+ * requests are handled by different application instances.
+ */
+export async function enforcePaymentVelocity(ip: string, email?: string): Promise<void> {
+  const scopes = [
+    ["ip", ip || "unknown"],
+    ...(email ? [["email", email.trim().toLowerCase()] as const] : []),
+  ] as const;
+  const now = Date.now();
+
+  await Promise.all(scopes.map(async ([scope, value]) => {
+    const ref = getFirestore().collection("paymentRateLimits").doc(rateLimitDocId(scope, value));
+    await getFirestore().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const storedAttempts = Array.isArray(snap.data()?.attempts) ? snap.data()!.attempts : [];
+      const recentAttempts = storedAttempts
+        .map((timestamp: unknown) => Number(timestamp))
+        .filter((timestamp: number) => Number.isFinite(timestamp) && now - timestamp < PAYMENT_RATE_WINDOW_MS);
+
+      if (recentAttempts.length >= PAYMENT_RATE_LIMIT) {
+        throw Object.assign(new Error("Too many payment attempts. Please try again later."), {
+          status: 429,
+          retryAfterSeconds: Math.ceil((recentAttempts[0] + PAYMENT_RATE_WINDOW_MS - now) / 1000),
+        });
+      }
+
+      tx.set(ref, {
+        attempts: [...recentAttempts, now],
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+  }));
 }
 
 function requestHash(request: PaymentRequest): string {

@@ -121,6 +121,12 @@ export default function HostPage() {
   const [expMonth, setExpMonth] = useState("");
   const [expYear, setExpYear] = useState("");
   const [cvv, setCvv] = useState("");
+  const [billingAddress, setBillingAddress] = useState({
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+  });
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [acceptLoaded, setAcceptLoaded] = useState(false);
@@ -187,13 +193,17 @@ export default function HostPage() {
         toast({ title: "Please enter your card details", variant: "destructive" });
         return false;
       }
+      if (!billingAddress.address.trim() || !billingAddress.city.trim() || !billingAddress.state.trim() || !billingAddress.zip.trim()) {
+        toast({ title: "Please enter your billing address", variant: "destructive" });
+        return false;
+      }
       if (!paymentConfig || !window.Accept) {
         toast({ title: "Payment system not ready", variant: "destructive" });
         return false;
       }
     }
     return true;
-  }, [settings, form, selectedPrice, selectedPackage, cardNumber, expMonth, expYear, cvv, paymentConfig, toast]);
+  }, [settings, form, selectedPrice, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -212,6 +222,7 @@ export default function HostPage() {
           selectedPackageName: selectedPackage?.name || null,
           selectedPackagePrice: selectedPrice,
           referralCode: referralCode.trim().toUpperCase() || undefined,
+          billingAddress,
         });
         setSuccess(true);
         toast({ title: "Application submitted!", description: "We'll review your event proposal and get back to you." });
@@ -247,7 +258,7 @@ export default function HostPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId]);
+  }, [settings, form, billingAddress, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId, inviteToken, referralCode]);
 
   const handlePayClick = useCallback(() => {
     if (!validateForm()) return;
@@ -521,6 +532,49 @@ export default function HostPage() {
               <p className="text-white/40 text-xs mt-1">Payment for your selected hosting package.</p>
             </div>
             <div className="space-y-4">
+              <div className="border-b border-white/10 pb-4">
+                <p className="text-white/60 uppercase text-xs tracking-wider mb-3">Billing Address</p>
+                <div className="space-y-3">
+                  <Input
+                    aria-label="Billing street address"
+                    autoComplete="billing street-address"
+                    value={billingAddress.address}
+                    onChange={(e) => setBillingAddress((current) => ({ ...current, address: e.target.value }))}
+                    className="bg-white/[0.08] border-white/20 text-white"
+                    placeholder="Street address"
+                    data-testid="input-billing-address"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Input
+                      aria-label="Billing city"
+                      autoComplete="billing address-level2"
+                      value={billingAddress.city}
+                      onChange={(e) => setBillingAddress((current) => ({ ...current, city: e.target.value }))}
+                      className="bg-white/[0.08] border-white/20 text-white"
+                      placeholder="City"
+                      data-testid="input-billing-city"
+                    />
+                    <Input
+                      aria-label="Billing state"
+                      autoComplete="billing address-level1"
+                      value={billingAddress.state}
+                      onChange={(e) => setBillingAddress((current) => ({ ...current, state: e.target.value }))}
+                      className="bg-white/[0.08] border-white/20 text-white"
+                      placeholder="State"
+                      data-testid="input-billing-state"
+                    />
+                    <Input
+                      aria-label="Billing ZIP code"
+                      autoComplete="billing postal-code"
+                      value={billingAddress.zip}
+                      onChange={(e) => setBillingAddress((current) => ({ ...current, zip: e.target.value }))}
+                      className="bg-white/[0.08] border-white/20 text-white"
+                      placeholder="ZIP code"
+                      data-testid="input-billing-zip"
+                    />
+                  </div>
+                </div>
+              </div>
               <div>
                 <Label className="text-white/60 uppercase text-xs tracking-wider">Card Number</Label>
                 <Input name="cardnumber" autoComplete="cc-number" type="text" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, ""))}
