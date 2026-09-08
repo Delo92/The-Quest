@@ -1044,7 +1044,7 @@ export default function HostDashboard({ user }: { user: any }) {
                                     <video src={comp.coverVideo} muted className="w-full h-full object-cover" />
                                   )
                                 ) : (
-                                  <img src={comp.coverImage!} alt="Cover" className="w-full h-full object-cover" />
+                                    <img src={comp.coverImage!} alt="Cover" className="w-full h-full object-cover" />
                                 )}
                               </div>
                             )}

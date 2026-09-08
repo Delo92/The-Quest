@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface FallbackImageProps {
   src: string;
@@ -10,15 +10,8 @@ interface FallbackImageProps {
 }
 
 export function FallbackImage({ src, fallbackSrc, alt, className, loading, "data-testid": testId }: FallbackImageProps) {
-  const accessibleSrc = getAccessibleMediaUrl(src);
-  const accessibleFallbackSrc = fallbackSrc ? getAccessibleMediaUrl(fallbackSrc) : null;
-  const [currentSrc, setCurrentSrc] = useState(accessibleSrc);
+  const [currentSrc, setCurrentSrc] = useState(src);
   const [triedFallback, setTriedFallback] = useState(false);
-
-  useEffect(() => {
-    setCurrentSrc(accessibleSrc);
-    setTriedFallback(false);
-  }, [accessibleSrc]);
 
   return (
     <img
@@ -28,31 +21,13 @@ export function FallbackImage({ src, fallbackSrc, alt, className, loading, "data
       loading={loading}
       data-testid={testId}
       onError={() => {
-        if (!triedFallback && accessibleFallbackSrc && currentSrc !== accessibleFallbackSrc) {
-          setCurrentSrc(accessibleFallbackSrc);
+        if (!triedFallback && fallbackSrc && currentSrc !== fallbackSrc) {
+          setCurrentSrc(fallbackSrc);
           setTriedFallback(true);
         }
       }}
     />
   );
-}
-
-export function getAccessibleMediaUrl(src?: string | null): string {
-  if (!src) return "";
-
-  try {
-    const url = new URL(src, window.location.origin);
-    const bucketName = "thequest-2dc77.firebasestorage.app";
-    const bucketPrefix = `/${bucketName}/`;
-    if (url.hostname === "storage.googleapis.com" && url.pathname.startsWith(bucketPrefix)) {
-      const objectPath = decodeURIComponent(url.pathname.slice(bucketPrefix.length));
-      return `/api/media/firebase-storage?path=${encodeURIComponent(objectPath)}`;
-    }
-  } catch {
-    // Keep non-URL and relative application assets unchanged.
-  }
-
-  return src;
 }
 
 export function getBackupUrl(imageUrls?: string[] | null, imageBackupUrls?: string[] | null, index: number = 0): string | null {

@@ -11,7 +11,6 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { FallbackImage } from "@/components/fallback-image";
 
 export default function Competitions() {
   useSEO({
@@ -193,9 +192,8 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
                 />
               )
             ) : (
-              <FallbackImage
+              <img
                 src={competition.coverImage || getImage("competition_card_fallback", "/images/template/e1.jpg")}
-                fallbackSrc={getImage("competition_card_fallback", "/images/template/e1.jpg")}
                 alt={competition.title}
                 className="w-full h-52 object-cover transition-transform duration-700 group-hover:scale-105"
               />
