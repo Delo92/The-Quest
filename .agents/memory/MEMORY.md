@@ -13,3 +13,4 @@
 - [Contestant invitation links](contestant-invitation-links.md) — contestant invites use /thequest/login with token-backed competition metadata and login-time acceptance
 - [Firestore REST index deployment](firestore-index-deployment.md) — composite index creates are asynchronous and live listings must be filtered by collection group
 - [Chronic Brands promotion rules](chronic-brands-promotion.md) — ticket promotion defaults on per competition, but host opt-out hides its code/link and ticket goal
+- [Firebase Storage access](firebase-storage-access.md) — restore project storage access before changing UI media rendering; disabled billing makes stored media URLs fail
