@@ -86,6 +86,8 @@ export default function SiteNavbar() {
     return `#${[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)].map(c=>Math.round(c*f).toString(16).padStart(2,"0")).join("")}`;
   })();
   const dashboardHref = isViewerLoggedIn ? "/viewer" : "/dashboard";
+  const isQuestSection = window.location.pathname === "/thequest" || window.location.pathname.startsWith("/thequest/");
+  const homeHref = isQuestSection ? "/thequest" : "/";
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -108,7 +110,7 @@ export default function SiteNavbar() {
         <div className="w-24" />
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-20">
-        <a href="/" className="flex items-center gap-3" data-testid="link-home">
+        <a href={homeHref} className="flex items-center gap-3" data-testid="link-home">
           <CBLogo size="md" />
         </a>
 
@@ -128,7 +130,7 @@ export default function SiteNavbar() {
 
         <div className="hidden lg:flex items-center gap-8">
           <a
-            href="/"
+            href={homeHref}
             className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
             data-testid="link-nav-home"
           >
@@ -203,7 +205,7 @@ export default function SiteNavbar() {
         <div className="lg:hidden bg-black/98 backdrop-blur-xl border-t border-white/10 px-4 pb-safe">
           <div className="py-2 space-y-0.5">
             {[
-              { href: "/", label: "Home", testid: "link-mobile-home", isAnchor: true },
+              { href: homeHref, label: "Home", testid: "link-mobile-home", isAnchor: true },
               { href: "/competitions", label: "Competitions", testid: "link-mobile-competitions" },
               { href: "/nominate", label: "Nominate", testid: "link-mobile-join" },
               { href: "/about", label: "About", testid: "link-mobile-about" },
