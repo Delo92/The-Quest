@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify } from "@shared/slugify";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
+import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 
 interface ContestantWithProfile {
   id: number;
@@ -62,6 +63,16 @@ interface CompetitionDetail {
   hostedBy?: string | null;
 }
 
+interface CompetitionTrackingResponse {
+  competitionId: number;
+  totalVotes: number;
+  totalPoints: number;
+  onlineVotes: number;
+  inPersonVotes: number;
+  updatedAt: string;
+  contestants: CompetitionTrackingContestant[];
+}
+
 export default function CompetitionDetailPage() {
   const params = useParams<{ categorySlug: string; compSlug: string }>();
   const categorySlug = params?.categorySlug;
@@ -77,6 +88,9 @@ export default function CompetitionDetailPage() {
   const isInPersonVoting = voteSource === "in_person";
 
   const { getImage, getMedia, getText } = useLivery();
+  const [activeSection, setActiveSection] = useState<"contestants" | "tracking">(() =>
+    new URLSearchParams(window.location.search).get("view") === "tracking" ? "tracking" : "contestants"
+  );
   const { data: competition, isLoading } = useQuery<CompetitionDetail>({
     queryKey: ["/api/resolve/competition", categorySlug, compSlug],
     enabled: !!categorySlug && !!compSlug,
@@ -85,6 +99,13 @@ export default function CompetitionDetailPage() {
     queryKey: ["/api/resolve/competition", categorySlug, compSlug, "videos"],
     enabled: !!competition && !!categorySlug && !!compSlug,
     staleTime: 60_000,
+  });
+  const trackingQuery = useQuery<CompetitionTrackingResponse>({
+    queryKey: ["/api/resolve/competition", categorySlug, compSlug, "tracking"],
+    enabled: !!competition && !!categorySlug && !!compSlug && activeSection === "tracking",
+    staleTime: 0,
+    refetchInterval: activeSection === "tracking" ? 5_000 : false,
+    refetchOnWindowFocus: true,
   });
 
   const id = competition?.id?.toString();
@@ -107,6 +128,7 @@ export default function CompetitionDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/resolve/competition", categorySlug, compSlug] });
+      queryClient.invalidateQueries({ queryKey: ["/api/resolve/competition", categorySlug, compSlug, "tracking"] });
       toast({ title: "Vote cast!", description: "Your vote has been recorded." });
     },
     onError: (error: Error) => {
@@ -253,7 +275,7 @@ export default function CompetitionDetailPage() {
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-3 mb-10">
+         <div className="flex flex-wrap items-center gap-3 mb-10" role="tablist" aria-label="Competition views">
           <Link
             href={`/join?competition=${competition.id}`}
             className="inline-block bg-[#FF5A09] text-white font-bold text-sm uppercase px-6 leading-[42px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
@@ -262,6 +284,31 @@ export default function CompetitionDetailPage() {
           >
             Start Nominating <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
           </Link>
+           <button
+             type="button"
+             role="tab"
+             aria-selected={activeSection === "tracking"}
+             onClick={() => setActiveSection("tracking")}
+             className={`inline-flex min-h-[42px] items-center gap-2 border px-5 text-sm font-bold uppercase transition-all duration-300 ${activeSection === "tracking" ? "border-[#FF5A09] bg-[#FF5A09]/10 text-[#FF5A09]" : "border-white/20 bg-transparent text-white/70 hover:border-[#FF5A09] hover:text-[#FF5A09]"}`}
+             style={{ letterSpacing: "2px" }}
+             data-testid="button-view-tracking"
+           >
+             <Vote className="h-4 w-4" />
+             Live Tracking
+           </button>
+           {activeSection === "tracking" && (
+             <button
+               type="button"
+               role="tab"
+               aria-selected={false}
+               onClick={() => setActiveSection("contestants")}
+               className="inline-flex min-h-[42px] items-center border border-white/10 px-4 text-sm font-bold uppercase text-white/45 transition-colors hover:border-white/30 hover:text-white/80"
+               style={{ letterSpacing: "2px" }}
+               data-testid="button-view-contestants"
+             >
+               Back to Contestants
+             </button>
+           )}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -289,14 +336,27 @@ export default function CompetitionDetailPage() {
           </div>
         </div>
 
-        <div className="text-center mb-12">
+         {activeSection === "contestants" && <div className="text-center mb-12">
           <p className="text-[#5f5f5f] text-sm mb-1">See what&apos;s new</p>
           <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
             Contestants ({sorted.length})
           </h2>
-        </div>
+         </div>}
 
-        {sorted.length > 0 ? (
+         {activeSection === "tracking" ? (
+           <CompetitionTrackingPanel
+             contestants={trackingQuery.data?.contestants || []}
+             totalVotes={trackingQuery.data?.totalVotes || 0}
+             totalPoints={trackingQuery.data?.totalPoints || 0}
+             onlineVotes={trackingQuery.data?.onlineVotes || 0}
+             inPersonVotes={trackingQuery.data?.inPersonVotes || 0}
+             lastUpdated={trackingQuery.dataUpdatedAt ? new Date(trackingQuery.dataUpdatedAt) : null}
+             isRefreshing={trackingQuery.isFetching}
+             onRefresh={() => trackingQuery.refetch()}
+             isLoading={trackingQuery.isLoading}
+             error={trackingQuery.error instanceof Error ? trackingQuery.error.message : null}
+           />
+         ) : sorted.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sorted.map((contestant, index) => {
               const pct = maxVotes > 0 ? (contestant.voteCount / maxVotes) * 100 : 0;

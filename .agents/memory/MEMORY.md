@@ -7,3 +7,4 @@
 - [Public page performance](public-performance.md) — public listings must render from Firestore first and load Vimeo media separately
 - [Contestant video storage](contestant-video-storage.md) — videoUrls on TalentProfile must be kept in sync with Vimeo; read from Firestore, never walk folder tree at page load
 - [Featured countdown rendering](featured-countdown-rendering.md) — render the featured state immediately; delayed motion can hide it during preview capture
+- [Competition tracking](competition-tracking.md) — public standings use a no-store read endpoint with short client polling, not the protected admin breakdown route

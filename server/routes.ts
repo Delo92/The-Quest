@@ -5146,6 +5146,54 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/resolve/competition/:categorySlug/:compSlug/tracking", async (req, res) => {
+    try {
+      const { categorySlug, compSlug } = req.params;
+      const competitions = await storage.getCompetitions();
+      const comp = competitions.find(c =>
+        slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+      );
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+
+      const [contestantsData, breakdown] = await Promise.all([
+        storage.getContestantsByCompetition(comp.id),
+        storage.getVoteBreakdownByCompetition(comp.id),
+      ]);
+      const totalPoints = contestantsData.reduce((sum, contestant) => sum + contestant.voteCount, 0);
+
+      const contestants = await Promise.all(
+        contestantsData.map(async (contestant) => {
+          const sourceBreakdown = await storage.getContestantVoteBreakdown(contestant.id, comp.id);
+          return {
+            contestantId: contestant.id,
+            displayName: contestant.talentProfile.displayName,
+            stageName: contestant.talentProfile.stageName || null,
+            voteCount: contestant.rawVoteCount,
+            tournamentPoints: contestant.voteCount,
+            votePercentage: totalPoints > 0 ? Math.round((contestant.voteCount / totalPoints) * 10000) / 100 : 0,
+            online: sourceBreakdown.online,
+            inPerson: sourceBreakdown.inPerson,
+            imageUrl: contestant.talentProfile.imageUrls?.[0] || null,
+          };
+        }),
+      );
+
+      res.setHeader("Cache-Control", "no-store");
+      res.json({
+        competitionId: comp.id,
+        totalVotes: breakdown.total,
+        onlineVotes: breakdown.online,
+        inPersonVotes: breakdown.inPerson,
+        totalPoints,
+        contestants,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Competition tracking error:", error);
+      res.status(500).json({ message: "Failed to load competition tracking" });
+    }
+  });
+
   app.get("/api/resolve/competition/:categorySlug/:compSlug", async (req, res) => {
     try {
       const { categorySlug, compSlug } = req.params;
