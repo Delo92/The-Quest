@@ -2749,7 +2749,7 @@ export async function registerRoutes(
         sendInviteEmail({
           to: inviteeEmail,
           inviterName,
-          inviteToken: accountCreated ? undefined : invitation.token,
+          inviteToken: invitation.token,
           role: roleName,
           siteUrl,
           nomineeName: inviteeName,
@@ -2798,6 +2798,9 @@ export async function registerRoutes(
       if (invitation.status !== "pending") {
         return res.status(400).json({ message: `Invitation has already been ${invitation.status}` });
       }
+      const competition = invitation.competitionId
+        ? await storage.getCompetition(invitation.competitionId)
+        : null;
       res.json({
         invitedEmail: invitation.invitedEmail,
         invitedName: invitation.invitedName,
@@ -2809,10 +2812,48 @@ export async function registerRoutes(
         suggestedEventName: invitation.suggestedEventName || null,
         competitionId: invitation.competitionId || null,
         mediaUrl: invitation.mediaUrl || null,
+        competition: competition
+          ? {
+              id: competition.id,
+              title: competition.title,
+              description: competition.description,
+              category: competition.category,
+              coverImage: competition.coverImage,
+            }
+          : null,
       });
     } catch (error: any) {
       console.error("Get invitation by token error:", error);
       res.status(500).json({ message: "Failed to get invitation" });
+    }
+  });
+
+  app.post("/api/invitations/accept", firebaseAuth, async (req, res) => {
+    try {
+      const { inviteToken } = req.body || {};
+      if (!inviteToken || typeof inviteToken !== "string") {
+        return res.status(400).json({ message: "Invitation token is required" });
+      }
+
+      const invitation = await firestoreInvitations.getByToken(inviteToken);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      if (invitation.status === "accepted") {
+        return res.json({ accepted: true, alreadyAccepted: true });
+      }
+      if (invitation.status !== "pending") {
+        return res.status(400).json({ message: `Invitation has already been ${invitation.status}` });
+      }
+      if (invitation.invitedEmail.toLowerCase().trim() !== req.firebaseUser!.email.toLowerCase().trim()) {
+        return res.status(403).json({ message: "This invitation was sent to a different email address" });
+      }
+
+      const updated = await firestoreInvitations.markAccepted(inviteToken, req.firebaseUser!.uid);
+      res.json({ accepted: true, invitation: updated });
+    } catch (error: any) {
+      console.error("Accept invitation error:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
     }
   });
 
@@ -5896,6 +5937,63 @@ export async function registerRoutes(
   });
 
   const socialCrawlerPattern = /facebookexternalhit|facebot|twitterbot|whatsapp|linkedinbot|slackbot|discordbot|telegrambot|applebot|googlebot|bingbot|yandexbot|pinterestbot|redditbot|rogerbot|embedly|quora|outbrain|vkShare|skypeuripreview|iframely|Slurp/i;
+
+  app.get(["/thequest/login", "/thequest/register"], async (req, res, next) => {
+    try {
+      const ua = req.headers["user-agent"] || "";
+      if (!socialCrawlerPattern.test(ua)) return next();
+
+      const inviteToken = typeof req.query.invite === "string" ? req.query.invite : "";
+      const invitation = inviteToken
+        ? await firestoreInvitations.getByToken(inviteToken)
+        : null;
+      const competition = invitation?.competitionId
+        ? await storage.getCompetition(invitation.competitionId)
+        : null;
+
+      const livery = await storage.getAllLivery().catch(() => null);
+      const fallbackImage = livery?.find?.((item: any) => item.imageKey === "site_favicon")?.imageUrl
+        || "https://cbpublishing.live/cb-logo-favicon.png?v=cbp-20260905";
+      const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const competitionTitle = competition?.title || invitation?.suggestedEventName || "The Quest";
+      const ogTitle = competition
+        ? `${competitionTitle} | The Quest`
+        : "Log in to The Quest";
+      const ogDescription = competition?.description?.trim()
+        || `Log in to continue with ${competitionTitle} on The Quest.`;
+      const ogImage = competition?.coverImage || fallbackImage;
+      const forwardedProto = req.headers["x-forwarded-proto"];
+      const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0] : req.protocol;
+      const ogUrl = `${protocol}://${req.get("host")}${req.path}`;
+
+      const ogTags = `
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${escHtml(ogTitle)}" />
+    <meta property="og:description" content="${escHtml(ogDescription)}" />
+    <meta property="og:image" content="${escHtml(ogImage)}" />
+    <meta property="og:url" content="${escHtml(ogUrl)}" />
+    <meta property="og:site_name" content="The Quest" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escHtml(ogTitle)}" />
+    <meta name="twitter:description" content="${escHtml(ogDescription)}" />
+    <meta name="twitter:image" content="${escHtml(ogImage)}" />
+    <meta name="description" content="${escHtml(ogDescription)}" />
+    <title>${escHtml(ogTitle)}</title>`;
+
+      const clientTemplate = path.resolve(process.cwd(), "client", "index.html");
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template
+        .replace(/<title>[\s\S]*?<\/title>/i, "")
+        .replace(/<meta\s+property=["']og:[^>]*>\s*/gi, "")
+        .replace(/<meta\s+name=["']twitter:[^>]*>\s*/gi, "")
+        .replace(/<meta\s+name=["']description["'][^>]*>\s*/gi, "")
+        .replace("</head>", `${ogTags}\n</head>`);
+      res.status(200).set({ "Content-Type": "text/html" }).end(template);
+    } catch (error) {
+      console.error("Invitation OG meta injection error:", error);
+      next();
+    }
+  });
 
   app.get("/thequest", async (req, res, next) => {
     try {

@@ -195,10 +195,26 @@ export function useAuth() {
     };
   }, [syncUserWithBackend]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, inviteToken?: string) => {
     setError(null);
     try {
       await firebaseLogin(email, password);
+      if (inviteToken) {
+        const token = await getIdToken();
+        if (token) {
+          const response = await fetch("/api/invitations/accept", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ inviteToken }),
+          });
+          if (!response.ok) {
+            console.warn("Invitation could not be marked accepted:", await response.text());
+          }
+        }
+      }
     } catch (err: any) {
       const msg = err.code === "auth/user-not-found" ? "No account found with this email"
         : err.code === "auth/wrong-password" ? "Incorrect password"

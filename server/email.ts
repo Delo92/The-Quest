@@ -170,17 +170,14 @@ export async function sendInviteEmail(opts: {
     const [subject, heading, body] = await Promise.all([
       getEmailTemplate("email_welcome_subject", "{inviterName} invited you to join The Quest!"),
       getEmailTemplate("email_welcome_heading", "You've Been Invited!"),
-      getEmailTemplate("email_welcome_body", "{inviterName} has invited you to join The Quest as a {role}.\n\nThe Quest is CB Publishing's premier talent competition platform where artists, models, bodybuilders, and performers compete for public votes.\n\nClick the button below to accept your invitation and get started!"),
+       getEmailTemplate("email_welcome_body", "{inviterName} has invited you to participate in {competitionName} on The Quest as a {role}.\n\nYour account is ready. Click the button below to log in and continue."),
     ]);
 
     let actionUrl: string;
     let actionLabel: string;
-    if (opts.accountCreated) {
-      actionUrl = `${opts.siteUrl}/login`;
-      actionLabel = "Log In Now";
-    } else if (opts.inviteToken) {
-      actionUrl = `${opts.siteUrl}/register?invite=${opts.inviteToken}`;
-      actionLabel = "Accept Invitation";
+     if (opts.inviteToken) {
+       actionUrl = `${opts.siteUrl}/thequest/login?invite=${opts.inviteToken}`;
+       actionLabel = "Log In to Continue";
     } else {
       actionUrl = `${opts.siteUrl}/login`;
       actionLabel = "Get Started";

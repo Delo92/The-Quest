@@ -92,8 +92,8 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
   });
 
   const buildInviteLink = (token: string, level: number) => {
-    if (level >= 3) return `${window.location.origin}/host?invite=${token}`;
-    return `${window.location.origin}/register?invite=${token}`;
+    if (level >= 3) return `${window.location.origin}/thequest/host?invite=${token}`;
+    return `${window.location.origin}/thequest/login?invite=${token}`;
   };
 
   const inviteMutation = useMutation({
@@ -301,7 +301,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
               <LinkIcon className="h-4 w-4 text-green-400" />
               <span className="text-sm font-semibold text-green-400">Invite Link Created</span>
             </div>
-            <p className="text-xs text-white/50 mb-2">Share this link with your invitee. They can click it to sign up.</p>
+             <p className="text-xs text-white/50 mb-2">Share this link with your invitee. Their account is ready — they can log in and continue.</p>
             <div className="flex items-center gap-2">
               <Input
                 readOnly

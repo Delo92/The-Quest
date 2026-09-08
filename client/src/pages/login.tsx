@@ -24,6 +24,13 @@ interface InviteInfo {
   targetLevel: number;
   invitedByName: string;
   message: string | null;
+  competition?: {
+    id: number;
+    title: string;
+    description: string | null;
+    category: string;
+    coverImage: string | null;
+  } | null;
 }
 
 const LEVEL_LABELS: Record<number, string> = {
@@ -33,11 +40,6 @@ const LEVEL_LABELS: Record<number, string> = {
 };
 
 export default function LoginPage() {
-  useSEO({
-    title: "Sign In",
-    description: "Log in or create your The Quest account to vote, compete, or host talent competitions.",
-    canonical: "https://thequest-2dc77.firebaseapp.com/login",
-  });
   const { login, register, resetPassword, isAuthenticated, error } = useAuth();
   const { loginViewer, isViewerLoggedIn } = useViewerSession();
   const [, setLocation] = useLocation();
@@ -49,7 +51,7 @@ export default function LoginPage() {
   const inviteToken = params.get("invite") || "";
   const isRegisterPath = window.location.pathname === "/register";
 
-  const [mode, setMode] = useState<Mode>(inviteToken || isRegisterPath ? "register" : "login");
+  const [mode, setMode] = useState<Mode>(inviteToken ? "login" : isRegisterPath ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -63,6 +65,16 @@ export default function LoginPage() {
   const { data: inviteInfo } = useQuery<InviteInfo>({
     queryKey: ["/api/invitations/token", inviteToken],
     enabled: !!inviteToken,
+  });
+
+  useSEO({
+    title: inviteInfo?.competition?.title
+      ? `Log in to ${inviteInfo.competition.title}`
+      : "Sign In",
+    description: inviteInfo?.competition?.description
+      || "Log in to your The Quest account to continue with your invitation.",
+    canonical: `${window.location.origin}/thequest/login`,
+    ogImage: inviteInfo?.competition?.coverImage || undefined,
   });
 
   useEffect(() => {
@@ -111,7 +123,7 @@ export default function LoginPage() {
       }
 
       if (mode === "login") {
-        await login(email, password);
+        await login(email, password, inviteToken || undefined);
         toast({ title: "Welcome back!", description: "You have been logged in." });
         setLocation("/dashboard");
       } else if (mode === "register") {
@@ -177,15 +189,32 @@ export default function LoginPage() {
       </div>
 
       <div className="max-w-md mx-auto px-4 py-16">
-        {inviteInfo && mode === "register" && (
+        {inviteInfo && mode === "login" && (
           <div className="rounded-md bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 p-4 mb-6" data-testid="invite-banner">
-            <div className="flex items-center gap-2 mb-2">
-              <Mail className="h-4 w-4 text-orange-400" />
-              <span className="text-sm font-medium text-orange-400">You've been invited!</span>
+            <div className="flex items-start gap-3">
+              {inviteInfo.competition?.coverImage && (
+                <img
+                  src={inviteInfo.competition.coverImage}
+                  alt=""
+                  className="h-16 w-16 rounded object-cover shrink-0"
+                />
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="h-4 w-4 text-orange-400" />
+                  <span className="text-sm font-medium text-orange-400">Your invitation</span>
+                </div>
+                {inviteInfo.competition?.title && (
+                  <h2 className="text-base font-semibold text-white truncate">{inviteInfo.competition.title}</h2>
+                )}
+              </div>
             </div>
             <p className="text-sm text-white/60">
-              <span className="text-white">{inviteInfo.invitedByName}</span> invited you to join as a <Badge className={`border-0 text-xs ml-1 ${inviteInfo.targetLevel === 3 ? "bg-purple-500/20 text-purple-300" : inviteInfo.targetLevel === 2 ? "bg-blue-500/20 text-blue-400" : "bg-white/10 text-white/50"}`}>{LEVEL_LABELS[inviteInfo.targetLevel] || `Level ${inviteInfo.targetLevel}`}</Badge>
+              <span className="text-white">{inviteInfo.invitedByName}</span> invited you to participate as a <Badge className={`border-0 text-xs ml-1 ${inviteInfo.targetLevel === 3 ? "bg-purple-500/20 text-purple-300" : inviteInfo.targetLevel === 2 ? "bg-blue-500/20 text-blue-400" : "bg-white/10 text-white/50"}`}>{LEVEL_LABELS[inviteInfo.targetLevel] || `Level ${inviteInfo.targetLevel}`}</Badge>
             </p>
+            {inviteInfo.competition?.description && (
+              <p className="text-xs text-white/45 mt-2 line-clamp-2">{inviteInfo.competition.description}</p>
+            )}
             {inviteInfo.message && (
               <p className="text-xs text-white/40 mt-2 italic">"{inviteInfo.message}"</p>
             )}
@@ -210,7 +239,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {(mode === "login" || (mode === "register" && !inviteToken)) && (
+          {((mode === "login" && !inviteToken) || (mode === "register" && !inviteToken)) && (
             <div>
               <Label className="text-white/60 uppercase text-xs tracking-wider">
                 Account Type
