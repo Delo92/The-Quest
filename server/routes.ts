@@ -5302,11 +5302,14 @@ export async function registerRoutes(
           if (!comp) return null;
 
           const contestants = await storage.getContestantsByCompetition(comp.id);
-          return Promise.all(contestants.map(async contestant => {
+           const competitionVideos = await listCompetitionVideos(comp.title);
+           return contestants.map(contestant => {
             const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
               .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
               .trim();
-            const talentVideos = await listTalentVideos(comp.title, talentName);
+             const safeCompName = comp.title.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+             const talentPrefix = `${safeCompName} - ${talentName} -`;
+             const talentVideos = competitionVideos.filter(video => video.name?.startsWith(talentPrefix));
             const videos = talentVideos.map(v => ({
               uri: v.uri,
               name: v.name,
@@ -5318,7 +5321,7 @@ export async function registerRoutes(
               thumbnail: getVideoThumbnail(v),
             }));
             return { contestantId: contestant.id, videos };
-          }));
+           });
         },
       );
       if (!media) return res.status(404).json({ message: "Competition not found" });

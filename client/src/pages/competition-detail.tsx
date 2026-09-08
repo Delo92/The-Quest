@@ -95,7 +95,7 @@ export default function CompetitionDetailPage() {
     queryKey: ["/api/resolve/competition", categorySlug, compSlug],
     enabled: !!categorySlug && !!compSlug,
   });
-  const { data: contestantVideoData = [] } = useQuery<{ contestantId: number; videos: ContestantVideo[] }[]>({
+  const { data: contestantVideoData = [], isLoading: isLoadingContestantVideos } = useQuery<{ contestantId: number; videos: ContestantVideo[] }[]>({
     queryKey: ["/api/resolve/competition", categorySlug, compSlug, "videos"],
     enabled: !!competition && !!categorySlug && !!compSlug,
     staleTime: 60_000,
@@ -371,7 +371,14 @@ export default function CompetitionDetailPage() {
                   data-testid={`card-contestant-${contestant.id}`}
                 >
                   <Link href={contestantHref} className={`block relative overflow-hidden bg-black ${videos.length > 0 ? "p-1 space-y-1" : "h-52"}`}>
-                    {videos.length > 0 ? videos.map((video) => {
+                    {isLoadingContestantVideos ? (
+                      <div
+                        className="h-52 bg-[#101010] animate-pulse flex items-center justify-center text-xs uppercase tracking-[3px] text-white/20"
+                        aria-label="Loading contestant media"
+                      >
+                        Loading media
+                      </div>
+                    ) : videos.length > 0 ? videos.map((video) => {
                       const playerUrl = `${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1`;
                       return (
                         <div
