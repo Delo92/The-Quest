@@ -20,6 +20,7 @@ export interface Competition {
   onlineVoteWeight: number;
   inPersonOnly: boolean;
   vimeoFolderUrl: string | null;
+  chronicBrandsPromotionEnabled: boolean;
   isFeatured?: boolean;
   createdAt: string | null;
   createdBy: string | null;

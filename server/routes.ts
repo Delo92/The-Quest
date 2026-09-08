@@ -34,6 +34,7 @@ import {
   firestoreCompetitions,
   firestoreTalentProfiles,
   firestoreContestants,
+  firestoreChronicBrandsTicketPurchases,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
@@ -79,6 +80,7 @@ import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import QRCode from "qrcode";
 import { slugify, extractIdFromSlug } from "../shared/slugify";
 
@@ -1104,6 +1106,7 @@ export async function registerRoutes(
     expectedContestants: z.number().int().min(0).optional().nullable(),
     onlineVoteWeight: z.number().int().min(1).max(100).optional().default(100),
     inPersonOnly: z.boolean().optional().default(false),
+    chronicBrandsPromotionEnabled: z.boolean().optional().default(true),
     vimeoFolderUrl: z.string().trim().refine((value) => {
       try {
         parseVimeoFolderUri(value);
@@ -1170,6 +1173,7 @@ export async function registerRoutes(
       createdAt: new Date().toISOString(),
       createdBy: assignedCreatorUid,
        vimeoFolderUrl: parsed.data.vimeoFolderUrl || null,
+       chronicBrandsPromotionEnabled: parsed.data.chronicBrandsPromotionEnabled ?? true,
     });
 
     try {
@@ -1626,7 +1630,15 @@ export async function registerRoutes(
     const myContests = await storage.getContestantsByTalent(profile.id);
     const enriched = await Promise.all(myContests.map(async (c) => {
       const comp = await storage.getCompetition(c.competitionId);
-      return { ...c, competitionCategory: comp?.category || "" };
+      const ticketPurchases = await firestoreChronicBrandsTicketPurchases.getByContestant(c.id);
+      return {
+        ...c,
+        competitionCategory: comp?.category || "",
+        chronicBrandsPromotionEnabled: comp?.chronicBrandsPromotionEnabled ?? true,
+        chronicBrandsTicketGoal: 4,
+        chronicBrandsTicketCount: ticketPurchases.reduce((total, purchase) => total + Math.max(1, purchase.ticketCount || 1), 0),
+        chronicBrandsPromotionUrl: process.env.CHRONIC_BRANDS_TICKET_URL || "https://chronicbrandsusa.com/",
+      };
     }));
     res.json(enriched);
   });
@@ -1755,6 +1767,9 @@ export async function registerRoutes(
     }
 
     const updateData = { ...req.body };
+    if (updateData.chronicBrandsPromotionEnabled !== undefined && typeof updateData.chronicBrandsPromotionEnabled !== "boolean") {
+      return res.status(400).json({ message: "chronicBrandsPromotionEnabled must be a boolean" });
+    }
     if ("vimeoFolderUrl" in updateData) {
       if (updateData.vimeoFolderUrl === "" || updateData.vimeoFolderUrl === null) {
         updateData.vimeoFolderUrl = null;
@@ -4273,6 +4288,88 @@ export async function registerRoutes(
     } catch (err: any) {
       console.error("[/api/code-registry/lookup] error:", err.message);
       res.status(500).json({ found: false });
+    }
+  });
+
+  const chronicBrandsTicketPurchaseSchema = z.object({
+    code: z.string().trim().min(1),
+    competitionId: z.number().int().positive().optional(),
+    contestantId: z.number().int().positive().optional(),
+    orderNumber: z.string().trim().min(1).optional(),
+    orderId: z.string().trim().min(1).optional(),
+    ticketCount: z.number().int().min(1).optional().default(1),
+    orderValue: z.union([z.number(), z.string()]).optional().default(0),
+    customerName: z.string().trim().max(200).optional().nullable(),
+    customerEmail: z.string().trim().email().optional().nullable(),
+    customerPhone: z.string().trim().max(50).optional().nullable(),
+    purchasedAt: z.string().datetime().optional(),
+  });
+
+  app.post("/api/webhooks/chronic-brands/ticket-purchase", async (req, res) => {
+    const configuredKey = process.env.CHRONIC_BRANDS_API_KEY || process.env.PROMO_API_KEY;
+    const receivedKey = req.get("x-api-key") || "";
+    if (!configuredKey) return res.status(503).json({ message: "Chronic Brands webhook is not configured" });
+    const keysMatch = receivedKey.length === configuredKey.length
+      && crypto.timingSafeEqual(Buffer.from(receivedKey), Buffer.from(configuredKey));
+    if (!keysMatch) return res.status(401).json({ message: "Invalid webhook credentials" });
+
+    const parsed = chronicBrandsTicketPurchaseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid ticket purchase" });
+    }
+
+    try {
+      const payload = parsed.data;
+      const code = await firestoreReferrals.resolveCode(payload.code);
+      if (!code) return res.status(404).json({ message: "Referral code not found" });
+
+      const codeCompetitionIds = code.competitionIds?.length
+        ? code.competitionIds
+        : (code.competitionId ? [code.competitionId] : []);
+      const competitionId = payload.competitionId || (codeCompetitionIds.length === 1 ? codeCompetitionIds[0] : null);
+      if (!competitionId) {
+        return res.status(400).json({ message: "competitionId is required when a code is active for multiple competitions" });
+      }
+
+      const competition = await storage.getCompetition(competitionId);
+      if (!competition) return res.status(404).json({ message: "Competition not found" });
+      if (competition.chronicBrandsPromotionEnabled === false) {
+        return res.json({ accepted: false, reason: "Competition is not opted in for Chronic Brands promotion" });
+      }
+
+      const contestant = payload.contestantId
+        ? await firestoreContestants.getById(payload.contestantId)
+        : code.talentProfileId
+          ? await firestoreContestants.get(competitionId, code.talentProfileId)
+          : null;
+      if (!contestant || contestant.competitionId !== competitionId) {
+        return res.status(404).json({ message: "Contestant could not be matched to this competition" });
+      }
+
+      const orderNumber = payload.orderNumber || payload.orderId;
+      if (!orderNumber) return res.status(400).json({ message: "orderNumber is required" });
+
+      const existing = await firestoreChronicBrandsTicketPurchases.getByOrderNumber(orderNumber);
+      if (existing) return res.json({ accepted: true, duplicate: true, purchase: existing });
+
+      const purchase = await firestoreChronicBrandsTicketPurchases.create({
+        code: code.code,
+        competitionId,
+        contestantId: contestant.id,
+        talentProfileId: contestant.talentProfileId,
+        orderNumber,
+        ticketCount: payload.ticketCount,
+        orderValue: Number(payload.orderValue) || 0,
+        customerName: payload.customerName || null,
+        customerEmail: payload.customerEmail || null,
+        customerPhone: payload.customerPhone || null,
+        purchasedAt: payload.purchasedAt || new Date().toISOString(),
+      });
+
+      res.status(201).json({ accepted: true, purchase });
+    } catch (error: any) {
+      console.error("Chronic Brands ticket purchase webhook error:", error);
+      res.status(500).json({ message: "Failed to record ticket purchase" });
     }
   });
 

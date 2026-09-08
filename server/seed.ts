@@ -99,6 +99,7 @@ export async function seedDatabase() {
       onlineVoteWeight: 100,
       inPersonOnly: false,
       vimeoFolderUrl: null,
+      chronicBrandsPromotionEnabled: true,
       ...c,
     });
     compsCreated.push(comp);

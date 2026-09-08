@@ -43,6 +43,7 @@ interface HostCompetition {
   maxVotesPerDay: number;
   maxImagesPerContestant: number | null;
   maxVideosPerContestant: number | null;
+  chronicBrandsPromotionEnabled: boolean;
   startDate: string | null;
   endDate: string | null;
   vimeoFolderUrl: string | null;
@@ -801,6 +802,7 @@ export default function HostDashboard({ user }: { user: any }) {
                                 voteCost: comp.voteCost,
                                 maxImagesPerContestant: comp.maxImagesPerContestant,
                                 maxVideosPerContestant: comp.maxVideosPerContestant,
+                                 chronicBrandsPromotionEnabled: comp.chronicBrandsPromotionEnabled !== false,
                                  vimeoFolderUrl: comp.vimeoFolderUrl || "",
                                 inPersonOnly: (comp as any).inPersonOnly || false,
                               });
@@ -985,6 +987,26 @@ export default function HostDashboard({ user }: { user: any }) {
                                 onCheckedChange={(v) => setEditForm({ ...editForm, inPersonOnly: v })}
                                 className="data-[state=checked]:bg-orange-500"
                                 data-testid={`edit-in-person-only-${comp.id}`}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className={`flex items-center justify-between rounded-md border px-3 py-2.5 ${
+                              editForm.chronicBrandsPromotionEnabled === false
+                                ? "bg-white/[0.03] border-white/10"
+                                : "bg-orange-500/[0.06] border-orange-500/20"
+                            }`}>
+                              <div>
+                                <Label className="text-white/70 text-xs font-medium">Chronic Brands Network Promotion</Label>
+                                <p className="text-[10px] text-white/30 mt-0.5">
+                                  When enabled, contestants can use tracked promo links for the additional live-show ticket promotion.
+                                </p>
+                              </div>
+                              <Switch
+                                checked={editForm.chronicBrandsPromotionEnabled !== false}
+                                onCheckedChange={(v) => setEditForm({ ...editForm, chronicBrandsPromotionEnabled: v })}
+                                className="data-[state=checked]:bg-orange-500"
+                                data-testid={`edit-chronic-brands-promotion-${comp.id}`}
                               />
                             </div>
                           </div>

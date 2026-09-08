@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
@@ -436,6 +436,7 @@ export default function TalentDashboard({ user, profile }: Props) {
   const appliedContests = myContests?.filter((c: any) => c.applicationStatus === "approved" || c.applicationStatus === "pending") || [];
   const approvedContests = myContests?.filter((c: any) => c.applicationStatus === "approved") || [];
   const hasActiveEntry = appliedContests.length > 0;
+  const hasChronicBrandsPromotion = appliedContests.some((c: any) => c.chronicBrandsPromotionEnabled !== false);
 
   useEffect(() => {
     if (!selectedCompId && appliedContests.length > 0) {
@@ -498,6 +499,21 @@ export default function TalentDashboard({ user, profile }: Props) {
   const buildRecruitUrl = (contest: any) => {
     const refCode = myRefCode?.code || slugify(displayName || profile?.displayName || "talent");
     return `${window.location.origin}/thequest/nominate?competition=${contest.competitionId}&ref=${encodeURIComponent(refCode)}`;
+  };
+
+  const buildChronicBrandsPromotionUrl = (contest: any) => {
+    const code = myRefCode?.code;
+    if (!code) return null;
+    const base = contest.chronicBrandsPromotionUrl || "https://chronicbrandsusa.com/";
+    try {
+      const url = new URL(base);
+      url.searchParams.set("promoCode", code);
+      url.searchParams.set("competitionId", String(contest.competitionId));
+      url.searchParams.set("source", "thequest");
+      return url.toString();
+    } catch {
+      return `${base}?promoCode=${encodeURIComponent(code)}&competitionId=${contest.competitionId}&source=thequest`;
+    }
   };
 
   const handleCopyRecruitLink = async (contest: any) => {
@@ -1287,8 +1303,11 @@ export default function TalentDashboard({ user, profile }: Props) {
               </div>
             ) : (
               <div className="space-y-6">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
                 {profile && (
-                  <div className="rounded-md bg-white/[0.06] border border-white/12 p-4">
+                  <div className="rounded-md bg-white/[0.06] border border-white/12 p-4 h-full">
+                    {hasChronicBrandsPromotion ? (
+                    <>
                     <h3 className="font-bold mb-2 text-lg flex items-center gap-2">
                       <Trophy className="h-5 w-5 text-orange-400" />
                       My Promo / Referral Code
@@ -1366,11 +1385,23 @@ export default function TalentDashboard({ user, profile }: Props) {
                         <span className="text-sm text-white/30">or it will be auto-generated when you share a link</span>
                       </div>
                     )}
+                    </>
+                    ) : (
+                      <>
+                        <h3 className="font-bold mb-2 text-lg flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-orange-400" />
+                          My Promo / Referral Code
+                        </h3>
+                        <p className="text-sm text-white/50 border border-white/10 bg-white/[0.03] rounded-md px-3 py-3">
+                          This competition is not opted in for the additional Chronic Brands Network promotion.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
 
                 {approvedContests.length > 0 && (
-                  <div>
+                  <div className="rounded-md bg-white/[0.06] border border-white/12 p-4 h-full">
                     <h3 className="font-bold mb-3 text-lg flex items-center gap-2">
                       <Share2 className="h-5 w-5 text-orange-400" />
                       Vote Links — Share to Get Votes
@@ -1417,6 +1448,124 @@ export default function TalentDashboard({ user, profile }: Props) {
                     </div>
                   </div>
                 )}
+                </div>
+
+                {appliedContests.length > 0 && (
+                  <section className="rounded-md bg-white/[0.06] border border-orange-500/20 p-4 sm:p-5" data-testid="rules-of-engagement">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="h-9 w-9 rounded-lg bg-orange-500/15 border border-orange-500/25 flex items-center justify-center shrink-0">
+                        <Megaphone className="h-4 w-4 text-orange-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg">Rules of Engagement</h3>
+                        <p className="text-sm text-white/45 mt-1">
+                          These promotion commitments apply to each competition unless the host has opted out of the additional Chronic Brands Network promotion.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                      <div className="rounded-md bg-black/25 border border-white/10 p-4">
+                        <div className="flex items-center gap-2 text-orange-300 mb-2">
+                          <Megaphone className="h-4 w-4" />
+                          <span className="text-sm font-semibold">Promote your voting</span>
+                        </div>
+                        <p className="text-sm text-white/55 leading-relaxed">
+                          Share your voting link at least <strong className="text-white">3 times per week</strong> with your fans, followers, and supporters.
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-black/25 border border-white/10 p-4">
+                        <div className="flex items-center gap-2 text-orange-300 mb-2">
+                          <Ticket className="h-4 w-4" />
+                          <span className="text-sm font-semibold">Bring supporters to the live show</span>
+                        </div>
+                        <p className="text-sm text-white/55 leading-relaxed">
+                          When enabled for your competition, help bring at least <strong className="text-white">4 paid ticket buyers</strong> to see you perform live.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {appliedContests.map((contest: any) => {
+                        const promotionEnabled = contest.chronicBrandsPromotionEnabled !== false;
+                        const ticketCount = Math.min(contest.chronicBrandsTicketCount || 0, contest.chronicBrandsTicketGoal || 4);
+                        const ticketGoal = contest.chronicBrandsTicketGoal || 4;
+                        const ticketLink = promotionEnabled ? buildChronicBrandsPromotionUrl(contest) : null;
+                        return (
+                          <div key={`rules-${contest.id}`} className="rounded-md bg-black/30 border border-white/10 p-4" data-testid={`rules-contest-${contest.id}`}>
+                            <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                              <div>
+                                <h4 className="font-semibold">{contest.competitionTitle || "Competition"}</h4>
+                                <p className="text-xs text-white/35 mt-0.5">{contest.competitionCategory}</p>
+                              </div>
+                              {promotionEnabled && (
+                                <div className="text-right">
+                                  <p className="text-[10px] uppercase tracking-wider text-white/35">Paid tickets</p>
+                                  <p className="text-lg font-bold tabular-nums text-orange-300" data-testid={`ticket-progress-${contest.id}`}>
+                                    {ticketCount} <span className="text-white/35">/ {ticketGoal}</span>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            {promotionEnabled ? (
+                              <div className="space-y-3">
+                                <p className="text-sm text-white/55">
+                                  Create and share your Chronic Brands promo link so supporters can use your code at checkout. Completed purchases are reported back to The Quest.
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {myRefCode?.code ? (
+                                    <div className="rounded bg-black/50 border border-white/10 px-3 py-2 font-mono text-orange-300 tracking-widest text-sm" data-testid={`rules-promo-code-${contest.id}`}>
+                                      {myRefCode.code}
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => { setCustomPromoCode(""); setEditingPromoCode(true); }}
+                                      className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                                      data-testid={`button-create-promo-code-${contest.id}`}
+                                    >
+                                      Create My Code
+                                    </Button>
+                                  )}
+                                  {myRefCode?.code && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        await navigator.clipboard.writeText(myRefCode.code);
+                                        toast({ title: "Copied!", description: "Promo code copied to clipboard." });
+                                      }}
+                                      className="border-white/15 text-white/70"
+                                      data-testid={`button-copy-rules-code-${contest.id}`}
+                                    >
+                                      <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Code
+                                    </Button>
+                                  )}
+                                  {ticketLink && (
+                                    <a
+                                      href={ticketLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center rounded-md border border-orange-500/40 px-3 py-2 text-xs font-semibold text-orange-300 hover:bg-orange-500/10 transition-colors"
+                                      data-testid={`link-chronic-brands-promotion-${contest.id}`}
+                                    >
+                                      <Ticket className="h-3.5 w-3.5 mr-1.5" /> Open Ticket Link
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-white/50 border border-white/10 bg-white/[0.03] rounded-md px-3 py-3" data-testid={`text-promotion-opt-out-${contest.id}`}>
+                                This competition is not opted in for the additional Chronic Brands Network promotion.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
 
                 {myContests && myContests.length > 0 && (
                   <div>
@@ -1428,6 +1577,11 @@ export default function TalentDashboard({ user, profile }: Props) {
                           <div>
                             <h4 className="font-medium">{contest.competitionTitle || "Competition"}</h4>
                             <p className="text-xs text-white/30">Applied {new Date(contest.appliedAt).toLocaleDateString()}</p>
+                            {contest.applicationStatus === "approved" && contest.chronicBrandsPromotionEnabled !== false && myRefCode?.code && (
+                              <p className="text-[10px] text-orange-300/70 mt-1 font-mono">
+                                Promo code: {myRefCode.code}
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             {contest.applicationStatus === "approved" && (

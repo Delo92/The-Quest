@@ -23,6 +23,7 @@ const COLLECTIONS = {
   INVITATIONS: "invitations",
   REFERRAL_CODES: "referralCodes",
   REFERRAL_STATS: "referralStats",
+  CHRONIC_BRANDS_TICKET_PURCHASES: "chronicBrandsTicketPurchases",
 } as const;
 
 function db() {
@@ -80,6 +81,7 @@ export interface FirestoreCompetition {
   onlineVoteWeight: number;
   inPersonOnly: boolean;
   vimeoFolderUrl: string | null;
+  chronicBrandsPromotionEnabled: boolean;
   createdAt: string | null;
   createdBy: string | null;
 }
@@ -355,6 +357,7 @@ function normalizeCompetition(data: any): FirestoreCompetition {
     onlineVoteWeight: data.onlineVoteWeight ?? 100,
     inPersonOnly: data.inPersonOnly ?? false,
     vimeoFolderUrl: data.vimeoFolderUrl ?? null,
+    chronicBrandsPromotionEnabled: data.chronicBrandsPromotionEnabled ?? true,
   } as FirestoreCompetition;
 }
 
@@ -439,6 +442,47 @@ export const firestoreCompetitions = {
     const batch3 = db().batch();
     voteCountsSnapshot.docs.forEach(doc => batch3.delete(doc.ref));
     if (voteCountsSnapshot.docs.length > 0) await batch3.commit();
+  },
+};
+
+export interface FirestoreChronicBrandsTicketPurchase {
+  id: number;
+  code: string;
+  competitionId: number;
+  contestantId: number;
+  talentProfileId: number;
+  orderNumber: string;
+  ticketCount: number;
+  orderValue: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  purchasedAt: string;
+}
+
+export const firestoreChronicBrandsTicketPurchases = {
+  async getByContestant(contestantId: number): Promise<FirestoreChronicBrandsTicketPurchase[]> {
+    const snapshot = await db()
+      .collection(COLLECTIONS.CHRONIC_BRANDS_TICKET_PURCHASES)
+      .where("contestantId", "==", contestantId)
+      .get();
+    return snapshot.docs.map(doc => doc.data() as FirestoreChronicBrandsTicketPurchase);
+  },
+
+  async getByOrderNumber(orderNumber: string): Promise<FirestoreChronicBrandsTicketPurchase | null> {
+    const snapshot = await db()
+      .collection(COLLECTIONS.CHRONIC_BRANDS_TICKET_PURCHASES)
+      .where("orderNumber", "==", orderNumber)
+      .limit(1)
+      .get();
+    return snapshot.empty ? null : snapshot.docs[0].data() as FirestoreChronicBrandsTicketPurchase;
+  },
+
+  async create(data: Omit<FirestoreChronicBrandsTicketPurchase, "id">): Promise<FirestoreChronicBrandsTicketPurchase> {
+    const id = await nextId("chronicBrandsTicketPurchases");
+    const purchase: FirestoreChronicBrandsTicketPurchase = { ...data, id };
+    await db().collection(COLLECTIONS.CHRONIC_BRANDS_TICKET_PURCHASES).doc(String(id)).set(purchase);
+    return purchase;
   },
 };
 
