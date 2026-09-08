@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { verifyFirebaseToken } from "./firebase-admin";
 
 declare global {
@@ -13,7 +14,7 @@ declare global {
   }
 }
 
-export async function firebaseAuth(req: Request, res: Response, next: NextFunction) {
+export async function firebaseAuth(req: Request<ParamsFlatDictionary>, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "No authentication token provided" });
@@ -41,7 +42,7 @@ export async function firebaseAuth(req: Request, res: Response, next: NextFuncti
 }
 
 export function requireLevel(minLevel: number) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request<ParamsFlatDictionary>, res: Response, next: NextFunction) => {
     if (!req.firebaseUser) {
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -52,14 +53,14 @@ export function requireLevel(minLevel: number) {
   };
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+export function requireAdmin(req: Request<ParamsFlatDictionary>, res: Response, next: NextFunction) {
   return requireLevel(4)(req, res, next);
 }
 
-export function requireHost(req: Request, res: Response, next: NextFunction) {
+export function requireHost(req: Request<ParamsFlatDictionary>, res: Response, next: NextFunction) {
   return requireLevel(3)(req, res, next);
 }
 
-export function requireTalent(req: Request, res: Response, next: NextFunction) {
+export function requireTalent(req: Request<ParamsFlatDictionary>, res: Response, next: NextFunction) {
   return requireLevel(2)(req, res, next);
 }

@@ -104,7 +104,7 @@ export async function createFirestoreUser(data: {
   // Firestore rejects undefined values — strip them out
   const userData = Object.fromEntries(
     Object.entries(raw).filter(([, v]) => v !== undefined)
-  ) as FirestoreUser;
+  ) as unknown as FirestoreUser;
   await getFirestore().collection("users").doc(data.uid).set(userData);
   return userData;
 }

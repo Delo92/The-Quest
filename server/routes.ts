@@ -1,4 +1,5 @@
-import type { Express, Request } from "express";
+import type { Express, Request, Response } from "express";
+import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
@@ -68,6 +69,7 @@ import {
   createAdminLiveryUploadTicket,
   createCompetitionCoverUploadTicket,
   createChronicTVUploadTicket,
+  syncVideoToChronicTV,
   parseVimeoFolderUri,
   getVideoById,
   getChronicTVEventVimeoFolder,
@@ -455,7 +457,7 @@ export async function registerRoutes(
           : null;
 
         // firestoreTalentProfiles.create accepts any extra fields (Firestore is flexible)
-        talentProfile = await (firestoreTalentProfiles.create as any)({
+        const createdTalentProfile = await (firestoreTalentProfiles.create as any)({
           userId: firebaseUser.uid,
           displayName,
           stageName: artistName || null,
@@ -481,7 +483,14 @@ export async function registerRoutes(
             enrolledAt: purchasedAt || new Date().toISOString(),
           },
         });
-        console.log(`[LaunchpadWebhook] Created talent profile ${talentProfile.id} for uid ${firebaseUser.uid}`);
+        if (!createdTalentProfile) {
+          throw new Error("Unable to create talent profile");
+        }
+        talentProfile = createdTalentProfile;
+        console.log(`[LaunchpadWebhook] Created talent profile ${createdTalentProfile.id} for uid ${firebaseUser.uid}`);
+      }
+      if (!talentProfile) {
+        throw new Error("Unable to create or load talent profile");
       }
 
       // 5. Find the matching competition by title (case-insensitive) or category
@@ -1251,7 +1260,7 @@ export async function registerRoutes(
           color: { dark: "#000000", light: "#ffffff" },
         });
         res.setHeader("Content-Type", "image/svg+xml");
-        res.setHeader("Content-Disposition", `attachment; filename="qr-${slug}.svg"`);
+        res.setHeader("Content-Disposition", `attachment; filename="qr-${compSlug}.svg"`);
         return res.send(svg);
       }
 
@@ -1263,7 +1272,7 @@ export async function registerRoutes(
         errorCorrectionLevel: "H",
       });
       res.setHeader("Content-Type", "image/png");
-      res.setHeader("Content-Disposition", `attachment; filename="qr-${slug}.png"`);
+      res.setHeader("Content-Disposition", `attachment; filename="qr-${compSlug}.png"`);
       return res.send(pngBuffer);
     } catch (err: any) {
       console.error("QR code generation error:", err);
@@ -1487,6 +1496,8 @@ export async function registerRoutes(
 
     const profile = await storage.createTalentProfile({
       ...parsed.data,
+      stageName: parsed.data.stageName ?? null,
+      socialLinks: parsed.data.socialLinks ?? null,
       userId: uid,
       role: "talent",
     });
@@ -4114,7 +4125,7 @@ export async function registerRoutes(
         mediaUrls: mediaUrls || [],
         transactionId,
         amountPaid,
-        selectedPackageName: verifiedPackageName || null,
+         selectedPackageName: verifiedPackageName || null,
         selectedPackagePrice: verifiedPackagePrice || 0,
       });
 
@@ -4342,7 +4353,8 @@ export async function registerRoutes(
 
 
       if (isEmailConfigured() && email) {
-        const contestant = await storage.getContestant(contestantId);
+        const contestant = (await storage.getContestantsByCompetition(competitionId))
+          .find((entry) => entry.id === contestantId);
         const contestantName = contestant?.talentProfile?.displayName || undefined;
         sendPurchaseReceipt({
           to: email,
@@ -5422,7 +5434,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/drive/file/:fileId", async (req: Request, res: Response): Promise<void> => {
+  app.delete("/api/admin/drive/file/:fileId", async (req: Request<ParamsFlatDictionary>, res: Response): Promise<void> => {
     try {
       const { fileId } = req.params;
       await deleteFile(fileId);
@@ -5620,8 +5632,8 @@ export async function registerRoutes(
       if (!fsUser) return res.status(404).json({ message: "User not found" });
 
       let ownerType: "talent" | "host" | "admin" = "talent";
-      if (fsUser.level === "admin") ownerType = "admin";
-      else if (fsUser.level === "host") ownerType = "host";
+      if (fsUser.level >= 4) ownerType = "admin";
+      else if (fsUser.level >= 3) ownerType = "host";
 
       const profile = await storage.getTalentProfileByUserId(uid);
       const ownerName = profile?.displayName || fsUser.email || uid;
@@ -5890,7 +5902,7 @@ export async function registerRoutes(
       const ua = req.headers["user-agent"] || "";
       if (!socialCrawlerPattern.test(ua)) return next();
 
-      const livery = await storage.getLiveryItems?.().catch(() => null);
+      const livery = await storage.getAllLivery().catch(() => null);
       const siteImage = livery?.find?.((i: any) => i.imageKey === "site_favicon")?.imageUrl
         || "https://cbpublishing.live/cb-logo-favicon.png?v=cbp-20260905";
 
@@ -5941,7 +5953,7 @@ export async function registerRoutes(
       const ogDescription = host.bio
         ? host.bio.slice(0, 200)
         : `${hostName} hosts competitions on The Quest — CB Publishing's talent competition and voting platform. Browse their events and vote for your favorites.`;
-      const ogImage = host.profileImageUrl
+      const ogImage = host.imageUrls?.[0]
         || "https://cbpublishing.live/cb-logo-favicon.png?v=cbp-20260905";
       const ogUrl = `https://cbpublishing.live/thequest/host/${hostSlug}`;
 

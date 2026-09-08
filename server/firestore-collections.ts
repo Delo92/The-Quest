@@ -180,6 +180,7 @@ export interface FirestoreVotePurchase {
   voteCount: number;
   amount: number;
   transactionId: string | null;
+  refCode?: string | null;
   purchasedAt: string | null;
 }
 
@@ -256,6 +257,7 @@ export interface FirestoreJoinSubmission {
   nominatorPhone: string | null;
   nominationStatus: "pending" | "joined" | "unsure" | "not_interested" | null;
   chosenNonprofit: string | null;
+  referralCode?: string | null;
 }
 
 export interface FirestoreHostSettings {
@@ -287,6 +289,8 @@ export interface FirestoreHostSubmission {
   status: "pending" | "approved" | "rejected";
   transactionId: string | null;
   amountPaid: number;
+  selectedPackageName?: string | null;
+  selectedPackagePrice?: number | null;
   createdAt: string;
 }
 

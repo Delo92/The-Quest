@@ -87,7 +87,20 @@ export async function seedDatabase() {
 
   const compsCreated = [];
   for (const c of compData) {
-    const comp = await storage.createCompetition(c);
+    const comp = await storage.createCompetition({
+      coverVideo: null,
+      maxImagesPerContestant: null,
+      maxVideosPerContestant: null,
+      startDateTbd: false,
+      endDateTbd: false,
+      votingStartDate: null,
+      votingEndDate: null,
+      expectedContestants: null,
+      onlineVoteWeight: 100,
+      inPersonOnly: false,
+      vimeoFolderUrl: null,
+      ...c,
+    });
     compsCreated.push(comp);
   }
 
@@ -248,7 +261,7 @@ export async function seedCategories() {
   if (existing.length > 0) return;
 
   for (const cat of DEFAULT_CATEGORIES) {
-    await firestoreCategories.create(cat);
+    await firestoreCategories.create({ ...cat, videoUrl: null });
   }
   console.log(`Categories seeded: ${DEFAULT_CATEGORIES.length} categories (Firestore)`);
 }

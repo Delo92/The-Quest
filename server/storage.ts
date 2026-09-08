@@ -57,7 +57,18 @@ export interface IStorage {
   castBulkVotes(data: { contestantId: number; competitionId: number; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person"; refCode?: string | null }): Promise<void>;
   getVoteCountForContestantInCompetition(contestantId: number, competitionId: number): Promise<number>;
 
-  createVotePurchase(purchase: { userId: string; competitionId: number; contestantId: number; voteCount: number; amount: number }): Promise<FirestoreVotePurchase>;
+  createVotePurchase(purchase: {
+    userId: string;
+    competitionId: number;
+    contestantId: number;
+    voteCount: number;
+    amount: number;
+    transactionId?: string | null;
+    viewerId?: string | null;
+    guestEmail?: string | null;
+    guestName?: string | null;
+    refCode?: string | null;
+  }): Promise<FirestoreVotePurchase>;
   getVotePurchasesByUser(userId: string): Promise<FirestoreVotePurchase[]>;
   getVotePurchasesByCompetition(competitionId: number): Promise<FirestoreVotePurchase[]>;
 
@@ -277,8 +288,30 @@ export class FirestoreStorage implements IStorage {
     return firestoreVotes.getVoteCountForContestantInCompetition(contestantId, competitionId);
   }
 
-  async createVotePurchase(purchase: { userId: string; competitionId: number; contestantId: number; voteCount: number; amount: number }): Promise<FirestoreVotePurchase> {
-    return firestoreVotePurchases.create(purchase);
+  async createVotePurchase(purchase: {
+    userId: string;
+    competitionId: number;
+    contestantId: number;
+    voteCount: number;
+    amount: number;
+    transactionId?: string | null;
+    viewerId?: string | null;
+    guestEmail?: string | null;
+    guestName?: string | null;
+    refCode?: string | null;
+  }): Promise<FirestoreVotePurchase> {
+    return firestoreVotePurchases.create({
+      userId: purchase.userId,
+      viewerId: purchase.viewerId ?? null,
+      guestEmail: purchase.guestEmail ?? null,
+      guestName: purchase.guestName ?? null,
+      competitionId: purchase.competitionId,
+      contestantId: purchase.contestantId,
+      voteCount: purchase.voteCount,
+      amount: purchase.amount,
+      transactionId: purchase.transactionId ?? null,
+      refCode: purchase.refCode ?? null,
+    });
   }
 
   async getVotePurchasesByUser(userId: string): Promise<FirestoreVotePurchase[]> {

@@ -1,7 +1,7 @@
 import authorizenet from "authorizenet";
 const { APIContracts, APIControllers, Constants } = authorizenet;
 
-function getMerchantAuth(): APIContracts.MerchantAuthenticationType {
+function getMerchantAuth(): any {
   const merchantAuth = new APIContracts.MerchantAuthenticationType();
   merchantAuth.setName(process.env.AUTHORIZE_NET_API_LOGIN_ID!);
   merchantAuth.setTransactionKey(process.env.AUTHORIZE_NET_TRANSACTION_KEY!);

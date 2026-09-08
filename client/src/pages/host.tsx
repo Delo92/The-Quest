@@ -44,6 +44,8 @@ interface HostingPackage {
 
 interface PlatformSettings {
   hostingPackages: HostingPackage[];
+  termsSummary?: string;
+  termsFinePrint?: string;
 }
 
 interface PaymentConfig {

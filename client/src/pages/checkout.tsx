@@ -682,7 +682,7 @@ export default function CheckoutPage() {
           const taxRate = platformSettings?.salesTaxPercent || 0;
           const taxAmount = subtotal * (taxRate / 100);
           const total = subtotal + taxAmount;
-          const lineItems = [
+          const lineItems: Array<{ label: string; value: string; highlight?: boolean }> = [
             { label: "Contestant", value: contestant?.talentProfile?.displayName || "" },
             { label: "Competition", value: competition?.title || "" },
             { label: "Package", value: voteLabel },
