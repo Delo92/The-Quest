@@ -14,6 +14,7 @@ import {
   updateFirestoreUser,
   getFirebaseAuth,
   getFirestore,
+  getFirebaseStorage,
   uploadToFirebaseStorage,
   deleteFromFirebaseStorage,
   listFirebaseStorageFiles,
@@ -392,6 +393,48 @@ export async function registerRoutes(
       appId: "1:886107413539:web:f7c6bdf8adb2b032bf2596",
       measurementId: "G-7LBW9HVXWE",
     });
+  });
+
+  // Firebase Storage buckets with uniform bucket-level access do not honor
+  // the legacy "public: true" object ACL. Serve known Quest bucket objects
+  // through the Admin SDK so existing stored URLs continue to work.
+  app.get("/api/media/firebase-storage", async (req, res) => {
+    const rawPath = typeof req.query.path === "string" ? req.query.path : "";
+    let filePath = "";
+    try {
+      filePath = decodeURIComponent(rawPath);
+    } catch {
+      return res.status(400).json({ message: "Invalid media path" });
+    }
+
+    if (
+      !filePath ||
+      filePath.startsWith("/") ||
+      filePath.includes("..") ||
+      filePath.includes("\0") ||
+      filePath.length > 1024
+    ) {
+      return res.status(400).json({ message: "Invalid media path" });
+    }
+
+    try {
+      const file = getFirebaseStorage().bucket().file(filePath);
+      const [metadata] = await file.getMetadata();
+      res.setHeader("Content-Type", metadata.contentType || "application/octet-stream");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      file.createReadStream()
+        .on("error", (error) => {
+          console.error("[FirebaseStorageProxy] Stream failed:", error.message);
+          if (!res.headersSent) res.status(404).end();
+        })
+        .pipe(res);
+    } catch (error: any) {
+      const status = error?.code === 404 ? 404 : 502;
+      if (status !== 404) {
+        console.error("[FirebaseStorageProxy] Could not read media:", error?.message || error);
+      }
+      res.status(status).json({ message: status === 404 ? "Media not found" : "Media unavailable" });
+    }
   });
 
   /* ── CBUSA Partner Pipeline: Launchpad Enrollment Webhook ─────────────────

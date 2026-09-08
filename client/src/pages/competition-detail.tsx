@@ -15,6 +15,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify } from "@shared/slugify";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
+import { getAccessibleMediaUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 
 interface ContestantWithProfile {
@@ -182,7 +183,7 @@ export default function CompetitionDetailPage() {
             return (
               <>
                 <div className="h-[270px] md:h-[340px] relative overflow-hidden">
-                  <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />
+                  <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${getAccessibleMediaUrl(competition.coverImage)}')` }} />
                   <div className="absolute inset-0 bg-black/65" />
                   <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
                     <p className="text-black/50 text-base leading-relaxed mb-1">
