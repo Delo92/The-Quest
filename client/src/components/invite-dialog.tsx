@@ -14,6 +14,8 @@ import {
 import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video, Upload, Loader2, X, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getIdToken } from "@/lib/firebase";
+import { getAuthToken } from "@/hooks/use-auth";
 
 interface Category {
   id: string;
@@ -613,7 +615,15 @@ export function InviteHostDialog() {
     try {
       const formData = new FormData();
       formData.append("media", file);
-      const res = await fetch("/api/invitations/media", { method: "POST", body: formData });
+      const token = getAuthToken() || await getIdToken();
+      if (!token) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+      const res = await fetch("/api/invitations/media", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Upload failed");
       setMediaUrl(data.url);
@@ -646,7 +656,10 @@ export function InviteHostDialog() {
           <Megaphone className="h-4 w-4 mr-1.5" /> Invite Host
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-zinc-900 border-white/10 text-white sm:max-w-lg" data-testid="invite-host-dialog">
+      <DialogContent
+        className="bg-zinc-900 border-white/10 text-white w-[calc(100vw-1rem)] max-w-lg max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain sm:w-full sm:max-h-[calc(100dvh-2rem)]"
+        data-testid="invite-host-dialog"
+      >
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Invite a Host</DialogTitle>
         </DialogHeader>
