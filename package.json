@@ -8,6 +8,7 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "firestore:indexes": "tsx scripts/reconcile-firestore-indexes.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
