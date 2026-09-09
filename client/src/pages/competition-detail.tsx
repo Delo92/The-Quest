@@ -16,6 +16,12 @@ import { useSEO } from "@/hooks/use-seo";
 import { slugify } from "@shared/slugify";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
+import {
+  CompetitionCountdownPanel,
+  formatCompetitionDate,
+  getCompetitionPhase,
+  getCompetitionSchedule,
+} from "@/components/competition-countdown";
 
 interface ContestantWithProfile {
   id: number;
@@ -58,6 +64,10 @@ interface CompetitionDetail {
   maxVotesPerDay: number;
   startDate: string | null;
   endDate: string | null;
+  startDateTbd?: boolean;
+  endDateTbd?: boolean;
+  votingStartDate?: string | null;
+  votingEndDate?: string | null;
   contestants: ContestantWithProfile[];
   totalVotes: number;
   hostedBy?: string | null;
@@ -165,7 +175,11 @@ export default function CompetitionDetailPage() {
   }
 
   const maxVotes = Math.max(...(competition.contestants?.map((c) => c.voteCount) || [1]), 1);
-  const isVotingOpen = competition.status === "voting" || competition.status === "active";
+  const schedule = getCompetitionSchedule(competition);
+  const competitionPhase = getCompetitionPhase(competition);
+  const isVotingOpen = (competition.status === "voting" || competition.status === "active")
+    && competitionPhase !== "upcoming"
+    && competitionPhase !== "ended";
   const isInPersonOnlyEvent = (competition as any).inPersonOnly === true;
   const canVote = isVotingOpen && (!isInPersonOnlyEvent || isInPersonVoting);
   const sorted = [...(competition.contestants || [])].sort(
@@ -279,6 +293,8 @@ export default function CompetitionDetailPage() {
           </p>
         )}
 
+         <CompetitionCountdownPanel competition={competition} />
+
          <div className="flex flex-wrap items-center gap-3 mb-10" role="tablist" aria-label="Competition views">
           <Link
             href={`/join?competition=${competition.id}`}
@@ -317,10 +333,16 @@ export default function CompetitionDetailPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex flex-wrap items-center gap-6 text-sm text-white/40">
-            {(competition.endDate || (competition as any).endDateTbd) && (
+            {(schedule.start || schedule.startIsTbd) && (
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-4 w-4 text-white/30" />
-                {(competition as any).endDateTbd ? <span className="text-orange-400">Ends TBD</span> : `Ends ${new Date(competition.endDate!).toLocaleDateString()}`}
+                Starts {formatCompetitionDate(schedule.start, schedule.startIsTbd)}
+              </span>
+            )}
+            {(schedule.end || schedule.endIsTbd) && (
+              <span className="flex items-center gap-1.5">
+                <Calendar className="h-4 w-4 text-white/30" />
+                Ends {formatCompetitionDate(schedule.end, schedule.endIsTbd)}
               </span>
             )}
             <span className="flex items-center gap-1.5">

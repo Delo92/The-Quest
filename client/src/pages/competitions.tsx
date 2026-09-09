@@ -11,6 +11,11 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
+import {
+  CompetitionCountdownBadge,
+  formatCompetitionDate,
+  getCompetitionSchedule,
+} from "@/components/competition-countdown";
 
 export default function Competitions() {
   useSEO({
@@ -159,6 +164,7 @@ export default function Competitions() {
 function CompetitionCard({ competition }: { competition: CompetitionExt }) {
   const { getImage, getText } = useLivery();
   const websiteName = getText("site_name", "The Quest");
+  const schedule = getCompetitionSchedule(competition);
   return (
     <div
       className="group relative overflow-hidden rounded-sm border border-white/10 bg-[#101010] shadow-[0_16px_35px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FF5A09]/60 hover:shadow-[0_20px_45px_rgba(0,0,0,0.65)]"
@@ -206,19 +212,22 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
             >
               {competition.title}
             </h4>
-            <div className="mb-4">
+            <div className="mb-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
               <span className="text-white/60 text-[15px] inline-flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5" />
-                {(competition as any).endDateTbd ? "TBD" : competition.endDate ? new Date(competition.endDate).toLocaleDateString() : "Open"}
+                {formatCompetitionDate(schedule.start, schedule.startIsTbd)}
+                <span className="text-white/30">–</span>
+                {formatCompetitionDate(schedule.end, schedule.endIsTbd)}
               </span>
-              <span className="text-white/30 mx-3">|</span>
+              <span className="text-white/30">|</span>
               <span className="text-white/60 text-[15px] inline-flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5" />
                 {competition.category}
               </span>
             </div>
+            <CompetitionCountdownBadge competition={competition} />
             {competition.hostedBy && (
-              <p className="text-white/40 text-[13px] mb-3" data-testid={`text-hosted-by-${competition.id}`}>
+              <p className="mt-3 text-white/40 text-[13px] mb-3" data-testid={`text-hosted-by-${competition.id}`}>
                 Hosted by {competition.hostedBy === "admin" ? websiteName : competition.hostedBy}
               </p>
             )}
