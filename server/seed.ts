@@ -349,6 +349,7 @@ export async function seedStarrStruckCompetition() {
       endDateTbd: true,
       votingStartDate: null,
       votingEndDate: null,
+      themeColor: "#FF0E9B",
     });
     console.log("Starr Struck stages and flyer details synchronized (draft)");
     return;
@@ -376,6 +377,7 @@ export async function seedStarrStruckCompetition() {
     inPersonOnly: false,
     vimeoFolderUrl: null,
     chronicBrandsPromotionEnabled: true,
+    themeColor: "#FF0E9B",
     stages,
     createdAt: new Date().toISOString(),
     createdBy: null,

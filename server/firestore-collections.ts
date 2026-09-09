@@ -84,6 +84,7 @@ export interface FirestoreCompetition {
   inPersonOnly: boolean;
   vimeoFolderUrl: string | null;
   chronicBrandsPromotionEnabled: boolean;
+  themeColor?: string | null;
   stages?: CompetitionStage[];
   createdAt: string | null;
   createdBy: string | null;
@@ -380,6 +381,7 @@ function normalizeCompetition(data: any): FirestoreCompetition {
     inPersonOnly: data.inPersonOnly ?? false,
     vimeoFolderUrl: data.vimeoFolderUrl ?? null,
     chronicBrandsPromotionEnabled: data.chronicBrandsPromotionEnabled ?? true,
+    themeColor: data.themeColor ?? null,
     stages: Array.isArray(data.stages) ? data.stages : [],
   } as FirestoreCompetition;
 }

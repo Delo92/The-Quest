@@ -38,6 +38,7 @@ export interface Competition {
   chronicBrandsPromotionEnabled: boolean;
   stages?: CompetitionStage[];
   isFeatured?: boolean;
+  themeColor?: string | null;
   createdAt: string | null;
   createdBy: string | null;
 }
