@@ -184,7 +184,7 @@ export default function CompetitionDetailPage() {
                 <div className="h-[270px] md:h-[340px] relative overflow-hidden">
                   <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />
                   <div className="absolute inset-0 bg-black/65" />
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
                     <p className="text-black/50 text-base leading-relaxed mb-1">
                       <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
                       <span className="mx-2">/</span>{competition.category}
@@ -204,7 +204,7 @@ export default function CompetitionDetailPage() {
                   : <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${fallback.url}')` }} />
                 }
                 <div className="absolute inset-0 bg-black/65" />
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
                   <p className="text-black/50 text-base leading-relaxed mb-1">
                     <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
                     <span className="mx-2">/</span>{competition.category}
@@ -243,6 +243,10 @@ export default function CompetitionDetailPage() {
             )}
           </div>
         )}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-20 bg-gradient-to-b from-transparent via-black/70 to-black md:h-28"
+          aria-hidden="true"
+        />
       </section>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
