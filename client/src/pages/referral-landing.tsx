@@ -71,15 +71,15 @@ export default function ReferralLandingPage() {
             <>
               <div
                 aria-hidden="true"
-                className="absolute inset-[-18px] z-0 scale-105 bg-cover bg-center opacity-25 blur-[10px]"
+                className="absolute inset-[-18px] z-0 scale-105 bg-cover bg-center opacity-40 blur-[12px]"
                 style={{
                   backgroundImage: `url(${data.competition.coverImage || data.hostImageUrl})`,
                 }}
               />
-              <div aria-hidden="true" className="absolute inset-0 z-10 bg-[#080006]/80" />
+              <div aria-hidden="true" className="absolute inset-0 z-10 bg-[#080006]/65" />
               <div
                 aria-hidden="true"
-                className="absolute inset-0 z-10 bg-gradient-to-br from-[#18000e]/90 via-[#100008]/80 to-[#050005]/95"
+                className="absolute inset-0 z-10 bg-gradient-to-br from-[#18000e]/75 via-[#100008]/65 to-[#050005]/85"
               />
             </>
           )}
