@@ -23,6 +23,7 @@ import { useState, useMemo } from "react";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
+import CompetitionShareLinks from "@/components/competition-share-links";
 import type { CompetitionStage } from "@shared/schema";
 
 interface HostStats {
@@ -785,7 +786,8 @@ export default function HostDashboard({ user }: { user: any }) {
                         </div>
                       </div>
                     </div>
-                    <div className="p-3 flex flex-wrap items-center justify-between gap-2">
+                     <CompetitionShareLinks competition={comp} compact />
+                     <div className="p-3 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"

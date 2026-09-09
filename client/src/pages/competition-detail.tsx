@@ -16,6 +16,7 @@ import { useSEO } from "@/hooks/use-seo";
 import { slugify } from "@shared/slugify";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
+import CompetitionShareLinks from "@/components/competition-share-links";
 import {
   CompetitionCountdownPanel,
   formatCompetitionDate,
@@ -539,6 +540,10 @@ export default function CompetitionDetailPage() {
             {competition.description}
           </p>
         ) : null}
+
+        <div className="mb-8">
+          <CompetitionShareLinks competition={competition} />
+        </div>
 
         {competition.hostedBy && (
           <p className="text-white/50 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">

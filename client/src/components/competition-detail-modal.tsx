@@ -12,6 +12,7 @@ import { getAuthToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle } from "lucide-react";
 import type { CompetitionStage } from "@shared/schema";
+import CompetitionShareLinks from "@/components/competition-share-links";
 
 interface CompDetailResponse {
   competition: {
@@ -683,7 +684,8 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-6">
+                       <div className="space-y-6">
+                         <CompetitionShareLinks competition={competition} />
                         <div>
                           <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Title</p>
                           <p className="text-sm font-medium text-white/90" data-testid="comp-detail-title">{competition.title}</p>

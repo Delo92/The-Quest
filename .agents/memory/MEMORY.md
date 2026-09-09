@@ -15,3 +15,4 @@
 - [Chronic Brands promotion rules](chronic-brands-promotion.md) — ticket promotion defaults on per competition, but host opt-out hides its code/link and ticket goal
 - [Firebase Storage access](firebase-storage-access.md) — restore project storage access before changing UI media rendering; disabled billing makes stored media URLs fail
 - [Stage voting isolation](stage-voting-isolation.md) — stage vote records and legacy cumulative totals use separate count keys and query paths
+- [Competition share links](competition-share-links.md) — public page and root-domain referral URLs both need to stay available to hosts
