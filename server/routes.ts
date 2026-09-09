@@ -5315,15 +5315,15 @@ export async function registerRoutes(
           );
           if (!comp) return null;
 
-          const contestants = await storage.getContestantsByCompetition(comp.id);
-           return Promise.all(contestants.map(async contestant => {
+           const contestants = await storage.getContestantsByCompetition(comp.id);
+            return Promise.all(contestants.map(async contestant => {
             const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
               .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
               .trim();
              const storedVideoUris = Array.isArray((contestant.talentProfile as any).videoUrls)
                ? (contestant.talentProfile as any).videoUrls.filter((uri: unknown): uri is string => typeof uri === "string" && uri.length > 0)
                : [];
-             const talentVideos = (await Promise.all(
+             let talentVideos = (await Promise.all(
                storedVideoUris.map(async (uri: string) => {
                  const match = uri.match(/\/videos\/(\d+)/);
                  const videoId = match?.[1] || uri.split("/").filter(Boolean).pop();
@@ -5335,6 +5335,25 @@ export async function registerRoutes(
                  }
                }),
              )).filter((video): video is NonNullable<typeof video> => Boolean(video));
+             // Older uploads can exist in Vimeo without having been written to
+             // TalentProfile.videoUrls. Recover those records once from the
+             // competition folder, then persist the URI for future fast loads.
+             if (storedVideoUris.length === 0) {
+               const legacyVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
+               if (legacyVideos.length > 0) {
+                 talentVideos = legacyVideos;
+                 const discoveredUris = legacyVideos
+                   .map(video => video.uri)
+                   .filter((uri): uri is string => typeof uri === "string" && uri.length > 0);
+                 const userId = (contestant.talentProfile as any).userId;
+                 if (userId && discoveredUris.length > 0) {
+                   const mergedUris = Array.from(new Set([...storedVideoUris, ...discoveredUris]));
+                   void storage.updateTalentProfile(userId, { videoUrls: mergedUris }).catch((error: any) => {
+                     console.warn("Could not backfill contestant video URI:", error.message);
+                   });
+                 }
+               }
+             }
             const videos = talentVideos.map(v => ({
               uri: v.uri,
                name: v.name || `${talentName} performance`,
