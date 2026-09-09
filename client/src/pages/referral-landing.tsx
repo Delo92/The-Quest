@@ -66,20 +66,29 @@ export default function ReferralLandingPage() {
           <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/35">Event invitation</span>
         </header>
 
-        <section className="mt-10 overflow-hidden border border-white/10 bg-black">
-          <div className="relative aspect-[4/3] w-full bg-black sm:aspect-[16/9]">
-            {data.competition.coverImage ? (
-              <img src={data.competition.coverImage} alt={`${data.competition.title} cover`} className="h-full w-full object-contain" />
-            ) : data.hostImageUrl ? (
-              <img src={data.hostImageUrl} alt={`${data.hostName} profile`} className="h-full w-full object-contain" />
-            ) : (
-              <div className="flex h-full items-center justify-center">
+        <section className="relative mt-10 isolate overflow-hidden border border-white/10 bg-[#110008]">
+          {(data.competition.coverImage || data.hostImageUrl) && (
+            <>
+              <div
+                aria-hidden="true"
+                className="absolute inset-[-18px] z-0 scale-105 bg-cover bg-center opacity-25 blur-[10px]"
+                style={{
+                  backgroundImage: `url(${data.competition.coverImage || data.hostImageUrl})`,
+                }}
+              />
+              <div aria-hidden="true" className="absolute inset-0 z-10 bg-[#080006]/80" />
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 z-10 bg-gradient-to-br from-[#18000e]/90 via-[#100008]/80 to-[#050005]/95"
+              />
+            </>
+          )}
+          <div className="relative z-20 px-6 py-10 sm:px-12 sm:py-14">
+            {!data.competition.coverImage && !data.hostImageUrl && (
+              <div className="mb-8">
                 <CBLogo size="lg" showText />
               </div>
             )}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
-          </div>
-          <div className="border-t border-white/10 bg-[#110008] px-6 py-8 sm:px-12 sm:py-10">
             <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#FFB3D9]">
               <Sparkles className="h-4 w-4 text-[#FF0E9B]" />
               {data.competition.category} event
