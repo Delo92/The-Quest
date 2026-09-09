@@ -66,14 +66,20 @@ export default function ReferralLandingPage() {
           <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/35">Event invitation</span>
         </header>
 
-        <section className="relative mt-10 overflow-hidden border border-white/10 bg-black">
-          {data.competition.coverImage ? (
-            <img src={data.competition.coverImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
-          ) : data.hostImageUrl ? (
-            <img src={data.hostImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/30" />
-          <div className="relative max-w-3xl px-6 py-16 sm:px-12 sm:py-24">
+        <section className="mt-10 overflow-hidden border border-white/10 bg-black">
+          <div className="relative aspect-[4/3] w-full bg-black sm:aspect-[16/9]">
+            {data.competition.coverImage ? (
+              <img src={data.competition.coverImage} alt={`${data.competition.title} cover`} className="h-full w-full object-contain" />
+            ) : data.hostImageUrl ? (
+              <img src={data.hostImageUrl} alt={`${data.hostName} profile`} className="h-full w-full object-contain" />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <CBLogo size="lg" showText />
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
+          </div>
+          <div className="border-t border-white/10 bg-[#110008] px-6 py-8 sm:px-12 sm:py-10">
             <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#FFB3D9]">
               <Sparkles className="h-4 w-4 text-[#FF0E9B]" />
               {data.competition.category} event
@@ -81,7 +87,7 @@ export default function ReferralLandingPage() {
             <h1 className="font-serif text-4xl font-bold leading-tight sm:text-6xl">{data.competition.title}</h1>
             <p className="mt-5 text-sm uppercase tracking-[0.18em] text-white/55">Hosted by {data.hostName}</p>
             {data.competition.description && (
-              <p className="mt-6 max-w-2xl text-base leading-7 text-white/70">{data.competition.description}</p>
+              <p className="mt-6 max-w-3xl text-base leading-7 text-white/70">{data.competition.description}</p>
             )}
           </div>
         </section>
