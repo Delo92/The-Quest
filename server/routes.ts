@@ -5302,17 +5302,28 @@ export async function registerRoutes(
           if (!comp) return null;
 
           const contestants = await storage.getContestantsByCompetition(comp.id);
-           const competitionVideos = await listCompetitionVideos(comp.title);
-           return contestants.map(contestant => {
+           return Promise.all(contestants.map(async contestant => {
             const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
               .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
               .trim();
-             const safeCompName = comp.title.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
-             const talentPrefix = `${safeCompName} - ${talentName} -`;
-             const talentVideos = competitionVideos.filter(video => video.name?.startsWith(talentPrefix));
+             const storedVideoUris = Array.isArray((contestant.talentProfile as any).videoUrls)
+               ? (contestant.talentProfile as any).videoUrls.filter((uri: unknown): uri is string => typeof uri === "string" && uri.length > 0)
+               : [];
+             const talentVideos = (await Promise.all(
+               storedVideoUris.map(async (uri: string) => {
+                 const match = uri.match(/\/videos\/(\d+)/);
+                 const videoId = match?.[1] || uri.split("/").filter(Boolean).pop();
+                 if (!videoId) return null;
+                 try {
+                   return await getVideoById(videoId);
+                 } catch {
+                   return null;
+                 }
+               }),
+             )).filter((video): video is NonNullable<typeof video> => Boolean(video));
             const videos = talentVideos.map(v => ({
               uri: v.uri,
-              name: v.name,
+               name: v.name || `${talentName} performance`,
               link: v.link,
               embedUrl: v.player_embed_url,
               duration: v.duration,
@@ -5321,7 +5332,7 @@ export async function registerRoutes(
               thumbnail: getVideoThumbnail(v),
             }));
             return { contestantId: contestant.id, videos };
-           });
+           }));
         },
       );
       if (!media) return res.status(404).json({ message: "Competition not found" });
