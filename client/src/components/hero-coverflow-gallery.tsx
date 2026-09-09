@@ -6,6 +6,7 @@ import { slugify } from "@shared/slugify";
 interface GalleryItem {
   categoryId: string;
   categoryName: string;
+  competitionTitle: string | null;
   thumbnail: string | null;
   videoEmbedUrl: string | null;
   coverVideoUrl: string | null;
@@ -246,6 +247,14 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                         loading="lazy"
                       />
                     </div>
+                  </div>
+                  <div className="coverflow-caption" data-testid={`gallery-caption-${item.categoryId}`}>
+                    <span className="coverflow-caption-title">
+                      {item.competitionTitle || item.categoryName}
+                    </span>
+                    {item.competitionTitle && (
+                      <span className="coverflow-caption-category">{item.categoryName}</span>
+                    )}
                   </div>
                 </CardWrapper>
               </div>

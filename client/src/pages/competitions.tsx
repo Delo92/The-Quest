@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Users, Search, Megaphone, ArrowRight, Star } from "lucide-react";
+import { Calendar, Users, Search, Megaphone, ArrowRight, Star, Clock3 } from "lucide-react";
 import { Link } from "wouter";
 import type { Competition } from "@shared/schema";
 import { slugify } from "@shared/slugify";
@@ -35,7 +35,6 @@ export default function Competitions() {
   });
 
   const filtered = competitions?.filter((c) => {
-    if (filter === "all" && c.status === "draft") return false;
     if (filter === "active" && c.status !== "active" && c.status !== "voting") return false;
     if (filter === "completed" && c.status !== "completed") return false;
     if (categoryFilter !== "all" && c.category !== categoryFilter) return false;
@@ -179,6 +178,12 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
                 Featured
               </div>
             )}
+            {competition.status === "draft" && (
+              <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 border border-[#FF5A09]/60 bg-black/85 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[1.5px] text-[#FFB38F] shadow-lg">
+                <Clock3 className="h-3 w-3" />
+                Schedule pending
+              </div>
+            )}
             {competition.coverVideo ? (
               competition.coverVideo.includes("vimeo.com") ? (
                 <iframe
@@ -231,25 +236,31 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
                 Hosted by {competition.hostedBy === "admin" ? websiteName : competition.hostedBy}
               </p>
             )}
-            <span
-              className="inline-block border border-white/20 bg-white/10 text-white text-[11px] font-bold uppercase px-5 py-2 tracking-widest transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
-              style={{ letterSpacing: "4px" }}
-            >
-              See Competition
-            </span>
+             <span
+               className="inline-block border border-white/20 bg-white/10 text-white text-[11px] font-bold uppercase px-5 py-2 tracking-widest transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
+               style={{ letterSpacing: "4px" }}
+             >
+               See Competition
+             </span>
           </div>
         </div>
       </Link>
-      <div className="bg-[#101010] border-t border-white/10 px-4 pb-6 pt-4 flex flex-wrap items-center justify-center gap-3">
-        <Link
-          href={`/join?competition=${competition.id}`}
-          className="inline-block bg-[#FF5A09] text-white font-bold text-xs uppercase px-5 leading-[36px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
-          style={{ letterSpacing: "2px" }}
-          data-testid={`button-join-${competition.id}`}
-        >
-          Start Nominating
-        </Link>
-      </div>
+       <div className="bg-[#101010] border-t border-white/10 px-4 pb-6 pt-4 flex flex-wrap items-center justify-center gap-3">
+         {competition.status === "draft" ? (
+           <span className="inline-flex items-center gap-2 text-white/45 text-xs uppercase tracking-[2px]" data-testid={`status-schedule-pending-${competition.id}`}>
+             <Clock3 className="h-3.5 w-3.5" /> Schedule pending
+           </span>
+         ) : (
+           <Link
+             href={`/join?competition=${competition.id}`}
+             className="inline-block bg-[#FF5A09] text-white font-bold text-xs uppercase px-5 leading-[36px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
+             style={{ letterSpacing: "2px" }}
+             data-testid={`button-join-${competition.id}`}
+           >
+             Start Nominating
+           </Link>
+         )}
+       </div>
     </div>
   );
 }

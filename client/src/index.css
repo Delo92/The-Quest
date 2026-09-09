@@ -440,6 +440,33 @@
   width: 100%;
 }
 
+.coverflow-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 38px;
+  padding: 8px 8px 0;
+  text-align: center;
+}
+
+.coverflow-caption-title {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.coverflow-caption-category {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
 .coverflow-reflection {
   position: absolute;
   top: 100%;
@@ -538,6 +565,12 @@
     font-size: 10px;
   }
   .coverflow-label-sub {
+    font-size: 9px;
+  }
+  .coverflow-caption-title {
+    font-size: 10px;
+  }
+  .coverflow-caption-category {
     font-size: 9px;
   }
 }

@@ -276,13 +276,15 @@ export async function seedStarrStruckCompetition() {
   const current = existing.find(
     (competition) => competition.title.toLowerCase() === "starr struck" && competition.category.toLowerCase() === "reality",
   );
+  const competitionStart = "2026-10-01";
+  const competitionEnd = "2026-10-14T00:00:00.000Z";
   const stages = [
     {
       id: "starr-struck-day-1",
       order: 1,
       name: "Day 1 — Viral Challenge",
       description: "Create the most creative and engaging TikTok or Reel featuring me, my music, or the Starr Struck brand. The challenge tests creativity, confidence, and ability to represent the competition online.",
-      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      startDate: "2026-10-01T00:00:00.000Z", endDate: "2026-10-08T00:00:00.000Z", submissionStartDate: "2026-10-01T00:00:00.000Z", submissionEndDate: "2026-10-08T00:00:00.000Z", votingStartDate: "2026-10-01T00:00:00.000Z", votingEndDate: "2026-10-08T00:00:00.000Z",
       eliminationCount: 2, isFinale: false,
     },
     {
@@ -290,7 +292,7 @@ export async function seedStarrStruckCompetition() {
       order: 2,
       name: "Day 2 — Talent Challenge",
       description: "Each woman gets a few minutes to show her unique talent. It can be singing, rapping, dancing, comedy, poetry, art, or anything that makes her stand out. This is her chance to show what makes her special.",
-      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      startDate: "2026-10-08T00:00:00.000Z", endDate: "2026-10-09T00:00:00.000Z", submissionStartDate: "2026-10-08T00:00:00.000Z", submissionEndDate: "2026-10-09T00:00:00.000Z", votingStartDate: "2026-10-08T00:00:00.000Z", votingEndDate: "2026-10-09T00:00:00.000Z",
       eliminationCount: 2, isFinale: false,
     },
     {
@@ -298,7 +300,7 @@ export async function seedStarrStruckCompetition() {
       order: 3,
       name: "Day 3 — Photo Shoot Challenge",
       description: "Participate in a professional photoshoot with a set theme. Contestants are judged on confidence, style, presence, and ability to bring the vision to life. The best photo wins.",
-      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      startDate: "2026-10-09T00:00:00.000Z", endDate: "2026-10-10T00:00:00.000Z", submissionStartDate: "2026-10-09T00:00:00.000Z", submissionEndDate: "2026-10-10T00:00:00.000Z", votingStartDate: "2026-10-09T00:00:00.000Z", votingEndDate: "2026-10-10T00:00:00.000Z",
       eliminationCount: 2, isFinale: false,
     },
     {
@@ -306,7 +308,7 @@ export async function seedStarrStruckCompetition() {
       order: 4,
       name: "Day 4 — Dancing Challenge",
       description: "Learn and perform a routine to one of my songs, or freestyle. Contestants are judged on rhythm, energy, attitude, and how well they perform under pressure.",
-      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      startDate: "2026-10-10T00:00:00.000Z", endDate: "2026-10-11T00:00:00.000Z", submissionStartDate: "2026-10-10T00:00:00.000Z", submissionEndDate: "2026-10-11T00:00:00.000Z", votingStartDate: "2026-10-10T00:00:00.000Z", votingEndDate: "2026-10-11T00:00:00.000Z",
       eliminationCount: 2, isFinale: false,
     },
     {
@@ -314,7 +316,7 @@ export async function seedStarrStruckCompetition() {
       order: 5,
       name: "Day 5 — Workout Challenge",
       description: "Go through a fun but challenging workout session. This tests discipline, endurance, teamwork, and overall energy. It is not just about being the strongest; it is about effort, attitude, and motivation.",
-      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      startDate: "2026-10-11T00:00:00.000Z", endDate: "2026-10-12T00:00:00.000Z", submissionStartDate: "2026-10-11T00:00:00.000Z", submissionEndDate: "2026-10-12T00:00:00.000Z", votingStartDate: "2026-10-11T00:00:00.000Z", votingEndDate: "2026-10-12T00:00:00.000Z",
       eliminationCount: 1, isFinale: false,
     },
     {
@@ -322,7 +324,7 @@ export async function seedStarrStruckCompetition() {
       order: 6,
       name: "Day 6 — Cooking Challenge",
       description: "Prepare a dish with a basket of ingredients. Contestants are judged on taste, presentation, creativity, and ability to follow through under pressure. This challenge shows who can really take care of their man.",
-      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      startDate: "2026-10-12T00:00:00.000Z", endDate: "2026-10-13T00:00:00.000Z", submissionStartDate: "2026-10-12T00:00:00.000Z", submissionEndDate: "2026-10-13T00:00:00.000Z", votingStartDate: "2026-10-12T00:00:00.000Z", votingEndDate: "2026-10-13T00:00:00.000Z",
       eliminationCount: 1, isFinale: false,
     },
     {
@@ -330,7 +332,7 @@ export async function seedStarrStruckCompetition() {
       order: 7,
       name: "Day 7 — Music Video Challenge",
       description: "The final two women star in a music video with me. They are judged on performance, chemistry, creativity, and overall presence on camera. Two finalists become one winner, chosen by the host.",
-      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      startDate: "2026-10-13T00:00:00.000Z", endDate: "2026-10-14T00:00:00.000Z", submissionStartDate: "2026-10-13T00:00:00.000Z", submissionEndDate: "2026-10-14T00:00:00.000Z", votingStartDate: "2026-10-13T00:00:00.000Z", votingEndDate: "2026-10-14T00:00:00.000Z",
       eliminationCount: 0, isFinale: true,
     },
   ];
@@ -342,8 +344,15 @@ export async function seedStarrStruckCompetition() {
       stages,
       expectedContestants: 10,
       maxVideosPerContestant: null,
+      status: "active",
+      startDate: competitionStart,
+      endDate: competitionEnd,
+      startDateTbd: false,
+      endDateTbd: false,
+      votingStartDate: competitionStart,
+      votingEndDate: competitionEnd,
     });
-    console.log("Starr Struck stages and flyer details synchronized (draft)");
+    console.log("Starr Struck stages, schedule, and flyer details synchronized (active)");
     return;
   }
 
@@ -353,17 +362,17 @@ export async function seedStarrStruckCompetition() {
     category: "Reality",
     coverImage: "/images/starr-struck-cover.png",
     coverVideo: null,
-    status: "draft",
+    status: "active",
     voteCost: 0,
     maxVotesPerDay: 1,
     maxImagesPerContestant: null,
     maxVideosPerContestant: null,
-    startDate: null,
-    endDate: null,
-    startDateTbd: true,
-    endDateTbd: true,
-    votingStartDate: null,
-    votingEndDate: null,
+    startDate: competitionStart,
+    endDate: competitionEnd,
+    startDateTbd: false,
+    endDateTbd: false,
+    votingStartDate: competitionStart,
+    votingEndDate: competitionEnd,
     expectedContestants: 10,
     onlineVoteWeight: 100,
     inPersonOnly: false,
@@ -373,7 +382,7 @@ export async function seedStarrStruckCompetition() {
     createdAt: new Date().toISOString(),
     createdBy: null,
   });
-  console.log("Starr Struck competition seeded in the Reality category (draft)");
+  console.log("Starr Struck competition seeded in the Reality category (active)");
 }
 
 const DEFAULT_VOTE_PACKAGES = [

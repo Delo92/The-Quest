@@ -202,7 +202,7 @@ function normalizeAndValidateStages(
   for (let index = 1; index < datedStages.length; index++) {
     const previous = datedStages[index - 1];
     const current = datedStages[index];
-    if (Date.parse(current.startDate!) <= Date.parse(previous.endDate!)) {
+    if (Date.parse(current.startDate!) < Date.parse(previous.endDate!)) {
       return { stages, error: `Stage dates overlap: ${previous.name} and ${current.name}` };
     }
   }
@@ -211,7 +211,7 @@ function normalizeAndValidateStages(
   for (const stage of stages) {
     const existing = existingById.get(stage.id);
     const existingEndTime = existing?.endDate
-      ? Date.parse(`${existing.endDate}T23:59:59.999`)
+      ? dateBoundary(existing.endDate, true)
       : Number.NaN;
     if (existing?.endDate && existingEndTime < Date.now()) {
       const prior = { ...existing, order: stage.order };
@@ -1029,6 +1029,7 @@ export async function registerRoutes(
           let coverVideoUrl: string | null = null;
           let thumbnail: string | null = cat.imageUrl || null;
            const featuredCompetition = catComps.find((comp: any) => comp.isFeatured);
+           let displayCompetition: any = featuredCompetition || null;
           if (cat.videoUrl) {
             coverVideoUrl = cat.videoUrl;
           }
@@ -1041,6 +1042,7 @@ export async function registerRoutes(
               const dateB = b.startDate || b.createdAt || "";
               return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
             })[0];
+              displayCompetition = earliest;
             if (earliest?.coverImage) {
               thumbnail = earliest.coverImage;
             } else if (earliest?.coverVideo) {
@@ -1055,6 +1057,7 @@ export async function registerRoutes(
           }
 
           if (topContestant && topVoteCount > 0 && topCompetition) {
+             displayCompetition = topCompetition;
             displayName = topContestant.talentProfile.stageName || topContestant.talentProfile.displayName;
             if (topContestant.talentProfile.imageUrls?.length > 0) {
               thumbnail = topContestant.talentProfile.imageUrls[0];
@@ -1071,6 +1074,7 @@ export async function registerRoutes(
            // regardless of whether another competition currently has more votes.
            // This keeps the dashboard's Featured control meaningful on the homepage.
            if (featuredCompetition) {
+              displayCompetition = featuredCompetition;
              if (featuredCompetition.coverImage) {
                thumbnail = featuredCompetition.coverImage;
              }
@@ -1089,14 +1093,17 @@ export async function registerRoutes(
 
           let competitionSlug: string | null = null;
           let contestantSlug: string | null = null;
-          if (topCompetition && topContestant) {
-            competitionSlug = slugify(topCompetition.title);
+           if (displayCompetition) {
+             competitionSlug = slugify(displayCompetition.title);
+           }
+           if (topCompetition && topContestant) {
             contestantSlug = slugify(topContestant.talentProfile.stageName || topContestant.talentProfile.displayName || "");
           }
 
           return {
             categoryId: cat.id,
             categoryName: cat.name,
+             competitionTitle: displayCompetition?.title || null,
             thumbnail,
             videoEmbedUrl,
             coverVideoUrl,
