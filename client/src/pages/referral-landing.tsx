@@ -59,36 +59,43 @@ export default function ReferralLandingPage() {
   const nominatePath = `/thequest/nominate?competition=${data.competition.id}&ref=${encodeURIComponent(data.referralCode)}`;
 
   return (
-    <main className="min-h-screen bg-[#080006] text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-5 py-8 sm:px-8">
+    <main className="relative min-h-screen overflow-hidden bg-[#080006] text-white">
+      {(data.competition.coverImage || data.hostImageUrl) && (
+        <>
+          <div
+            aria-hidden="true"
+            className="absolute inset-[-32px] z-0 scale-105 bg-cover bg-center opacity-35 blur-[18px]"
+            style={{
+              backgroundImage: `url(${data.competition.coverImage || data.hostImageUrl})`,
+            }}
+          />
+          <div aria-hidden="true" className="absolute inset-0 z-10 bg-[#080006]/72" />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 z-10 bg-gradient-to-b from-[#080006]/80 via-[#100008]/70 to-[#080006]/92"
+          />
+        </>
+      )}
+      <div className="relative z-20 mx-auto flex min-h-screen w-full max-w-5xl flex-col px-5 py-8 sm:px-8">
         <header className="flex items-center justify-between">
           <CBLogo size="sm" showText />
           <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/35">Event invitation</span>
         </header>
 
-        <section className="relative mt-10 isolate overflow-hidden border border-white/10 bg-[#110008]">
-          {(data.competition.coverImage || data.hostImageUrl) && (
-            <>
-              <div
-                aria-hidden="true"
-                className="absolute inset-[-18px] z-0 scale-105 bg-cover bg-center opacity-40 blur-[12px]"
-                style={{
-                  backgroundImage: `url(${data.competition.coverImage || data.hostImageUrl})`,
-                }}
-              />
-              <div aria-hidden="true" className="absolute inset-0 z-10 bg-[#080006]/65" />
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 z-10 bg-gradient-to-br from-[#18000e]/75 via-[#100008]/65 to-[#050005]/85"
-              />
-            </>
-          )}
-          <div className="relative z-20 px-6 py-10 sm:px-12 sm:py-14">
-            {!data.competition.coverImage && !data.hostImageUrl && (
-              <div className="mb-8">
+        <section className="mt-10 overflow-hidden border border-white/10 bg-black">
+          <div className="relative aspect-[4/3] w-full bg-black sm:aspect-[16/9]">
+            {data.competition.coverImage ? (
+              <img src={data.competition.coverImage} alt={`${data.competition.title} cover`} className="h-full w-full object-contain" />
+            ) : data.hostImageUrl ? (
+              <img src={data.hostImageUrl} alt={`${data.hostName} profile`} className="h-full w-full object-contain" />
+            ) : (
+              <div className="flex h-full items-center justify-center">
                 <CBLogo size="lg" showText />
               </div>
             )}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
+          </div>
+          <div className="border-t border-white/10 bg-[#110008] px-6 py-8 sm:px-12 sm:py-10">
             <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#FFB3D9]">
               <Sparkles className="h-4 w-4 text-[#FF0E9B]" />
               {data.competition.category} event
