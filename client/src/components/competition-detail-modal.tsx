@@ -10,7 +10,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays } from "lucide-react";
+import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle } from "lucide-react";
+import type { CompetitionStage } from "@shared/schema";
 
 interface CompDetailResponse {
   competition: {
@@ -28,6 +29,7 @@ interface CompDetailResponse {
     onlineVoteWeight: number;
     inPersonOnly: boolean;
     vimeoFolderUrl: string | null;
+    stages?: CompetitionStage[];
   };
   totalVotes: number;
   createdByAdmin?: boolean;
@@ -67,7 +69,7 @@ interface ContestantProfileDetail {
 
 export function CompetitionDetailModal({ compId }: { compId: number }) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"overview" | "contestants">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "stages" | "contestants">("overview");
   const [editing, setEditing] = useState(false);
   const [expandedProfileId, setExpandedProfileId] = useState<number | null>(null);
 
@@ -82,6 +84,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   const [maxVideos, setMaxVideos] = useState("");
   const [onlineVoteWeight, setOnlineVoteWeight] = useState("");
   const [vimeoFolderUrl, setVimeoFolderUrl] = useState("");
+  const [stages, setStages] = useState<CompetitionStage[]>([]);
 
   // Search/filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,6 +127,20 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       setMaxVideos(String(c.maxVideosPerContestant ?? ""));
       setOnlineVoteWeight(String(c.onlineVoteWeight ?? 100));
       setVimeoFolderUrl(c.vimeoFolderUrl || "");
+      setStages((c.stages || []).map((stage, index) => ({
+        id: stage.id || `stage-${index + 1}`,
+        order: index + 1,
+        name: stage.name || "",
+        description: stage.description || null,
+        startDate: stage.startDate || null,
+        endDate: stage.endDate || null,
+        submissionStartDate: stage.submissionStartDate || null,
+        submissionEndDate: stage.submissionEndDate || null,
+        votingStartDate: stage.votingStartDate || null,
+        votingEndDate: stage.votingEndDate || null,
+        eliminationCount: stage.eliminationCount ?? 0,
+        isFinale: stage.isFinale === true,
+      })));
     }
   }, [data]);
 
@@ -155,6 +172,19 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
     onSuccess: () => invalidateAll(),
   });
 
+  const stagesSaveMutation = useMutation({
+    mutationFn: async (nextStages: CompetitionStage[]) => {
+      await apiRequest("PATCH", `/api/competitions/${compId}`, { stages: nextStages });
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Stages saved" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Stages could not be saved", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
   const handleSave = () => {
     saveMutation.mutate({
       title: title.trim(),
@@ -168,6 +198,93 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       onlineVoteWeight: parseInt(onlineVoteWeight) || 100,
       vimeoFolderUrl: vimeoFolderUrl.trim() || null,
     });
+  };
+
+  const updateStage = (index: number, updates: Partial<CompetitionStage>) => {
+    setStages((current) => current.map((stage, stageIndex) => (
+      stageIndex === index ? { ...stage, ...updates } : stage
+    )));
+  };
+
+  const addStage = () => {
+    setStages((current) => [
+      ...current,
+      {
+        id: `stage-${Date.now()}-${current.length + 1}`,
+        order: current.length + 1,
+        name: "",
+        description: null,
+        startDate: null,
+        endDate: null,
+        submissionStartDate: null,
+        submissionEndDate: null,
+        votingStartDate: null,
+        votingEndDate: null,
+        eliminationCount: 0,
+        isFinale: false,
+      },
+    ]);
+  };
+
+  const removeStage = (index: number) => {
+    setStages((current) => current
+      .filter((_, stageIndex) => stageIndex !== index)
+      .map((stage, stageIndex) => ({ ...stage, order: stageIndex + 1 })));
+  };
+
+  const moveStage = (index: number, direction: -1 | 1) => {
+    setStages((current) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next.map((stage, stageIndex) => ({ ...stage, order: stageIndex + 1 }));
+    });
+  };
+
+  const isStageLocked = (stage: CompetitionStage) => (
+    Boolean(stage.endDate && Date.parse(`${stage.endDate}T23:59:59.999`) < Date.now())
+  );
+
+  const validateStagesBeforeSave = () => {
+    if (stages.some((stage) => !stage.name.trim())) {
+      return "Every stage needs a name.";
+    }
+
+    for (const stage of stages) {
+      const windows = [
+        ["stage", stage.startDate, stage.endDate],
+        ["submission", stage.submissionStartDate, stage.submissionEndDate],
+        ["voting", stage.votingStartDate, stage.votingEndDate],
+      ] as const;
+      for (const [label, start, end] of windows) {
+        if ((start && !end) || (!start && end)) {
+          return `${stage.name}: ${label} start and end dates must both be set.`;
+        }
+        if (start && end && start > end) {
+          return `${stage.name}: ${label} start must be before its end.`;
+        }
+      }
+    }
+
+    const datedStages = stages
+      .filter((stage) => stage.startDate && stage.endDate)
+      .sort((a, b) => (a.startDate! > b.startDate! ? 1 : -1));
+    for (let index = 1; index < datedStages.length; index++) {
+      if (datedStages[index].startDate! <= datedStages[index - 1].endDate!) {
+        return `Stage dates overlap: ${datedStages[index - 1].name} and ${datedStages[index].name}.`;
+      }
+    }
+    return null;
+  };
+
+  const handleSaveStages = () => {
+    const error = validateStagesBeforeSave();
+    if (error) {
+      toast({ title: "Check the stage schedule", description: error, variant: "destructive" });
+      return;
+    }
+    stagesSaveMutation.mutate(stages.map((stage, index) => ({ ...stage, order: index + 1 })));
   };
 
   if (isLoading) {
@@ -233,11 +350,228 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                 {contestants.length}
               </Badge>
             </button>
+            <button
+              onClick={() => setActiveTab("stages")}
+              className={`flex-1 sm:flex-none px-4 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-2 ${
+                activeTab === "stages" ? "bg-white/10 text-white shadow-sm" : "text-white/40 hover:text-white/80 hover:bg-white/5"
+              }`}
+              data-testid="tab-comp-stages"
+            >
+              <ListOrdered className="w-3.5 h-3.5" /> Stages
+              <Badge className="ml-1 bg-white/10 text-white/70 border-0 text-[10px] px-1.5 h-4 py-0 font-mono">
+                {stages.length}
+              </Badge>
+            </button>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-0 scrollbar-hide">
+        {activeTab === "stages" && (
+          <div className="animate-in fade-in slide-in-from-right-2 duration-300 max-w-4xl mx-auto pb-8 space-y-5" data-testid="comp-detail-stages">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-white/90">Competition Stages</h2>
+                <p className="text-xs text-white/40 mt-1 max-w-2xl">
+                  Configure the sequence, schedule, submission window, voting window, and elimination count for each stage.
+                  Leave dates blank while the schedule is still being finalized.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={addStage}
+                  className="border-orange-500/30 text-orange-300 hover:bg-orange-500/10 hover:text-orange-200"
+                  data-testid="button-add-stage"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Stage
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveStages}
+                  disabled={stagesSaveMutation.isPending}
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                  data-testid="button-save-stages"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                  {stagesSaveMutation.isPending ? "Saving..." : "Save Stages"}
+                </Button>
+              </div>
+            </div>
+
+            {stages.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] py-14 px-6 text-center">
+                <ListOrdered className="h-9 w-9 text-orange-400/40 mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-white/80">No stages configured</h3>
+                <p className="text-xs text-white/40 mt-1 mb-4">Add the first stage to begin building this competition.</p>
+                <Button
+                  size="sm"
+                  onClick={addStage}
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                  data-testid="button-add-first-stage"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Add First Stage
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {stages.map((stage, index) => {
+                  const locked = isStageLocked(stage);
+                  return (
+                    <div key={stage.id} className="rounded-xl bg-zinc-900 border border-white/10 overflow-hidden" data-testid={`stage-editor-${stage.id}`}>
+                      <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-4 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-8 w-8 rounded-lg bg-orange-500/15 text-orange-300 flex items-center justify-center text-sm font-bold shrink-0">
+                            {index + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white/90 truncate">{stage.name || `Stage ${index + 1}`}</p>
+                            <p className="text-[10px] uppercase tracking-widest text-white/35">
+                              {stage.isFinale ? "Finale" : "Challenge stage"}
+                            </p>
+                          </div>
+                          {locked && (
+                            <Badge className="border-0 bg-white/10 text-white/45 text-[10px]">
+                              <LockKeyhole className="h-3 w-3 mr-1" /> Locked
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => moveStage(index, -1)}
+                            disabled={index === 0 || locked}
+                            className="h-7 w-7 text-white/40 hover:text-white"
+                            aria-label={`Move ${stage.name || `stage ${index + 1}`} up`}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => moveStage(index, 1)}
+                            disabled={index === stages.length - 1 || locked}
+                            className="h-7 w-7 text-white/40 hover:text-white"
+                            aria-label={`Move ${stage.name || `stage ${index + 1}`} down`}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => removeStage(index)}
+                            disabled={locked}
+                            className="h-7 w-7 text-red-400/60 hover:text-red-300 hover:bg-red-500/10"
+                            aria-label={`Remove ${stage.name || `stage ${index + 1}`}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="p-4 space-y-4">
+                        {locked && (
+                          <div className="flex items-start gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white/50">
+                            <LockKeyhole className="h-3.5 w-3.5 mt-0.5 shrink-0 text-white/35" />
+                            This stage has ended. Its configuration is preserved for historical reporting and cannot be edited.
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Stage Name</Label>
+                            <Input
+                              value={stage.name}
+                              onChange={(e) => updateStage(index, { name: e.target.value })}
+                              disabled={locked}
+                              placeholder="e.g. Viral Challenge"
+                              className="bg-black/20 border-white/10 text-white"
+                              data-testid={`input-stage-name-${stage.id}`}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 self-end">
+                            <div>
+                              <Label className="text-xs text-white/70">Finale stage</Label>
+                              <p className="text-[10px] text-white/35 mt-0.5">Mark the stage that selects the winner.</p>
+                            </div>
+                            <Switch
+                              checked={stage.isFinale}
+                              onCheckedChange={(checked) => updateStage(index, { isFinale: checked })}
+                              disabled={locked}
+                              className="data-[state=checked]:bg-orange-500"
+                              aria-label={`Mark ${stage.name || `stage ${index + 1}`} as finale`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Stage Description</Label>
+                          <Textarea
+                            value={stage.description || ""}
+                            onChange={(e) => updateStage(index, { description: e.target.value || null })}
+                            disabled={locked}
+                            placeholder="Describe the challenge, judging criteria, and contestant expectations."
+                            className="bg-black/20 border-white/10 text-white min-h-[80px] resize-y"
+                            data-testid={`input-stage-description-${stage.id}`}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {([
+                            { label: "Stage Start", key: "startDate", value: stage.startDate },
+                            { label: "Stage End", key: "endDate", value: stage.endDate },
+                            { label: "Submission Start", key: "submissionStartDate", value: stage.submissionStartDate },
+                            { label: "Submission End", key: "submissionEndDate", value: stage.submissionEndDate },
+                            { label: "Voting Start", key: "votingStartDate", value: stage.votingStartDate },
+                            { label: "Voting End", key: "votingEndDate", value: stage.votingEndDate },
+                          ] as const).map(({ label, key, value }) => (
+                            <div key={key} className="space-y-1.5">
+                              <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">{label}</Label>
+                              <Input
+                                type="date"
+                                value={value || ""}
+                                onChange={(e) => updateStage(index, { [key]: e.target.value || null } as Partial<CompetitionStage>)}
+                                disabled={locked}
+                                className="bg-black/20 border-white/10 text-white [&::-webkit-calendar-picker-indicator]:invert-[0.8]"
+                                data-testid={`input-stage-${key}-${stage.id}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-white/5">
+                          <div className="flex items-start gap-2 text-[11px] text-white/35">
+                            <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            Stage dates cannot overlap. Submission and voting windows must stay inside the stage dates.
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Label className="text-xs text-white/50 whitespace-nowrap">Eliminate</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={stage.eliminationCount}
+                              onChange={(e) => updateStage(index, { eliminationCount: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                              disabled={locked}
+                              className="bg-black/20 border-white/10 text-white w-20 h-8"
+                              data-testid={`input-stage-elimination-${stage.id}`}
+                            />
+                            <span className="text-xs text-white/35">contestants</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "overview" && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6 max-w-4xl mx-auto pb-8">
 

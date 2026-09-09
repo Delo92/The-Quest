@@ -1,3 +1,18 @@
+export interface CompetitionStage {
+  id: string;
+  order: number;
+  name: string;
+  description: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  submissionStartDate: string | null;
+  submissionEndDate: string | null;
+  votingStartDate: string | null;
+  votingEndDate: string | null;
+  eliminationCount: number;
+  isFinale: boolean;
+}
+
 export interface Competition {
   id: number;
   title: string;
@@ -21,6 +36,7 @@ export interface Competition {
   inPersonOnly: boolean;
   vimeoFolderUrl: string | null;
   chronicBrandsPromotionEnabled: boolean;
+  stages?: CompetitionStage[];
   isFeatured?: boolean;
   createdAt: string | null;
   createdBy: string | null;

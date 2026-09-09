@@ -1,6 +1,7 @@
 import admin from "firebase-admin";
 import crypto from "crypto";
 import { getFirestore } from "./firebase-admin";
+import type { CompetitionStage } from "../shared/schema";
 
 const COLLECTIONS = {
   USERS: "users",
@@ -82,6 +83,7 @@ export interface FirestoreCompetition {
   inPersonOnly: boolean;
   vimeoFolderUrl: string | null;
   chronicBrandsPromotionEnabled: boolean;
+  stages?: CompetitionStage[];
   createdAt: string | null;
   createdBy: string | null;
 }
@@ -358,6 +360,7 @@ function normalizeCompetition(data: any): FirestoreCompetition {
     inPersonOnly: data.inPersonOnly ?? false,
     vimeoFolderUrl: data.vimeoFolderUrl ?? null,
     chronicBrandsPromotionEnabled: data.chronicBrandsPromotionEnabled ?? true,
+    stages: Array.isArray(data.stages) ? data.stages : [],
   } as FirestoreCompetition;
 }
 

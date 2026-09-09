@@ -84,12 +84,117 @@ import fs from "fs";
 import crypto from "crypto";
 import QRCode from "qrcode";
 import { slugify, extractIdFromSlug } from "../shared/slugify";
+import type { CompetitionStage } from "../shared/schema";
 
 function generateUniqueFilename(originalName: string): string {
   const ext = path.extname(originalName);
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   return `${timestamp}-${random}${ext}`;
+}
+
+function normalizeAndValidateStages(
+  input: unknown,
+  existingStages: CompetitionStage[] = [],
+): { stages: CompetitionStage[]; error?: string } {
+  if (!Array.isArray(input)) {
+    return { stages: [], error: "Stages must be an array" };
+  }
+
+  const stages: CompetitionStage[] = input.map((rawStage: any, index) => ({
+    id: typeof rawStage?.id === "string" && rawStage.id.trim() ? rawStage.id.trim() : crypto.randomUUID(),
+    order: index + 1,
+    name: typeof rawStage?.name === "string" ? rawStage.name.trim() : "",
+    description: typeof rawStage?.description === "string" && rawStage.description.trim()
+      ? rawStage.description.trim()
+      : null,
+    startDate: typeof rawStage?.startDate === "string" && rawStage.startDate ? rawStage.startDate : null,
+    endDate: typeof rawStage?.endDate === "string" && rawStage.endDate ? rawStage.endDate : null,
+    submissionStartDate: typeof rawStage?.submissionStartDate === "string" && rawStage.submissionStartDate
+      ? rawStage.submissionStartDate
+      : null,
+    submissionEndDate: typeof rawStage?.submissionEndDate === "string" && rawStage.submissionEndDate
+      ? rawStage.submissionEndDate
+      : null,
+    votingStartDate: typeof rawStage?.votingStartDate === "string" && rawStage.votingStartDate
+      ? rawStage.votingStartDate
+      : null,
+    votingEndDate: typeof rawStage?.votingEndDate === "string" && rawStage.votingEndDate
+      ? rawStage.votingEndDate
+      : null,
+    eliminationCount: Number.isFinite(Number(rawStage?.eliminationCount))
+      ? Math.max(0, Math.floor(Number(rawStage.eliminationCount)))
+      : 0,
+    isFinale: rawStage?.isFinale === true,
+  }));
+
+  const ids = new Set<string>();
+  for (const stage of stages) {
+    if (!stage.name) return { stages, error: `Stage ${stage.order} needs a name` };
+    if (ids.has(stage.id)) return { stages, error: "Each stage must have a unique ID" };
+    ids.add(stage.id);
+
+    const datePairs: Array<[string, string | null, string | null]> = [
+      ["stage", stage.startDate, stage.endDate],
+      ["submission", stage.submissionStartDate, stage.submissionEndDate],
+      ["voting", stage.votingStartDate, stage.votingEndDate],
+    ];
+    for (const [label, start, end] of datePairs) {
+      if ((start && !end) || (!start && end)) {
+        return { stages, error: `${stage.name}: ${label} start and end dates must both be set` };
+      }
+      if (start && end && (Number.isNaN(Date.parse(start)) || Number.isNaN(Date.parse(end)))) {
+        return { stages, error: `${stage.name}: invalid ${label} dates` };
+      }
+      if (start && end && Date.parse(start) > Date.parse(end)) {
+        return { stages, error: `${stage.name}: ${label} start must be before its end` };
+      }
+    }
+
+    if (stage.submissionStartDate && stage.startDate &&
+        Date.parse(stage.submissionStartDate) < Date.parse(stage.startDate)) {
+      return { stages, error: `${stage.name}: submission window cannot start before the stage` };
+    }
+    if (stage.submissionEndDate && stage.endDate &&
+        Date.parse(stage.submissionEndDate) > Date.parse(stage.endDate)) {
+      return { stages, error: `${stage.name}: submission window cannot end after the stage` };
+    }
+    if (stage.votingStartDate && stage.startDate &&
+        Date.parse(stage.votingStartDate) < Date.parse(stage.startDate)) {
+      return { stages, error: `${stage.name}: voting window cannot start before the stage` };
+    }
+    if (stage.votingEndDate && stage.endDate &&
+        Date.parse(stage.votingEndDate) > Date.parse(stage.endDate)) {
+      return { stages, error: `${stage.name}: voting window cannot end after the stage` };
+    }
+  }
+
+  const datedStages = stages
+    .filter((stage) => stage.startDate && stage.endDate)
+    .sort((a, b) => Date.parse(a.startDate!) - Date.parse(b.startDate!));
+  for (let index = 1; index < datedStages.length; index++) {
+    const previous = datedStages[index - 1];
+    const current = datedStages[index];
+    if (Date.parse(current.startDate!) <= Date.parse(previous.endDate!)) {
+      return { stages, error: `Stage dates overlap: ${previous.name} and ${current.name}` };
+    }
+  }
+
+  const existingById = new Map(existingStages.map((stage) => [stage.id, stage]));
+  for (const stage of stages) {
+    const existing = existingById.get(stage.id);
+    const existingEndTime = existing?.endDate
+      ? Date.parse(`${existing.endDate}T23:59:59.999`)
+      : Number.NaN;
+    if (existing?.endDate && existingEndTime < Date.now()) {
+      const prior = { ...existing, order: stage.order };
+      if (JSON.stringify(prior) !== JSON.stringify(stage)) {
+        return { stages, error: `${existing.name} has ended and is locked for editing` };
+      }
+    }
+  }
+
+  return { stages };
 }
 
 type PublicCacheEntry = {
@@ -1219,6 +1324,14 @@ export async function registerRoutes(
     }
 
     const updateData = { ...req.body };
+
+    if ("stages" in updateData) {
+      const currentCompetition = await storage.getCompetition(id);
+      if (!currentCompetition) return res.status(404).json({ message: "Competition not found" });
+      const normalized = normalizeAndValidateStages(updateData.stages, currentCompetition.stages || []);
+      if (normalized.error) return res.status(400).json({ message: normalized.error });
+      updateData.stages = normalized.stages;
+    }
 
     if ("vimeoFolderUrl" in updateData) {
       if (updateData.vimeoFolderUrl === "" || updateData.vimeoFolderUrl === null) {
