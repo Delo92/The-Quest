@@ -287,6 +287,28 @@ export default function CompetitionDetailPage() {
     setMobileStageMenuOpen(false);
   };
 
+  // Per-competition theme derived from themeColor (falls back to platform orange)
+  const accent      = competition.themeColor || "#FF5A09";
+  const accentBg    = competition.themeColor ? "#FFB3D9" : "#FF5A09";   // bubblegum pink vs orange
+  const accentText  = competition.themeColor ? "#000000" : "#ffffff";   // black on bubblegum, white on orange
+  const accentMuted = competition.themeColor ? `${competition.themeColor}20` : "rgba(255,90,9,0.08)";
+  const accentFont  = competition.themeColor ? "'Bebas Neue', sans-serif" : undefined;
+  // Slanted parallelogram clip-path for branded buttons (not square)
+  const clipBtn     = competition.themeColor
+    ? "polygon(14px 0%, 100% 0%, calc(100% - 14px) 100%, 0% 100%)"
+    : undefined;
+  // Atmospheric gradient background for themed competitions
+  const pageBgStyle = competition.themeColor
+    ? {
+        background: `
+          radial-gradient(ellipse 90% 35% at 50% 0%,   ${competition.themeColor}18 0%, transparent 65%),
+          radial-gradient(ellipse 50% 25% at 10% 40%,  ${competition.themeColor}0d 0%, transparent 55%),
+          radial-gradient(ellipse 45% 20% at 90% 60%,  ${competition.themeColor}0a 0%, transparent 50%),
+          linear-gradient(180deg, #0d0008 0%, #060006 40%, #040004 70%, #000 100%)
+        `,
+      }
+    : undefined;
+
   return (
     <div className="min-h-screen bg-black text-white">
       <SiteNavbar />
@@ -394,7 +416,7 @@ export default function CompetitionDetailPage() {
         />
       </section>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10" style={pageBgStyle}>
         {isInPersonVoting && (
           <div className="mb-6 rounded-md bg-[#FF5A09]/10 border border-[#FF5A09]/30 px-4 py-3 flex flex-wrap items-center gap-3" data-testid="banner-in-person">
             <Vote className="h-5 w-5 text-[#FF5A09] shrink-0" />
@@ -418,13 +440,14 @@ export default function CompetitionDetailPage() {
               <button
                 type="button"
                 onClick={() => setMobileStageMenuOpen((open) => !open)}
-                className="flex min-h-[48px] w-full items-center justify-between border border-white/15 bg-[#101010] px-4 text-left text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]"
+                className="flex min-h-[48px] w-full items-center justify-between border border-white/15 bg-[#101010] px-4 text-left text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2"
+                style={{ outlineColor: accent }}
                 aria-expanded={mobileStageMenuOpen}
                 aria-controls="mobile-stage-menu"
                 data-testid="button-mobile-stage-menu"
               >
                 <span className="flex min-w-0 items-center gap-3">
-                  <Menu className="h-5 w-5 shrink-0 text-[#FF5A09]" />
+                  <Menu className="h-5 w-5 shrink-0" style={{ color: accent }} />
                   <span className="truncate">{selectedStage?.name || "Competition overview"}</span>
                 </span>
                 <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${mobileStageMenuOpen ? "rotate-180" : ""}`} />
@@ -434,7 +457,8 @@ export default function CompetitionDetailPage() {
                   <button
                     type="button"
                     onClick={() => selectStage("overview")}
-                    className={`flex min-h-[44px] w-full items-center px-3 text-left text-sm ${!selectedStage ? "bg-[#FF5A09] text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
+                    className={`flex min-h-[44px] w-full items-center px-3 text-left text-sm ${!selectedStage ? "text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
+                    style={!selectedStage ? { backgroundColor: accent } : undefined}
                     data-testid="stage-option-overview-mobile"
                   >
                     Competition overview
@@ -444,7 +468,8 @@ export default function CompetitionDetailPage() {
                       key={stage.id}
                       type="button"
                       onClick={() => selectStage(stage.id)}
-                      className={`flex min-h-[44px] w-full items-center justify-between gap-3 px-3 text-left text-sm ${selectedStage?.id === stage.id ? "bg-[#FF5A09] text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
+                      className={`flex min-h-[44px] w-full items-center justify-between gap-3 px-3 text-left text-sm ${selectedStage?.id === stage.id ? "text-white" : "text-white/70 hover:bg-white/5 hover:text-white"}`}
+                      style={selectedStage?.id === stage.id ? { backgroundColor: accent } : undefined}
                       data-testid={`stage-option-${stage.id}-mobile`}
                     >
                       <span>{stage.name}</span>
@@ -464,7 +489,8 @@ export default function CompetitionDetailPage() {
                   role="tab"
                   aria-selected={!selectedStage}
                   onClick={() => selectStage("overview")}
-                  className={`min-h-[42px] border px-4 text-xs font-bold uppercase tracking-[1.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] ${!selectedStage ? "border-[#FF5A09] bg-[#FF5A09] text-white" : "border-white/15 bg-white/[0.03] text-white/55 hover:border-white/35 hover:text-white"}`}
+                  className={`min-h-[46px] border px-5 text-sm font-bold uppercase tracking-[2px] transition-colors focus-visible:outline-none focus-visible:ring-2 ${!selectedStage ? "text-white" : "border-white/15 bg-white/[0.03] text-white/55 hover:border-white/35 hover:text-white"}`}
+                  style={{ fontFamily: accentFont, ...(!selectedStage ? { backgroundColor: accent, borderColor: accent } : {}) }}
                   data-testid="stage-option-overview"
                 >
                   Overview
@@ -476,7 +502,8 @@ export default function CompetitionDetailPage() {
                     role="tab"
                     aria-selected={selectedStage?.id === stage.id}
                     onClick={() => selectStage(stage.id)}
-                    className={`min-h-[42px] border px-4 text-xs font-bold uppercase tracking-[1.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] ${selectedStage?.id === stage.id ? "border-[#FF5A09] bg-[#FF5A09] text-white" : "border-white/15 bg-white/[0.03] text-white/55 hover:border-white/35 hover:text-white"}`}
+                    className={`min-h-[46px] border px-5 text-sm font-bold uppercase tracking-[2px] transition-colors focus-visible:outline-none focus-visible:ring-2 ${selectedStage?.id === stage.id ? "text-white" : "border-white/15 bg-white/[0.03] text-white/55 hover:border-white/35 hover:text-white"}`}
+                    style={{ fontFamily: accentFont, ...(selectedStage?.id === stage.id ? { backgroundColor: accent, borderColor: accent } : {}) }}
                     data-testid={`stage-option-${stage.id}`}
                   >
                     {stage.name}
@@ -488,27 +515,27 @@ export default function CompetitionDetailPage() {
         )}
 
         {selectedStage ? (
-          <section className="mb-6 border-l-2 border-[#FF5A09] bg-[#101010] px-5 py-5 sm:px-6" data-testid="selected-stage-summary">
+          <section className="mb-6 border-l-2 bg-[#101010] px-5 py-5 sm:px-6" style={{ borderLeftColor: accent }} data-testid="selected-stage-summary">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-3xl">
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-[2px] text-[#FF5A09]">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-[2px]" style={{ color: accent, fontFamily: accentFont }}>
                   {selectedStage.isFinale ? "Finale stage" : `Stage ${selectedStage.order}`}
                 </p>
-                <h2 className="text-xl font-semibold text-white sm:text-2xl">{selectedStage.name}</h2>
+                <h2 className="text-white leading-none" style={{ fontFamily: accentFont || "inherit", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", letterSpacing: accentFont ? "0.06em" : "0.02em" }}>{selectedStage.name}</h2>
                 {selectedStage.description && (
-                  <p className="mt-3 text-sm leading-6 text-white/55 sm:text-base" data-testid="text-stage-description">
+                  <p className="mt-3 text-sm leading-7 sm:text-base" style={{ color: "rgba(255,255,255,0.5)", fontStyle: accentFont ? "italic" : "normal", fontWeight: 300 }} data-testid="text-stage-description">
                     {selectedStage.description}
                   </p>
                 )}
               </div>
               <div className="inline-flex items-center gap-2 border border-white/10 bg-black/30 px-3 py-2 text-xs uppercase tracking-[1.5px] text-white/55">
-                <Clock3 className="h-4 w-4 text-[#FF5A09]" />
+                <Clock3 className="h-4 w-4" style={{ color: accent }} />
                 {formatStageWindow(selectedStage)}
               </div>
             </div>
           </section>
         ) : competition.description ? (
-          <p className="text-white/40 mb-6 text-base max-w-3xl leading-relaxed" data-testid="text-description">
+          <p className="mb-8 max-w-3xl leading-8" style={{ color: "rgba(255,255,255,0.45)", fontStyle: accentFont ? "italic" : "normal", fontWeight: 300, fontSize: "1rem" }} data-testid="text-description">
             {competition.description}
           </p>
         ) : null}
@@ -525,8 +552,8 @@ export default function CompetitionDetailPage() {
           {!selectedStage && (
           <Link
             href={`/join?competition=${competition.id}`}
-            className="inline-block bg-[#FF5A09] text-white font-bold text-sm uppercase px-6 leading-[42px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
-            style={{ letterSpacing: "2px" }}
+            className="inline-block font-bold uppercase cursor-pointer"
+            style={{ letterSpacing: "3px", fontFamily: accentFont || "inherit", fontSize: accentFont ? "1.1rem" : "0.875rem", padding: accentFont ? "0 2rem" : "0 1.5rem", lineHeight: "46px", backgroundColor: accentBg, color: accentText, border: `2px solid ${accentBg}`, clipPath: clipBtn }}
             data-testid="button-join-competition"
           >
             Start Nominating <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
@@ -537,8 +564,8 @@ export default function CompetitionDetailPage() {
              role="tab"
              aria-selected={activeSection === "tracking"}
              onClick={() => setActiveSection("tracking")}
-             className={`inline-flex min-h-[42px] items-center gap-2 border px-5 text-sm font-bold uppercase transition-all duration-300 ${activeSection === "tracking" ? "border-[#FF5A09] bg-[#FF5A09]/10 text-[#FF5A09]" : "border-white/20 bg-transparent text-white/70 hover:border-[#FF5A09] hover:text-[#FF5A09]"}`}
-             style={{ letterSpacing: "2px" }}
+             className={`inline-flex items-center gap-2 border font-bold uppercase transition-all duration-300 ${activeSection === "tracking" ? "" : "border-white/20 bg-transparent text-white/70"}`}
+             style={{ letterSpacing: "3px", fontFamily: accentFont || "inherit", fontSize: accentFont ? "1.05rem" : "0.875rem", padding: accentFont ? "0 1.5rem" : "0 1.25rem", minHeight: "46px", clipPath: clipBtn, ...(activeSection === "tracking" ? { borderColor: accent, backgroundColor: `${accent}18`, color: accent } : {}) }}
              data-testid="button-view-tracking"
             >
              <Vote className="h-4 w-4" />
@@ -597,9 +624,11 @@ export default function CompetitionDetailPage() {
         </div>
 
          {activeSection === "contestants" && <div className="text-center mb-12">
-          <p className="text-[#5f5f5f] text-sm mb-1">See what&apos;s new</p>
-          <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
-             {selectedStage ? selectedStage.name : "Contestants"} ({sorted.length})
+          <p className="text-[11px] uppercase tracking-[4px] mb-2" style={{ color: accentFont ? accent : "#5f5f5f", fontFamily: accentFont, opacity: 0.7 }}>
+            {accentFont ? "★ The Cast ★" : "See what's new"}
+          </p>
+          <h2 className="uppercase leading-none" style={{ fontFamily: accentFont || "inherit", fontSize: accentFont ? "clamp(2.2rem, 5vw, 3.5rem)" : "1.125rem", letterSpacing: accentFont ? "0.12em" : "10px", color: "#fff", fontWeight: accentFont ? 400 : 400 }}>
+             {selectedStage ? selectedStage.name : "Contestants"} <span style={{ color: accentFont ? accent : "inherit" }}>({sorted.length})</span>
           </h2>
          </div>}
 
@@ -698,7 +727,7 @@ export default function CompetitionDetailPage() {
                       </div>
                     )}
                     {stageResult && stageResult !== "active" && (
-                      <div className="absolute right-3 top-3 border border-[#FF5A09]/50 bg-black/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[1.5px] text-[#FFB38F]">
+                      <div className="absolute right-3 top-3 bg-black/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[1.5px]" style={{ border: `1px solid ${accent}80`, color: accentBg, fontFamily: accentFont }}>
                         {stageResult}
                       </div>
                     )}
@@ -708,7 +737,7 @@ export default function CompetitionDetailPage() {
                       href={contestantHref}
                       data-testid={`link-contestant-name-${contestant.id}`}
                     >
-                      <h4 className="text-white group-hover:text-black uppercase font-bold text-base mb-2 transition-colors duration-500 hover:text-[#FF5A09] group-hover:hover:text-[#FF5A09]" data-testid={`text-contestant-name-${contestant.id}`}>
+                      <h4 className="text-white group-hover:text-black uppercase font-bold mb-2 transition-colors duration-500" style={{ fontFamily: accentFont || "inherit", fontSize: accentFont ? "1.3rem" : "1rem", letterSpacing: accentFont ? "0.06em" : "0" }} data-testid={`text-contestant-name-${contestant.id}`}>
                         {contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                       </h4>
                     </Link>
@@ -728,8 +757,8 @@ export default function CompetitionDetailPage() {
 
                     <div className="relative h-1.5 bg-white/10 group-hover:bg-black/10 mb-4 transition-colors duration-500">
                       <div
-                        className="absolute inset-y-0 left-0 bg-[#FF5A09] transition-all duration-1000"
-                        style={{ width: `${pct}%` }}
+                        className="absolute inset-y-0 left-0 transition-all duration-1000"
+                        style={{ width: `${pct}%`, backgroundColor: accent }}
                       />
                     </div>
 
@@ -761,7 +790,8 @@ export default function CompetitionDetailPage() {
                           {!isInPersonOnlyEvent && (
                             <Link
                                href={`/checkout/${competition.id}/${contestant.id}${selectedStage ? `?stageId=${encodeURIComponent(selectedStage.id)}` : ""}`}
-                              className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 bg-[#FF5A09] text-white font-bold text-sm capitalize px-4 py-2.5 min-h-[44px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
+                              className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 font-bold capitalize px-4 py-2.5 min-h-[44px] border transition-all duration-500 cursor-pointer"
+                              style={{ backgroundColor: accentBg, color: accentText, borderColor: accentBg, fontFamily: accentFont || "inherit", fontSize: accentFont ? "1rem" : "0.875rem", letterSpacing: accentFont ? "2px" : "0", clipPath: clipBtn }}
                               onClick={(e) => e.stopPropagation()}
                               data-testid={`button-buy-votes-${contestant.id}`}
                             >
