@@ -3,13 +3,17 @@ import { useState, useEffect, useRef, useCallback } from "react";
 interface FlipCardProps {
   value: string;
   label: string;
+  compact?: boolean;
 }
 
-function FlipCard({ value, label }: FlipCardProps) {
+function FlipCard({ value, label, compact = false }: FlipCardProps) {
   const [currentValue, setCurrentValue] = useState(value);
   const [previousValue, setPreviousValue] = useState(value);
   const [flipping, setFlipping] = useState(false);
   const isFirstRender = useRef(true);
+  const numberClass = compact
+    ? "text-[24px] sm:text-[30px] md:text-[36px]"
+    : "text-[28px] sm:text-[38px] md:text-[44px]";
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -28,16 +32,16 @@ function FlipCard({ value, label }: FlipCardProps) {
   }, [value, currentValue]);
 
   return (
-    <div className="flex flex-col items-center gap-2" data-testid={`countdown-${label.toLowerCase()}`}>
-      <div className="relative w-[60px] h-[76px] sm:w-[80px] sm:h-[100px] md:w-[90px] md:h-[110px]" style={{ perspective: "400px" }}>
+    <div className={`flex flex-col items-center ${compact ? "gap-1" : "gap-2"}`} data-testid={`countdown-${label.toLowerCase()}`}>
+      <div className={`relative ${compact ? "h-[64px] w-[52px] sm:h-[78px] sm:w-[64px] md:h-[88px] md:w-[72px]" : "h-[76px] w-[60px] sm:h-[100px] sm:w-[80px] md:h-[110px] md:w-[90px]"}`} style={{ perspective: "400px" }}>
         <div className="absolute inset-0 rounded-lg overflow-hidden shadow-lg shadow-black/50">
           <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-[#1a1a1a] to-[#141414] border-b border-black/80 overflow-hidden rounded-t-lg">
-            <span className="absolute bottom-0 left-0 right-0 text-center text-[28px] sm:text-[38px] md:text-[44px] font-bold text-[#FF5A09] leading-none translate-y-1/2" style={{ fontFamily: "'Courier New', monospace" }}>
+              <span className={`absolute bottom-0 left-0 right-0 text-center ${numberClass} font-bold text-[#FF5A09] leading-none translate-y-1/2`} style={{ fontFamily: "'Courier New', monospace" }}>
               {currentValue}
             </span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-b from-[#111] to-[#0d0d0d] overflow-hidden rounded-b-lg">
-            <span className="absolute top-0 left-0 right-0 text-center text-[28px] sm:text-[38px] md:text-[44px] font-bold text-[#FF5A09] leading-none -translate-y-1/2" style={{ fontFamily: "'Courier New', monospace" }}>
+              <span className={`absolute top-0 left-0 right-0 text-center ${numberClass} font-bold text-[#FF5A09] leading-none -translate-y-1/2`} style={{ fontFamily: "'Courier New', monospace" }}>
               {currentValue}
             </span>
           </div>
@@ -57,7 +61,7 @@ function FlipCard({ value, label }: FlipCardProps) {
               }}
             >
               <div className="w-full h-full bg-gradient-to-b from-[#1a1a1a] to-[#141414] relative">
-                <span className="absolute bottom-0 left-0 right-0 text-center text-[28px] sm:text-[38px] md:text-[44px] font-bold text-[#FF5A09] leading-none translate-y-1/2" style={{ fontFamily: "'Courier New', monospace" }}>
+                <span className={`absolute bottom-0 left-0 right-0 text-center ${numberClass} font-bold text-[#FF5A09] leading-none translate-y-1/2`} style={{ fontFamily: "'Courier New', monospace" }}>
                   {previousValue}
                 </span>
               </div>
@@ -72,7 +76,7 @@ function FlipCard({ value, label }: FlipCardProps) {
               }}
             >
               <div className="w-full h-full bg-gradient-to-b from-[#111] to-[#0d0d0d] relative">
-                <span className="absolute top-0 left-0 right-0 text-center text-[28px] sm:text-[38px] md:text-[44px] font-bold text-[#FF5A09] leading-none -translate-y-1/2" style={{ fontFamily: "'Courier New', monospace" }}>
+                <span className={`absolute top-0 left-0 right-0 text-center ${numberClass} font-bold text-[#FF5A09] leading-none -translate-y-1/2`} style={{ fontFamily: "'Courier New', monospace" }}>
                   {value}
                 </span>
               </div>
@@ -88,9 +92,10 @@ function FlipCard({ value, label }: FlipCardProps) {
 interface FlipCountdownProps {
   targetDate: Date;
   title?: string;
+  compact?: boolean;
 }
 
-export default function FlipCountdown({ targetDate, title }: FlipCountdownProps) {
+export default function FlipCountdown({ targetDate, title, compact = false }: FlipCountdownProps) {
   const calcTimeLeft = useCallback(() => {
     const now = new Date().getTime();
     const target = targetDate.getTime();
@@ -118,21 +123,21 @@ export default function FlipCountdown({ targetDate, title }: FlipCountdownProps)
   const isExpired = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0 && timeLeft.seconds === 0;
 
   return (
-    <div className="flex flex-col items-center gap-6" data-testid="countdown-timer">
+    <div className={`flex flex-col items-center ${compact ? "gap-4" : "gap-6"}`} data-testid="countdown-timer">
       {title && (
-        <p className="text-white/50 text-xs sm:text-sm uppercase tracking-[4px] sm:tracking-[6px] text-center">{title}</p>
+        <p className={`text-white/50 uppercase text-center ${compact ? "text-[11px] tracking-[3px]" : "text-xs tracking-[4px] sm:text-sm sm:tracking-[6px]"}`}>{title}</p>
       )}
       {isExpired ? (
         <p className="text-[#FF5A09] text-lg sm:text-2xl uppercase tracking-[6px] font-bold">Voting Closed</p>
       ) : (
-        <div className="flex w-full items-center justify-center gap-2 sm:gap-4 md:gap-6">
-          <FlipCard value={pad(timeLeft.days)} label="Days" />
-          <span className="text-[#FF5A09] text-2xl sm:text-3xl font-bold mt-[-20px]">:</span>
-          <FlipCard value={pad(timeLeft.hours)} label="Hours" />
-          <span className="text-[#FF5A09] text-2xl sm:text-3xl font-bold mt-[-20px]">:</span>
-          <FlipCard value={pad(timeLeft.minutes)} label="Minutes" />
-          <span className="text-[#FF5A09] text-2xl sm:text-3xl font-bold mt-[-20px]">:</span>
-          <FlipCard value={pad(timeLeft.seconds)} label="Seconds" />
+        <div className={`flex w-full items-center justify-center ${compact ? "gap-1.5 sm:gap-3 md:gap-4" : "gap-2 sm:gap-4 md:gap-6"}`}>
+          <FlipCard value={pad(timeLeft.days)} label="Days" compact={compact} />
+          <span className={`text-[#FF5A09] font-bold ${compact ? "mt-[-12px] text-xl sm:text-2xl" : "mt-[-20px] text-2xl sm:text-3xl"}`}>:</span>
+          <FlipCard value={pad(timeLeft.hours)} label="Hours" compact={compact} />
+          <span className={`text-[#FF5A09] font-bold ${compact ? "mt-[-12px] text-xl sm:text-2xl" : "mt-[-20px] text-2xl sm:text-3xl"}`}>:</span>
+          <FlipCard value={pad(timeLeft.minutes)} label="Minutes" compact={compact} />
+          <span className={`text-[#FF5A09] font-bold ${compact ? "mt-[-12px] text-xl sm:text-2xl" : "mt-[-20px] text-2xl sm:text-3xl"}`}>:</span>
+          <FlipCard value={pad(timeLeft.seconds)} label="Seconds" compact={compact} />
         </div>
       )}
 

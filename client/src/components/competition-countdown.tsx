@@ -169,29 +169,29 @@ export function CompetitionCountdownPanel({
 
   return (
     <section
-      className="mb-10 overflow-hidden rounded-sm border border-white/10 bg-[#0d0d0d] px-5 py-7 sm:px-8 sm:py-9"
+      className="mb-8 overflow-hidden rounded-sm border border-white/10 bg-[#0d0d0d] px-4 py-5 sm:px-6 sm:py-6"
       data-testid="competition-countdown-panel"
     >
-      <div className="mb-6 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[3px] text-white/45">
+      <div className="mb-4 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[3px] text-white/45">
         <PhaseIcon className={`h-4 w-4 ${phaseCopy.accent}`} />
         <span>{phaseCopy.eyebrow}</span>
       </div>
-      <h2 className={`mb-3 text-center text-xl font-semibold uppercase tracking-[4px] sm:text-2xl ${phaseCopy.accent}`}>
+      <h2 className={`mb-2 text-center text-lg font-semibold uppercase tracking-[4px] sm:text-xl ${phaseCopy.accent}`}>
         {phaseCopy.title}
       </h2>
-      <p className="mx-auto mb-8 max-w-xl text-center text-sm leading-relaxed text-white/50">
+      <p className="mx-auto mb-5 max-w-xl text-center text-sm leading-relaxed text-white/50">
         {phaseCopy.description}
       </p>
 
       {targetDate ? (
-        <FlipCountdown targetDate={targetDate} title={phase === "upcoming" ? "Time until voting opens" : "Time remaining"} />
+        <FlipCountdown targetDate={targetDate} compact title={phase === "upcoming" ? "Time until voting opens" : "Time remaining"} />
       ) : (
         <p className="text-center text-lg font-semibold uppercase tracking-[4px] text-white/35">
           {phase === "live" ? "Voting is open" : "Schedule pending"}
         </p>
       )}
 
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/45">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/45">
         <span className="inline-flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 text-white/30" />
           Starts {formatCompetitionDate(schedule.start, schedule.startIsTbd)}
