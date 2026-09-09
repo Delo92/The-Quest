@@ -1180,7 +1180,7 @@ export async function registerRoutes(
     try {
       await Promise.all([
         createCompetitionDriveFolder(comp.title),
-        createCompetitionVimeoFolder(comp.title),
+        createCompetitionVimeoFolder(comp.title, comp.vimeoFolderUrl),
       ]);
     } catch (folderErr: any) {
       console.error("Auto-create competition folders error (non-blocking):", folderErr.message);
@@ -3223,7 +3223,7 @@ export async function registerRoutes(
         await Promise.all(
            knownCompetitions.map(async (comp) => {
         const [chronicVideos, legacyVideos] = await Promise.all([
-               listTalentVideos(comp.title, talentName).catch(() => []),
+               listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl).catch(() => []),
                listLegacyQuestTalentVideos(comp.title, talentName).catch(() => []),
              ]);
              const seen = new Set<string>();
@@ -3278,13 +3278,20 @@ export async function registerRoutes(
       const maxVideos = compMaxVideos != null ? Math.min(compMaxVideos, globalMaxVideos) : globalMaxVideos;
       const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
 
-      const existingVideos = await listTalentVideos(comp.title, talentName);
+       const existingVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
       const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
       if (existingVideos.filter(v => !hiddenUris.includes(v.uri)).length >= maxVideos) {
         return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
       }
 
-      const chronicTVTicket = await createChronicTVUploadTicket(comp.title, talentName, talentName, fileName, fileSize);
+       const chronicTVTicket = await createChronicTVUploadTicket(
+         comp.title,
+         talentName,
+         talentName,
+         fileName,
+         fileSize,
+         comp.vimeoFolderUrl,
+       );
 
       res.json({
         uploadLink: chronicTVTicket.uploadLink,
@@ -4940,7 +4947,7 @@ export async function registerRoutes(
       if (competitionId) {
         const comp = await storage.getCompetition(competitionId);
         if (!comp) return res.json([]);
-        const videos = await listTalentVideos(comp.title, talentName);
+         const videos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
         res.json(videos
           .filter(v => !hiddenUris.includes(v.uri))
           .map(v => ({
@@ -5003,14 +5010,21 @@ export async function registerRoutes(
 
       try {
         const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
-        const existingVideos = await listTalentVideos(comp.title, talentName);
+         const existingVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
         const visibleVideos = existingVideos.filter(v => !hiddenUris.includes(v.uri));
         if (visibleVideos.length >= maxVideos) {
           return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
         }
       } catch {}
 
-      const chronicTVTicket = await createChronicTVUploadTicket(comp.title, talentName, talentName, fileName, fileSize);
+       const chronicTVTicket = await createChronicTVUploadTicket(
+         comp.title,
+         talentName,
+         talentName,
+         fileName,
+         fileSize,
+         comp.vimeoFolderUrl,
+       );
 
       res.json({
         uploadLink: chronicTVTicket.uploadLink,
@@ -5504,7 +5518,7 @@ export async function registerRoutes(
             talentVideos = talentVideos.filter(Boolean);
           } else {
             // Fallback: walk the Vimeo folder tree (slow, but only when no URIs stored yet)
-            talentVideos = await listTalentVideos(comp.title, talentName);
+             talentVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
           }
 
           const videos = talentVideos.map((v: any) => ({

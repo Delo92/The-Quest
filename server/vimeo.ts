@@ -173,8 +173,13 @@ export async function getTalentFolderInCompetition(competitionName: string, tale
   return findOrCreateFolder(safeTalentName, compFolder.uri);
 }
 
-export async function createCompetitionVimeoFolder(competitionName: string): Promise<VimeoFolder> {
-  return getChronicTVEventVimeoFolder(competitionName);
+export async function createCompetitionVimeoFolder(
+  competitionName: string,
+  folderUrl?: string | null,
+): Promise<VimeoFolder> {
+  return folderUrl
+    ? getVimeoFolderFromUrl(folderUrl)
+    : getChronicTVEventVimeoFolder(competitionName);
 }
 
 export async function createContestantVimeoFolder(competitionName: string, _talentName: string): Promise<VimeoFolder> {
@@ -183,11 +188,17 @@ export async function createContestantVimeoFolder(competitionName: string, _tale
   return getChronicTVEventVimeoFolder(competitionName);
 }
 
-export async function listTalentVideos(competitionName: string, talentName: string): Promise<VimeoVideo[]> {
+export async function listTalentVideos(
+  competitionName: string,
+  talentName: string,
+  folderUrl?: string | null,
+): Promise<VimeoVideo[]> {
   const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   const safeCompName = competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
   try {
-    const folder = await getChronicTVEventVimeoFolder(competitionName);
+    const folder = folderUrl
+      ? await getVimeoFolderFromUrl(folderUrl)
+      : await getChronicTVEventVimeoFolder(competitionName);
     const videosUri = folder.metadata?.connections?.videos?.uri || `${folder.uri}/videos`;
     const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
     const prefix = `${safeCompName} - ${safeTalentName} -`;
@@ -359,13 +370,16 @@ export async function createChronicTVUploadTicket(
   talentName: string,
   chronicTVName: string,
   fileName: string,
-  fileSize: number
+  fileSize: number,
+  folderUrl?: string | null,
 ): Promise<{
   uploadLink: string;
   videoUri: string;
   completeUri: string;
 }> {
-  const folder = await getChronicTVEventVimeoFolder(competitionName);
+  const folder = folderUrl
+    ? await getVimeoFolderFromUrl(folderUrl)
+    : await getChronicTVEventVimeoFolder(competitionName);
   const folderUri = folder.uri;
 
   const videoName = `${competitionName} - ${talentName} - ${fileName}`;
