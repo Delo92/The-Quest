@@ -255,16 +255,55 @@ const DEFAULT_CATEGORIES = [
   { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/template/a4.jpg", order: 4, isActive: true },
   { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: "/images/template/e1.jpg", order: 5, isActive: true },
   { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/template/e2.jpg", order: 6, isActive: true },
+  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/starr-struck-cover.png", order: 7, isActive: true },
 ];
 
 export async function seedCategories() {
   const existing = await firestoreCategories.getAll();
-  if (existing.length > 0) return;
+  const existingNames = new Set(existing.map((category) => category.name.toLowerCase()));
+  const missingCategories = DEFAULT_CATEGORIES.filter((cat) => !existingNames.has(cat.name.toLowerCase()));
 
-  for (const cat of DEFAULT_CATEGORIES) {
+  for (const cat of missingCategories) {
     await firestoreCategories.create({ ...cat, videoUrl: null });
   }
-  console.log(`Categories seeded: ${DEFAULT_CATEGORIES.length} categories (Firestore)`);
+  if (missingCategories.length > 0) {
+    console.log(`Categories seeded: ${missingCategories.map((category) => category.name).join(", ")} (Firestore)`);
+  }
+}
+
+export async function seedStarrStruckCompetition() {
+  const existing = await storage.getCompetitions();
+  const alreadyCreated = existing.some(
+    (competition) => competition.title.toLowerCase() === "starr struck" && competition.category.toLowerCase() === "reality",
+  );
+  if (alreadyCreated) return;
+
+  await storage.createCompetition({
+    title: "Starr Struck",
+    description: "A seven-stage reality competition built around personality, chemistry, creativity, and challenge performance.",
+    category: "Reality",
+    coverImage: "/images/starr-struck-cover.png",
+    coverVideo: null,
+    status: "draft",
+    voteCost: 0,
+    maxVotesPerDay: 1,
+    maxImagesPerContestant: null,
+    maxVideosPerContestant: 1,
+    startDate: null,
+    endDate: null,
+    startDateTbd: true,
+    endDateTbd: true,
+    votingStartDate: null,
+    votingEndDate: null,
+    expectedContestants: 10,
+    onlineVoteWeight: 100,
+    inPersonOnly: false,
+    vimeoFolderUrl: null,
+    chronicBrandsPromotionEnabled: true,
+    createdAt: new Date().toISOString(),
+    createdBy: null,
+  });
+  console.log("Starr Struck competition seeded in the Reality category (draft)");
 }
 
 const DEFAULT_VOTE_PACKAGES = [

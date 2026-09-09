@@ -64,13 +64,14 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
-  const { seedDatabase, seedLivery, seedTestAccounts, seedCategories, seedVotePackages, seedSettings, seedJoinTitle } = await import("./seed");
+  const { seedDatabase, seedLivery, seedTestAccounts, seedCategories, seedStarrStruckCompetition, seedVotePackages, seedSettings, seedJoinTitle } = await import("./seed");
   await seedLivery().catch((err) => console.error("Livery seed error:", err));
   await seedCategories().catch((err) => console.error("Categories seed error:", err));
   await seedVotePackages().catch((err) => console.error("Vote packages seed error:", err));
   await seedSettings().catch((err) => console.error("Settings seed error:", err));
   await seedJoinTitle().catch((err) => console.error("Join title seed error:", err));
   await seedDatabase().catch((err) => console.error("Seed error:", err));
+  await seedStarrStruckCompetition().catch((err) => console.error("Starr Struck seed error:", err));
   await seedTestAccounts().catch((err) => console.error("Test accounts seed error:", err));
 
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
