@@ -202,7 +202,7 @@ function normalizeAndValidateStages(
   for (let index = 1; index < datedStages.length; index++) {
     const previous = datedStages[index - 1];
     const current = datedStages[index];
-    if (Date.parse(current.startDate!) < Date.parse(previous.endDate!)) {
+    if (Date.parse(current.startDate!) <= Date.parse(previous.endDate!)) {
       return { stages, error: `Stage dates overlap: ${previous.name} and ${current.name}` };
     }
   }
@@ -211,7 +211,7 @@ function normalizeAndValidateStages(
   for (const stage of stages) {
     const existing = existingById.get(stage.id);
     const existingEndTime = existing?.endDate
-      ? dateBoundary(existing.endDate, true)
+      ? Date.parse(`${existing.endDate}T23:59:59.999`)
       : Number.NaN;
     if (existing?.endDate && existingEndTime < Date.now()) {
       const prior = { ...existing, order: stage.order };
@@ -1001,7 +1001,7 @@ export async function registerRoutes(
         return Promise.all(
           activeCategories.map(async (cat: any) => {
           const catComps = competitions.filter(c =>
-            (c.status === "active" || c.status === "voting") &&
+            c.status !== "completed" &&
             c.category === cat.name
           );
 
