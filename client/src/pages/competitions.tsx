@@ -35,6 +35,7 @@ export default function Competitions() {
   });
 
   const filtered = competitions?.filter((c) => {
+    if (c.status === "draft") return false;
     if (filter === "active" && c.status !== "active" && c.status !== "voting") return false;
     if (filter === "completed" && c.status !== "completed") return false;
     if (categoryFilter !== "all" && c.category !== categoryFilter) return false;

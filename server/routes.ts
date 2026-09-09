@@ -2573,6 +2573,24 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/competitions/:id/stages/:stageId/submissions", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
+      const comp = await storage.getCompetition(id);
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const stage = getCompetitionStage(comp, req.params.stageId);
+      if (!stage) return res.status(404).json({ message: "Stage not found" });
+
+      const submissions = await firestoreStageSubmissions.getByCompetition(id);
+      setPublicCacheHeaders(res, 15);
+      res.json(submissions.filter((submission) => submission.stageId === stage.id));
+    } catch (error: any) {
+      console.error("Stage submissions error:", error);
+      res.status(500).json({ message: "Failed to get stage submissions" });
+    }
+  });
+
   app.get("/api/admin/users", firebaseAuth, requireAdmin, async (_req, res) => {
     try {
       const profiles = await storage.getAllTalentProfiles();
