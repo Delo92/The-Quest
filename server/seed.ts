@@ -273,14 +273,83 @@ export async function seedCategories() {
 
 export async function seedStarrStruckCompetition() {
   const existing = await storage.getCompetitions();
-  const alreadyCreated = existing.some(
+  const current = existing.find(
     (competition) => competition.title.toLowerCase() === "starr struck" && competition.category.toLowerCase() === "reality",
   );
-  if (alreadyCreated) return;
+  const stages = [
+    {
+      id: "starr-struck-day-1",
+      order: 1,
+      name: "Day 1 — Viral Challenge",
+      description: "Create the most creative and engaging TikTok or Reel featuring me, my music, or the Starr Struck brand. The challenge tests creativity, confidence, and ability to represent the competition online.",
+      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      eliminationCount: 2, isFinale: false,
+    },
+    {
+      id: "starr-struck-day-2",
+      order: 2,
+      name: "Day 2 — Talent Challenge",
+      description: "Each woman gets a few minutes to show her unique talent. It can be singing, rapping, dancing, comedy, poetry, art, or anything that makes her stand out. This is her chance to show what makes her special.",
+      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      eliminationCount: 2, isFinale: false,
+    },
+    {
+      id: "starr-struck-day-3",
+      order: 3,
+      name: "Day 3 — Photo Shoot Challenge",
+      description: "Participate in a professional photoshoot with a set theme. Contestants are judged on confidence, style, presence, and ability to bring the vision to life. The best photo wins.",
+      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      eliminationCount: 2, isFinale: false,
+    },
+    {
+      id: "starr-struck-day-4",
+      order: 4,
+      name: "Day 4 — Dancing Challenge",
+      description: "Learn and perform a routine to one of my songs, or freestyle. Contestants are judged on rhythm, energy, attitude, and how well they perform under pressure.",
+      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      eliminationCount: 2, isFinale: false,
+    },
+    {
+      id: "starr-struck-day-5",
+      order: 5,
+      name: "Day 5 — Workout Challenge",
+      description: "Go through a fun but challenging workout session. This tests discipline, endurance, teamwork, and overall energy. It is not just about being the strongest; it is about effort, attitude, and motivation.",
+      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      eliminationCount: 1, isFinale: false,
+    },
+    {
+      id: "starr-struck-day-6",
+      order: 6,
+      name: "Day 6 — Cooking Challenge",
+      description: "Prepare a dish with a basket of ingredients. Contestants are judged on taste, presentation, creativity, and ability to follow through under pressure. This challenge shows who can really take care of their man.",
+      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      eliminationCount: 1, isFinale: false,
+    },
+    {
+      id: "starr-struck-day-7",
+      order: 7,
+      name: "Day 7 — Music Video Challenge",
+      description: "The final two women star in a music video with me. They are judged on performance, chemistry, creativity, and overall presence on camera. Two finalists become one winner, chosen by the host.",
+      startDate: null, endDate: null, submissionStartDate: null, submissionEndDate: null, votingStartDate: null, votingEndDate: null,
+      eliminationCount: 0, isFinale: true,
+    },
+  ];
+  const description = "Starr Struck is a 7-day reality competition where 10 incredible women go head-to-head in a series of challenges to win $1,000 and the ultimate prize — a real relationship with me. Each day, the women face a new challenge designed to test their creativity, confidence, personality, and compatibility. At the end of each day, 1–2 women are eliminated. On Day 7, only 2 women remain, and I will choose my winner.";
+
+  if (current) {
+    await storage.updateCompetition(current.id, {
+      description,
+      stages,
+      expectedContestants: 10,
+      maxVideosPerContestant: null,
+    });
+    console.log("Starr Struck stages and flyer details synchronized (draft)");
+    return;
+  }
 
   await storage.createCompetition({
     title: "Starr Struck",
-    description: "A seven-stage reality competition built around personality, chemistry, creativity, and challenge performance.",
+    description,
     category: "Reality",
     coverImage: "/images/starr-struck-cover.png",
     coverVideo: null,
@@ -288,7 +357,7 @@ export async function seedStarrStruckCompetition() {
     voteCost: 0,
     maxVotesPerDay: 1,
     maxImagesPerContestant: null,
-    maxVideosPerContestant: 1,
+    maxVideosPerContestant: null,
     startDate: null,
     endDate: null,
     startDateTbd: true,
@@ -300,6 +369,7 @@ export async function seedStarrStruckCompetition() {
     inPersonOnly: false,
     vimeoFolderUrl: null,
     chronicBrandsPromotionEnabled: true,
+    stages,
     createdAt: new Date().toISOString(),
     createdBy: null,
   });

@@ -12,6 +12,7 @@ const COLLECTIONS = {
   CONTESTANTS: "contestants",
   VOTES: "votes",
   VOTE_COUNTS: "voteCounts",
+  STAGE_SUBMISSIONS: "stageSubmissions",
   VOTE_PURCHASES: "votePurchases",
   VOTE_PACKAGES: "votePackages",
   LIVERY: "livery",
@@ -114,12 +115,14 @@ export interface FirestoreContestant {
   talentProfileId: number;
   applicationStatus: string;
   appliedAt: string | null;
+  stageResults?: Record<string, "active" | "eliminated" | "finalist" | "winner">;
 }
 
 export interface FirestoreVote {
   id: number;
   contestantId: number;
   competitionId: number;
+  stageId?: string | null;
   voterIp: string | null;
   userId: string | null;
   purchaseId: number | null;
@@ -157,6 +160,7 @@ export interface FirestoreReferralStats {
 export interface FirestoreVoteCount {
   contestantId: number;
   competitionId: number;
+  stageId?: string | null;
   onlineCount?: number;
   inPersonCount?: number;
   count: number;
@@ -181,11 +185,27 @@ export interface FirestoreVotePurchase {
   guestName: string | null;
   competitionId: number;
   contestantId: number;
+  stageId?: string | null;
   voteCount: number;
   amount: number;
   transactionId: string | null;
   refCode?: string | null;
   purchasedAt: string | null;
+}
+
+export interface FirestoreStageSubmission {
+  id: string;
+  competitionId: number;
+  stageId: string;
+  contestantId: number;
+  talentProfileId: number;
+  mediaType: "image" | "video";
+  mediaUrl: string;
+  thumbnailUrl?: string | null;
+  title: string | null;
+  description: string | null;
+  submittedAt: string;
+  updatedAt: string;
 }
 
 export interface FirestoreVotePackage {
@@ -607,6 +627,15 @@ export const firestoreContestants = {
     return updated.data() as FirestoreContestant;
   },
 
+  async update(id: number, data: Partial<FirestoreContestant>): Promise<FirestoreContestant | null> {
+    const ref = db().collection(COLLECTIONS.CONTESTANTS).doc(String(id));
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    await ref.update(data);
+    const updated = await ref.get();
+    return updated.data() as FirestoreContestant;
+  },
+
   async delete(id: number): Promise<boolean> {
     const ref = db().collection(COLLECTIONS.CONTESTANTS).doc(String(id));
     const doc = await ref.get();
@@ -647,7 +676,11 @@ export const firestoreVotes = {
     };
     await db().collection(COLLECTIONS.VOTES).doc(String(id)).set(vote);
 
-    const countDocId = `${data.competitionId}_${data.contestantId}`;
+    // Keep legacy competition-wide count document IDs intact. Stage counts are
+    // separate documents so stage votes never change the existing leaderboard.
+    const countDocId = data.stageId
+      ? `${data.competitionId}_${data.stageId}_${data.contestantId}`
+      : `${data.competitionId}_${data.contestantId}`;
     const countRef = db().collection(COLLECTIONS.VOTE_COUNTS).doc(countDocId);
     const countDoc = await countRef.get();
     const paidVote = data.purchaseId !== null && data.purchaseId !== undefined;
@@ -669,6 +702,7 @@ export const firestoreVotes = {
         contestantId: data.contestantId,
         competitionId: data.competitionId,
         count: 1,
+        ...(data.stageId ? { stageId: data.stageId } : {}),
         onlineCount: vote.source === "online" ? 1 : 0,
         inPersonCount: vote.source === "in_person" ? 1 : 0,
         freeCount: paidVote ? 0 : 1,
@@ -687,7 +721,8 @@ export const firestoreVotes = {
       .get();
     let total = 0;
     snapshot.docs.forEach(doc => {
-      total += (doc.data() as FirestoreVoteCount).count;
+      const data = doc.data() as FirestoreVoteCount;
+      if (!data.stageId) total += data.count;
     });
     return total;
   },
@@ -699,12 +734,13 @@ export const firestoreVotes = {
       .get();
     let total = 0;
     snapshot.docs.forEach(doc => {
-      total += (doc.data() as FirestoreVoteCount).count;
+      const data = doc.data() as FirestoreVoteCount;
+      if (!data.stageId) total += data.count;
     });
     return total;
   },
 
-  async getVotesTodayByIp(competitionId: number, voterIp: string): Promise<number> {
+  async getVotesTodayByIp(competitionId: number, voterIp: string, stageId?: string): Promise<number> {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayStr = todayStart.toISOString();
@@ -715,7 +751,7 @@ export const firestoreVotes = {
       .where("voterIp", "==", voterIp)
       .where("votedAt", ">=", todayStr)
       .get();
-    return snapshot.docs.length;
+    return stageId ? snapshot.docs.filter(doc => doc.data()?.stageId === stageId).length : snapshot.docs.length;
   },
 
   async getFreeVotesTodayByIpForCategory(competitionIds: number[], voterIp: string): Promise<number> {
@@ -741,18 +777,19 @@ export const firestoreVotes = {
     return total;
   },
 
-  async syncVoteCount(contestantId: number, competitionId: number, totalCount: number): Promise<void> {
-    const docId = `${competitionId}_${contestantId}`;
+  async syncVoteCount(contestantId: number, competitionId: number, totalCount: number, stageId?: string): Promise<void> {
+    const docId = stageId ? `${competitionId}_${stageId}_${contestantId}` : `${competitionId}_${contestantId}`;
     await db().collection(COLLECTIONS.VOTE_COUNTS).doc(docId).set({
       contestantId,
       competitionId,
+      ...(stageId ? { stageId } : {}),
       count: totalCount,
       updatedAt: now(),
     });
   },
 
-  async getVoteCountForContestantInCompetition(contestantId: number, competitionId: number): Promise<number> {
-    const docId = `${competitionId}_${contestantId}`;
+  async getVoteCountForContestantInCompetition(contestantId: number, competitionId: number, stageId?: string): Promise<number> {
+    const docId = stageId ? `${competitionId}_${stageId}_${contestantId}` : `${competitionId}_${contestantId}`;
     const doc = await db().collection(COLLECTIONS.VOTE_COUNTS).doc(docId).get();
     if (!doc.exists) return 0;
     return (doc.data() as FirestoreVoteCount).count;
@@ -762,21 +799,24 @@ export const firestoreVotes = {
     const snapshot = await db().collection(COLLECTIONS.VOTE_COUNTS).get();
     let total = 0;
     snapshot.docs.forEach(doc => {
-      total += (doc.data() as FirestoreVoteCount).count;
+      const data = doc.data() as FirestoreVoteCount;
+      if (!data.stageId) total += data.count;
     });
     return total;
   },
 
-  async getVoteBreakdownByCompetition(competitionId: number): Promise<{ online: number; inPerson: number; total: number }> {
-    const snapshot = await db()
+  async getVoteBreakdownByCompetition(competitionId: number, stageId?: string): Promise<{ online: number; inPerson: number; total: number }> {
+    let query = db()
       .collection(COLLECTIONS.VOTE_COUNTS)
-      .where("competitionId", "==", competitionId)
-      .get();
+      .where("competitionId", "==", competitionId);
+    if (stageId) query = query.where("stageId", "==", stageId);
+    const snapshot = await query.get();
     let online = 0;
     let inPerson = 0;
     let total = 0;
     snapshot.docs.forEach(doc => {
       const data = doc.data() as FirestoreVoteCount;
+      if (!stageId && data.stageId) return;
       online += data.onlineCount || 0;
       inPerson += data.inPersonCount || 0;
       total += data.count;
@@ -784,8 +824,8 @@ export const firestoreVotes = {
     return { online, inPerson, total };
   },
 
-  async getContestantVoteBreakdown(contestantId: number, competitionId: number): Promise<{ online: number; inPerson: number; total: number }> {
-    const docId = `${competitionId}_${contestantId}`;
+  async getContestantVoteBreakdown(contestantId: number, competitionId: number, stageId?: string): Promise<{ online: number; inPerson: number; total: number }> {
+    const docId = stageId ? `${competitionId}_${stageId}_${contestantId}` : `${competitionId}_${contestantId}`;
     const doc = await db().collection(COLLECTIONS.VOTE_COUNTS).doc(docId).get();
     if (!doc.exists) return { online: 0, inPerson: 0, total: 0 };
     const data = doc.data() as FirestoreVoteCount;
@@ -796,48 +836,95 @@ export const firestoreVotes = {
     };
   },
 
-  async getVotesByContestant(contestantId: number, competitionId: number): Promise<FirestoreVote[]> {
-    const snapshot = await db()
+  async getVotesByContestant(contestantId: number, competitionId: number, stageId?: string): Promise<FirestoreVote[]> {
+    let query = db()
       .collection(COLLECTIONS.VOTES)
       .where("contestantId", "==", contestantId)
       .where("competitionId", "==", competitionId)
-      .get();
+      ;
+    if (stageId) query = query.where("stageId", "==", stageId);
+    const snapshot = await query.get();
     return snapshot.docs.map(doc => doc.data() as FirestoreVote);
   },
 
-  async getVotesByCompetition(competitionId: number): Promise<FirestoreVote[]> {
-    const snapshot = await db()
+  async getVotesByCompetition(competitionId: number, stageId?: string): Promise<FirestoreVote[]> {
+    let query = db()
       .collection(COLLECTIONS.VOTES)
       .where("competitionId", "==", competitionId)
-      .get();
+      ;
+    if (stageId) query = query.where("stageId", "==", stageId);
+    const snapshot = await query.get();
     return snapshot.docs.map(doc => doc.data() as FirestoreVote);
   },
 
-  async getPointCountsByCompetition(competitionId: number, freeVoteMultiplier: number): Promise<Map<number, number>> {
-    const countSnapshot = await db()
+  async getPointCountsByCompetition(competitionId: number, freeVoteMultiplier: number, stageId?: string): Promise<Map<number, number>> {
+    let query = db()
       .collection(COLLECTIONS.VOTE_COUNTS)
-      .where("competitionId", "==", competitionId)
-      .get();
+      .where("competitionId", "==", competitionId);
+    if (stageId) query = query.where("stageId", "==", stageId);
+    const countSnapshot = await query.get();
     const aggregateIsComplete = countSnapshot.docs.every(doc => {
       const data = doc.data();
+      if (!stageId && data.stageId) return true;
       return Number(data.freeCount || 0) + Number(data.paidCount || 0) === Number(data.count || 0);
     });
     if (aggregateIsComplete) {
       const points = new Map<number, number>();
       for (const doc of countSnapshot.docs) {
         const data = doc.data();
+        if (!stageId && data.stageId) continue;
         points.set(Number(data.contestantId), Number(data.freeCount || 0) * freeVoteMultiplier + Number(data.paidCount || 0));
       }
       return points;
     }
 
-    const votes = await this.getVotesByCompetition(competitionId);
+    const votes = await this.getVotesByCompetition(competitionId, stageId);
     const points = new Map<number, number>();
     for (const vote of votes) {
       const pointValue = vote.purchaseId ? 1 : freeVoteMultiplier;
       points.set(vote.contestantId, (points.get(vote.contestantId) || 0) + pointValue);
     }
     return points;
+  },
+};
+
+export const firestoreStageSubmissions = {
+  async getByContestant(competitionId: number, contestantId: number): Promise<FirestoreStageSubmission[]> {
+    const snapshot = await db()
+      .collection(COLLECTIONS.STAGE_SUBMISSIONS)
+      .where("competitionId", "==", competitionId)
+      .where("contestantId", "==", contestantId)
+      .get();
+    return snapshot.docs.map(doc => doc.data() as FirestoreStageSubmission);
+  },
+
+  async getByCompetition(competitionId: number): Promise<FirestoreStageSubmission[]> {
+    const snapshot = await db()
+      .collection(COLLECTIONS.STAGE_SUBMISSIONS)
+      .where("competitionId", "==", competitionId)
+      .get();
+    return snapshot.docs.map(doc => doc.data() as FirestoreStageSubmission);
+  },
+
+  async upsert(data: Omit<FirestoreStageSubmission, "id" | "submittedAt" | "updatedAt">): Promise<FirestoreStageSubmission> {
+    const id = `${data.competitionId}_${data.stageId}_${data.contestantId}`;
+    const ref = db().collection(COLLECTIONS.STAGE_SUBMISSIONS).doc(id);
+    const existing = await ref.get();
+    const timestamp = new Date().toISOString();
+    const submission: FirestoreStageSubmission = {
+      ...data,
+      id,
+      submittedAt: existing.exists ? String(existing.data()?.submittedAt || timestamp) : timestamp,
+      updatedAt: timestamp,
+    };
+    await ref.set(submission);
+    return submission;
+  },
+
+  async delete(competitionId: number, stageId: string, contestantId: number): Promise<void> {
+    await db().collection(COLLECTIONS.STAGE_SUBMISSIONS)
+      .doc(`${competitionId}_${stageId}_${contestantId}`)
+      .delete();
   },
 };
 

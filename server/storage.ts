@@ -214,6 +214,10 @@ export class FirestoreStorage implements IStorage {
     return firestoreContestants.updateStatus(id, status);
   }
 
+  async updateContestant(id: number, data: Partial<FirestoreContestant>): Promise<FirestoreContestant | null> {
+    return firestoreContestants.update(id, data);
+  }
+
   async getContestant(competitionId: number, talentProfileId: number): Promise<FirestoreContestant | null> {
     return firestoreContestants.get(competitionId, talentProfileId);
   }
@@ -238,10 +242,11 @@ export class FirestoreStorage implements IStorage {
     return results;
   }
 
-  async castVote(vote: { contestantId: number; competitionId: number; voterIp: string | null; userId?: string | null; purchaseId?: number | null; source?: "online" | "in_person"; refCode?: string | null }): Promise<FirestoreVote> {
+  async castVote(vote: { contestantId: number; competitionId: number; stageId?: string | null; voterIp: string | null; userId?: string | null; purchaseId?: number | null; source?: "online" | "in_person"; refCode?: string | null }): Promise<FirestoreVote> {
     return firestoreVotes.cast({
       contestantId: vote.contestantId,
       competitionId: vote.competitionId,
+      stageId: vote.stageId || null,
       voterIp: vote.voterIp,
       userId: vote.userId || null,
       purchaseId: vote.purchaseId || null,
@@ -258,23 +263,24 @@ export class FirestoreStorage implements IStorage {
     return firestoreVotes.getTotalByCompetition(competitionId);
   }
 
-  async getVoteBreakdownByCompetition(competitionId: number): Promise<{ online: number; inPerson: number; total: number }> {
-    return firestoreVotes.getVoteBreakdownByCompetition(competitionId);
+  async getVoteBreakdownByCompetition(competitionId: number, stageId?: string): Promise<{ online: number; inPerson: number; total: number }> {
+    return firestoreVotes.getVoteBreakdownByCompetition(competitionId, stageId);
   }
 
-  async getContestantVoteBreakdown(contestantId: number, competitionId: number): Promise<{ online: number; inPerson: number; total: number }> {
-    return firestoreVotes.getContestantVoteBreakdown(contestantId, competitionId);
+  async getContestantVoteBreakdown(contestantId: number, competitionId: number, stageId?: string): Promise<{ online: number; inPerson: number; total: number }> {
+    return firestoreVotes.getContestantVoteBreakdown(contestantId, competitionId, stageId);
   }
 
-  async getVotesTodayByIp(competitionId: number, voterIp: string): Promise<number> {
-    return firestoreVotes.getVotesTodayByIp(competitionId, voterIp);
+  async getVotesTodayByIp(competitionId: number, voterIp: string, stageId?: string): Promise<number> {
+    return firestoreVotes.getVotesTodayByIp(competitionId, voterIp, stageId);
   }
 
-  async castBulkVotes(data: { contestantId: number; competitionId: number; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person"; refCode?: string | null }): Promise<void> {
+  async castBulkVotes(data: { contestantId: number; competitionId: number; stageId?: string | null; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person"; refCode?: string | null }): Promise<void> {
     for (let i = 0; i < data.voteCount; i++) {
       await firestoreVotes.cast({
         contestantId: data.contestantId,
         competitionId: data.competitionId,
+        stageId: data.stageId || null,
         voterIp: null,
         userId: data.userId,
         purchaseId: data.purchaseId,

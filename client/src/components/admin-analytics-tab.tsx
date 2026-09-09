@@ -129,6 +129,13 @@ interface VoteDetail {
   free: number;
   purchased: number;
   byContestant?: Record<number, number>;
+  stageBreakdown?: {
+    stageId: string;
+    stageName: string;
+    total: number;
+    free: number;
+    purchased: number;
+  }[];
   contributors: {
     name: string | null;
     email: string | null;
@@ -1129,6 +1136,23 @@ export default function AdminAnalyticsTab() {
                   <div className="text-[10px] text-white/40">Purchased</div>
                 </div>
               </div>
+
+              {competitionVoteDetail.stageBreakdown && competitionVoteDetail.stageBreakdown.length > 0 && (
+                <div>
+                  <h4 className="mb-3 text-xs uppercase tracking-wider text-white/50">Stage / Day Breakdown</h4>
+                  <div className="space-y-2">
+                    {competitionVoteDetail.stageBreakdown.map((stage) => (
+                      <div key={stage.stageId} className="flex items-center justify-between gap-3 rounded-md bg-white/5 px-3 py-2 text-xs">
+                        <span className="min-w-0 truncate text-white/75">{stage.stageName}</span>
+                        <span className="shrink-0 text-right">
+                          <strong className="text-orange-300">{stage.total}</strong>
+                          <span className="ml-2 text-white/35">{stage.free} free · {stage.purchased} paid</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {competitionVoteDetail.contributors.length > 0 && (
                 <div>

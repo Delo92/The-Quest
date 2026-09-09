@@ -23,6 +23,7 @@ import { useState, useMemo } from "react";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
+import type { CompetitionStage } from "@shared/schema";
 
 interface HostStats {
   totalCompetitions: number;
@@ -49,6 +50,7 @@ interface HostCompetition {
   vimeoFolderUrl: string | null;
   createdAt: string | null;
   createdBy: string | null;
+  stages?: CompetitionStage[];
 }
 
 interface ContestantItem {
@@ -65,6 +67,7 @@ interface ContestantItem {
     category: string | null;
     imageUrls: string[] | null;
   };
+  stageResults?: Record<string, "active" | "eliminated" | "finalist" | "winner">;
 }
 
 interface CompReportResponse {
@@ -212,6 +215,7 @@ export default function HostDashboard({ user }: { user: any }) {
   const [editingCompId, setEditingCompId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [accountOpen, setAccountOpen] = useState(false);
+  const [stageResultStage, setStageResultStage] = useState<Record<number, string>>({});
   const [accountForm, setAccountForm] = useState<any>({});
   const [accountPassword, setAccountPassword] = useState("");
   const [showAccountPassword, setShowAccountPassword] = useState(false);
@@ -351,6 +355,18 @@ export default function HostDashboard({ user }: { user: any }) {
       queryClient.invalidateQueries({ queryKey: ["/api/host/stats"] });
       toast({ title: "Application updated" });
     },
+  });
+
+  const stageResultMutation = useMutation({
+    mutationFn: async ({ id, stageId, result }: { id: number; stageId: string; result: "active" | "eliminated" | "finalist" | "winner" }) => {
+      const response = await apiRequest("PATCH", `/api/host/contestants/${id}/stage-result`, { stageId, result });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/host/contestants"] });
+      toast({ title: "Stage result saved" });
+    },
+    onError: (error: Error) => toast({ title: "Could not save stage result", description: error.message, variant: "destructive" }),
   });
 
   const deleteCompMutation = useMutation({
@@ -1185,7 +1201,13 @@ export default function HostDashboard({ user }: { user: any }) {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredContestants.map(c => (
+                {filteredContestants.map(c => {
+                  const hostCompetition = competitions.find((competition) => competition.id === c.competitionId);
+                  const stages = hostCompetition?.stages || [];
+                  const selectedStageId = stageResultStage[c.id] || stages[0]?.id || "";
+                  const selectedStage = stages.find((stage) => stage.id === selectedStageId);
+                  const currentResult = c.stageResults?.[selectedStageId];
+                  return (
                   <div key={c.id} className="rounded-md bg-white/5 border border-white/5 p-4 flex flex-wrap items-center justify-between gap-3" data-testid={`contestant-card-${c.id}`}>
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="h-9 w-9">
@@ -1213,12 +1235,35 @@ export default function HostDashboard({ user }: { user: any }) {
                           </Button>
                         </>
                       )}
+                      {c.applicationStatus === "approved" && stages.length > 0 && (
+                        <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-white/5 pt-3 sm:w-auto sm:border-t-0 sm:pt-0">
+                          <Select value={selectedStageId} onValueChange={(value) => setStageResultStage((current) => ({ ...current, [c.id]: value }))}>
+                            <SelectTrigger className="h-8 w-[170px] bg-white/5 border-white/10 text-xs text-white">
+                              <SelectValue placeholder="Choose day" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-900 border-white/10">
+                              {stages.map((stage) => <SelectItem key={stage.id} value={stage.id} className="text-white">{stage.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <span className="text-[10px] text-white/35">{currentResult || "active"}</span>
+                          <Button size="sm" variant="outline" className="h-8 border-red-400/30 text-red-300 hover:bg-red-500/10" onClick={() => stageResultMutation.mutate({ id: c.id, stageId: selectedStageId, result: "eliminated" })} disabled={stageResultMutation.isPending}>Eliminate</Button>
+                          {selectedStage?.isFinale ? (
+                            <>
+                              <Button size="sm" variant="outline" className="h-8 border-amber-400/30 text-amber-300 hover:bg-amber-500/10" onClick={() => stageResultMutation.mutate({ id: c.id, stageId: selectedStageId, result: "finalist" })} disabled={stageResultMutation.isPending}>Finalist</Button>
+                              <Button size="sm" className="h-8 bg-gradient-to-r from-orange-500 to-amber-500 text-white" onClick={() => stageResultMutation.mutate({ id: c.id, stageId: selectedStageId, result: "winner" })} disabled={stageResultMutation.isPending}>Winner</Button>
+                            </>
+                          ) : (
+                            <Button size="sm" variant="ghost" className="h-8 text-green-300 hover:bg-green-500/10" onClick={() => stageResultMutation.mutate({ id: c.id, stageId: selectedStageId, result: "active" })} disabled={stageResultMutation.isPending}>Keep active</Button>
+                          )}
+                        </div>
+                      )}
                       <Link href={"/talent/" + c.talentProfileId} className="text-xs text-orange-400 flex items-center gap-1" data-testid={`link-profile-contestant-${c.id}`}>
                         <ExternalLink className="h-3 w-3" /> Profile
                       </Link>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </TabsContent>

@@ -16,6 +16,7 @@ import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
 import { slugify } from "@shared/slugify";
 import { InviteDialog } from "@/components/invite-dialog";
+import ContestantStagePanel from "@/components/contestant-stage-panel";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -944,6 +945,10 @@ export default function TalentDashboard({ user, profile }: Props) {
                     </div>
                   </div>
                 ) : null}
+
+                {selectedCompId && (
+                  <ContestantStagePanel competitionId={Number(selectedCompId)} />
+                )}
 
                 {selectedCompId && (
                   <>

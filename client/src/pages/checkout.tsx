@@ -64,6 +64,7 @@ export default function CheckoutPage() {
   const params = useParams<{ competitionId: string; contestantId: string }>();
   const competitionId = params?.competitionId ? parseInt(params.competitionId) : null;
   const contestantId = params?.contestantId ? parseInt(params.contestantId) : null;
+  const stageId = new URLSearchParams(window.location.search).get("stageId");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { getImage, getMedia } = useLivery();
@@ -210,6 +211,7 @@ export default function CheckoutPage() {
           email: email.trim(),
           competitionId,
           contestantId,
+          stageId: stageId || undefined,
           packageId: selectedPackage,
           packageIndex: isIndividual ? undefined : pkgIndex,
           createAccount,

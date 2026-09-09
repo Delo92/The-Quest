@@ -35,6 +35,7 @@ import {
   firestoreTalentProfiles,
   firestoreContestants,
   firestoreChronicBrandsTicketPurchases,
+  firestoreStageSubmissions,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
@@ -91,6 +92,32 @@ function generateUniqueFilename(originalName: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   return `${timestamp}-${random}${ext}`;
+}
+
+function getCompetitionStage(competition: any, stageId: string | null | undefined): CompetitionStage | null {
+  if (!stageId) return null;
+  return (competition.stages || []).find((stage: CompetitionStage) => stage.id === stageId) || null;
+}
+
+function dateBoundary(value: string | null | undefined, endOfDay = false): number | null {
+  if (!value) return null;
+  const parsed = Date.parse(value.includes("T") ? value : `${value}${endOfDay ? "T23:59:59.999" : "T00:00:00.000"}`);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isStageWindowOpen(start: string | null | undefined, end: string | null | undefined): boolean {
+  const startTime = dateBoundary(start);
+  const endTime = dateBoundary(end, true);
+  if (startTime === null || endTime === null) return false;
+  const now = Date.now();
+  return now >= startTime && now <= endTime;
+}
+
+function getStageWindow(stage: CompetitionStage, kind: "submission" | "voting"): [string | null, string | null] {
+  if (kind === "submission") {
+    return [stage.submissionStartDate || stage.startDate, stage.submissionEndDate || stage.endDate];
+  }
+  return [stage.votingStartDate || stage.startDate, stage.votingEndDate || stage.endDate];
 }
 
 function normalizeAndValidateStages(
@@ -1458,6 +1485,7 @@ export async function registerRoutes(
 
   const voteBodySchema = z.object({
     contestantId: z.number().int().positive("contestantId is required"),
+    stageId: z.string().trim().min(1).optional(),
     source: z.enum(["online", "in_person"]).optional().default("online"),
     refCode: z.string().optional().nullable(),
   });
@@ -1471,13 +1499,22 @@ export async function registerRoutes(
       return res.status(400).json({ message: parsed.error.errors[0]?.message || "contestantId required" });
     }
 
-    const { contestantId } = parsed.data;
+    const { contestantId, stageId } = parsed.data;
 
     const comp = await storage.getCompetition(compId);
     if (!comp) return res.status(404).json({ message: "Competition not found" });
     const boundContestant = await firestoreContestants.getById(contestantId);
     if (!boundContestant || boundContestant.competitionId !== compId || boundContestant.applicationStatus !== "approved") {
       return res.status(400).json({ message: "Contestant is not eligible for this competition" });
+    }
+
+    const stage = getCompetitionStage(comp, stageId);
+    if (stageId && !stage) return res.status(404).json({ message: "Stage not found" });
+    if (stage) {
+      const [votingStart, votingEnd] = getStageWindow(stage, "voting");
+      if (!isStageWindowOpen(votingStart, votingEnd)) {
+        return res.status(400).json({ message: `${stage.name} voting is not open right now.` });
+      }
     }
 
     if (comp.status !== "voting" && comp.status !== "active") {
@@ -1490,7 +1527,7 @@ export async function registerRoutes(
 
     const voterIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
 
-    const freeVotesToday = await firestoreVotes.getVotesTodayByIp(compId, voterIp);
+    const freeVotesToday = await firestoreVotes.getVotesTodayByIp(compId, voterIp, stageId);
     const maxFreeVotesPerDay = Math.max(1, Number(comp.maxVotesPerDay) || 1);
     if (freeVotesToday >= maxFreeVotesPerDay) {
       return res.status(429).json({
@@ -1512,6 +1549,7 @@ export async function registerRoutes(
     const vote = await storage.castVote({
       contestantId,
       competitionId: compId,
+      stageId: stageId || null,
       voterIp,
       source,
       refCode: resolvedRefCode,
@@ -1757,6 +1795,39 @@ export async function registerRoutes(
     res.json(enriched);
   });
 
+  app.get("/api/contestants/me/stage-submissions", firebaseAuth, async (req, res) => {
+    try {
+      const competitionId = Number(req.query.competitionId);
+      if (!Number.isInteger(competitionId)) return res.status(400).json({ message: "competitionId is required" });
+      const profile = await storage.getTalentProfileByUserId(req.firebaseUser!.uid);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      const contestant = await storage.getContestant(competitionId, profile.id);
+      if (!contestant) return res.status(404).json({ message: "You are not entered in this competition" });
+      const competition = await storage.getCompetition(competitionId);
+      if (!competition) return res.status(404).json({ message: "Competition not found" });
+      const submissions = await firestoreStageSubmissions.getByContestant(competitionId, contestant.id);
+      res.json({ competition, contestantId: contestant.id, stages: competition.stages || [], submissions });
+    } catch (error: any) {
+      console.error("Stage submissions lookup error:", error);
+      res.status(500).json({ message: "Failed to load stage submissions" });
+    }
+  });
+
+  app.delete("/api/contestants/me/stage-submissions/:competitionId/:stageId", firebaseAuth, async (req, res) => {
+    try {
+      const competitionId = Number(req.params.competitionId);
+      const profile = await storage.getTalentProfileByUserId(req.firebaseUser!.uid);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      const contestant = await storage.getContestant(competitionId, profile.id);
+      if (!contestant) return res.status(404).json({ message: "Contestant entry not found" });
+      await firestoreStageSubmissions.delete(competitionId, req.params.stageId, contestant.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Stage submission delete error:", error);
+      res.status(500).json({ message: "Failed to remove stage submission" });
+    }
+  });
+
 
   app.get("/api/host/competitions", firebaseAuth, requireHost, async (req, res) => {
     const { uid } = req.firebaseUser!;
@@ -1868,6 +1939,27 @@ export async function registerRoutes(
     }
 
     res.json(updated);
+  });
+
+  app.patch("/api/host/contestants/:id/stage-result", firebaseAuth, requireHost, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { stageId, result } = req.body;
+      if (isNaN(id) || typeof stageId !== "string") return res.status(400).json({ message: "Contestant and stage are required" });
+      if (!["active", "eliminated", "finalist", "winner"].includes(result)) return res.status(400).json({ message: "Invalid stage result" });
+      const contestant = await firestoreContestants.getById(id);
+      if (!contestant) return res.status(404).json({ message: "Contestant not found" });
+      const comp = await storage.getCompetition(contestant.competitionId);
+      if (!comp || comp.createdBy !== req.firebaseUser!.uid) return res.status(403).json({ message: "Not your competition" });
+      const stage = getCompetitionStage(comp, stageId);
+      if (!stage) return res.status(404).json({ message: "Stage not found" });
+      const stageResults = { ...(contestant.stageResults || {}), [stageId]: result };
+      const updated = await storage.updateContestant(id, { stageResults });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Stage result update error:", error);
+      res.status(500).json({ message: "Failed to update stage result" });
+    }
   });
 
   app.patch("/api/host/competitions/:id", firebaseAuth, requireHost, async (req, res) => {
@@ -2431,6 +2523,46 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Leaderboard error:", error);
       res.status(500).json({ message: "Failed to get leaderboard" });
+    }
+  });
+
+  app.get("/api/competitions/:id/stages/:stageId/leaderboard", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const comp = await storage.getCompetition(id);
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const stage = getCompetitionStage(comp, req.params.stageId);
+      if (!stage) return res.status(404).json({ message: "Stage not found" });
+      const contestants = await storage.getContestantsByCompetition(id);
+      const votes = await firestoreVotes.getVotesByCompetition(id, stage.id);
+      const leaderboard = contestants.map((contestant) => {
+        const contestantVotes = votes.filter((vote) => vote.contestantId === contestant.id);
+        const freeVotes = contestantVotes.filter((vote) => !vote.purchaseId).length;
+        const paidVotes = contestantVotes.filter((vote) => !!vote.purchaseId).length;
+        return {
+          contestantId: contestant.id,
+          talentProfileId: contestant.talentProfileId,
+          displayName: contestant.talentProfile.displayName,
+          stageName: contestant.talentProfile.stageName,
+          totalVotes: freeVotes + paidVotes,
+          freeVotes,
+          paidVotes,
+        };
+      }).sort((a, b) => b.totalVotes - a.totalVotes);
+      const totalVotes = leaderboard.reduce((sum, entry) => sum + entry.totalVotes, 0);
+      res.json({
+        competitionId: id,
+        stage,
+        totalVotes,
+        leaderboard: leaderboard.map((entry, index) => ({
+          ...entry,
+          rank: index + 1,
+          votePercentage: totalVotes ? Math.round((entry.totalVotes / totalVotes) * 10000) / 100 : 0,
+        })),
+      });
+    } catch (error: any) {
+      console.error("Stage leaderboard error:", error);
+      res.status(500).json({ message: "Failed to get stage leaderboard" });
     }
   });
 
@@ -4499,6 +4631,7 @@ export async function registerRoutes(
     email: z.string().email("Valid email is required"),
     competitionId: z.number().int().positive(),
     contestantId: z.number().int().positive(),
+    stageId: z.string().trim().min(1).optional(),
     packageId: z.string().min(1, "Package is required"),
     packageIndex: z.number().int().min(0).optional(),
     individualVoteCount: z.number().int().min(1).max(10000).optional(),
@@ -4523,7 +4656,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
       }
 
-      const { name, email, competitionId, contestantId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode, billingAddress } = parsed.data;
+      const { name, email, competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode, billingAddress } = parsed.data;
 
       let resolvedRefCode: string | null = referralCode || null;
       if (referralCode) {
@@ -4539,6 +4672,14 @@ export async function registerRoutes(
       if (!comp) return res.status(404).json({ message: "Competition not found" });
       if (comp.status !== "voting" && comp.status !== "active") {
         return res.status(400).json({ message: "Voting is not open for this competition" });
+      }
+      const stage = getCompetitionStage(comp, stageId);
+      if (stageId && !stage) return res.status(404).json({ message: "Stage not found" });
+      if (stage) {
+        const [votingStart, votingEnd] = getStageWindow(stage, "voting");
+        if (!isStageWindowOpen(votingStart, votingEnd)) {
+          return res.status(400).json({ message: `${stage.name} voting is not open right now.` });
+        }
       }
       const boundContestant = await firestoreContestants.getById(contestantId);
       if (!boundContestant || boundContestant.competitionId !== competitionId || boundContestant.applicationStatus !== "approved") {
@@ -4586,9 +4727,9 @@ export async function registerRoutes(
 
       const secured = await secureAuthorizeCharge(req, {
         route: "/api/guest/checkout", amountDollars: amountInDollars,
-        ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}`,
+        ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}:stage:${stageId || "overall"}`,
         competitionId, contestantId, dataDescriptor, dataValue,
-        description: `${totalVotes} votes for ${comp.title}`, customerEmail: email, customerName: name,
+        description: `${totalVotes} votes for ${comp.title}${stage ? ` — ${stage.name}` : ""}`, customerEmail: email, customerName: name,
         billingAddress,
       });
       if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
@@ -4609,6 +4750,7 @@ export async function registerRoutes(
         guestName: name.trim(),
         competitionId,
         contestantId,
+        stageId: stageId || null,
         voteCount: totalVotes,
         amount: Math.round(amountInDollars * 100),
         transactionId: chargeResult.transactionId,
@@ -4618,6 +4760,7 @@ export async function registerRoutes(
       await storage.castBulkVotes({
         contestantId,
         competitionId,
+        stageId: stageId || null,
         userId: viewerId || `guest_${purchase.id}`,
         purchaseId: purchase.id,
         voteCount: totalVotes,
@@ -4920,6 +5063,19 @@ export async function registerRoutes(
 
       const comp = await storage.getCompetition(parseInt(competitionId));
       if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const stageId = typeof req.body.stageId === "string" ? req.body.stageId : null;
+      const stage = getCompetitionStage(comp, stageId);
+      if (stageId) {
+        const contestant = await storage.getContestant(comp.id, profile.id);
+        if (!contestant || contestant.applicationStatus !== "approved") {
+          return res.status(403).json({ message: "You must be an approved contestant to submit stage content." });
+        }
+        if (!stage) return res.status(404).json({ message: "Stage not found" });
+        const [submissionStart, submissionEnd] = getStageWindow(stage, "submission");
+        if (!isStageWindowOpen(submissionStart, submissionEnd)) {
+          return res.status(409).json({ message: `${stage.name} submissions are not open right now.` });
+        }
+      }
 
       const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
       const globalMaxImages = settingsDoc.exists ? (settingsDoc.data()?.maxImagesPerContestant ?? 10) : 10;
@@ -4927,7 +5083,7 @@ export async function registerRoutes(
       const maxImages = compMaxImages != null ? Math.min(compMaxImages, globalMaxImages) : globalMaxImages;
 
       const currentUrls = profile.imageUrls || [];
-      if (currentUrls.length >= maxImages) {
+      if (!stageId && currentUrls.length >= maxImages) {
         return res.status(400).json({ message: `Upload limit reached. Maximum ${maxImages} images allowed per contestant.` });
       }
 
@@ -4974,6 +5130,23 @@ export async function registerRoutes(
         imageUrls: [...currentUrls, primaryUrl],
         imageBackupUrls: [...currentBackupUrls, firebaseUrl],
       });
+
+      if (stageId && stage) {
+        const contestant = await storage.getContestant(comp.id, profile.id);
+        if (contestant) {
+          await firestoreStageSubmissions.upsert({
+            competitionId: comp.id,
+            stageId,
+            contestantId: contestant.id,
+            talentProfileId: profile.id,
+            mediaType: "image",
+            mediaUrl: primaryUrl,
+            thumbnailUrl: primaryUrl,
+            title: req.body.title || stage.name,
+            description: req.body.description || null,
+          });
+        }
+      }
 
       res.json({
         fileId: driveFileId || uniqueName,
@@ -5113,6 +5286,19 @@ export async function registerRoutes(
 
       const comp = await storage.getCompetition(parseInt(competitionId));
       if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const stageId = typeof req.body.stageId === "string" ? req.body.stageId : null;
+      const stage = getCompetitionStage(comp, stageId);
+      if (stageId) {
+        const contestant = await storage.getContestant(comp.id, profile.id);
+        if (!contestant || contestant.applicationStatus !== "approved") {
+          return res.status(403).json({ message: "You must be an approved contestant to submit stage content." });
+        }
+        if (!stage) return res.status(404).json({ message: "Stage not found" });
+        const [submissionStart, submissionEnd] = getStageWindow(stage, "submission");
+        if (!isStageWindowOpen(submissionStart, submissionEnd)) {
+          return res.status(409).json({ message: `${stage.name} submissions are not open right now.` });
+        }
+      }
 
       const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
       const globalMaxVideos = settingsDoc.exists ? (settingsDoc.data()?.maxVideosPerContestant ?? 3) : 3;
@@ -5125,7 +5311,7 @@ export async function registerRoutes(
         const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
          const existingVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
         const visibleVideos = existingVideos.filter(v => !hiddenUris.includes(v.uri));
-        if (visibleVideos.length >= maxVideos) {
+        if (!stageId && visibleVideos.length >= maxVideos) {
           return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
         }
       } catch {}
@@ -5165,9 +5351,24 @@ export async function registerRoutes(
   app.post("/api/vimeo/finalize-upload", firebaseAuth, async (req, res) => {
     try {
       const uid = req.firebaseUser!.uid;
-      const { videoUri, competitionId, completeUri } = req.body;
+      const { videoUri, competitionId, completeUri, stageId } = req.body;
       if (!videoUri || !competitionId) {
         return res.status(400).json({ message: "videoUri and competitionId are required" });
+      }
+      const comp = await storage.getCompetition(Number(competitionId));
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const stage = getCompetitionStage(comp, typeof stageId === "string" ? stageId : null);
+      const profile = await storage.getTalentProfileByUserId(uid);
+      const contestant = profile ? await storage.getContestant(comp.id, profile.id) : null;
+      if (stageId) {
+        if (!contestant || contestant.applicationStatus !== "approved") {
+          return res.status(403).json({ message: "You must be an approved contestant to submit stage content." });
+        }
+        if (!stage) return res.status(404).json({ message: "Stage not found" });
+        const [submissionStart, submissionEnd] = getStageWindow(stage, "submission");
+        if (!isStageWindowOpen(submissionStart, submissionEnd)) {
+          return res.status(409).json({ message: `${stage.name} submissions are not open right now.` });
+        }
       }
 
       const callCompleteUri = async (uri: string | undefined) => {
@@ -5189,12 +5390,24 @@ export async function registerRoutes(
       // Write the Vimeo URI back to Firestore so future page loads can read it
       // directly instead of walking the Vimeo folder tree.
       try {
-        const profile = await storage.getTalentProfileByUserId(uid);
         if (profile) {
           const existing: string[] = profile.videoUrls || [];
           if (!existing.includes(videoUri)) {
             await storage.updateTalentProfile(uid, {
               videoUrls: [...existing, videoUri],
+            });
+          }
+          if (stageId && stage && contestant) {
+            await firestoreStageSubmissions.upsert({
+              competitionId: comp.id,
+              stageId,
+              contestantId: contestant.id,
+              talentProfileId: profile.id,
+              mediaType: "video",
+              mediaUrl: videoUri,
+              thumbnailUrl: null,
+              title: stage.name,
+              description: null,
             });
           }
         }
@@ -5849,9 +6062,10 @@ export async function registerRoutes(
     try {
       const contestantId = parseInt(req.params.contestantId);
       const competitionId = parseInt(req.params.competitionId);
-      const votes = await firestoreVotes.getVotesByContestant(contestantId, competitionId);
+      const stageId = typeof req.query.stageId === "string" ? req.query.stageId : undefined;
+      const votes = await firestoreVotes.getVotesByContestant(contestantId, competitionId, stageId);
       const purchases = await firestoreVotePurchases.getByCompetition(competitionId);
-      const contestantPurchases = purchases.filter(p => p.contestantId === contestantId);
+      const contestantPurchases = purchases.filter(p => p.contestantId === contestantId && (!stageId || p.stageId === stageId));
       const contributors = contestantPurchases.map(p => ({
         name: p.guestName || null,
         email: p.guestEmail || null,
@@ -5883,9 +6097,10 @@ export async function registerRoutes(
   app.get("/api/analytics/competition/:competitionId/votes", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const competitionId = parseInt(req.params.competitionId);
-      const votes = await firestoreVotes.getVotesByCompetition(competitionId);
+      const stageId = typeof req.query.stageId === "string" ? req.query.stageId : undefined;
+      const votes = await firestoreVotes.getVotesByCompetition(competitionId, stageId);
       const purchases = await firestoreVotePurchases.getByCompetition(competitionId);
-      const contributors = purchases.map(p => ({
+      const contributors = purchases.filter(p => !stageId || p.stageId === stageId).map(p => ({
         name: p.guestName || null,
         email: p.guestEmail || null,
         userId: p.userId || p.viewerId || null,
@@ -5901,6 +6116,19 @@ export async function registerRoutes(
       const purchasedVotes = votes.filter(v => v.purchaseId).length;
       const byContestant: Record<number, number> = {};
       votes.forEach(v => { byContestant[v.contestantId] = (byContestant[v.contestantId] || 0) + 1; });
+      const comp = await storage.getCompetition(competitionId);
+      const stageBreakdown = !stageId && comp?.stages
+        ? await Promise.all(comp.stages.map(async (stage) => {
+          const stageVotes = await firestoreVotes.getVotesByCompetition(competitionId, stage.id);
+          return {
+            stageId: stage.id,
+            stageName: stage.name,
+            total: stageVotes.length,
+            free: stageVotes.filter(v => !v.purchaseId).length,
+            purchased: stageVotes.filter(v => !!v.purchaseId).length,
+          };
+        }))
+        : undefined;
       res.json({
         total: votes.length,
         online: onlineVotes,
@@ -5910,6 +6138,8 @@ export async function registerRoutes(
         purchased: purchasedVotes,
         byContestant,
         contributors,
+        stageId: stageId || null,
+        stageBreakdown,
       });
     } catch (err: any) {
       console.error("Competition vote detail error:", err);
