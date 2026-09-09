@@ -8,3 +8,5 @@ Competition sharing uses two URLs: the public competition page under `/thequest/
 **Why:** Hosts need one link for viewers and a separate attribution link for recruiting nominations.
 
 **How to apply:** Keep both links visible anywhere hosts manage or promote a competition, and preserve the existing referral capture path when changing nomination navigation.
+
+Shared referral and competition URLs also need event-specific landing content and server-rendered social metadata; generic CB Publishing or Quest metadata is only appropriate for an unqualified raw site URL.
