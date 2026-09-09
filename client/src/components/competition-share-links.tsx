@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { slugify } from "@shared/slugify";
@@ -12,10 +13,10 @@ interface CompetitionShareLinksProps {
   compact?: boolean;
 }
 
-export function getCompetitionShareLinks(competition: CompetitionShareLinksProps["competition"]) {
+export function getCompetitionShareLinks(competition: CompetitionShareLinksProps["competition"], referralCode?: string | null) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const competitionUrl = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
-  const promoCode = competition.title.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const promoCode = referralCode || competition.title.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   const nominationUrl = `${origin}/?ref=${encodeURIComponent(promoCode)}`;
 
   return { competitionUrl, nominationUrl, promoCode };
@@ -24,7 +25,11 @@ export function getCompetitionShareLinks(competition: CompetitionShareLinksProps
 export default function CompetitionShareLinks({ competition, compact = false }: CompetitionShareLinksProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState<string | null>(null);
-  const links = getCompetitionShareLinks(competition);
+  const { data: shareData } = useQuery<{ referralCode: string | null; referralOwnerName: string | null }>({
+    queryKey: ["/api/competitions", competition.id, "share-links"],
+    staleTime: 5 * 60_000,
+  });
+  const links = getCompetitionShareLinks(competition, shareData?.referralCode);
 
   const copyLink = async (key: "competitionUrl" | "nominationUrl", label: string) => {
     try {
@@ -48,7 +53,7 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
         <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-[#FF0E9B]" />
         <div>
           <h3 className="text-sm font-semibold text-white/90">Share this competition</h3>
-          {!compact && <p className="mt-1 text-xs text-white/45">Use the public page for viewers, or the nomination link to track your promotion code.</p>}
+          {!compact && <p className="mt-1 text-xs text-white/45">Use the public page for viewers, or the host nomination link to track nominations and votes.</p>}
         </div>
       </div>
 
@@ -61,7 +66,7 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
           compact={compact}
         />
         <ShareLinkRow
-          label={`Nomination link · ${links.promoCode}`}
+          label={`Host link · ${links.promoCode}`}
           value={links.nominationUrl}
           onCopy={() => copyLink("nominationUrl", "Nomination link")}
           copied={copied === "nominationUrl"}

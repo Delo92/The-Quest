@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useSearch } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -24,6 +24,13 @@ import HostProfilePublic from "@/pages/host-profile-public";
 import AboutPage from "@/pages/about";
 import FAQPage from "@/pages/faq";
 import ViewerDashboard from "@/pages/viewer-dashboard";
+import ReferralLandingPage from "@/pages/referral-landing";
+
+function RootEntryPage() {
+  const search = useSearch();
+  const hasReferral = Boolean(new URLSearchParams(search).get("ref"));
+  return hasReferral ? <ReferralLandingPage /> : <HomePage />;
+}
 
 function QuestRouter() {
   return (
@@ -88,7 +95,7 @@ function App() {
         <DynamicFavicon />
         <Toaster />
         <Switch>
-          <Route path="/" component={HomePage} />
+          <Route path="/" component={RootEntryPage} />
           <Route path="/thequest" nest component={QuestRouter} />
           <Route path="/:slug" component={CodeLandingPage} />
           <Route component={NotFound} />

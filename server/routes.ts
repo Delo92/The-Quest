@@ -99,6 +99,37 @@ function getCompetitionStage(competition: any, stageId: string | null | undefine
   return (competition.stages || []).find((stage: CompetitionStage) => stage.id === stageId) || null;
 }
 
+async function getOrCreateCompetitionReferralCode(competition: any) {
+  const ownerId = competition.createdBy || `competition:${competition.id}`;
+  const ownerCodes = await firestoreReferrals.getCodesByOwner(ownerId);
+  const existing = ownerCodes.find((code) =>
+    code.competitionId === competition.id || code.competitionIds?.includes(competition.id)
+  );
+  if (existing) return existing;
+
+  const profile = competition.createdBy
+    ? await storage.getTalentProfileByUserId(competition.createdBy)
+    : null;
+  const ownerName = profile?.stageName || profile?.displayName || competition.title;
+  const ownerType = !competition.createdBy
+    ? "custom"
+    : profile?.role === "admin" ? "admin" : "host";
+  const baseCode = slugify(competition.title).replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 16) || `COMP${competition.id}`;
+
+  let code = baseCode;
+  const collision = await firestoreReferrals.getCodeByCode(code);
+  if (collision && collision.ownerId !== ownerId) {
+    code = `${baseCode.slice(0, 11)}${competition.id}`.slice(0, 20);
+  }
+
+  return firestoreReferrals.generateCode(ownerId, ownerType, ownerName, profile?.id || null, {
+    customCode: code,
+    competitionId: competition.id,
+    competitionIds: [competition.id],
+    skipDuplicateCheck: true,
+  });
+}
+
 function dateBoundary(value: string | null | undefined, endOfDay = false): number | null {
   if (!value) return null;
   const parsed = Date.parse(value.includes("T") ? value : `${value}${endOfDay ? "T23:59:59.999" : "T00:00:00.000"}`);
@@ -1223,6 +1254,64 @@ export async function registerRoutes(
     if (!result) return res.status(404).json({ message: "Competition not found" });
     setPublicCacheHeaders(res, 15);
     res.json(result);
+  });
+
+  app.get("/api/competitions/:id/share-links", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
+      const competition = await storage.getCompetition(id);
+      if (!competition) return res.status(404).json({ message: "Competition not found" });
+
+      const referral = await getOrCreateCompetitionReferralCode(competition);
+      res.json({
+        referralCode: referral?.code || null,
+        referralOwnerName: referral?.ownerName || null,
+      });
+    } catch (error: any) {
+      console.error("Competition share link error:", error);
+      res.status(500).json({ message: "Failed to create competition share link" });
+    }
+  });
+
+  app.get("/api/referral/:code/landing", async (req, res) => {
+    try {
+      const code = decodeURIComponent(req.params.code).trim().toUpperCase();
+      const referral = await firestoreReferrals.resolveCode(code);
+      if (!referral?.competitionId) return res.status(404).json({ message: "Referral event not found" });
+
+      const competition = await storage.getCompetition(referral.competitionId);
+      if (!competition) return res.status(404).json({ message: "Competition not found" });
+
+      let hostName = referral.ownerName || competition.title;
+      let hostImageUrl: string | null = null;
+      let hostBio: string | null = null;
+      if (referral.ownerId && !referral.ownerId.startsWith("competition:")) {
+        const profile = await storage.getTalentProfileByUserId(referral.ownerId);
+        if (profile) {
+          hostName = profile.stageName || profile.displayName || hostName;
+          hostImageUrl = profile.imageUrls?.[0] || null;
+          hostBio = profile.bio || null;
+        }
+      }
+
+      res.json({
+        referralCode: referral.code,
+        hostName,
+        hostImageUrl,
+        hostBio,
+        competition: {
+          id: competition.id,
+          title: competition.title,
+          category: competition.category,
+          description: competition.description,
+          coverImage: competition.coverImage,
+        },
+      });
+    } catch (error: any) {
+      console.error("Referral landing error:", error);
+      res.status(500).json({ message: "Failed to load referral event" });
+    }
   });
 
   const createCompetitionSchema = z.object({
