@@ -337,21 +337,17 @@ export async function seedStarrStruckCompetition() {
   const description = "Starr Struck is a 7-day reality competition where 10 incredible women go head-to-head in a series of challenges to win $1,000 and the ultimate prize — a real relationship with me. Each day, the women face a new challenge designed to test their creativity, confidence, personality, and compatibility. At the end of each day, 1–2 women are eliminated. On Day 7, only 2 women remain, and I will choose my winner.";
 
   if (current) {
+    // Only sync content fields — never touch admin-controlled fields like
+    // status, startDate, endDate, votingStartDate, votingEndDate so that
+    // changes made in the admin panel are not overwritten on restart.
     await storage.updateCompetition(current.id, {
       description,
       stages,
       expectedContestants: 10,
       maxVideosPerContestant: null,
-      status: "draft",
-      startDate: null,
-      endDate: null,
-      startDateTbd: true,
-      endDateTbd: true,
-      votingStartDate: null,
-      votingEndDate: null,
       themeColor: "#FF0E9B",
     });
-    console.log("Starr Struck stages and flyer details synchronized (draft)");
+    console.log("Starr Struck stages and flyer details synchronized");
     return;
   }
 
