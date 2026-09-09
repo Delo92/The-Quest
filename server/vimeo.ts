@@ -447,9 +447,17 @@ export async function getVideoById(videoId: string): Promise<VimeoVideo> {
 
 // ChronicTV sync — parallel catalog under ChronicTV > Originals > CB Publishing The Quest
 const CHRONIC_TV_QUEST_SERIES_NAME = "CB Publishing The Quest";
+// Vimeo returns a mixture of personal-library and team-library projects from
+// /me/projects.  The canonical Quest catalog lives in this specific My library
+// folder, so do not rediscover it by name at the ambiguous project root.
+const CHRONIC_TV_MY_LIBRARY_FOLDER_URI = "/me/projects/25521298";
 
 export async function getChronicTVVimeoFolder(): Promise<VimeoFolder> {
-  return findOrCreateFolder("ChronicTV");
+  const folder = await vimeoRequest(CHRONIC_TV_MY_LIBRARY_FOLDER_URI);
+  if (!folder?.uri || folder.name !== "ChronicTV") {
+    throw new Error("The canonical My library ChronicTV folder could not be found");
+  }
+  return folder as VimeoFolder;
 }
 
 export async function getChronicTVOriginalsFolder(): Promise<VimeoFolder> {
