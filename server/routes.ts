@@ -45,6 +45,7 @@ import {
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
+import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchaseFeed";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
   uploadImageToDrive,
@@ -591,6 +592,11 @@ export async function registerRoutes(
     }
     try {
       const result = await recordAuthorizeNetWebhook(req.body);
+      if (!result?.duplicate) {
+        void mirrorAuthorizeNetWebhook(req.body).catch((error) => {
+          console.warn("[OCPurchaseFeed] Authorize.Net state update enqueue failed:", error instanceof Error ? error.message : String(error));
+        });
+      }
       return res.status(200).json({ received: true, duplicate: result?.duplicate || false });
     } catch (error: any) {
       if (error.status) return res.status(error.status).json({ message: error.message });
@@ -4242,6 +4248,26 @@ export async function registerRoutes(
 
       const response = { ...submission, status: autoApproved ? "approved" : submission.status };
       if (paymentId) await completePayment(paymentId, response);
+      if (amountPaid > 0 && transactionId) {
+        void queueOCPurchase({
+          eventId: `join_${submission.id}:paid:${transactionId}`,
+          purchaseId: `join_${submission.id}`,
+          orderId: transactionId,
+          amountCents: amountPaid,
+          customer: { email: email.toLowerCase().trim(), name: fullName.trim() },
+          items: [{
+            sku: `competition-join-${competitionId}`,
+            name: "Competition application",
+            quantity: 1,
+            amountCents: amountPaid,
+          }],
+          occurredAt: new Date().toISOString(),
+          externalReferences: {
+            sourcePaymentId: paymentId || "",
+            sourcePath: "/api/join/submit",
+          },
+        }).catch((error) => console.warn("[OCPurchaseFeed] Join purchase enqueue failed:", error instanceof Error ? error.message : String(error)));
+      }
       res.status(201).json(response);
     } catch (error: any) {
       console.error("Join submission error:", error);
@@ -4539,6 +4565,26 @@ export async function registerRoutes(
         emailSent,
       };
       if (paymentId) await completePayment(paymentId, response);
+      if (amountPaid > 0 && transactionId) {
+        void queueOCPurchase({
+          eventId: `nomination_${submission.id}:paid:${transactionId}`,
+          purchaseId: `nomination_${submission.id}`,
+          orderId: transactionId,
+          amountCents: amountPaid,
+          customer: { email: nominatorEmail.toLowerCase().trim(), name: nominatorName.trim() },
+          items: [{
+            sku: `competition-nomination-${competitionId}`,
+            name: `Nomination for ${nomineeName}`,
+            quantity: 1,
+            amountCents: amountPaid,
+          }],
+          occurredAt: new Date().toISOString(),
+          externalReferences: {
+            sourcePaymentId: paymentId || "",
+            sourcePath: "/api/join/nominate",
+          },
+        }).catch((error) => console.warn("[OCPurchaseFeed] Nomination purchase enqueue failed:", error instanceof Error ? error.message : String(error)));
+      }
       res.status(201).json(response);
     } catch (error: any) {
       console.error("Nomination submission error:", error);
@@ -4710,6 +4756,26 @@ export async function registerRoutes(
       }
 
       if (paymentId) await completePayment(paymentId, submission);
+      if (amountPaid > 0 && transactionId) {
+        void queueOCPurchase({
+          eventId: `host_${submission.id}:paid:${transactionId}`,
+          purchaseId: `host_${submission.id}`,
+          orderId: transactionId,
+          amountCents: amountPaid,
+          customer: { email: email.toLowerCase().trim(), name: fullName.trim() },
+          items: [{
+            sku: `host-package-${verifiedPackageName || "custom"}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+            name: `Host package: ${verifiedPackageName || "Hosting package"}`,
+            quantity: 1,
+            amountCents: amountPaid,
+          }],
+          occurredAt: new Date().toISOString(),
+          externalReferences: {
+            sourcePaymentId: paymentId || "",
+            sourcePath: "/api/host/submit",
+          },
+        }).catch((error) => console.warn("[OCPurchaseFeed] Host purchase enqueue failed:", error instanceof Error ? error.message : String(error)));
+      }
       res.status(201).json(submission);
     } catch (error: any) {
       console.error("Host submission error:", error);
@@ -5032,6 +5098,28 @@ export async function registerRoutes(
         viewerId,
       };
       await completePayment(paymentId, response);
+      void queueOCPurchase({
+        eventId: `vote_${purchase.id}:paid:${chargeResult.transactionId}`,
+        purchaseId: `vote_${purchase.id}`,
+        orderId: chargeResult.transactionId,
+        amountCents: purchase.amount,
+        taxCents: Math.round(taxAmount * 100),
+        customer: { email: email.toLowerCase().trim(), name: name.trim() },
+        items: [{
+          sku: `vote-package-${packageId}`,
+          name: pkg.name,
+          quantity: 1,
+          amountCents: pkg.price,
+        }],
+        paymentMethod: "card",
+        occurredAt: new Date().toISOString(),
+        externalReferences: {
+          sourcePaymentId: paymentId,
+          sourcePath: "/api/guest/checkout",
+          competitionId: String(competitionId),
+          contestantId: String(contestantId),
+        },
+      }).catch((error) => console.warn("[OCPurchaseFeed] Vote purchase enqueue failed:", error instanceof Error ? error.message : String(error)));
       res.status(201).json(response);
     } catch (error: any) {
       console.error("Guest checkout error:", error);
