@@ -41,17 +41,17 @@ export default function Landing() {
   const featuredCountdownTitle = featuredComp?.votingEndDate ? "Voting Closes In" : "Competition Ends In";
 
   const categoryArtwork: Record<string, string> = {
-    music: "/images/template/e5.jpg",
-    modeling: "/images/competition-cover-2.png",
-    "modeling/fashion": "/images/competition-cover-2.png",
-    bodybuilding: "/images/competition-cover-3.png",
-    fitness: "/images/categories/fitness-reference.png",
-    dance: "/images/categories/dance-reference.png",
+    music: "/images/categories/music-performance-generated.png",
+    modeling: "/images/categories/modeling-fashion-generated.png",
+    "modeling/fashion": "/images/categories/modeling-fashion-generated.png",
+    bodybuilding: "/images/categories/bodybuilding-generated.png",
+    fitness: "/images/categories/fitness-generated.png",
+    dance: "/images/categories/dance-generated.png",
     comedy: "/images/categories/comedy-performance-generated.png",
-    acting: "/images/categories/acting-reference.png",
-    "brand & business": "/images/categories/brand-business-reference.png",
-    sports: "/images/categories/sports-reference.png",
-    reality: "/images/competition-cover-1.png",
+    acting: "/images/categories/acting-generated.png",
+    "brand & business": "/images/categories/brand-business-generated.png",
+    sports: "/images/categories/sports-generated.png",
+    reality: "/images/categories/reality-generated.png",
   };
   const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
     const artwork = categoryArtwork[String(cat.name || "").trim().toLowerCase()];
@@ -63,10 +63,10 @@ export default function Landing() {
   const categoryImageFallback = "/images/competition-cover-1.png";
 
   const fallbackCategories = [
-    { id: "fb-music", name: "Music", description: "Singers, rappers, DJs & producers", imageUrl: "/images/template/e5.jpg", isActive: true },
-    { id: "fb-modeling", name: "Modeling/Fashion", description: "Fashion, fitness & swimwear models", imageUrl: "/images/competition-cover-2.png", isActive: true },
-    { id: "fb-bodybuilding", name: "Bodybuilding", description: "Physique, classic & open divisions", imageUrl: "/images/competition-cover-3.png", isActive: true },
-    { id: "fb-dance", name: "Dance", description: "Hip-hop, contemporary & freestyle", imageUrl: "/images/template/bg-4.jpg", isActive: true },
+    { id: "fb-music", name: "Music", description: "Singers, rappers, DJs & producers", imageUrl: "/images/categories/music-performance-generated.png", isActive: true },
+    { id: "fb-modeling", name: "Modeling/Fashion", description: "Fashion, fitness & swimwear models", imageUrl: "/images/categories/modeling-fashion-generated.png", isActive: true },
+    { id: "fb-bodybuilding", name: "Bodybuilding", description: "Physique, classic & open divisions", imageUrl: "/images/categories/bodybuilding-generated.png", isActive: true },
+    { id: "fb-dance", name: "Dance", description: "Hip-hop, contemporary & freestyle", imageUrl: "/images/categories/dance-generated.png", isActive: true },
   ];
 
   const activeCategories = (dynamicCategories && dynamicCategories.length > 0)

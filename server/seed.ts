@@ -249,18 +249,18 @@ export async function seedLivery() {
 }
 
 const DEFAULT_CATEGORIES = [
-  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: "/images/template/e5.jpg", order: 1, isActive: true },
-  { name: "Modeling/Fashion", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: "/images/competition-cover-2.png", order: 2, isActive: true },
-  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: "/images/competition-cover-3.png", order: 3, isActive: true },
-  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/categories/dance-reference.png", order: 4, isActive: true },
+  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: "/images/categories/music-performance-generated.png", order: 1, isActive: true },
+  { name: "Modeling/Fashion", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: "/images/categories/modeling-fashion-generated.png", order: 2, isActive: true },
+  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: "/images/categories/bodybuilding-generated.png", order: 3, isActive: true },
+  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/categories/dance-generated.png", order: 4, isActive: true },
   { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: "/images/categories/comedy-performance-generated.png", order: 5, isActive: true },
-  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/categories/acting-reference.png", order: 6, isActive: true },
-  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/competition-cover-1.png", order: 7, isActive: true },
+  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/categories/acting-generated.png", order: 6, isActive: true },
+  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/categories/reality-generated.png", order: 7, isActive: true },
 ];
 const LEGACY_CATEGORY_ARTWORK: Record<string, string> = {
-  fitness: "/images/categories/fitness-reference.png",
-  sports: "/images/categories/sports-reference.png",
-  "brand & business": "/images/categories/brand-business-reference.png",
+  fitness: "/images/categories/fitness-generated.png",
+  sports: "/images/categories/sports-generated.png",
+  "brand & business": "/images/categories/brand-business-generated.png",
 };
 
 export async function seedCategories() {
