@@ -113,6 +113,20 @@ function getVimeoCoverThumbnail(coverVideo: string | null | undefined): string |
   return `https://vumbnail.com/${match[1]}.jpg`;
 }
 
+function getVimeoCoverEmbedUrl(coverVideo: string | null | undefined): string | null {
+  const match = coverVideo?.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (!match) return null;
+  try {
+    const source = new URL(coverVideo!);
+    const hash = source.searchParams.get("h");
+    return hash
+      ? `https://player.vimeo.com/video/${match[1]}?h=${encodeURIComponent(hash)}`
+      : `https://player.vimeo.com/video/${match[1]}`;
+  } catch {
+    return `https://player.vimeo.com/video/${match[1]}`;
+  }
+}
+
 async function getOrCreateCompetitionReferralCode(competition: any) {
   const ownerId = competition.createdBy || `competition:${competition.id}`;
   const ownerCodes = await firestoreReferrals.getCodesByOwner(ownerId);
@@ -1188,9 +1202,9 @@ export async function registerRoutes(
             }
             if (!competition.coverVideo) return;
 
-            const vimeoMatch = competition.coverVideo.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-            if (vimeoMatch) {
-              videoEmbedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+            const vimeoEmbedUrl = getVimeoCoverEmbedUrl(competition.coverVideo);
+            if (vimeoEmbedUrl) {
+              videoEmbedUrl = vimeoEmbedUrl;
               coverVideoUrl = null;
               const vimeoThumbnail = await getVimeoCoverThumbnail(competition.coverVideo);
               if (vimeoThumbnail) thumbnail = vimeoThumbnail;
