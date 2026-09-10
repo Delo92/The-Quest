@@ -19,3 +19,4 @@
 - [Centralized error logging](chronicdocs-error-logging.md) — ChronicDocs logging behavior is ported onto The Quest's own Firestore helper and identity model
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
 - [Category artwork references](category-artwork-references.md) — category cards use shipped local artwork that matches the approved reference screenshots, not unstable Firebase Storage URLs
+- [Hero gallery competition media](hero-gallery-competition-media.md) — active competition cover media replaces category artwork immediately; only the centered Vimeo player loads

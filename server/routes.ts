@@ -107,6 +107,12 @@ function getCompetitionStage(competition: any, stageId: string | null | undefine
   return (competition.stages || []).find((stage: CompetitionStage) => stage.id === stageId) || null;
 }
 
+function getVimeoCoverThumbnail(coverVideo: string | null | undefined): string | null {
+  const match = coverVideo?.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (!match) return null;
+  return `https://vumbnail.com/${match[1]}.jpg`;
+}
+
 async function getOrCreateCompetitionReferralCode(competition: any) {
   const ownerId = competition.createdBy || `competition:${competition.id}`;
   const ownerCodes = await firestoreReferrals.getCodesByOwner(ownerId);
@@ -1172,9 +1178,29 @@ export async function registerRoutes(
           let displayName: string | null = null;
           let coverVideoUrl: string | null = null;
           let thumbnail: string | null = cat.imageUrl || null;
-           const featuredCompetition = catComps.find((comp: any) => comp.isFeatured);
-           let displayCompetition: any = featuredCompetition || null;
-          if (cat.videoUrl) {
+          const featuredCompetition = catComps.find((comp: any) => comp.isFeatured);
+          let displayCompetition: any = featuredCompetition || null;
+
+          const applyCompetitionCover = async (competition: any) => {
+            if (!competition) return;
+            if (competition.coverImage) {
+              thumbnail = competition.coverImage;
+            }
+            if (!competition.coverVideo) return;
+
+            const vimeoMatch = competition.coverVideo.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+            if (vimeoMatch) {
+              videoEmbedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+              coverVideoUrl = null;
+              const vimeoThumbnail = await getVimeoCoverThumbnail(competition.coverVideo);
+              if (vimeoThumbnail) thumbnail = vimeoThumbnail;
+            } else {
+              coverVideoUrl = competition.coverVideo;
+              videoEmbedUrl = null;
+            }
+          };
+
+          if (catComps.length === 0 && cat.videoUrl) {
             coverVideoUrl = cat.videoUrl;
           }
 
@@ -1187,31 +1213,13 @@ export async function registerRoutes(
               return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
             })[0];
               displayCompetition = earliest;
-            if (earliest?.coverImage) {
-              thumbnail = earliest.coverImage;
-            } else if (earliest?.coverVideo) {
-              // coverImage is null but there is a Vimeo embed — use it for playback
-              // and fetch its thumbnail via the Vimeo API for non-centered display
-              const vimeoMatch = earliest.coverVideo.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-              if (vimeoMatch) {
-                const vimeoId = vimeoMatch[1];
-                videoEmbedUrl = `https://player.vimeo.com/video/${vimeoId}`;
-              }
-            }
+            await applyCompetitionCover(earliest);
           }
 
           if (topContestant && topVoteCount > 0 && topCompetition) {
-             displayCompetition = topCompetition;
+            displayCompetition = topCompetition;
             displayName = topContestant.talentProfile.stageName || topContestant.talentProfile.displayName;
-            if (topContestant.talentProfile.imageUrls?.length > 0) {
-              thumbnail = topContestant.talentProfile.imageUrls[0];
-            }
-            coverVideoUrl = topCompetition.coverVideo || null;
-            const coverVimeoMatch = coverVideoUrl?.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-            if (coverVimeoMatch) {
-              videoEmbedUrl = `https://player.vimeo.com/video/${coverVimeoMatch[1]}`;
-              coverVideoUrl = null;
-            }
+            await applyCompetitionCover(topCompetition);
           }
 
            // An explicitly featured competition should drive its category card,
@@ -1219,20 +1227,7 @@ export async function registerRoutes(
            // This keeps the dashboard's Featured control meaningful on the homepage.
            if (featuredCompetition) {
               displayCompetition = featuredCompetition;
-             if (featuredCompetition.coverImage) {
-               thumbnail = featuredCompetition.coverImage;
-             }
-
-             if (featuredCompetition.coverVideo) {
-               const featuredVimeoMatch = featuredCompetition.coverVideo.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-               if (featuredVimeoMatch) {
-                 videoEmbedUrl = `https://player.vimeo.com/video/${featuredVimeoMatch[1]}`;
-                 coverVideoUrl = null;
-               } else {
-                 coverVideoUrl = featuredCompetition.coverVideo;
-                 videoEmbedUrl = null;
-               }
-             }
+              await applyCompetitionCover(featuredCompetition);
            }
 
           let competitionSlug: string | null = null;
