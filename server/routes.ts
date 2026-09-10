@@ -7094,12 +7094,13 @@ export async function registerRoutes(
   app.get("/api/admin/error-logs", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const { getErrorLogs } = await import('./services/errorLogger');
-      const { startDate, endDate, severity, errorType, userUid, limit, offset } = req.query;
+      const { startDate, endDate, severity, errorType, userLevel, userUid, limit, offset } = req.query;
       const options: any = {};
       if (startDate) options.startDate = new Date(startDate as string);
       if (endDate) options.endDate = new Date(endDate as string);
       if (severity) options.severity = severity as string;
       if (errorType) options.errorType = errorType as string;
+      if (userLevel) options.userLevel = parseInt(userLevel as string, 10);
       if (userUid) options.userUid = userUid as string;
       if (limit) options.limit = parseInt(limit as string);
       if (offset) options.offset = parseInt(offset as string);

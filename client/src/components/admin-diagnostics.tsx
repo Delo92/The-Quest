@@ -24,6 +24,7 @@ interface ErrorLog {
   message: string;
   stackTrace?: string;
   userUid?: string;
+  userLevel?: number | null;
   userName?: string;
   userEmail?: string;
   endpoint?: string;
@@ -272,6 +273,7 @@ function AnalyticsTab() {
 function ErrorLogsTab() {
   const [severityFilter, setSeverityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [userLevelFilter, setUserLevelFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -283,9 +285,10 @@ function ErrorLogsTab() {
   });
   if (severityFilter !== "all") params.set("severity", severityFilter);
   if (typeFilter !== "all") params.set("errorType", typeFilter);
+  if (userLevelFilter !== "all") params.set("userLevel", userLevelFilter);
 
   const { data, isLoading, refetch } = useQuery<{ logs: ErrorLog[]; total: number }>({
-    queryKey: ["/api/admin/error-logs", severityFilter, typeFilter, page],
+    queryKey: ["/api/admin/error-logs", severityFilter, typeFilter, userLevelFilter, page],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/admin/error-logs?${params}`);
       return res.json();
@@ -335,6 +338,18 @@ function ErrorLogsTab() {
                   {t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={userLevelFilter} onValueChange={(v) => { setUserLevelFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-40 bg-white/[0.08] border-white/20 text-white" data-testid="select-user-level-filter">
+              <SelectValue placeholder="All user levels" />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-900 border-white/10 text-white">
+              <SelectItem value="all">All user levels</SelectItem>
+              <SelectItem value="1">Viewer</SelectItem>
+              <SelectItem value="2">Talent</SelectItem>
+              <SelectItem value="3">Host</SelectItem>
+              <SelectItem value="4">Admin</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -387,6 +402,7 @@ function ErrorLogsTab() {
                   <div className="flex items-center gap-3 mt-1 text-xs opacity-60 flex-wrap">
                     {log.endpoint && <span>{log.method} {log.endpoint}</span>}
                     {log.userEmail && <span>{log.userEmail}</span>}
+                    {log.userLevel && <span>Level {log.userLevel}</span>}
                     <span>{new Date(log.timestamp).toLocaleString()}</span>
                   </div>
                 </div>

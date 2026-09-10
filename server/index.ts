@@ -77,6 +77,7 @@ app.use((req, res, next) => {
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+    const firebaseUserLevel = req.firebaseUser?.level;
 
     console.error("Internal Server Error:", err);
 
@@ -98,8 +99,8 @@ app.use((req, res, next) => {
       },
       userUid: req.firebaseUser?.uid,
       userEmail: req.firebaseUser?.email,
-      userLevel: req.firebaseUser?.level >= 1 && req.firebaseUser?.level <= 4
-        ? req.firebaseUser.level as 1 | 2 | 3 | 4
+      userLevel: firebaseUserLevel !== undefined && firebaseUserLevel >= 1 && firebaseUserLevel <= 4
+        ? firebaseUserLevel as 1 | 2 | 3 | 4
         : undefined,
     }).catch(() => {});
 
