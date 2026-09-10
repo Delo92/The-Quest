@@ -1142,7 +1142,13 @@ export async function registerRoutes(
           let hostedBy: string | null = null;
           if (creatorProfile?.role === "admin") hostedBy = "admin";
           else if (creatorProfile?.role === "host") hostedBy = creatorProfile.displayName || "Host";
-          return { ...c, hostedBy, contestantCount, approvedCount };
+          return {
+            ...c,
+            hostedBy,
+            contestantCount,
+            approvedCount,
+            coverVideoThumbnail: c.coverVideo ? getVimeoCoverThumbnail(c.coverVideo) : null,
+          };
         }));
       });
       setPublicCacheHeaders(res, 15);

@@ -1,11 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Users, Search, Megaphone, ArrowRight, Star, Clock3, Play } from "lucide-react";
+import { Calendar, Users, Search, Megaphone, ArrowRight, Star, Clock3 } from "lucide-react";
 import { Link } from "wouter";
 import type { Competition } from "@shared/schema";
 import { slugify } from "@shared/slugify";
 
-type CompetitionExt = Competition & { coverVideo?: string | null; hostedBy?: string | null };
+type CompetitionExt = Competition & {
+  coverVideo?: string | null;
+  coverVideoThumbnail?: string | null;
+  hostedBy?: string | null;
+};
 import { useState } from "react";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
@@ -165,7 +169,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
   const { getImage, getText } = useLivery();
   const websiteName = getText("site_name", "The Quest");
   const schedule = getCompetitionSchedule(competition);
-  const [playingCoverVideo, setPlayingCoverVideo] = useState(false);
+  const coverPoster = competition.coverVideoThumbnail || competition.coverImage || getImage("competition_card_fallback", "/images/competition-cover-1.png");
   return (
     <div
       className="group relative overflow-hidden rounded-sm border border-white/10 bg-[#101010] shadow-[0_16px_35px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FF5A09]/60 hover:shadow-[0_20px_45px_rgba(0,0,0,0.65)]"
@@ -188,56 +192,23 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
             )}
             {competition.coverVideo ? (
               competition.coverVideo.includes("vimeo.com") ? (
-                playingCoverVideo ? (
-                  <iframe
-                    src={`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}autoplay=1&loop=1&muted=1`}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    style={{ border: "none" }}
-                    loading="lazy"
-                    allow="autoplay"
-                    title={`${competition.title} cover video`}
-                  />
-                ) : (
-                  <div
-                    className="relative h-full w-full cursor-pointer"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Play ${competition.title} cover video`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setPlayingCoverVideo(true);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setPlayingCoverVideo(true);
-                      }
-                    }}
-                  >
-                    <img
-                      src={competition.coverImage || getImage("competition_card_fallback", "/images/competition-cover-1.png")}
-                      alt=""
-                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/35">
-                      <span className="flex h-12 w-12 items-center justify-center bg-[#FF5A09] text-white shadow-lg">
-                        <Play className="ml-0.5 h-5 w-5 fill-current" />
-                      </span>
-                    </span>
-                  </div>
-                )
+                <iframe
+                  src={`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}autoplay=1&loop=1&muted=1`}
+                  className="w-full h-full transition-transform duration-700 group-hover:scale-105"
+                  style={{ border: "none" }}
+                  loading="lazy"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  title={`${competition.title} cover video`}
+                />
               ) : (
                 <video
                   src={competition.coverVideo}
+                  autoPlay
                   loop
                   muted
                   playsInline
-                  preload="none"
-                  poster={competition.coverImage || "/images/competition-cover-1.png"}
+                  preload="auto"
+                  poster={competition.coverImage || undefined}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
               )
