@@ -523,19 +523,39 @@ export async function registerRoutes(
       return res.status(400).json({ message: "An error message is required" });
     }
 
+    let authenticatedUser: { uid: string; email: string; level: number } | undefined;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const decoded = await verifyFirebaseToken(authHeader.slice("Bearer ".length));
+        authenticatedUser = {
+          uid: decoded.uid,
+          email: decoded.email || "",
+          level: (decoded.level as number) || 0,
+        };
+      } catch {
+        // Client error reporting remains available when an expired token is attached.
+      }
+    }
+
     const requestedType = typeof body.errorType === "string" ? body.errorType : "client";
     const requestedSeverity = typeof body.severity === "string" ? body.severity : "error";
     const userLevel = Number(body.userLevel);
+    const verifiedUserLevel = authenticatedUser?.level;
 
     await logError({
       errorType: clientErrorTypes.has(requestedType as ErrorType) ? requestedType as ErrorType : "client",
       severity: clientSeverities.has(requestedSeverity as ErrorSeverity) ? requestedSeverity as ErrorSeverity : "error",
       message,
       stackTrace: typeof body.stackTrace === "string" ? body.stackTrace.slice(0, 12_000) : undefined,
-      userUid: typeof body.userUid === "string" ? body.userUid.slice(0, 200) : undefined,
+      userUid: authenticatedUser?.uid || (typeof body.userUid === "string" ? body.userUid.slice(0, 200) : undefined),
       userName: typeof body.userName === "string" ? body.userName.slice(0, 200) : undefined,
-      userEmail: typeof body.userEmail === "string" ? body.userEmail.slice(0, 320) : undefined,
-      userLevel: Number.isInteger(userLevel) && userLevel >= 1 && userLevel <= 4 ? userLevel as 1 | 2 | 3 | 4 : undefined,
+      userEmail: authenticatedUser?.email || (typeof body.userEmail === "string" ? body.userEmail.slice(0, 320) : undefined),
+      userLevel: verifiedUserLevel !== undefined && verifiedUserLevel >= 1 && verifiedUserLevel <= 4
+        ? verifiedUserLevel as 1 | 2 | 3 | 4
+        : Number.isInteger(userLevel) && userLevel >= 1 && userLevel <= 4
+          ? userLevel as 1 | 2 | 3 | 4
+          : undefined,
       endpoint: typeof body.endpoint === "string" ? body.endpoint.slice(0, 500) : undefined,
       method: typeof body.method === "string" ? body.method.slice(0, 20) : "CLIENT",
       statusCode: Number.isInteger(body.statusCode) ? body.statusCode : undefined,
@@ -547,6 +567,7 @@ export async function registerRoutes(
         userAgent: req.headers["user-agent"]?.slice(0, 300),
         ip: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() || req.ip,
         sourceEndpoint: req.path,
+        verifiedIdentity: Boolean(authenticatedUser),
       }),
     });
 
