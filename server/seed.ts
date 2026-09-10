@@ -258,9 +258,9 @@ const DEFAULT_CATEGORIES = [
   { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/competition-cover-1.png", order: 7, isActive: true },
 ];
 const LEGACY_CATEGORY_ARTWORK: Record<string, string> = {
-  fitness: "/images/competition-cover-3.png",
-  sports: "/images/competition-cover-3.png",
-  "brand & business": "/images/competition-cover-1.png",
+  fitness: "/images/categories/fitness-reference.png",
+  sports: "/images/categories/sports-reference.png",
+  "brand & business": "/images/categories/brand-business-reference.png",
 };
 
 export async function seedCategories() {
