@@ -8,3 +8,9 @@ When an active competition exists for a category, the hero gallery and competiti
 **Why:** Showing category artwork or a generic poster first made the competition appear to change media as the carousel moved or between pages. The current product requirement is for assigned cover videos to play without waiting for the card to center or exposing pause, play, mute, or other player controls.
 
 **How to apply:** Keep competition selection and poster resolution in the public responses, preserve competition title/link metadata, render assigned Vimeo/direct-video covers immediately with muted autoplay and loop enabled, disable Vimeo/native controls, and use cover images only when no cover video exists.
+
+Competition seed corrections may replace known generic seed placeholders, but must not overwrite a host/admin’s custom cover media.
+
+**Why:** Existing Firestore competitions outlive seed definitions, so correcting a default alone does not repair the live public page; unrestricted startup rewrites could also erase intentional custom artwork.
+
+**How to apply:** Add targeted startup synchronization for known placeholder assignments and leave non-placeholder images or any assigned cover video untouched.
