@@ -19,6 +19,12 @@ import {
   listFirebaseStorageFiles,
 } from "./firebase-admin";
 import {
+  createErrorContext,
+  logError,
+  type ErrorSeverity,
+  type ErrorType,
+} from "./services/errorLogger";
+import {
   firestoreCategories,
   firestoreVotePackages,
   firestoreSettings,
@@ -481,6 +487,77 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  const clientErrorTypes = new Set<ErrorType>([
+    "registration",
+    "payment",
+    "approval",
+    "queue",
+    "api",
+    "client",
+    "email",
+    "sms",
+    "pdf",
+    "security_alert",
+    "workflow",
+    "system",
+    "database",
+    "authentication",
+    "validation",
+    "form_upload",
+    "admin_operation_error",
+    "workflow_error",
+    "commission_error",
+    "email_error",
+    "sms_error",
+    "package_not_found",
+    "manual_action",
+    "media_permission",
+    "uncategorized",
+  ]);
+  const clientSeverities = new Set<ErrorSeverity>(["critical", "error", "warning", "info"]);
+
+  async function receiveClientError(req: Request, res: Response) {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const message = typeof body.message === "string" ? body.message.trim().slice(0, 1_000) : "";
+    if (!message) {
+      return res.status(400).json({ message: "An error message is required" });
+    }
+
+    const requestedType = typeof body.errorType === "string" ? body.errorType : "client";
+    const requestedSeverity = typeof body.severity === "string" ? body.severity : "error";
+    const userLevel = Number(body.userLevel);
+
+    await logError({
+      errorType: clientErrorTypes.has(requestedType as ErrorType) ? requestedType as ErrorType : "client",
+      severity: clientSeverities.has(requestedSeverity as ErrorSeverity) ? requestedSeverity as ErrorSeverity : "error",
+      message,
+      stackTrace: typeof body.stackTrace === "string" ? body.stackTrace.slice(0, 12_000) : undefined,
+      userUid: typeof body.userUid === "string" ? body.userUid.slice(0, 200) : undefined,
+      userName: typeof body.userName === "string" ? body.userName.slice(0, 200) : undefined,
+      userEmail: typeof body.userEmail === "string" ? body.userEmail.slice(0, 320) : undefined,
+      userLevel: Number.isInteger(userLevel) && userLevel >= 1 && userLevel <= 4 ? userLevel as 1 | 2 | 3 | 4 : undefined,
+      endpoint: typeof body.endpoint === "string" ? body.endpoint.slice(0, 500) : undefined,
+      method: typeof body.method === "string" ? body.method.slice(0, 20) : "CLIENT",
+      statusCode: Number.isInteger(body.statusCode) ? body.statusCode : undefined,
+      wasShownToUser: Boolean(body.wasShownToUser),
+      idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey.slice(0, 300) : undefined,
+      context: createErrorContext({
+        ...(body.context && typeof body.context === "object" ? body.context : {}),
+        route: typeof body.route === "string" ? body.route.slice(0, 500) : undefined,
+        userAgent: req.headers["user-agent"]?.slice(0, 300),
+        ip: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() || req.ip,
+        sourceEndpoint: req.path,
+      }),
+    });
+
+    return res.status(202).json({ success: true });
+  }
+
+  // These endpoints intentionally remain unauthenticated so failures before login
+  // can still be lodged in the centralized error log.
+  app.post("/api/error-logger/client-error", receiveClientError);
+  app.post("/api/error/log-client-error", receiveClientError);
+
   app.post("/api/webhooks/authorize-net", async (req, res) => {
     const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from("");
     const signature = req.headers["x-anet-signature"] as string | undefined;
@@ -535,6 +612,14 @@ export async function registerRoutes(
                 userAgent: req.headers['user-agent']?.substring(0, 250),
                 referer: req.headers['referer'],
                 body: req.method !== 'GET' ? JSON.stringify(req.body || {}).substring(0, 400) : undefined,
+               userUid: req.firebaseUser?.uid,
+               userEmail: req.firebaseUser?.email,
+               userLevel: req.firebaseUser?.level,
+               role: req.firebaseUser?.level === 4 ? "admin"
+                 : req.firebaseUser?.level === 3 ? "host"
+                 : req.firebaseUser?.level === 2 ? "talent"
+                 : req.firebaseUser?.level === 1 ? "viewer"
+                 : undefined,
               }),
             }).catch(() => {});
           }).catch(() => {});
