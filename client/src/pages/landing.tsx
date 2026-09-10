@@ -40,7 +40,22 @@ export default function Landing() {
   const hasFeaturedCountdown = !!featuredCountdownDate && !Number.isNaN(featuredCountdownDate.getTime());
   const featuredCountdownTitle = featuredComp?.votingEndDate ? "Voting Closes In" : "Competition Ends In";
 
+  const categoryArtwork: Record<string, string> = {
+    music: "/images/template/e5.jpg",
+    modeling: "/images/competition-cover-2.png",
+    "modeling/fashion": "/images/competition-cover-2.png",
+    bodybuilding: "/images/competition-cover-3.png",
+    fitness: "/images/categories/fitness-reference.png",
+    dance: "/images/categories/dance-reference.png",
+    comedy: "/images/categories/comedy-reference.png",
+    acting: "/images/categories/acting-reference.png",
+    "brand & business": "/images/categories/brand-business-reference.png",
+    sports: "/images/categories/sports-reference.png",
+    reality: "/images/competition-cover-1.png",
+  };
   const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
+    const artwork = categoryArtwork[String(cat.name || "").trim().toLowerCase()];
+    if (artwork) return { url: `${artwork}?v=category-reference-20260910`, type: "image" };
     if (cat.videoUrl) return { url: cat.videoUrl, type: "video" };
     if (cat.imageUrl) return { url: cat.imageUrl, type: "image" };
     return { url: "/images/competition-cover-1.png", type: "image" };
