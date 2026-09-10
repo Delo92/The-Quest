@@ -14,3 +14,17 @@ mtime_ms = 1788803466492
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/77dc6a47-dbd5-4b61-8979-18e9079b8967/e81e33ce-9e26-4cd1-90aa-db68305c52a6"
 storage_version_token = "1788803478676213"
 content_type = "text/html"
+
+[[outputs]]
+id = "VqAP7U2plSVnMIoVNIdDo"
+uri = "file://client/public/images/categories/comedy-reference.png"
+type = "image"
+title = "Comedy category image"
+description = "The Comedy category artwork currently stored in the project."
+logical_id = "c46bcd2e-53b9-4029-b5fb-583ba9342735"
+content_hash = "sha256:53cef5e7180f709b949ded58899d8686dd9272b4001f715dc4fde4e47992c243"
+size = 126494
+mtime_ms = 1789076899620
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/c46bcd2e-53b9-4029-b5fb-583ba9342735/8aa48935-c7c9-47d3-94e8-8fb8505d09a9"
+storage_version_token = "1789077247538647"
+content_type = "image/png"
