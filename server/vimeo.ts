@@ -30,6 +30,39 @@ export interface VimeoVideo {
   created_time: string;
 }
 
+export function formatVimeoDisplayName(
+  rawName: string | null | undefined,
+  competitionName?: string | null,
+  talentName?: string | null,
+): string {
+  let displayName = String(rawName || "").trim();
+  const safeCompetition = competitionName
+    ? competitionName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim()
+    : "";
+  const safeTalent = talentName
+    ? talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim()
+    : "";
+
+  const knownPrefix = safeCompetition && safeTalent
+    ? `${safeCompetition} - ${safeTalent} -`
+    : "";
+  if (knownPrefix && displayName.startsWith(knownPrefix)) {
+    displayName = displayName.slice(knownPrefix.length).trim();
+  } else {
+    // Legacy Vimeo names contain the competition and contestant path. Keep only
+    // the final human-facing filename instead of exposing that storage convention.
+    const parts = displayName.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+    if (parts.length >= 3) displayName = parts[parts.length - 1];
+  }
+
+  displayName = displayName
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return displayName || "Performance video";
+}
+
 export interface VimeoFolder {
   uri: string;
   name: string;

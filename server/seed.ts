@@ -60,7 +60,7 @@ export async function seedDatabase() {
     {
       title: "Top Model Search",
       description: "Are you the next top model? Show off your runway walk, photogenic qualities, and unique style in this nationwide modeling competition.",
-      category: "Modeling",
+      category: "Modeling/Fashion",
       coverImage: "/images/template/breadcumb.jpg",
       status: "active",
       voteCost: 0,
@@ -249,25 +249,70 @@ export async function seedLivery() {
 }
 
 const DEFAULT_CATEGORIES = [
-  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: "/images/template/a1.jpg", order: 1, isActive: true },
-  { name: "Modeling", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: "/images/template/a2.jpg", order: 2, isActive: true },
-  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: "/images/template/b1.jpg", order: 3, isActive: true },
-  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/template/a4.jpg", order: 4, isActive: true },
-  { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: "/images/template/e1.jpg", order: 5, isActive: true },
-  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/template/e2.jpg", order: 6, isActive: true },
-  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/starr-struck-cover.png", order: 7, isActive: true },
+  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: "/images/template/e5.jpg", order: 1, isActive: true },
+  { name: "Modeling/Fashion", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: "/images/competition-cover-2.png", order: 2, isActive: true },
+  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: "/images/competition-cover-3.png", order: 3, isActive: true },
+  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/template/bg-4.jpg", order: 4, isActive: true },
+  { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: "/images/competition-cover-1.png", order: 5, isActive: true },
+  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/template/b3.jpg", order: 6, isActive: true },
+  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/competition-cover-1.png", order: 7, isActive: true },
 ];
+const LEGACY_CATEGORY_ARTWORK: Record<string, string> = {
+  fitness: "/images/competition-cover-3.png",
+  sports: "/images/competition-cover-3.png",
+  "brand & business": "/images/competition-cover-1.png",
+};
 
 export async function seedCategories() {
   const existing = await firestoreCategories.getAll();
-  const existingNames = new Set(existing.map((category) => category.name.toLowerCase()));
-  const missingCategories = DEFAULT_CATEGORIES.filter((cat) => !existingNames.has(cat.name.toLowerCase()));
+  const existingByName = new Map(existing.map((category) => [category.name.toLowerCase(), category]));
+  const aliases: Record<string, string[]> = {
+    "modeling/fashion": ["modeling", "fashion", "modeling/fashion"],
+  };
+  const created: string[] = [];
+  const updated: string[] = [];
 
-  for (const cat of missingCategories) {
-    await firestoreCategories.create({ ...cat, videoUrl: null });
+  for (const cat of DEFAULT_CATEGORIES) {
+    const match = [cat.name.toLowerCase(), ...(aliases[cat.name.toLowerCase()] || [])]
+      .map((name) => existingByName.get(name))
+      .find(Boolean);
+    if (match) {
+      await firestoreCategories.update(match.id, {
+        name: cat.name,
+        description: cat.description,
+        imageUrl: cat.imageUrl,
+        order: cat.order,
+        isActive: cat.isActive,
+        videoUrl: match.videoUrl || null,
+      });
+      updated.push(cat.name);
+    } else {
+      await firestoreCategories.create({ ...cat, videoUrl: null });
+      created.push(cat.name);
+    }
   }
-  if (missingCategories.length > 0) {
-    console.log(`Categories seeded: ${missingCategories.map((category) => category.name).join(", ")} (Firestore)`);
+
+  // These older built-in categories used Firebase Storage URLs that are no
+  // longer dependable in production. Keep the categories, but point their
+  // artwork at assets shipped with the web build.
+  for (const category of existing) {
+    const replacement = LEGACY_CATEGORY_ARTWORK[category.name.toLowerCase()];
+    if (replacement && category.imageUrl !== replacement) {
+      await firestoreCategories.update(category.id, { imageUrl: replacement });
+      updated.push(category.name);
+    }
+  }
+
+  // Keep existing competitions aligned with the canonical public category name.
+  const competitions = await storage.getCompetitions();
+  await Promise.all(
+    competitions
+      .filter((competition) => competition.category.toLowerCase() === "modeling")
+      .map((competition) => storage.updateCompetition(competition.id, { category: "Modeling/Fashion" })),
+  );
+
+  if (created.length || updated.length) {
+    console.log(`Categories synchronized: ${[...created, ...updated].join(", ")} (Firestore)`);
   }
 }
 

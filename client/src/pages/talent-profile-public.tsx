@@ -10,6 +10,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
+import { formatVideoTitle } from "@/lib/media-utils";
 
 export default function TalentProfilePublic() {
   const params = useParams<{ id: string }>();
@@ -188,8 +189,10 @@ export default function TalentProfilePublic() {
                     >
                       <img
                         src={video.thumbnail || "/images/template/a1.jpg"}
-                        alt={video.name}
+                        alt={formatVideoTitle(video.name)}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500 flex items-center justify-center">
                         <div className="w-14 h-14 bg-[#FF5A09] flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
@@ -198,7 +201,7 @@ export default function TalentProfilePublic() {
                       </div>
                     </div>
                   )}
-                  <p className="text-white/50 text-sm mt-2 text-center truncate">{video.name}</p>
+                  <p className="text-white/50 text-sm mt-2 text-center truncate">{formatVideoTitle(video.name)}</p>
                   {video.competitionFolder && (
                     <p className="text-white/30 text-xs text-center">{video.competitionFolder}</p>
                   )}

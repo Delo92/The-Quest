@@ -37,6 +37,23 @@ export function buildVimeoSrc(url: string, params: string): string | null {
   return `https://player.vimeo.com/video/${id}${qs}`;
 }
 
+/**
+ * Vimeo names retain a private competition/contestant prefix for folder
+ * matching. Public cards should show only the uploaded filename as a readable
+ * title.
+ */
+export function formatVideoTitle(name: string | null | undefined): string {
+  let title = String(name || "").trim();
+  const parts = title.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 3) title = parts[parts.length - 1];
+  title = title
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return title || "Performance video";
+}
+
 export function isFacebookVideo(url: string): boolean {
   return /\/videos\/|\/watch|fb\.watch|\/reel/.test(url);
 }

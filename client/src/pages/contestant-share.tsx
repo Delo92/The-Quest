@@ -13,6 +13,7 @@ import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { slugify } from "@shared/slugify";
+import { formatVideoTitle } from "@/lib/media-utils";
 
 interface ResolvedData {
   competition: {
@@ -385,16 +386,45 @@ export default function ContestantSharePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {(mediaData?.videos || contestant.videos).map((video, i) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
-                  <div className={video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
-                    <iframe
-                      src={`${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=0`}
-                      className="w-full h-full"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                      title={video.name}
-                    />
+                  <div
+                    className={`relative overflow-hidden ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Play ${formatVideoTitle(video.name)}`}
+                    onClick={() => setPlayingVideo(video.uri)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setPlayingVideo(video.uri);
+                      }
+                    }}
+                  >
+                    {playingVideo === video.uri ? (
+                      <iframe
+                        src={`${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1`}
+                        className="w-full h-full"
+                        loading="lazy"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        title={formatVideoTitle(video.name)}
+                      />
+                    ) : (
+                      <>
+                        <FallbackImage
+                          src={video.thumbnail || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                          fallbackSrc={getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                          <span className="flex h-14 w-14 items-center justify-center bg-[#FF5A09] text-white shadow-lg">
+                            <Play className="ml-0.5 h-6 w-6 fill-current" />
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <p className="text-white/50 text-sm mt-2 text-center truncate">{video.name}</p>
+                  <p className="text-white/50 text-sm mt-2 text-center truncate">{formatVideoTitle(video.name)}</p>
                 </div>
               ))}
             </div>

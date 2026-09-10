@@ -11,7 +11,18 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    setHeaders: (res, filePath) => {
+      const normalizedPath = filePath.replace(/\\/g, "/");
+      if (normalizedPath.includes("/assets/")) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (normalizedPath.includes("/images/")) {
+        // Image filenames are stable but intentionally not content-hashed because
+        // admins can replace category/livery artwork.
+        res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      }
+    },
+  }));
 
   // fall through to index.html if the file doesn't exist
   app.use("/{*path}", async (req, res, next) => {

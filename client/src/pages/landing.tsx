@@ -43,14 +43,15 @@ export default function Landing() {
   const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
     if (cat.videoUrl) return { url: cat.videoUrl, type: "video" };
     if (cat.imageUrl) return { url: cat.imageUrl, type: "image" };
-    return { url: getImage("competition_card_fallback", "/images/template/e1.jpg"), type: "image" };
+    return { url: "/images/competition-cover-1.png", type: "image" };
   };
+  const categoryImageFallback = "/images/competition-cover-1.png";
 
   const fallbackCategories = [
-    { id: "fb-music", name: "Music", description: "Singers, rappers, DJs & producers", imageUrl: "/images/template/a1.jpg", isActive: true },
-    { id: "fb-modeling", name: "Modeling", description: "Fashion, fitness & swimwear models", imageUrl: "/images/template/a2.jpg", isActive: true },
-    { id: "fb-bodybuilding", name: "Bodybuilding", description: "Physique, classic & open divisions", imageUrl: "/images/template/b1.jpg", isActive: true },
-    { id: "fb-dance", name: "Dance", description: "Hip-hop, contemporary & freestyle", imageUrl: "/images/template/a4.jpg", isActive: true },
+    { id: "fb-music", name: "Music", description: "Singers, rappers, DJs & producers", imageUrl: "/images/template/e5.jpg", isActive: true },
+    { id: "fb-modeling", name: "Modeling/Fashion", description: "Fashion, fitness & swimwear models", imageUrl: "/images/competition-cover-2.png", isActive: true },
+    { id: "fb-bodybuilding", name: "Bodybuilding", description: "Physique, classic & open divisions", imageUrl: "/images/competition-cover-3.png", isActive: true },
+    { id: "fb-dance", name: "Dance", description: "Hip-hop, contemporary & freestyle", imageUrl: "/images/template/bg-4.jpg", isActive: true },
   ];
 
   const activeCategories = (dynamicCategories && dynamicCategories.length > 0)
@@ -263,12 +264,12 @@ export default function Landing() {
                   <div className="overflow-hidden">
                     {media.type === "video" ? (
                       cats.isVisible ? (
-                        <video src={media.url} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline preload="metadata" />
+                        <video src={media.url} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline preload="none" />
                       ) : (
-                        <img src={cat.imageUrl || getImage("competition_card_fallback", "/images/template/e1.jpg")} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                        <img src={cat.imageUrl || categoryImageFallback} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = categoryImageFallback; }} />
                       )
                     ) : (
-                      <img src={media.url} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+                      <img src={media.url} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = categoryImageFallback; }} />
                     )}
                   </div>
                   <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">

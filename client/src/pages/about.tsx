@@ -14,7 +14,7 @@ import type { Competition } from "@shared/schema";
 type CompetitionExt = Competition & { coverVideo?: string | null };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const CATEGORIES = ["All", "Music", "Dance", "Modeling", "Bodybuilding", "Comedy", "Acting", "Other"];
+const CATEGORIES = ["All", "Music", "Dance", "Modeling/Fashion", "Bodybuilding", "Comedy", "Acting", "Other"];
 const NONPROFIT_LINKS: Record<string, string> = {
   "It Stops Now": "https://www.facebook.com/itstopsnowfoundation",
   "Event Pro Group Foundation": "https://eventprogroupusa.com/Foundation",

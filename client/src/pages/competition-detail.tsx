@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Calendar, Vote, Heart, Users, Crown, Award, ChevronRight, ShoppingCart, Menu, ChevronDown, Clock3, ImageIcon } from "lucide-react";
+import { Trophy, Calendar, Vote, Heart, Users, Crown, Award, ChevronRight, ShoppingCart, Menu, ChevronDown, Clock3, ImageIcon, Play } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -172,6 +172,7 @@ export default function CompetitionDetailPage() {
   );
   const [selectedStageId, setSelectedStageId] = useState("overview");
   const [mobileStageMenuOpen, setMobileStageMenuOpen] = useState(false);
+  const [playingContestantVideo, setPlayingContestantVideo] = useState<string | null>(null);
   const { data: competition, isLoading } = useQuery<CompetitionDetail>({
     queryKey: ["/api/resolve/competition", categorySlug, compSlug],
     enabled: !!categorySlug && !!compSlug,
@@ -677,12 +678,46 @@ export default function CompetitionDetailPage() {
                       </div>
                     ) : selectedStage && stageSubmission?.mediaType === "video" ? (
                       <div className="relative aspect-video w-full overflow-hidden">
-                        <iframe
-                          src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1`}
-                          className="absolute inset-0 h-full w-full pointer-events-none"
-                          allow="autoplay; fullscreen; picture-in-picture"
-                          title={`${contestant.talentProfile.displayName} — ${selectedStage.name}`}
-                        />
+                        {playingContestantVideo === `stage:${contestant.id}:${selectedStage.id}` ? (
+                          <iframe
+                            src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1`}
+                            className="absolute inset-0 h-full w-full"
+                            loading="lazy"
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            title={`${contestant.talentProfile.displayName} — ${selectedStage.name}`}
+                          />
+                        ) : (
+                          <div
+                            className="absolute inset-0 cursor-pointer"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Play ${selectedStage.name} submission`}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setPlayingContestantVideo(`stage:${contestant.id}:${selectedStage.id}`);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setPlayingContestantVideo(`stage:${contestant.id}:${selectedStage.id}`);
+                              }
+                            }}
+                          >
+                            <FallbackImage
+                              src={stageSubmission.thumbnailUrl || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                              fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                              <span className="flex h-12 w-12 items-center justify-center bg-[#FF5A09] text-white shadow-lg">
+                                <Play className="ml-0.5 h-5 w-5 fill-current" />
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : selectedStage && stageSubmission?.mediaType === "image" ? (
                       <FallbackImage
@@ -703,19 +738,55 @@ export default function CompetitionDetailPage() {
                       >
                         Loading media
                       </div>
-                    ) : videos.length > 0 ? videos.map((video) => {
+                    ) : videos.length > 0 ? videos.slice(0, 1).map((video) => {
+                      const videoKey = `${contestant.id}:${video.uri}`;
+                      const thumbnail = video.thumbnail || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback", "/images/template/a1.jpg");
                       const playerUrl = `${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1`;
                       return (
                         <div
                           key={video.uri}
                           className={`relative w-full overflow-hidden ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
                         >
-                          <iframe
-                            src={playerUrl}
-                            className="absolute inset-0 w-full h-full pointer-events-none"
-                            allow="autoplay; fullscreen; picture-in-picture"
-                            title={`${contestant.talentProfile.displayName} — ${video.name}`}
-                          />
+                          {playingContestantVideo === videoKey ? (
+                            <iframe
+                              src={playerUrl}
+                              className="absolute inset-0 w-full h-full"
+                              loading="lazy"
+                              allow="autoplay; fullscreen; picture-in-picture"
+                              title={`${contestant.talentProfile.displayName} — ${video.name}`}
+                            />
+                          ) : (
+                            <div
+                              className="absolute inset-0 cursor-pointer group/video"
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`Play ${video.name}`}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setPlayingContestantVideo(videoKey);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setPlayingContestantVideo(videoKey);
+                                }
+                              }}
+                            >
+                              <FallbackImage
+                                src={thumbnail}
+                                fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                                alt=""
+                                className="h-full w-full object-cover transition-transform duration-700 group-hover/video:scale-105"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/35 transition-colors group-hover/video:bg-black/20">
+                                <span className="flex h-12 w-12 items-center justify-center bg-[#FF5A09] text-white shadow-lg">
+                                  <Play className="ml-0.5 h-5 w-5 fill-current" />
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     }) : (

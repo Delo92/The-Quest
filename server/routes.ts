@@ -84,6 +84,7 @@ import {
   getChronicTVEventVimeoFolder,
   getChronicTVContestantVimeoFolder,
   listCompetitionVideos,
+  formatVimeoDisplayName,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -1966,7 +1967,7 @@ export async function registerRoutes(
         const rawVideos = await listAllTalentVideos(talentName);
         return rawVideos.map(v => ({
           uri: v.uri,
-          name: v.name,
+          name: formatVimeoDisplayName(v.name, null, talentName),
           link: v.link,
           embedUrl: v.player_embed_url,
           duration: v.duration,
@@ -5990,7 +5991,7 @@ export async function registerRoutes(
              }
             const videos = talentVideos.map(v => ({
               uri: v.uri,
-               name: v.name || `${talentName} performance`,
+               name: formatVimeoDisplayName(v.name, comp.title, talentName) || `${talentName} performance`,
               link: v.link,
               embedUrl: v.player_embed_url,
               duration: v.duration,
@@ -6176,7 +6177,7 @@ export async function registerRoutes(
 
           const videos = talentVideos.map((v: any) => ({
             uri: v.uri,
-            name: v.name,
+             name: formatVimeoDisplayName(v.name, comp.title, talentName),
             link: v.link,
             embedUrl: v.player_embed_url,
             duration: v.duration,

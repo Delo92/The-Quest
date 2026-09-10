@@ -897,7 +897,7 @@ export default function HostDashboard({ user }: { user: any }) {
                               <SelectContent className="bg-[#222] border-white/20 text-white">
                                 <SelectItem value="Music">Music</SelectItem>
                                 <SelectItem value="Dance">Dance</SelectItem>
-                                <SelectItem value="Modeling">Modeling</SelectItem>
+                                <SelectItem value="Modeling/Fashion">Modeling/Fashion</SelectItem>
                                 <SelectItem value="Bodybuilding">Bodybuilding</SelectItem>
                                 <SelectItem value="Other">Other</SelectItem>
                               </SelectContent>
