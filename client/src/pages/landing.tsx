@@ -25,22 +25,6 @@ function useInView(threshold = 0.15) {
   return { ref, isVisible };
 }
 
-function useIsMobileViewport() {
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
-  );
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(mediaQuery.matches);
-    update();
-    mediaQuery.addEventListener("change", update);
-    return () => mediaQuery.removeEventListener("change", update);
-  }, []);
-
-  return isMobile;
-}
-
 export default function Landing() {
   useSEO({
     title: "The Quest - Talent Competition & Voting Platform",
@@ -50,8 +34,6 @@ export default function Landing() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { getImage, getMedia, getText } = useLivery();
   const heroMedia = getMedia("hero_background", "/images/template/bg-1.jpg");
-  const isMobileViewport = useIsMobileViewport();
-  const shouldLoadHeroVideo = heroMedia.type === "video" && !isMobileViewport;
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
   const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured?placement=hero"] });
   const featuredCountdownSource = featuredComp?.votingEndDate || featuredComp?.endDate || null;
@@ -158,7 +140,7 @@ export default function Landing() {
             transition={{ duration: 1, delay: 0.7 }}
             className="relative mt-6 sm:mt-8 w-full aspect-video overflow-hidden bg-black"
           >
-            {shouldLoadHeroVideo && detectMediaType(heroMedia.url) === "vimeo" ? (
+            {heroMedia.type === "video" && detectMediaType(heroMedia.url) === "vimeo" ? (
               <iframe
                 src={buildVimeoSrc(heroMedia.url, "background=0&autoplay=1&muted=1&loop=1&autopause=0&controls=0&title=0&byline=0&portrait=0") || ""}
                 className="absolute inset-0 h-full w-full pointer-events-none"
@@ -166,11 +148,11 @@ export default function Landing() {
                 title="Hero background video"
                 aria-hidden="true"
               />
-            ) : shouldLoadHeroVideo ? (
-              <video src={heroMedia.url} className="absolute inset-0 w-full h-full object-contain" autoPlay muted loop playsInline preload="metadata" />
+            ) : heroMedia.type === "video" ? (
+              <video src={heroMedia.url} className="absolute inset-0 w-full h-full object-contain" autoPlay muted loop playsInline preload="auto" />
             ) : (
               <img
-                src={heroMedia.type === "video" ? "/images/hero-bg.webp" : heroMedia.url}
+                src={heroMedia.url}
                 alt=""
                 className="absolute inset-0 w-full h-full object-contain"
                 loading="eager"

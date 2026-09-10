@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, MapPin, Tag, ChevronRight, Play } from "lucide-react";
+import { Trophy, MapPin, Tag, ChevronRight } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
-import { useState } from "react";
 import type { TalentProfile } from "@shared/schema";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
@@ -16,8 +15,6 @@ export default function TalentProfilePublic() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const { getImage } = useLivery();
-
-  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
 
   const { data: profile, isLoading } = useQuery<TalentProfile & { videos?: any[] }>({
     queryKey: ["/api/talent-profiles", id],
@@ -173,34 +170,15 @@ export default function TalentProfilePublic() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {videos.map((video: any, i: number) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
-                  {playingVideo === video.embedUrl ? (
-                    <div className={video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
-                      <iframe
-                        src={`${video.embedUrl}?autoplay=1`}
-                        className="w-full h-full"
-                        allow="autoplay; fullscreen; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      className={`relative overflow-hidden group cursor-pointer ${video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
-                      onClick={() => setPlayingVideo(video.embedUrl)}
-                    >
-                      <img
-                        src={video.thumbnail || "/images/template/a1.jpg"}
-                        alt={formatVideoTitle(video.name)}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors duration-500 flex items-center justify-center">
-                        <div className="w-14 h-14 bg-[#FF5A09] flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-                          <Play className="h-6 w-6 text-white fill-white ml-0.5" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <div className={video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
+                    <iframe
+                      src={`${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&title=0&byline=0&portrait=0`}
+                      className="w-full h-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                      title={formatVideoTitle(video.name)}
+                    />
+                  </div>
                   <p className="text-white/50 text-sm mt-2 text-center truncate">{formatVideoTitle(video.name)}</p>
                   {video.competitionFolder && (
                     <p className="text-white/30 text-xs text-center">{video.competitionFolder}</p>
