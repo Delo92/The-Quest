@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useLivery } from "@/hooks/use-livery";
 import { useGATracking } from "@/hooks/use-ga-tracking";
+import { installClientErrorHandlers } from "@/lib/client-error-logger";
 import NotFound from "@/pages/not-found";
 import CodeLandingPage from "@/pages/code-landing";
 import HomePage from "@/pages/home";
@@ -81,6 +82,7 @@ function DynamicFavicon() {
 
 function App() {
   useGATracking();
+  useEffect(() => installClientErrorHandlers(), []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");

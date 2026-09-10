@@ -92,7 +92,15 @@ app.use((req, res, next) => {
       context: {
         ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip,
         userAgent: req.headers['user-agent']?.substring(0, 250),
+        userUid: req.firebaseUser?.uid,
+        userEmail: req.firebaseUser?.email,
+        userLevel: req.firebaseUser?.level,
       },
+      userUid: req.firebaseUser?.uid,
+      userEmail: req.firebaseUser?.email,
+      userLevel: req.firebaseUser?.level >= 1 && req.firebaseUser?.level <= 4
+        ? req.firebaseUser.level as 1 | 2 | 3 | 4
+        : undefined,
     }).catch(() => {});
 
     if (res.headersSent) {
