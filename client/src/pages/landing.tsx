@@ -25,6 +25,22 @@ function useInView(threshold = 0.15) {
   return { ref, isVisible };
 }
 
+function useIsMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  return isMobile;
+}
+
 export default function Landing() {
   useSEO({
     title: "The Quest - Talent Competition & Voting Platform",
@@ -33,6 +49,9 @@ export default function Landing() {
   });
   const heroRef = useRef<HTMLDivElement>(null);
   const { getImage, getMedia, getText } = useLivery();
+  const heroMedia = getMedia("hero_background", "/images/template/bg-1.jpg");
+  const isMobileViewport = useIsMobileViewport();
+  const shouldLoadHeroVideo = heroMedia.type === "video" && !isMobileViewport;
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
   const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured?placement=hero"] });
   const featuredCountdownSource = featuredComp?.votingEndDate || featuredComp?.endDate || null;
@@ -41,17 +60,17 @@ export default function Landing() {
   const featuredCountdownTitle = featuredComp?.votingEndDate ? "Voting Closes In" : "Competition Ends In";
 
   const categoryArtwork: Record<string, string> = {
-    music: "/images/categories/music-performance-generated.png",
-    modeling: "/images/categories/modeling-fashion-generated.png",
-    "modeling/fashion": "/images/categories/modeling-fashion-generated.png",
-    bodybuilding: "/images/categories/bodybuilding-generated.png",
-    fitness: "/images/categories/fitness-generated.png",
-    dance: "/images/categories/dance-generated.png",
-    comedy: "/images/categories/comedy-performance-generated.png",
-    acting: "/images/categories/acting-generated.png",
-    "brand & business": "/images/categories/brand-business-generated.png",
-    sports: "/images/categories/sports-generated.png",
-    reality: "/images/categories/reality-generated.png",
+    music: "/images/categories/music-performance-generated.webp",
+    modeling: "/images/categories/modeling-fashion-generated.webp",
+    "modeling/fashion": "/images/categories/modeling-fashion-generated.webp",
+    bodybuilding: "/images/categories/bodybuilding-generated.webp",
+    fitness: "/images/categories/fitness-generated.webp",
+    dance: "/images/categories/dance-generated.webp",
+    comedy: "/images/categories/comedy-performance-generated.webp",
+    acting: "/images/categories/acting-generated.webp",
+    "brand & business": "/images/categories/brand-business-generated.webp",
+    sports: "/images/categories/sports-generated.webp",
+    reality: "/images/categories/reality-generated.webp",
   };
   const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
     const artwork = categoryArtwork[String(cat.name || "").trim().toLowerCase()];
@@ -63,10 +82,10 @@ export default function Landing() {
   const categoryImageFallback = "/images/competition-cover-1.png";
 
   const fallbackCategories = [
-    { id: "fb-music", name: "Music", description: "Singers, rappers, DJs & producers", imageUrl: "/images/categories/music-performance-generated.png", isActive: true },
-    { id: "fb-modeling", name: "Modeling/Fashion", description: "Fashion, fitness & swimwear models", imageUrl: "/images/categories/modeling-fashion-generated.png", isActive: true },
-    { id: "fb-bodybuilding", name: "Bodybuilding", description: "Physique, classic & open divisions", imageUrl: "/images/categories/bodybuilding-generated.png", isActive: true },
-    { id: "fb-dance", name: "Dance", description: "Hip-hop, contemporary & freestyle", imageUrl: "/images/categories/dance-generated.png", isActive: true },
+    { id: "fb-music", name: "Music", description: "Singers, rappers, DJs & producers", imageUrl: "/images/categories/music-performance-generated.webp", isActive: true },
+    { id: "fb-modeling", name: "Modeling/Fashion", description: "Fashion, fitness & swimwear models", imageUrl: "/images/categories/modeling-fashion-generated.webp", isActive: true },
+    { id: "fb-bodybuilding", name: "Bodybuilding", description: "Physique, classic & open divisions", imageUrl: "/images/categories/bodybuilding-generated.webp", isActive: true },
+    { id: "fb-dance", name: "Dance", description: "Hip-hop, contemporary & freestyle", imageUrl: "/images/categories/dance-generated.webp", isActive: true },
   ];
 
   const activeCategories = (dynamicCategories && dynamicCategories.length > 0)
@@ -139,18 +158,24 @@ export default function Landing() {
             transition={{ duration: 1, delay: 0.7 }}
             className="relative mt-6 sm:mt-8 w-full aspect-video overflow-hidden bg-black"
           >
-            {detectMediaType(getMedia("hero_background", "/images/template/bg-1.jpg").url) === "vimeo" ? (
+            {shouldLoadHeroVideo && detectMediaType(heroMedia.url) === "vimeo" ? (
               <iframe
-                src={buildVimeoSrc(getMedia("hero_background", "/images/template/bg-1.jpg").url, "background=0&autoplay=1&muted=1&loop=1&autopause=0&controls=0&title=0&byline=0&portrait=0") || ""}
+                src={buildVimeoSrc(heroMedia.url, "background=0&autoplay=1&muted=1&loop=1&autopause=0&controls=0&title=0&byline=0&portrait=0") || ""}
                 className="absolute inset-0 h-full w-full pointer-events-none"
                 allow="autoplay; fullscreen; picture-in-picture"
                 title="Hero background video"
                 aria-hidden="true"
               />
-            ) : getMedia("hero_background", "/images/template/bg-1.jpg").type === "video" ? (
-              <video src={getMedia("hero_background", "/images/template/bg-1.jpg").url} className="absolute inset-0 w-full h-full object-contain" autoPlay muted loop playsInline />
+            ) : shouldLoadHeroVideo ? (
+              <video src={heroMedia.url} className="absolute inset-0 w-full h-full object-contain" autoPlay muted loop playsInline preload="metadata" />
             ) : (
-              <img src={getImage("hero_background", "/images/template/bg-1.jpg")} alt="" className="absolute inset-0 w-full h-full object-contain" />
+              <img
+                src={heroMedia.type === "video" ? "/images/hero-bg.webp" : heroMedia.url}
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain"
+                loading="eager"
+                decoding="async"
+              />
             )}
             <div className="absolute inset-0 bg-black/35 pointer-events-none" />
           </motion.div>

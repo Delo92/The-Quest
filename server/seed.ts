@@ -61,7 +61,7 @@ export async function seedDatabase() {
       title: "Top Model Search",
       description: "Are you the next top model? Show off your runway walk, photogenic qualities, and unique style in this nationwide modeling competition.",
       category: "Modeling/Fashion",
-      coverImage: "/images/categories/modeling-fashion-generated.png",
+      coverImage: "/images/categories/modeling-fashion-generated.webp",
       status: "active",
       voteCost: 0,
       maxVotesPerDay: 10,
@@ -120,10 +120,11 @@ export async function synchronizeCompetitionMedia() {
     modelingCompetition &&
     !modelingCompetition.coverVideo &&
     (!modelingCompetition.coverImage ||
-      modelingCompetition.coverImage === "/images/template/breadcumb.jpg")
+      modelingCompetition.coverImage === "/images/template/breadcumb.jpg" ||
+      modelingCompetition.coverImage === "/images/categories/modeling-fashion-generated.png")
   ) {
     await storage.updateCompetition(modelingCompetition.id, {
-      coverImage: "/images/categories/modeling-fashion-generated.png",
+      coverImage: "/images/categories/modeling-fashion-generated.webp",
     });
     console.log("Top Model Search cover synchronized to Modeling/Fashion artwork");
   }
@@ -270,18 +271,18 @@ export async function seedLivery() {
 }
 
 const DEFAULT_CATEGORIES = [
-  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: "/images/categories/music-performance-generated.png", order: 1, isActive: true },
-  { name: "Modeling/Fashion", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: "/images/categories/modeling-fashion-generated.png", order: 2, isActive: true },
-  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: "/images/categories/bodybuilding-generated.png", order: 3, isActive: true },
-  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/categories/dance-generated.png", order: 4, isActive: true },
-  { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: "/images/categories/comedy-performance-generated.png", order: 5, isActive: true },
-  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/categories/acting-generated.png", order: 6, isActive: true },
-  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/categories/reality-generated.png", order: 7, isActive: true },
+  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: "/images/categories/music-performance-generated.webp", order: 1, isActive: true },
+  { name: "Modeling/Fashion", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: "/images/categories/modeling-fashion-generated.webp", order: 2, isActive: true },
+  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: "/images/categories/bodybuilding-generated.webp", order: 3, isActive: true },
+  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/categories/dance-generated.webp", order: 4, isActive: true },
+  { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: "/images/categories/comedy-performance-generated.webp", order: 5, isActive: true },
+  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/categories/acting-generated.webp", order: 6, isActive: true },
+  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/categories/reality-generated.webp", order: 7, isActive: true },
 ];
 const LEGACY_CATEGORY_ARTWORK: Record<string, string> = {
-  fitness: "/images/categories/fitness-generated.png",
-  sports: "/images/categories/sports-generated.png",
-  "brand & business": "/images/categories/brand-business-generated.png",
+  fitness: "/images/categories/fitness-generated.webp",
+  sports: "/images/categories/sports-generated.webp",
+  "brand & business": "/images/categories/brand-business-generated.webp",
 };
 
 export async function seedCategories() {

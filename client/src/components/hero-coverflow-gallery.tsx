@@ -168,6 +168,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
             const opacity = absOffset > 3 ? 0 : 1 - absOffset * 0.2;
             const scale = 1 - absOffset * 0.08;
             const finalTranslateX = absOffset > 3 ? sign * 700 : translateX;
+            const shouldLoadMedia = absOffset <= 1;
 
             return (
               <div
@@ -203,26 +204,27 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                   </div>
                   <div className="coverflow-card-wrapper">
                     <div className="coverflow-cover">
-                      {item.videoEmbedUrl ? (
+                      {item.videoEmbedUrl && shouldLoadMedia ? (
                         <>
                           <iframe
                             src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`}
                             className="w-full h-full"
                             allow="autoplay; fullscreen"
                             frameBorder="0"
+                            loading="lazy"
                             title={item.categoryName}
                             style={{ pointerEvents: "none" }}
                           />
                           <div className="absolute inset-0 z-10" />
                         </>
-                      ) : item.coverVideoUrl ? (
+                      ) : item.coverVideoUrl && shouldLoadMedia ? (
                         <video
                           src={item.coverVideoUrl}
                           autoPlay
                           loop
                           muted
                           playsInline
-                          preload="auto"
+                          preload="metadata"
                           className="w-full h-full object-cover"
                         />
                       ) : (
