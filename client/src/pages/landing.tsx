@@ -47,7 +47,7 @@ export default function Landing() {
     bodybuilding: "/images/competition-cover-3.png",
     fitness: "/images/categories/fitness-reference.png",
     dance: "/images/categories/dance-reference.png",
-    comedy: "/images/categories/comedy-reference.png",
+    comedy: "/images/categories/comedy-performance-generated.png",
     acting: "/images/categories/acting-reference.png",
     "brand & business": "/images/categories/brand-business-reference.png",
     sports: "/images/categories/sports-reference.png",
