@@ -206,7 +206,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                       {item.videoEmbedUrl ? (
                         <>
                           <iframe
-                            src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1`}
+                            src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`}
                             className="w-full h-full"
                             allow="autoplay; fullscreen"
                             frameBorder="0"
@@ -218,11 +218,11 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                       ) : item.coverVideoUrl ? (
                         <video
                           src={item.coverVideoUrl}
-                            autoPlay
+                          autoPlay
                           loop
                           muted
                           playsInline
-                            preload="auto"
+                          preload="auto"
                           className="w-full h-full object-cover"
                         />
                       ) : (

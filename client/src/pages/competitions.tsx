@@ -193,11 +193,11 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
             {competition.coverVideo ? (
               competition.coverVideo.includes("vimeo.com") ? (
                 <iframe
-                  src={`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}autoplay=1&loop=1&muted=1`}
+                  src={`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}autoplay=1&loop=1&muted=1&background=1&controls=0&autopause=0`}
                   className="w-full h-full transition-transform duration-700 group-hover:scale-105"
-                  style={{ border: "none" }}
+                  style={{ border: "none", pointerEvents: "none" }}
                   loading="lazy"
-                  allow="autoplay; fullscreen; picture-in-picture"
+                  allow="autoplay; fullscreen"
                   title={`${competition.title} cover video`}
                 />
               ) : (
