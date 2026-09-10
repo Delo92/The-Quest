@@ -61,7 +61,7 @@ export async function seedDatabase() {
       title: "Top Model Search",
       description: "Are you the next top model? Show off your runway walk, photogenic qualities, and unique style in this nationwide modeling competition.",
       category: "Modeling/Fashion",
-      coverImage: "/images/template/breadcumb.jpg",
+      coverImage: "/images/categories/modeling-fashion-generated.png",
       status: "active",
       voteCost: 0,
       maxVotesPerDay: 10,
@@ -106,6 +106,27 @@ export async function seedDatabase() {
   }
 
   console.log("Database seeded successfully with competitions (all in Firestore)");
+}
+
+export async function synchronizeCompetitionMedia() {
+  const competitions = await storage.getCompetitions();
+  const modelingCompetition = competitions.find(
+    (competition: any) =>
+      competition.title === "Top Model Search" &&
+      competition.category === "Modeling/Fashion",
+  );
+
+  if (
+    modelingCompetition &&
+    !modelingCompetition.coverVideo &&
+    (!modelingCompetition.coverImage ||
+      modelingCompetition.coverImage === "/images/template/breadcumb.jpg")
+  ) {
+    await storage.updateCompetition(modelingCompetition.id, {
+      coverImage: "/images/categories/modeling-fashion-generated.png",
+    });
+    console.log("Top Model Search cover synchronized to Modeling/Fashion artwork");
+  }
 }
 
 const LIVERY_DEFAULTS = [
