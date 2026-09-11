@@ -229,10 +229,10 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                   </div>
                   <div className="coverflow-card-wrapper">
                     <div className="coverflow-cover">
-                      {item.videoEmbedUrl && index === currentIndex && isInView ? (
+                      {item.videoEmbedUrl && isInView ? (
                         <>
                           <iframe
-                            src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&initial_quality=360p&quality=auto`}
+                            src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
                             className="w-full h-full"
                             allow="autoplay; fullscreen"
                             frameBorder="0"
