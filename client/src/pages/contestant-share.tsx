@@ -14,8 +14,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { slugify } from "@shared/slugify";
 import { formatVideoTitle } from "@/lib/media-utils";
-import { HlsVideoPlayer } from "@/components/hls-video-player";
-import { useVideoPreloader } from "@/hooks/use-video-preloader";
+import { buildVimeoSrc } from "@/lib/media-utils";
 
 interface ResolvedData {
   competition: {
@@ -103,7 +102,7 @@ export default function ContestantSharePage() {
   // The bundle also includes the signed HLS URL for the first video so we can
   // preload the m3u8 manifest before the player component even mounts.
   const { data: bundleData, isLoading, error } = useQuery<
-    ResolvedData & { contestants: CompetitionContestant[]; firstVideoHlsUrl: string | null }
+    ResolvedData & { contestants: CompetitionContestant[] }
   >({
     queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "bundle"],
     queryFn: async () => {
@@ -114,20 +113,6 @@ export default function ContestantSharePage() {
     enabled: !!categorySlug && !!compSlug && !!talentSlug,
     staleTime: 30_000,
   });
-
-  // Inject <link rel="preload"> for the HLS manifest the instant the bundle lands.
-  // The browser fetches the m3u8 in parallel with React rendering the player.
-  useEffect(() => {
-    const hlsUrl = bundleData?.firstVideoHlsUrl;
-    if (!hlsUrl) return;
-    const link = document.createElement("link");
-    link.rel = "preload";
-    link.as = "fetch";
-    link.crossOrigin = "anonymous";
-    link.href = hlsUrl;
-    document.head.appendChild(link);
-    return () => { try { document.head.removeChild(link); } catch {} };
-  }, [bundleData?.firstVideoHlsUrl]);
 
   // Destructure bundle into the shapes the rest of the page expects
   const data = bundleData ? {
@@ -141,15 +126,6 @@ export default function ContestantSharePage() {
   } : undefined;
   const competitionData = bundleData ? { contestants: bundleData.contestants } : undefined;
 
-  // Pre-fetched play URLs for the first video — passed directly to HlsVideoPlayer
-  // so it skips its own /api/vimeo/:id/play fetch (already done server-side).
-  const firstVideoPreloadedUrls = bundleData?.firstVideoHlsUrl
-    ? { hls: bundleData.firstVideoHlsUrl, progressive: [] }
-    : null;
-
-  // Background preloader — starts buffering the first video the moment bundle
-  // data arrives, before the user taps play.
-  const videoPreloader = useVideoPreloader(bundleData?.firstVideoHlsUrl ?? null);
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({
     queryKey: ["/api/referral/my-code"],
@@ -679,24 +655,12 @@ export default function ContestantSharePage() {
                       }}
                     >
                       {playingVideo === video.uri ? (
-                        <HlsVideoPlayer
-                          videoId={video.uri}
-                          className="w-full h-full"
-                          autoPlay
-                          muted={false}
-                          controls
-                          poster={video.thumbnail || undefined}
-                          onEnded={() => setShowNudge(true)}
-                          preloadedUrls={
-                            mediaData?.videos?.[0]?.uri === video.uri
-                              ? firstVideoPreloadedUrls
-                              : null
-                          }
-                          preloader={
-                            mediaData?.videos?.[0]?.uri === video.uri
-                              ? videoPreloader
-                              : null
-                          }
+                        <iframe
+                          src={buildVimeoSrc(video.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
+                          className="absolute inset-0 w-full h-full"
+                          allow="autoplay; fullscreen; picture-in-picture"
+                          allowFullScreen
+                          title={formatVideoTitle(video.name)}
                         />
                       ) : (
                         <>

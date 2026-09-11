@@ -6316,18 +6316,6 @@ export async function registerRoutes(
         })(),
       ]);
 
-      // 4. Pre-fetch signed HLS URL for the first video so the client can preload the
-      //    m3u8 manifest immediately on bundle arrival — before the player mounts.
-      let firstVideoHlsUrl: string | null = null;
-      const firstVideo = media?.videos?.[0];
-      if (firstVideo?.uri) {
-        try {
-          const videoId = firstVideo.uri.replace("/videos/", "");
-          const playUrls = await getVideoPlayUrls(videoId);
-          firstVideoHlsUrl = playUrls.hls;
-        } catch { /* non-fatal */ }
-      }
-
       setPublicCacheHeaders(res, 30);
       res.json({
         competition: comp,
@@ -6341,7 +6329,6 @@ export async function registerRoutes(
         totalVotes,
         contestants,
         hostedBy: hostedByProfile,
-        firstVideoHlsUrl, // signed m3u8 — client injects as <link rel="preload">
       });
     } catch (error: any) {
       console.error("Bundle resolution error:", error);
