@@ -6268,10 +6268,9 @@ export async function registerRoutes(
           );
       if (!contestant) return res.status(404).json({ message: "Contestant not found in this competition" });
 
-      // 3. Fetch all three data sets in parallel
+      // 3. Fetch all data in parallel — votes, media (cached), host profile
       const [totalVotes, media, hostedByProfile] = await Promise.all([
         storage.getTotalVotesByCompetition(comp.id),
-        // Reuse cached media loader
         getCachedPublicResponse(
           `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
           10 * 60_000,
@@ -6294,7 +6293,9 @@ export async function registerRoutes(
               talentVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
             }
 
-            const videos = talentVideos.map((v: any) => ({
+            // Use resolveVideoThumbnail to hit the /pictures API when the embedded
+            // thumbnail is missing or inactive — gets the best available still frame.
+            const videos = await Promise.all(talentVideos.map(async (v: any) => ({
               uri: v.uri,
               name: formatVimeoDisplayName(v.name, comp.title, talentName),
               link: v.link,
@@ -6302,20 +6303,30 @@ export async function registerRoutes(
               duration: v.duration,
               width: v.width,
               height: v.height,
-              thumbnail: getVideoThumbnail(v),
-            }));
+              thumbnail: await resolveVideoThumbnail(v).catch(() => getVideoThumbnail(v)),
+            })));
             return { videoThumbnail: videos[0]?.thumbnail || null, videos };
           }
         ),
-        // Hosted-by profile for the competition page header
         (async () => {
           try {
             if (!comp.createdBy) return null;
-            const profile = await storage.getUserProfile(comp.createdBy);
-            return profile || null;
+            return await storage.getUserProfile(comp.createdBy) || null;
           } catch { return null; }
         })(),
       ]);
+
+      // 4. Pre-fetch signed HLS URL for the first video so the client can preload the
+      //    m3u8 manifest immediately on bundle arrival — before the player mounts.
+      let firstVideoHlsUrl: string | null = null;
+      const firstVideo = media?.videos?.[0];
+      if (firstVideo?.uri) {
+        try {
+          const videoId = firstVideo.uri.replace("/videos/", "");
+          const playUrls = await getVideoPlayUrls(videoId);
+          firstVideoHlsUrl = playUrls.hls;
+        } catch { /* non-fatal */ }
+      }
 
       setPublicCacheHeaders(res, 30);
       res.json({
@@ -6328,8 +6339,9 @@ export async function registerRoutes(
           videos: media?.videos ?? [],
         },
         totalVotes,
-        contestants, // full list for prev/next navigation
+        contestants,
         hostedBy: hostedByProfile,
+        firstVideoHlsUrl, // signed m3u8 — client injects as <link rel="preload">
       });
     } catch (error: any) {
       console.error("Bundle resolution error:", error);

@@ -98,9 +98,11 @@ export default function ContestantSharePage() {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Single bundle fetch replaces 3 sequential round-trips
+  // Single bundle fetch replaces 3 sequential round-trips.
+  // The bundle also includes the signed HLS URL for the first video so we can
+  // preload the m3u8 manifest before the player component even mounts.
   const { data: bundleData, isLoading, error } = useQuery<
-    ResolvedData & { contestants: CompetitionContestant[] }
+    ResolvedData & { contestants: CompetitionContestant[]; firstVideoHlsUrl: string | null }
   >({
     queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "bundle"],
     queryFn: async () => {
@@ -111,6 +113,20 @@ export default function ContestantSharePage() {
     enabled: !!categorySlug && !!compSlug && !!talentSlug,
     staleTime: 30_000,
   });
+
+  // Inject <link rel="preload"> for the HLS manifest the instant the bundle lands.
+  // The browser fetches the m3u8 in parallel with React rendering the player.
+  useEffect(() => {
+    const hlsUrl = bundleData?.firstVideoHlsUrl;
+    if (!hlsUrl) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "fetch";
+    link.crossOrigin = "anonymous";
+    link.href = hlsUrl;
+    document.head.appendChild(link);
+    return () => { try { document.head.removeChild(link); } catch {} };
+  }, [bundleData?.firstVideoHlsUrl]);
 
   // Destructure bundle into the shapes the rest of the page expects
   const data = bundleData ? {
@@ -123,6 +139,12 @@ export default function ContestantSharePage() {
     videos: bundleData.contestant.videos,
   } : undefined;
   const competitionData = bundleData ? { contestants: bundleData.contestants } : undefined;
+
+  // Pre-fetched play URLs for the first video — passed directly to HlsVideoPlayer
+  // so it skips its own /api/vimeo/:id/play fetch (already done server-side).
+  const firstVideoPreloadedUrls = bundleData?.firstVideoHlsUrl
+    ? { hls: bundleData.firstVideoHlsUrl, progressive: [] }
+    : null;
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({
     queryKey: ["/api/referral/my-code"],
@@ -660,6 +682,11 @@ export default function ContestantSharePage() {
                           controls
                           poster={video.thumbnail || undefined}
                           onEnded={() => setShowNudge(true)}
+                          preloadedUrls={
+                            mediaData?.videos?.[0]?.uri === video.uri
+                              ? firstVideoPreloadedUrls
+                              : null
+                          }
                         />
                       ) : (
                         <>

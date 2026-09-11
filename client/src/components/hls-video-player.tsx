@@ -19,6 +19,8 @@ interface HlsVideoPlayerProps {
   loop?: boolean;
   poster?: string;
   onEnded?: () => void;
+  /** Pre-fetched play URLs from the bundle — skips the /api/vimeo/:id/play fetch */
+  preloadedUrls?: PlayUrls | null;
 }
 
 interface PlayUrls {
@@ -40,6 +42,7 @@ export function HlsVideoPlayer({
   loop = false,
   poster,
   onEnded,
+  preloadedUrls,
 }: HlsVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<any>(null);
@@ -66,11 +69,16 @@ export function HlsVideoPlayer({
 
     cleanup();
 
-    fetch(`/api/vimeo/${id}/play`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`Server returned ${r.status}`);
-        return r.json() as Promise<PlayUrls>;
-      })
+    // Use pre-fetched URLs from the bundle when available — skips the network round-trip
+    const urlsPromise: Promise<PlayUrls> = preloadedUrls
+      ? Promise.resolve(preloadedUrls)
+      : fetch(`/api/vimeo/${id}/play`)
+          .then((r) => {
+            if (!r.ok) throw new Error(`Server returned ${r.status}`);
+            return r.json() as Promise<PlayUrls>;
+          });
+
+    urlsPromise
       .then(async (urls) => {
         if (cancelled) return;
 
