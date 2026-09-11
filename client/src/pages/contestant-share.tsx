@@ -14,6 +14,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { slugify } from "@shared/slugify";
 import { formatVideoTitle } from "@/lib/media-utils";
+import { HlsVideoPlayer } from "@/components/hls-video-player";
 
 interface ResolvedData {
   competition: {
@@ -651,13 +652,14 @@ export default function ContestantSharePage() {
                       }}
                     >
                       {playingVideo === video.uri ? (
-                        <iframe
-                          src={`${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1`}
+                        <HlsVideoPlayer
+                          videoId={video.uri}
                           className="w-full h-full"
-                          loading="lazy"
-                          allow="autoplay; fullscreen; picture-in-picture"
-                          allowFullScreen
-                          title={formatVideoTitle(video.name)}
+                          autoPlay
+                          muted={false}
+                          controls
+                          poster={video.thumbnail || undefined}
+                          onEnded={() => setShowNudge(true)}
                         />
                       ) : (
                         <>

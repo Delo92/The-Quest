@@ -492,6 +492,41 @@ export async function getVideoById(videoId: string): Promise<VimeoVideo> {
   return vimeoRequest(`/videos/${videoId}`);
 }
 
+export interface VimeoPlayUrls {
+  hls: string | null;
+  dash: string | null;
+  progressive: Array<{ rendition: string; width: number; height: number; link: string; size: number }>;
+  expiresAt: number; // unix ms
+}
+
+// Cache HLS/progressive URLs server-side. Links expire in ~24h so cache for 23h.
+const playUrlCache = new Map<string, { data: VimeoPlayUrls; expiresAt: number }>();
+
+export async function getVideoPlayUrls(videoId: string): Promise<VimeoPlayUrls> {
+  const now = Date.now();
+  const cached = playUrlCache.get(videoId);
+  if (cached && cached.expiresAt > now) return cached.data;
+
+  const data = await vimeoRequest(`/videos/${videoId}?fields=play`);
+  const play = data?.play || {};
+
+  const result: VimeoPlayUrls = {
+    hls: play.hls?.link || null,
+    dash: play.dash?.link || null,
+    progressive: (play.progressive || []).map((f: any) => ({
+      rendition: f.rendition,
+      width: f.width,
+      height: f.height,
+      link: f.link,
+      size: f.size,
+    })).sort((a: any, b: any) => a.height - b.height), // ascending: lowest quality first
+    expiresAt: now + 23 * 60 * 60 * 1000,
+  };
+
+  playUrlCache.set(videoId, { data: result, expiresAt: result.expiresAt });
+  return result;
+}
+
 // ChronicTV sync — parallel catalog under ChronicTV > Originals > CB Publishing The Quest
 const CHRONIC_TV_QUEST_SERIES_NAME = "CB Publishing The Quest";
 // Vimeo returns a mixture of personal-library and team-library projects from

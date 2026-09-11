@@ -81,6 +81,7 @@ import {
   syncVideoToChronicTV,
   parseVimeoFolderUri,
   getVideoById,
+  getVideoPlayUrls,
   getChronicTVEventVimeoFolder,
   getChronicTVContestantVimeoFolder,
   listCompetitionVideos,
@@ -1101,6 +1102,24 @@ export async function registerRoutes(
     }
   });
 
+
+  // Vimeo direct-play URLs (HLS + progressive) — cached server-side for 23h.
+  // Clients use these to play via hls.js instead of the iframe embed.
+  app.get("/api/vimeo/:videoId/play", async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      if (!/^\d+$/.test(videoId)) {
+        return res.status(400).json({ message: "Invalid video ID" });
+      }
+      const urls = await getVideoPlayUrls(videoId);
+      // Tell the client how long to trust this response (23h minus a small buffer)
+      res.setHeader("Cache-Control", "private, max-age=82800"); // 23h
+      res.json(urls);
+    } catch (error: any) {
+      console.error("Vimeo play URLs error:", error.message);
+      res.status(502).json({ message: "Could not fetch Vimeo play URLs" });
+    }
+  });
 
   app.get("/api/stats/total-votes", async (req, res) => {
     try {
