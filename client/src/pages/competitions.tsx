@@ -242,18 +242,22 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
                 {competition.category}
               </span>
             </div>
-            <CompetitionCountdownBadge competition={competition} />
+            <div className="flex justify-center">
+              <CompetitionCountdownBadge competition={competition} />
+            </div>
             {competition.hostedBy && (
               <p className="mt-3 text-white/40 text-[13px] mb-3" data-testid={`text-hosted-by-${competition.id}`}>
                 Hosted by {competition.hostedBy === "admin" ? websiteName : competition.hostedBy}
               </p>
             )}
-             <span
-               className="inline-block border border-white/20 bg-white/10 text-white text-[11px] font-bold uppercase px-5 py-2 tracking-widest transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
-               style={{ letterSpacing: "4px" }}
-             >
-               See Competition
-             </span>
+            <div className="mt-3 flex justify-center">
+              <span
+                className="inline-block border border-white/20 bg-white/10 text-white text-[11px] font-bold uppercase px-5 py-2 tracking-widest transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
+                style={{ letterSpacing: "4px" }}
+              >
+                See Competition
+              </span>
+            </div>
           </div>
         </div>
       </Link>
