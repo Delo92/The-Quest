@@ -156,7 +156,8 @@ export default function ContestantSharePage() {
   const goToContestant = useCallback((c: CompetitionContestant | null) => {
     if (!c) return;
     const slug = slugify(c.talentProfile.stageName || c.talentProfile.displayName);
-    navigate(`/thequest/${categorySlug}/${compSlug}/${slug}`);
+    // Navigate relative to the wouter base (/thequest is already the base)
+    navigate(`/${categorySlug}/${compSlug}/${slug}`);
   }, [navigate, categorySlug, compSlug]);
 
   // Keyboard arrow navigation
