@@ -141,7 +141,7 @@ export default function Landing() {
           >
             {heroMedia.type === "video" && detectMediaType(heroMedia.url) === "vimeo" ? (
               <iframe
-                src={buildVimeoSrc(heroMedia.url, "background=0&autoplay=1&muted=1&loop=1&autopause=0&controls=0&title=0&byline=0&portrait=0") || ""}
+                src={buildVimeoSrc(heroMedia.url, "background=1&autoplay=1&loop=1&autopause=0") || ""}
                 className="absolute inset-0 h-full w-full pointer-events-none"
                 allow="autoplay; fullscreen; picture-in-picture"
                 title="Hero background video"

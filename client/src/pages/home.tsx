@@ -177,7 +177,7 @@ export default function HomePage() {
           </h1>
 
           <div className="relative w-full aspect-video bg-black overflow-hidden">
-            <MediaSlot url={bannerBg} alt="Hero background" mode="bg" fit="contain" clickToUnmute />
+            <MediaSlot url={bannerBg} alt="Hero background" mode="bg" fit="contain" />
             <div className="absolute inset-0 bg-black/45 pointer-events-none" />
           </div>
 
