@@ -3890,7 +3890,8 @@ export async function registerRoutes(
 
   app.get("/api/categories", async (_req, res) => {
     try {
-      const categories = await firestoreCategories.getAll();
+      const categories = await getCachedPublicResponse("categories", 5 * 60_000, () => firestoreCategories.getAll());
+      setPublicCacheHeaders(res, 60);
       res.json(categories);
     } catch (error: any) {
       console.error("Get categories error:", error);
@@ -3911,6 +3912,7 @@ export async function registerRoutes(
         order: order || 0,
         isActive: isActive !== false,
       });
+      invalidatePublicResponseCache("categories", "hero-gallery");
       res.status(201).json(category);
     } catch (error: any) {
       console.error("Create category error:", error);
@@ -3923,6 +3925,7 @@ export async function registerRoutes(
       const { id } = req.params;
       const updated = await firestoreCategories.update(id, req.body);
       if (!updated) return res.status(404).json({ message: "Category not found" });
+      invalidatePublicResponseCache("categories", "hero-gallery");
       res.json(updated);
     } catch (error: any) {
       console.error("Update category error:", error);
@@ -3953,6 +3956,7 @@ export async function registerRoutes(
       }
 
       const updated = await firestoreCategories.update(id, updateData);
+      invalidatePublicResponseCache("categories", "hero-gallery");
       res.json(updated);
     } catch (error: any) {
       console.error("Category media upload error:", error);
@@ -3984,6 +3988,7 @@ export async function registerRoutes(
       const category = await firestoreCategories.get(id);
       if (!category) return res.status(404).json({ message: "Category not found" });
       const updated = await firestoreCategories.update(id, { videoUrl, imageUrl: null });
+      invalidatePublicResponseCache("categories", "hero-gallery");
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to update category video" });
@@ -3994,6 +3999,7 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
       await firestoreCategories.delete(id);
+      invalidatePublicResponseCache("categories", "hero-gallery");
       res.json({ message: "Category deleted" });
     } catch (error: any) {
       console.error("Delete category error:", error);
@@ -5277,7 +5283,8 @@ export async function registerRoutes(
   });
 
   app.get("/api/livery", async (_req, res) => {
-    const items = await storage.getAllLivery();
+    const items = await getCachedPublicResponse("livery", 5 * 60_000, () => storage.getAllLivery());
+    setPublicCacheHeaders(res, 60);
     res.json(items);
   });
 
@@ -5321,6 +5328,7 @@ export async function registerRoutes(
     }
 
     const updated = await storage.updateLiveryImage(imageKey, imageUrl, mediaType);
+    invalidatePublicResponseCache("livery");
     res.json(updated);
   });
 
@@ -5361,6 +5369,7 @@ export async function registerRoutes(
     }
     const mediaType = imageKey === "hero_background" && url ? "video" : "image";
     const updated = await storage.updateLiveryImage(imageKey, url || null, mediaType);
+    invalidatePublicResponseCache("livery");
     res.json(updated);
   });
 
@@ -5370,6 +5379,7 @@ export async function registerRoutes(
     const existing = await storage.getLiveryByKey(imageKey);
     if (!existing) return res.status(404).json({ message: "Livery item not found" });
     const updated = await storage.updateLiveryText(imageKey, textContent ?? null);
+    invalidatePublicResponseCache("livery");
     res.json(updated);
   });
 
@@ -5377,6 +5387,7 @@ export async function registerRoutes(
     const { imageKey } = req.params;
     const updated = await storage.updateLiveryImage(imageKey, null);
     if (!updated) return res.status(404).json({ message: "Livery item not found" });
+    invalidatePublicResponseCache("livery");
     res.json(updated);
   });
 
@@ -5388,6 +5399,7 @@ export async function registerRoutes(
     for (const key of relatedKeys) {
       try { await storage.deleteLiverySlot(key); } catch {}
     }
+    invalidatePublicResponseCache("livery");
     res.json({ success: true });
   });
 
@@ -6229,6 +6241,99 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Contestant video resolution error:", error);
       res.status(500).json({ message: "Failed to load contestant videos" });
+    }
+  });
+
+  // Bundle endpoint — returns contestant + media + competition list in one round-trip,
+  // replacing the 3 sequential fetches contestant-share.tsx previously made.
+  app.get("/api/resolve/:categorySlug/:compSlug/:talentSlug/bundle", async (req, res) => {
+    try {
+      const { categorySlug, compSlug, talentSlug } = req.params;
+
+      // 1. Resolve competition
+      const competitions = await storage.getCompetitions();
+      const comp = competitions.find(c =>
+        slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+      );
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+
+      // 2. Resolve contestant
+      const contestants = await storage.getContestantsByCompetition(comp.id);
+      const { id: talentId } = extractIdFromSlug(talentSlug);
+      const contestant = talentId
+        ? contestants.find(c => c.talentProfile.id === talentId)
+        : contestants.find(c =>
+            slugify(c.talentProfile.displayName) === talentSlug ||
+            (c.talentProfile.stageName && slugify(c.talentProfile.stageName) === talentSlug)
+          );
+      if (!contestant) return res.status(404).json({ message: "Contestant not found in this competition" });
+
+      // 3. Fetch all three data sets in parallel
+      const [totalVotes, media, hostedByProfile] = await Promise.all([
+        storage.getTotalVotesByCompetition(comp.id),
+        // Reuse cached media loader
+        getCachedPublicResponse(
+          `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
+          10 * 60_000,
+          async () => {
+            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
+              .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
+              .trim();
+            const storedUris: string[] = (contestant.talentProfile as any).videoUrls || [];
+            const hiddenUris: string[] = (contestant.talentProfile as any).hiddenVideoUris || [];
+            const visibleUris = storedUris.filter(u => !hiddenUris.includes(u));
+
+            let talentVideos: any[];
+            if (visibleUris.length > 0) {
+              talentVideos = await Promise.all(visibleUris.map(uri => {
+                const videoId = uri.replace("/videos/", "");
+                return getVideoById(videoId).catch(() => null);
+              }));
+              talentVideos = talentVideos.filter(Boolean);
+            } else {
+              talentVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
+            }
+
+            const videos = talentVideos.map((v: any) => ({
+              uri: v.uri,
+              name: formatVimeoDisplayName(v.name, comp.title, talentName),
+              link: v.link,
+              embedUrl: v.player_embed_url,
+              duration: v.duration,
+              width: v.width,
+              height: v.height,
+              thumbnail: getVideoThumbnail(v),
+            }));
+            return { videoThumbnail: videos[0]?.thumbnail || null, videos };
+          }
+        ),
+        // Hosted-by profile for the competition page header
+        (async () => {
+          try {
+            if (!comp.createdBy) return null;
+            const profile = await storage.getUserProfile(comp.createdBy);
+            return profile || null;
+          } catch { return null; }
+        })(),
+      ]);
+
+      setPublicCacheHeaders(res, 30);
+      res.json({
+        competition: comp,
+        contestant: {
+          ...contestant,
+          voteCount: contestant.rawVoteCount,
+          tournamentPoints: contestant.voteCount,
+          videoThumbnail: media?.videoThumbnail ?? null,
+          videos: media?.videos ?? [],
+        },
+        totalVotes,
+        contestants, // full list for prev/next navigation
+        hostedBy: hostedByProfile,
+      });
+    } catch (error: any) {
+      console.error("Bundle resolution error:", error);
+      res.status(500).json({ message: "Failed to resolve profile bundle" });
     }
   });
 

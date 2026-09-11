@@ -98,31 +98,31 @@ export default function ContestantSharePage() {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  const { data, isLoading, error } = useQuery<ResolvedData>({
-    queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug],
-    enabled: !!categorySlug && !!compSlug && !!talentSlug,
-  });
-
-  const { data: mediaData } = useQuery<{
-    videoThumbnail: string | null;
-    videos: ResolvedData["contestant"]["videos"];
-  }>({
-    queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "videos"],
-    enabled: !!data && !!categorySlug && !!compSlug && !!talentSlug,
-    staleTime: 60_000,
-  });
-
-  // Fetch full contestant list for the competition (for prev/next navigation)
-  const { data: competitionData } = useQuery<{ contestants: CompetitionContestant[] }>({
-    queryKey: ["/api/resolve/competition", categorySlug, compSlug],
+  // Single bundle fetch replaces 3 sequential round-trips
+  const { data: bundleData, isLoading, error } = useQuery<
+    ResolvedData & { contestants: CompetitionContestant[] }
+  >({
+    queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "bundle"],
     queryFn: async () => {
-      const res = await fetch(`/api/resolve/competition/${categorySlug}/${compSlug}`);
+      const res = await fetch(`/api/resolve/${categorySlug}/${compSlug}/${talentSlug}/bundle`);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
-    enabled: !!categorySlug && !!compSlug,
-    staleTime: 120_000,
+    enabled: !!categorySlug && !!compSlug && !!talentSlug,
+    staleTime: 30_000,
   });
+
+  // Destructure bundle into the shapes the rest of the page expects
+  const data = bundleData ? {
+    competition: bundleData.competition,
+    contestant: bundleData.contestant,
+    totalVotes: bundleData.totalVotes,
+  } as ResolvedData : undefined;
+  const mediaData = bundleData ? {
+    videoThumbnail: bundleData.contestant.videoThumbnail,
+    videos: bundleData.contestant.videos,
+  } : undefined;
+  const competitionData = bundleData ? { contestants: bundleData.contestants } : undefined;
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({
     queryKey: ["/api/referral/my-code"],
