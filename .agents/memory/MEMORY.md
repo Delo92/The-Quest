@@ -19,6 +19,8 @@
 - [Centralized error logging](chronicdocs-error-logging.md) — ChronicDocs logging behavior is ported onto The Quest's own Firestore helper and identity model
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
 - [Category artwork references](category-artwork-references.md) — category cards use shipped local artwork that matches the approved reference screenshots, not unstable Firebase Storage URLs
-- [Hero gallery competition media](hero-gallery-competition-media.md) — all gallery cards with videoEmbedUrl get background-mode Vimeo iframes; loop is not restricted to the centered card
+- [Hero gallery competition media](hero-gallery-competition-media.md) — thumbnail always renders as base layer; video overlays on top so privacy-blocked iframes never black out a card
 - [Service worker dev guard](service-worker-dev-guard.md) — SW must actively unregister on localhost/.replit.dev or clients.claim() drops Vite HMR; skipping register() alone is not enough
-- [Vimeo embed privacy](vimeo-embed-privacy.md) — unlisted Vimeo hashes are not enough when the video’s embed privacy blocks playback
+- [Vimeo embed privacy](vimeo-embed-privacy.md) — unlisted Vimeo hashes are not enough when the video's embed privacy blocks playback
+- [Vimeo playback architecture](vimeo-playback-architecture.md) — embed iframe for contestant videos; native video tag for background loops; never hls.js+signed URL for either
+- [Lazy iframe mount/unmount pattern](lazy-iframe-pattern.md) — observer must toggle setVisible(entry.isIntersecting), not latch; latching causes all-12-players-in-RAM on scroll
