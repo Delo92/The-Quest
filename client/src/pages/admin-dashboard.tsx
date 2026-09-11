@@ -2830,7 +2830,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                   <Input
                                     key={`cat-img-${cat.id}-${cat.imageUrl}`}
                                     defaultValue={cat.imageUrl || ""}
-                                    placeholder="https://... or /images/template/a1.jpg"
+                                    placeholder="https://Firebase-Storage-url..."
                                     className="bg-zinc-800 border-white/25 text-white text-xs h-8 mb-1.5"
                                     data-testid={`input-category-img-${cat.id}`}
                                     onBlur={(e) => {

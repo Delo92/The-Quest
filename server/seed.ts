@@ -276,14 +276,19 @@ export async function seedCategories() {
       .map((name) => existingByName.get(name))
       .find(Boolean);
     if (match) {
-      await firestoreCategories.update(match.id, {
+      const categoryUpdate: Record<string, unknown> = {
         name: cat.name,
         description: cat.description,
-        imageUrl: cat.imageUrl,
         order: cat.order,
         isActive: cat.isActive,
-        videoUrl: match.videoUrl || null,
-      });
+      };
+      if (cat.imageUrl !== null) {
+        categoryUpdate.imageUrl = cat.imageUrl;
+      }
+      if (match.videoUrl !== undefined) {
+        categoryUpdate.videoUrl = match.videoUrl;
+      }
+      await firestoreCategories.update(match.id, categoryUpdate);
       updated.push(cat.name);
     } else {
       await firestoreCategories.create({ ...cat, videoUrl: null });
@@ -388,7 +393,7 @@ export async function seedStarrStruckCompetition() {
     title: "Starr Struck",
     description,
     category: "Reality",
-    coverImage: "/images/starr-struck-cover.png",
+    coverImage: null,
     coverVideo: null,
     status: "draft",
     voteCost: 0,

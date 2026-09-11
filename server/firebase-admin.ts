@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { randomUUID } from "node:crypto";
 
 let firebaseApp: admin.app.App | null = null;
 
@@ -139,12 +140,16 @@ export async function uploadToFirebaseStorage(
 ): Promise<string> {
   const bucket = getFirebaseStorage().bucket();
   const file = bucket.file(filePath);
+  const downloadToken = randomUUID();
   await file.save(buffer, {
-    metadata: { contentType: mimeType },
-    public: true,
+    metadata: {
+      contentType: mimeType,
+      metadata: {
+        firebaseStorageDownloadTokens: downloadToken,
+      },
+    },
   });
-  const publicUrl = `https://storage.googleapis.com/${bucket.name}/${encodeURIComponent(filePath)}`;
-  return publicUrl;
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media&token=${downloadToken}`;
 }
 
 export async function deleteFromFirebaseStorage(filePath: string): Promise<void> {
