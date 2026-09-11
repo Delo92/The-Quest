@@ -87,6 +87,9 @@ import {
   listCompetitionVideos,
   formatVimeoDisplayName,
   resolveDirectVideoUrl,
+  invalidateVideoPlayCache,
+  prewarmVideoPlayUrl,
+  extractVimeoVideoId,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -2333,7 +2336,10 @@ export async function registerRoutes(
       if (!videoUrl) return res.status(400).json({ message: "videoUrl is required" });
       const comp = await storage.getCompetition(id);
       if (!comp || comp.createdBy !== uid) return res.status(403).json({ message: "Not your competition" });
+      // Evict the old cover video URL from cache; pre-warm the new one immediately
+      if (comp.coverVideo) invalidateVideoPlayCache(extractVimeoVideoId(comp.coverVideo) ?? "");
       const updated = await storage.updateCompetition(id, { coverVideo: videoUrl, coverImage: null });
+      prewarmVideoPlayUrl(videoUrl);
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to update cover video" });
@@ -3006,8 +3012,11 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const { videoUrl } = req.body;
       if (!videoUrl) return res.status(400).json({ message: "videoUrl is required" });
+      const existing = await storage.getCompetition(id);
+      if (existing?.coverVideo) invalidateVideoPlayCache(extractVimeoVideoId(existing.coverVideo) ?? "");
       const updated = await storage.updateCompetition(id, { coverVideo: videoUrl, coverImage: null });
       if (!updated) return res.status(404).json({ message: "Competition not found" });
+      prewarmVideoPlayUrl(videoUrl);
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to update cover video" });
@@ -3022,6 +3031,9 @@ export async function registerRoutes(
       const updateData: any = {};
       if (type === "video") {
         updateData.coverVideo = null;
+        // Evict the deleted video from cache immediately
+        const existing = await storage.getCompetition(id);
+        if (existing?.coverVideo) invalidateVideoPlayCache(extractVimeoVideoId(existing.coverVideo) ?? "");
       } else {
         updateData.coverImage = null;
       }
@@ -5790,6 +5802,8 @@ export async function registerRoutes(
         console.warn("Could not save videoUri to profile:", saveErr.message);
       }
 
+      // Pre-warm play URL cache for the newly uploaded video — first playback will be instant
+      prewarmVideoPlayUrl(videoUri);
       res.json({ success: true });
     } catch (error: any) {
       console.error("Finalize upload error:", error);
@@ -5805,6 +5819,9 @@ export async function registerRoutes(
 
       const { videoId } = req.params;
       const videoUri = `/videos/${videoId}`;
+
+      // Evict from play URL cache immediately so the deleted video can't be served
+      invalidateVideoPlayCache(videoId);
 
       try {
         await deleteVideo(videoUri);

@@ -555,6 +555,28 @@ try {
   // File doesn't exist yet or is corrupt — start fresh, no action needed
 }
 
+/**
+ * Evict a video ID from the play URL cache immediately.
+ * Call this whenever a video is deleted or its URL changes — prevents the old
+ * signed URL from being served for up to 23 hours.
+ */
+export function invalidateVideoPlayCache(videoId: string): void {
+  playUrlCache.delete(videoId);
+  persistPlayUrlCache();
+}
+
+/**
+ * Pre-warm the cache for a single freshly-uploaded or newly-set video.
+ * Fire-and-forget — caller should not await this.
+ */
+export function prewarmVideoPlayUrl(vimeoUrl: string): void {
+  const id = extractVimeoVideoId(vimeoUrl);
+  if (!id) return;
+  // Evict any stale entry first so we always fetch fresh for a changed video
+  playUrlCache.delete(id);
+  getVideoPlayUrls(id).catch(() => {});
+}
+
 function persistPlayUrlCache() {
   try {
     const obj: Record<string, PlayUrlCacheEntry> = {};
