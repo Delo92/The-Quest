@@ -3,6 +3,25 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { slugify } from "@shared/slugify";
 
+function useCardWidth() {
+  const [width, setWidth] = useState(() => {
+    if (typeof window === "undefined") return 260;
+    if (window.innerWidth <= 480) return 170;
+    if (window.innerWidth <= 768) return 200;
+    return 260;
+  });
+  useEffect(() => {
+    const update = () => {
+      if (window.innerWidth <= 480) setWidth(170);
+      else if (window.innerWidth <= 768) setWidth(200);
+      else setWidth(260);
+    };
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return width;
+}
+
 interface GalleryItem {
   categoryId: string;
   categoryName: string;
@@ -30,6 +49,7 @@ interface HeroCoverflowGalleryProps {
 }
 
 export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalleryProps = {}) {
+  const cardWidth = useCardWidth();
   const { data: items = [], isLoading } = useQuery<GalleryItem[]>({
     queryKey: ["/api/hero-gallery"],
     staleTime: 60000,
@@ -190,12 +210,14 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
             const absOffset = Math.abs(offset);
             const sign = Math.sign(offset);
 
-            const translateX = offset * 200;
+            // Step = 72% of card width so adjacent cards overlap like the desktop view.
+            const step = Math.round(cardWidth * 0.72);
+            const translateX = offset * step;
             const translateZ = -absOffset * 180;
             const rotateY = -sign * Math.min(absOffset * 55, 55);
             const opacity = absOffset > 3 ? 0 : 1 - absOffset * 0.2;
             const scale = 1 - absOffset * 0.08;
-            const finalTranslateX = absOffset > 3 ? sign * 700 : translateX;
+            const finalTranslateX = absOffset > 3 ? sign * (step * 5) : translateX;
             return (
               <div
                 key={item.categoryId}
