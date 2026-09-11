@@ -164,6 +164,10 @@ export default function ContestantSharePage() {
   const accentColor = profile.profileColor || "#FF5A09";
   const bgImage = profile.profileBgImage || null;
   const fallbackDefault = getImage("talent_profile_fallback") || "";
+  const videos = mediaData?.videos || contestant.videos || [];
+  const hasImages = !!(profile.imageUrls && profile.imageUrls.length > 0);
+  // If no profile images but there is a video, use the video as the hero
+  const heroVideoEmbedUrl = !hasImages && videos.length > 0 ? videos[0].embedUrl : null;
   const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0) || fallbackDefault;
   const isVotingOpen = competition.status === "active" || competition.status === "voting";
@@ -225,12 +229,22 @@ export default function ContestantSharePage() {
       <section
         className="relative h-[270px] md:h-[400px] overflow-hidden"
       >
-        <FallbackImage
-          src={mainImage}
-          fallbackSrc={mainImageFallback}
-          alt={profile.stageName || profile.displayName || ""}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        {heroVideoEmbedUrl ? (
+          <iframe
+            src={`${heroVideoEmbedUrl}${heroVideoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`}
+            className="absolute inset-0 w-full h-full"
+            style={{ pointerEvents: "none", border: "none" }}
+            allow="autoplay; fullscreen"
+            title={profile.stageName || profile.displayName || ""}
+          />
+        ) : (
+          <FallbackImage
+            src={mainImage}
+            fallbackSrc={mainImageFallback}
+            alt={profile.stageName || profile.displayName || ""}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30" />
         <div
           className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pt-8 pb-5 px-8 z-10 w-[calc(100%-40px)] max-w-[600px]"
@@ -375,7 +389,7 @@ export default function ContestantSharePage() {
           </div>
         )}
 
-        {(mediaData?.videos || contestant.videos)?.length > 0 && (
+        {videos.length > 0 && (
           <div className="mb-10">
             <div className="text-center mb-10">
               <p className="text-[#5f5f5f] text-sm mb-1">Watch performances</p>
@@ -383,8 +397,8 @@ export default function ContestantSharePage() {
                 Videos
               </h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {(mediaData?.videos || contestant.videos).map((video, i) => (
+            <div className={`grid gap-6 ${videos.length === 1 ? "grid-cols-1 max-w-xl mx-auto" : "grid-cols-1 md:grid-cols-2"}`}>
+              {videos.map((video, i) => (
                 <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
                   <div
                     className={`relative overflow-hidden ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
@@ -416,9 +430,9 @@ export default function ContestantSharePage() {
                           alt=""
                           className="h-full w-full object-cover"
                         />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/35">
-                          <span className="flex h-14 w-14 items-center justify-center bg-[#FF5A09] text-white shadow-lg">
-                            <Play className="ml-0.5 h-6 w-6 fill-current" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors duration-300">
+                          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 border border-white/30 text-white shadow-lg backdrop-blur-sm">
+                            <Play className="ml-1 h-6 w-6 fill-current" />
                           </span>
                         </div>
                       </>
