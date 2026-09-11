@@ -136,6 +136,11 @@ export default function ContestantSharePage() {
     staleTime: 60000,
   });
 
+  // Scroll to top whenever the contestant changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [talentSlug]);
+
   useEffect(() => {
     if (data) {
       document.title = `${data.contestant.talentProfile.stageName || data.contestant.talentProfile.displayName} - ${data.competition.title} | The Quest`;
