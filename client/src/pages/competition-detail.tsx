@@ -710,7 +710,7 @@ export default function CompetitionDetailPage() {
                     ) : selectedStage && stageSubmission?.mediaType === "video" ? (
                       <div className="relative aspect-video w-full overflow-hidden">
                         <LazyVimeoIframe
-                          src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&initial_quality=360p&quality=auto`}
+                          src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
                           title={`${contestant.talentProfile.displayName} — ${selectedStage.name}`}
                         />
                         {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
@@ -737,7 +737,7 @@ export default function CompetitionDetailPage() {
                       </div>
                     ) : videos.length > 0 ? videos.slice(0, 1).map((video) => {
                       const sep = video.embedUrl.includes("?") ? "&" : "?";
-                      const playerUrl = `${video.embedUrl}${sep}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&initial_quality=360p&quality=auto`;
+                      const playerUrl = `${video.embedUrl}${sep}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`;
                       return (
                         <div
                           key={video.uri}
