@@ -258,6 +258,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                           alt={item.categoryName}
                           className="w-full h-full object-cover"
                           loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : (
                         <div className="w-full h-full bg-zinc-900" />
@@ -275,6 +276,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                           src={item.thumbnail}
                           alt=""
                           loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
                         />
                       </div>
                     )}

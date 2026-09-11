@@ -156,6 +156,7 @@ export default function Landing() {
                 className="absolute inset-0 w-full h-full object-contain"
                 loading="eager"
                 decoding="async"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
             )}
             <div className="absolute inset-0 bg-black/35 pointer-events-none" />

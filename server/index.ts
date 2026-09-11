@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -13,6 +14,9 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// Gzip compress all responses — cuts JSON/HTML/JS payload size 60-80% on mobile
+app.use(compression());
 
 app.use(
   express.json({

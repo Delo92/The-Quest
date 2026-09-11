@@ -362,7 +362,7 @@ export default function ContestantSharePage() {
     >
       {bgImage && (
         <div className="fixed inset-0 z-0 pointer-events-none">
-          <img src={bgImage} alt="" className="w-full h-full object-cover opacity-[0.04]" />
+          <img src={bgImage} alt="" className="w-full h-full object-cover opacity-[0.04]" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
         </div>
       )}
 
