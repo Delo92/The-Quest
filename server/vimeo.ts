@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 const VIMEO_BASE = "https://api.vimeo.com";
 
 function getVimeoHeaders(): Record<string, string> {
@@ -528,7 +531,39 @@ export async function resolveDirectVideoUrl(vimeoUrl: string): Promise<string | 
 }
 
 // Cache HLS/progressive URLs server-side. Links expire in ~24h so cache for 23h.
-const playUrlCache = new Map<string, { data: VimeoPlayUrls; expiresAt: number }>();
+// The cache is persisted to disk so it survives server restarts — a restart no
+// longer causes a cold-cache performance hit where every video hits Vimeo API fresh.
+const PLAY_URL_CACHE_FILE = path.join(process.cwd(), ".vimeo-play-cache.json");
+
+type PlayUrlCacheEntry = { data: VimeoPlayUrls; expiresAt: number };
+const playUrlCache = new Map<string, PlayUrlCacheEntry>();
+
+// Load persisted cache from disk on startup (ignore missing/corrupt file)
+try {
+  const raw = fs.readFileSync(PLAY_URL_CACHE_FILE, "utf8");
+  const entries: Record<string, PlayUrlCacheEntry> = JSON.parse(raw);
+  const now = Date.now();
+  let loaded = 0;
+  for (const [id, entry] of Object.entries(entries)) {
+    if (entry.expiresAt > now) {
+      playUrlCache.set(id, entry);
+      loaded++;
+    }
+  }
+  if (loaded > 0) console.log(`[vimeo] Restored ${loaded} play URL entries from disk cache`);
+} catch {
+  // File doesn't exist yet or is corrupt — start fresh, no action needed
+}
+
+function persistPlayUrlCache() {
+  try {
+    const obj: Record<string, PlayUrlCacheEntry> = {};
+    for (const [id, entry] of playUrlCache.entries()) obj[id] = entry;
+    fs.writeFileSync(PLAY_URL_CACHE_FILE, JSON.stringify(obj), "utf8");
+  } catch {
+    // Non-fatal — in-memory cache still works
+  }
+}
 
 export async function getVideoPlayUrls(videoId: string): Promise<VimeoPlayUrls> {
   const now = Date.now();
@@ -552,7 +587,41 @@ export async function getVideoPlayUrls(videoId: string): Promise<VimeoPlayUrls> 
   };
 
   playUrlCache.set(videoId, { data: result, expiresAt: result.expiresAt });
+  persistPlayUrlCache(); // write-through so the next restart warms immediately
   return result;
+}
+
+/**
+ * Pre-warm the Vimeo play URL cache on server startup.
+ * Fetches signed HLS/progressive URLs for every active competition's cover video
+ * so the first real user request hits the cache instead of Vimeo's API cold.
+ * Runs non-blocking — a failure here never prevents the server from starting.
+ */
+export async function warmVimeoPlayUrlCache(
+  getCompetitions: () => Promise<Array<{ coverVideo?: string | null }>>
+): Promise<void> {
+  try {
+    const comps = await getCompetitions();
+    const ids = [
+      ...new Set(
+        comps
+          .map(c => c.coverVideo ? extractVimeoVideoId(c.coverVideo) : null)
+          .filter((id): id is string => !!id)
+      ),
+    ];
+    if (ids.length === 0) return;
+    let warmed = 0;
+    await Promise.allSettled(
+      ids.map(id =>
+        getVideoPlayUrls(id)
+          .then(() => { warmed++; })
+          .catch(() => {})
+      )
+    );
+    console.log(`[vimeo] Pre-warmed play URL cache for ${warmed}/${ids.length} competition videos`);
+  } catch {
+    // Non-fatal — cache will warm on first real request
+  }
 }
 
 // ChronicTV sync — parallel catalog under ChronicTV > Originals > CB Publishing The Quest

@@ -5,6 +5,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { logError } from "./services/errorLogger";
 import { startOCPurchaseFeedWorker } from "./services/ocPurchaseFeed";
+import { warmVimeoPlayUrlCache } from "./vimeo";
 
 const app = express();
 const httpServer = createServer(app);
@@ -80,6 +81,10 @@ app.use((req, res, next) => {
   await synchronizeCompetitionMedia().catch((err) => console.error("Competition media sync error:", err));
   await seedStarrStruckCompetition().catch((err) => console.error("Starr Struck seed error:", err));
   await seedTestAccounts().catch((err) => console.error("Test accounts seed error:", err));
+
+  // Non-blocking: pre-warm Vimeo play URL cache so restarts don't cause cold-cache slowness
+  const { storage } = await import("./storage");
+  warmVimeoPlayUrlCache(() => storage.getCompetitions()).catch(() => {});
 
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
