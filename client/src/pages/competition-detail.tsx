@@ -684,6 +684,8 @@ export default function CompetitionDetailPage() {
                           allow="autoplay; fullscreen; picture-in-picture"
                           title={`${contestant.talentProfile.displayName} — ${selectedStage.name}`}
                         />
+                        {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
+                        <div className="absolute inset-0 z-10 cursor-pointer" aria-hidden="true" />
                       </div>
                     ) : selectedStage && stageSubmission?.mediaType === "image" ? (
                       <FallbackImage
@@ -718,6 +720,8 @@ export default function CompetitionDetailPage() {
                             allow="autoplay; fullscreen; picture-in-picture"
                             title={`${contestant.talentProfile.displayName} — ${video.name}`}
                           />
+                          {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
+                          <div className="absolute inset-0 z-10 cursor-pointer" aria-hidden="true" />
                         </div>
                       );
                     }) : (
