@@ -29,11 +29,17 @@ export function getVimeoHash(url: string): string | null {
 export function buildVimeoSrc(url: string, params: string): string | null {
   const id = getVimeoId(url);
   if (!id) return null;
-  const hash = getVimeoHash(url);
-  const parts: string[] = [];
-  if (params) parts.push(params);
-  if (hash) parts.push(`h=${hash}`);
-  const qs = parts.length ? `?${parts.join("&")}` : "";
+  const query = new URLSearchParams(params);
+  try {
+    const sourceParams = new URL(url).searchParams;
+    sourceParams.forEach((value, key) => {
+      if (!query.has(key)) query.append(key, value);
+    });
+  } catch {
+    const hash = getVimeoHash(url);
+    if (hash && !query.has("h")) query.set("h", hash);
+  }
+  const qs = query.toString() ? `?${query.toString()}` : "";
   return `https://player.vimeo.com/video/${id}${qs}`;
 }
 

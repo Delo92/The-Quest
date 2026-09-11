@@ -118,10 +118,8 @@ function getVimeoCoverEmbedUrl(coverVideo: string | null | undefined): string | 
   if (!match) return null;
   try {
     const source = new URL(coverVideo!);
-    const hash = source.searchParams.get("h");
-    return hash
-      ? `https://player.vimeo.com/video/${match[1]}?h=${encodeURIComponent(hash)}`
-      : `https://player.vimeo.com/video/${match[1]}`;
+    const query = source.searchParams.toString();
+    return `https://player.vimeo.com/video/${match[1]}${query ? `?${query}` : ""}`;
   } catch {
     return `https://player.vimeo.com/video/${match[1]}`;
   }
