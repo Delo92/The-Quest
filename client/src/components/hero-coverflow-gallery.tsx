@@ -36,6 +36,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isInView, setIsInView] = useState(false);
   const autoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +57,32 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
       if (autoplayRef.current) clearInterval(autoplayRef.current);
     };
   }, [totalItems, startAutoplay]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setIsInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting && entry.intersectionRatio >= 0.45),
+      { threshold: [0, 0.45, 1] },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [totalItems]);
+
+  useEffect(() => {
+    if (isInView && totalItems > 1) {
+      startAutoplay();
+      return;
+    }
+    if (autoplayRef.current) {
+      clearInterval(autoplayRef.current);
+      autoplayRef.current = null;
+    }
+  }, [isInView, totalItems, startAutoplay]);
 
   const navigate = useCallback((direction: number) => {
     if (isAnimating || totalItems === 0) return;
@@ -202,14 +229,14 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                   </div>
                   <div className="coverflow-card-wrapper">
                     <div className="coverflow-cover">
-                      {item.videoEmbedUrl ? (
+                      {item.videoEmbedUrl && index === currentIndex && isInView ? (
                         <>
                           <iframe
                             src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`}
                             className="w-full h-full"
                             allow="autoplay; fullscreen"
                             frameBorder="0"
-                             loading="eager"
+                            loading="lazy"
                             title={item.categoryName}
                             style={{ pointerEvents: "none" }}
                           />
