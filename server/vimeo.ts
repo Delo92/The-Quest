@@ -499,6 +499,34 @@ export interface VimeoPlayUrls {
   expiresAt: number; // unix ms
 }
 
+/** Extract the numeric Vimeo video ID from any Vimeo URL format. */
+export function extractVimeoVideoId(url: string): string | null {
+  const match = url.match(/(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Resolve a direct progressive MP4 link for a Vimeo URL.
+ * Prefers 360p for background/ambient playback — small file, fast start, GPU-decoded.
+ * Falls back through available renditions if 360p isn't transcoded.
+ * Returns null if the account doesn't support direct links or the call fails.
+ */
+export async function resolveDirectVideoUrl(vimeoUrl: string): Promise<string | null> {
+  const id = extractVimeoVideoId(vimeoUrl);
+  if (!id) return null;
+  try {
+    const urls = await getVideoPlayUrls(id);
+    const target =
+      urls.progressive.find(p => p.rendition === "360p") ||
+      urls.progressive.find(p => p.rendition === "480p") ||
+      urls.progressive[1] ||
+      urls.progressive[0];
+    return target?.link ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Cache HLS/progressive URLs server-side. Links expire in ~24h so cache for 23h.
 const playUrlCache = new Map<string, { data: VimeoPlayUrls; expiresAt: number }>();
 

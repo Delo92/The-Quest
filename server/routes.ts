@@ -86,6 +86,7 @@ import {
   getChronicTVContestantVimeoFolder,
   listCompetitionVideos,
   formatVimeoDisplayName,
+  resolveDirectVideoUrl,
 } from "./vimeo";
 import { z } from "zod";
 import multer from "multer";
@@ -1159,12 +1160,17 @@ export async function registerRoutes(
           let hostedBy: string | null = null;
           if (creatorProfile?.role === "admin") hostedBy = "admin";
           else if (creatorProfile?.role === "host") hostedBy = creatorProfile.displayName || "Host";
+          // Resolve direct progressive MP4 for native <video> — cached 23h per video ID
+          const directVideoUrl = c.coverVideo
+            ? await resolveDirectVideoUrl(c.coverVideo).catch(() => null)
+            : null;
           return {
             ...c,
             hostedBy,
             contestantCount,
             approvedCount,
             coverVideoThumbnail: c.coverVideo ? getVimeoCoverThumbnail(c.coverVideo) : null,
+            directVideoUrl,
           };
         }));
       });
@@ -1276,6 +1282,17 @@ export async function registerRoutes(
             contestantSlug = slugify(topContestant.talentProfile.stageName || topContestant.talentProfile.displayName || "");
           }
 
+          // Resolve a direct progressive MP4 URL for native <video> playback.
+          // Eliminates Vimeo player JS overhead on background/ambient cards.
+          // resolveDirectVideoUrl is cached for 23h so this only hits Vimeo API once per video.
+          let directVideoUrl: string | null = null;
+          if (videoEmbedUrl) {
+            directVideoUrl = await resolveDirectVideoUrl(videoEmbedUrl).catch(() => null);
+          } else if (coverVideoUrl && !coverVideoUrl.includes("vimeo")) {
+            // Direct non-Vimeo file — already usable as native video, no resolution needed
+            directVideoUrl = coverVideoUrl;
+          }
+
           return {
             categoryId: cat.id,
             categoryName: cat.name,
@@ -1283,6 +1300,7 @@ export async function registerRoutes(
             thumbnail,
             videoEmbedUrl,
             coverVideoUrl,
+            directVideoUrl,
             topContestantName: displayName,
             voteCount: topVoteCount,
             competitionCount: catComps.length,

@@ -190,7 +190,19 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
                 Schedule pending
               </div>
             )}
-            {competition.coverVideo ? (
+            {competition.directVideoUrl ? (
+              /* Direct progressive MP4 — native <video>, GPU-decoded, no Vimeo JS */
+              <video
+                src={competition.directVideoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                poster={competition.coverVideoThumbnail || competition.coverImage || undefined}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            ) : competition.coverVideo ? (
               competition.coverVideo.includes("vimeo.com") ? (
                 <iframe
                   src={`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}autoplay=1&loop=1&muted=1&background=1&controls=0&autopause=0&quality=auto`}

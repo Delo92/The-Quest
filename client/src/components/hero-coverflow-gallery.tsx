@@ -10,6 +10,7 @@ interface GalleryItem {
   thumbnail: string | null;
   videoEmbedUrl: string | null;
   coverVideoUrl: string | null;
+  directVideoUrl: string | null;
   topContestantName: string | null;
   voteCount: number;
   competitionCount: number;
@@ -229,18 +230,28 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                   </div>
                   <div className="coverflow-card-wrapper">
                     <div className="coverflow-cover">
-                      {/* Thumbnail / cover video always renders as the base layer.
-                          The Vimeo iframe sits on top — if it's privacy-blocked on this
-                          domain the iframe is transparent/black but the thumbnail shows through. */}
-                      {item.coverVideoUrl ? (
+                      {/* Native <video> when a direct MP4 URL is available — GPU-decoded,
+                          zero Vimeo player JS overhead. Falls back to iframe only when
+                          the account plan doesn't expose progressive links. */}
+                      {item.directVideoUrl ? (
                         <video
-                          src={item.coverVideoUrl}
+                          src={item.directVideoUrl}
                           autoPlay
                           loop
                           muted
                           playsInline
-                          preload="metadata"
-                          className="w-full h-full object-cover"
+                          preload="auto"
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      ) : item.videoEmbedUrl && isInView ? (
+                        <iframe
+                          src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
+                          className="absolute inset-0 w-full h-full"
+                          allow="autoplay; fullscreen"
+                          frameBorder="0"
+                          loading="lazy"
+                          title={item.categoryName}
+                          style={{ pointerEvents: "none" }}
                         />
                       ) : item.thumbnail ? (
                         <img
@@ -252,17 +263,6 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                         />
                       ) : (
                         <div className="w-full h-full bg-zinc-900" />
-                      )}
-                      {item.videoEmbedUrl && isInView && (
-                        <iframe
-                          src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
-                          className="absolute inset-0 w-full h-full"
-                          allow="autoplay; fullscreen"
-                          frameBorder="0"
-                          loading="lazy"
-                          title={item.categoryName}
-                          style={{ pointerEvents: "none" }}
-                        />
                       )}
                       <div className="absolute inset-0 z-10" />
                       <div className="coverflow-label">
