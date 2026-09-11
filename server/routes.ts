@@ -1229,10 +1229,13 @@ export async function registerRoutes(
 
           const applyCompetitionCover = async (competition: any) => {
             if (!competition) return;
-            // Only use the competition's still cover when the category has no image of its own.
-            // If the category already has an imageUrl (e.g. the dancer photo for Dance),
-            // keep it — the competition cover is for categories without their own artwork.
-            if (competition.coverImage && !cat.imageUrl) {
+            // Use the competition's real cover image as the gallery thumbnail — it shows
+            // the actual competition, which is more relevant than generic category artwork.
+            // Exception: template placeholder paths (e.g. /images/template/...) are never
+            // real covers; a host simply hasn't uploaded one yet, so fall back to category art.
+            const isTemplatePlaceholder = (url: string) =>
+              !url || url.startsWith("/images/template/");
+            if (competition.coverImage && !isTemplatePlaceholder(competition.coverImage)) {
               thumbnail = competition.coverImage;
             }
             if (!competition.coverVideo) return;
