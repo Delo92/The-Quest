@@ -416,7 +416,6 @@
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
   position: relative;
   overflow: hidden;
-  transform-style: preserve-3d;
   background: #222;
 }
 

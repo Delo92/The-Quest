@@ -240,7 +240,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative">
               <div className="w-full h-80 md:h-96 overflow-hidden relative">
-                <MediaSlot url={aboutImg} alt="About CB Publishing" mode="bg" />
+                {aboutImg && <img src={aboutImg} alt="About CB Publishing" className="w-full h-full object-cover" />}
               </div>
               <div className="absolute -bottom-4 -right-4 w-28 h-28 bg-black/40 backdrop-blur-sm border border-white/10 shadow-2xl hidden md:flex items-center justify-center">
                 <CBLogo size="md" />
@@ -280,7 +280,7 @@ export default function HomePage() {
 
       {/* Our Properties / Services */}
       <section className="py-20 relative overflow-hidden">
-        <MediaSlot url={serviceBg} alt="Services background" mode="bg" />
+        {serviceBg && <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${serviceBg}')` }} />}
         <div className="absolute inset-0 bg-black/80 z-[1]" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
@@ -319,7 +319,7 @@ export default function HomePage() {
 
       {/* Members / Join CTA */}
       <section className="py-20 relative overflow-hidden">
-        <MediaSlot url={memberBg} alt="Join background" mode="bg" />
+        {memberBg && <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${memberBg}')` }} />}
         <div className="absolute inset-0 bg-black/75 z-[1]" />
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <span className="text-[var(--cbp-brand)] text-sm font-bold uppercase tracking-widest mb-3 block">Join Us</span>

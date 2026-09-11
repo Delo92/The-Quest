@@ -238,7 +238,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                           src={item.thumbnail}
                           alt={item.categoryName}
                           className="w-full h-full object-cover"
-                          loading="lazy"
+                          loading="eager"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : (

@@ -322,7 +322,7 @@ export default function Landing() {
         {(() => { const m = getMedia("feature_background"); return m.type === "video" && m.url && featureMedia.isVisible ? (
           <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
         ) : m.url ? (
-          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${m.url}')` }} />
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${m.url}')` }} />
         ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/65" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -394,7 +394,7 @@ export default function Landing() {
         {(() => { const m = getMedia("cta_background"); return m.type === "video" && m.url && ctaMedia.isVisible ? (
           <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
         ) : m.url ? (
-          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${m.url}')` }} />
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${m.url}')` }} />
         ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/65" />
         <div ref={cta.ref} className={`relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-1000 ${cta.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
