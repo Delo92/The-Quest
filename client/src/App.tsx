@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect, useSearch } from "wouter";
+import { Switch, Route, Redirect, useSearch, useParams } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -80,6 +80,13 @@ function DynamicFavicon() {
   return null;
 }
 
+// Redirect bare /talent/:id links to the correct /thequest/talent/:id path.
+// Links are generated without the /thequest prefix throughout the app.
+function TalentProfileRedirect() {
+  const params = useParams<{ id: string }>();
+  return <Redirect to={`/thequest/talent/${params.id}`} />;
+}
+
 function App() {
   useGATracking();
   useEffect(() => installClientErrorHandlers(), []);
@@ -98,6 +105,7 @@ function App() {
         <Toaster />
         <Switch>
           <Route path="/" component={RootEntryPage} />
+          <Route path="/talent/:id" component={TalentProfileRedirect} />
           <Route path="/thequest" nest component={QuestRouter} />
           <Route path="/:slug" component={CodeLandingPage} />
           <Route component={NotFound} />
