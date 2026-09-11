@@ -574,11 +574,11 @@
 
 @media (max-width: 768px) {
   .coverflow-container {
-    height: 240px;
+    height: 300px;
   }
   .coverflow-item {
-    width: 180px;
-    height: 205px;
+    width: 200px;
+    height: 225px;
   }
   .coverflow-nav {
     width: 36px;
@@ -596,6 +596,16 @@
   }
   .coverflow-caption-category {
     font-size: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .coverflow-container {
+    height: 270px;
+  }
+  .coverflow-item {
+    width: 170px;
+    height: 195px;
   }
 }
 

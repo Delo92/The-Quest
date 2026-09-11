@@ -230,9 +230,20 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                   </div>
                   <div className="coverflow-card-wrapper">
                     <div className="coverflow-cover">
-                      {/* Native <video> when a direct MP4 URL is available — GPU-decoded,
-                          zero Vimeo player JS overhead. Falls back to iframe only when
-                          the account plan doesn't expose progressive links. */}
+                      {/* Thumbnail always renders as the guaranteed base layer.
+                          Video (native or iframe) overlays absolutely on top.
+                          If the video fails or is slow, the thumbnail is already visible. */}
+                      {item.thumbnail ? (
+                        <img
+                          src={item.thumbnail}
+                          alt={item.categoryName}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-zinc-900" />
+                      )}
                       {item.directVideoUrl ? (
                         <video
                           src={item.directVideoUrl}
@@ -242,6 +253,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                           playsInline
                           preload="auto"
                           className="absolute inset-0 w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLVideoElement).style.display = "none"; }}
                         />
                       ) : item.videoEmbedUrl && isInView ? (
                         <iframe
@@ -253,17 +265,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                           title={item.categoryName}
                           style={{ pointerEvents: "none" }}
                         />
-                      ) : item.thumbnail ? (
-                        <img
-                          src={item.thumbnail}
-                          alt={item.categoryName}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-zinc-900" />
-                      )}
+                      ) : null}
                       <div className="absolute inset-0 z-10" />
                       <div className="coverflow-label">
                         <span className="coverflow-label-title">{item.categoryName}</span>

@@ -77,6 +77,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
         alt={alt}
         className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className}`}
         style={mode === "bg" ? { ...bgStyle, objectFit: fit } : undefined}
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
       />
     );
   }
