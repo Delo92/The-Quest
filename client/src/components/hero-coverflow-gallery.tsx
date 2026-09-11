@@ -229,20 +229,10 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                   </div>
                   <div className="coverflow-card-wrapper">
                     <div className="coverflow-cover">
-                      {item.videoEmbedUrl && isInView ? (
-                        <>
-                          <iframe
-                            src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
-                            className="w-full h-full"
-                            allow="autoplay; fullscreen"
-                            frameBorder="0"
-                            loading="lazy"
-                            title={item.categoryName}
-                            style={{ pointerEvents: "none" }}
-                          />
-                          <div className="absolute inset-0 z-10" />
-                        </>
-                      ) : item.coverVideoUrl ? (
+                      {/* Thumbnail / cover video always renders as the base layer.
+                          The Vimeo iframe sits on top — if it's privacy-blocked on this
+                          domain the iframe is transparent/black but the thumbnail shows through. */}
+                      {item.coverVideoUrl ? (
                         <video
                           src={item.coverVideoUrl}
                           autoPlay
@@ -263,6 +253,18 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                       ) : (
                         <div className="w-full h-full bg-zinc-900" />
                       )}
+                      {item.videoEmbedUrl && isInView && (
+                        <iframe
+                          src={`${item.videoEmbedUrl}${item.videoEmbedUrl.includes('?') ? '&' : '?'}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
+                          className="absolute inset-0 w-full h-full"
+                          allow="autoplay; fullscreen"
+                          frameBorder="0"
+                          loading="lazy"
+                          title={item.categoryName}
+                          style={{ pointerEvents: "none" }}
+                        />
+                      )}
+                      <div className="absolute inset-0 z-10" />
                       <div className="coverflow-label">
                         <span className="coverflow-label-title">{item.categoryName}</span>
                         {item.topContestantName && (

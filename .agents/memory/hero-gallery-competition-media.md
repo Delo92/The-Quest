@@ -9,6 +9,8 @@ When an active competition exists for a category, the hero gallery and competiti
 
 **How to apply:** Keep competition selection and poster resolution in the public responses, preserve competition title/link metadata, render assigned Vimeo/direct-video covers immediately with muted autoplay and loop enabled, disable Vimeo/native controls, and use cover images only when no cover video exists.
 
+**Gallery render order (critical):** Thumbnail/coverVideo ALWAYS renders as the base layer first. The Vimeo iframe overlays it absolutely on top. This means if the iframe is privacy-blocked on the production domain (cbpublishing.live is not in Vimeo's allowed-domains list for that video), the card still shows the thumbnail underneath — it never goes black. Do NOT put the iframe as the only content in the branch; always keep thumbnail as the base.
+
 Competition seed corrections may replace known generic seed placeholders, but must not overwrite a host/admin’s custom cover media.
 
 **Why:** Existing Firestore competitions outlive seed definitions, so correcting a default alone does not repair the live public page; unrestricted startup rewrites could also erase intentional custom artwork.
