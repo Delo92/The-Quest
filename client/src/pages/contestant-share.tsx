@@ -163,7 +163,7 @@ export default function ContestantSharePage() {
   const profile = contestant.talentProfile;
   const accentColor = profile.profileColor || "#FF5A09";
   const bgImage = profile.profileBgImage || null;
-  const fallbackDefault = getImage("talent_profile_fallback", "/images/template/a1.jpg");
+  const fallbackDefault = getImage("talent_profile_fallback") || undefined;
   const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0) || fallbackDefault;
   const isVotingOpen = competition.status === "active" || competition.status === "voting";
@@ -411,8 +411,8 @@ export default function ContestantSharePage() {
                     ) : (
                       <>
                         <FallbackImage
-                          src={video.thumbnail || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
-                          fallbackSrc={getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                          src={video.thumbnail || getImage("talent_profile_fallback") || undefined}
+                          fallbackSrc={getImage("talent_profile_fallback") || undefined}
                           alt=""
                           className="h-full w-full object-cover"
                         />

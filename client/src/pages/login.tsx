@@ -45,7 +45,7 @@ export default function LoginPage() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
-  const { getImage, getMedia } = useLivery();
+  const { getMedia } = useLivery();
 
   const params = new URLSearchParams(search);
   const inviteToken = params.get("invite") || "";
@@ -171,11 +171,11 @@ export default function LoginPage() {
       <SiteNavbar />
 
       <div className="relative h-[300px] flex items-end justify-center overflow-hidden">
-        {getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").type === "video" ? (
-          <video src={getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-        ) : (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${getImage("breadcrumb_bg", "/images/template/breadcumb.jpg")})` }} />
-        )}
+        {(() => { const m = getMedia("breadcrumb_bg"); return m.type === "video" && m.url ? (
+          <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+        ) : m.url ? (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${m.url}')` }} />
+        ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/60" />
         <div className="relative z-10 bg-white px-10 py-4 mb-[-1px]">
           <h1

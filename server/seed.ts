@@ -35,7 +35,7 @@ export async function seedDatabase() {
       title: "Star Search 2026 - Music Edition",
       description: "The ultimate singing and music performance competition. Show the world your vocal talent and stage presence. Open to all genres including R&B, pop, hip-hop, rock, and more.",
       category: "Music",
-      coverImage: "/images/template/bg-1.jpg",
+      coverImage: null,
       status: "active",
       voteCost: 0,
       maxVotesPerDay: 10,
@@ -48,7 +48,7 @@ export async function seedDatabase() {
       title: "Iron Physique Championship",
       description: "The premier bodybuilding competition showcasing the best physiques. Categories include Classic Physique, Men's Open, and Women's Fitness.",
       category: "Bodybuilding",
-      coverImage: "/images/template/breadcumb3.jpg",
+      coverImage: null,
       status: "active",
       voteCost: 0,
       maxVotesPerDay: 5,
@@ -61,7 +61,7 @@ export async function seedDatabase() {
       title: "Top Model Search",
       description: "Are you the next top model? Show off your runway walk, photogenic qualities, and unique style in this nationwide modeling competition.",
       category: "Modeling/Fashion",
-      coverImage: "/images/categories/modeling-fashion-generated.webp",
+      coverImage: null,
       status: "active",
       voteCost: 0,
       maxVotesPerDay: 10,
@@ -74,7 +74,7 @@ export async function seedDatabase() {
       title: "Dance Battle Royale",
       description: "Bring your best moves to the biggest dance competition of the year. All styles welcome: hip-hop, contemporary, breakdancing, and more.",
       category: "Dance",
-      coverImage: "/images/template/breadcumb2.jpg",
+      coverImage: null,
       status: "voting",
       voteCost: 0,
       maxVotesPerDay: 15,
@@ -109,39 +109,21 @@ export async function seedDatabase() {
 }
 
 export async function synchronizeCompetitionMedia() {
-  const competitions = await storage.getCompetitions();
-  const modelingCompetition = competitions.find(
-    (competition: any) =>
-      competition.title === "Top Model Search" &&
-      competition.category === "Modeling/Fashion",
-  );
-
-  if (
-    modelingCompetition &&
-    !modelingCompetition.coverVideo &&
-    (!modelingCompetition.coverImage ||
-      modelingCompetition.coverImage === "/images/template/breadcumb.jpg" ||
-      modelingCompetition.coverImage === "/images/categories/modeling-fashion-generated.png")
-  ) {
-    await storage.updateCompetition(modelingCompetition.id, {
-      coverImage: "/images/categories/modeling-fashion-generated.webp",
-    });
-    console.log("Top Model Search cover synchronized to Modeling/Fashion artwork");
-  }
+  // No-op: competition cover media is set exclusively through the admin panel and stored in Firestore.
 }
 
 const LIVERY_DEFAULTS = [
-  { imageKey: "logo", label: "Site Logo", defaultUrl: "/images/template/logo.png" },
-  { imageKey: "site_favicon", label: "Site Favicon (Browser Tab Icon)", defaultUrl: "/images/template/favicon.jpeg" },
+  { imageKey: "logo", label: "Site Logo", defaultUrl: "" },
+  { imageKey: "site_favicon", label: "Site Favicon (Browser Tab Icon)", defaultUrl: "" },
   { imageKey: "quest_brand_color", label: "The Quest - Brand Color (hex)", defaultUrl: "", itemType: "text" as const, defaultText: "#f97316" },
-  { imageKey: "hero_background", label: "Hero Background (Landing)", defaultUrl: "/images/template/bg-1.jpg" },
-  { imageKey: "feature_background", label: "Feature Section Background (Landing)", defaultUrl: "/images/template/bg-2.jpg" },
-  { imageKey: "cta_background", label: "Call to Action Background (Landing)", defaultUrl: "/images/template/breadcumb.jpg" },
-  { imageKey: "breadcrumb_bg", label: "Page Header Background (Login, Join, Host, Checkout, Purchases)", defaultUrl: "/images/template/breadcumb.jpg" },
-  { imageKey: "competitions_header", label: "Competitions Page Header", defaultUrl: "/images/template/breadcumb2.jpg" },
-  { imageKey: "competition_detail_header", label: "Competition Detail Header", defaultUrl: "/images/template/breadcumb3.jpg" },
-  { imageKey: "competition_card_fallback", label: "Default Competition Card Image", defaultUrl: "/images/template/e1.jpg" },
-  { imageKey: "talent_profile_fallback", label: "Default Talent Profile Image", defaultUrl: "/images/template/a1.jpg" },
+  { imageKey: "hero_background", label: "Hero Background (Landing)", defaultUrl: "" },
+  { imageKey: "feature_background", label: "Feature Section Background (Landing)", defaultUrl: "" },
+  { imageKey: "cta_background", label: "Call to Action Background (Landing)", defaultUrl: "" },
+  { imageKey: "breadcrumb_bg", label: "Page Header Background (Login, Join, Host, Checkout, Purchases)", defaultUrl: "" },
+  { imageKey: "competitions_header", label: "Competitions Page Header", defaultUrl: "" },
+  { imageKey: "competition_detail_header", label: "Competition Detail Header", defaultUrl: "" },
+  { imageKey: "competition_card_fallback", label: "Default Competition Card Image", defaultUrl: "" },
+  { imageKey: "talent_profile_fallback", label: "Default Talent Profile Image", defaultUrl: "" },
   { imageKey: "hero_title_top", label: "Hero Title - Top Line (e.g. 'The Ultimate')", defaultUrl: "", itemType: "text" as const, defaultText: "The Ultimate" },
   { imageKey: "hero_title_main", label: "Hero Title - Main Heading (e.g. 'Talent Platform')", defaultUrl: "", itemType: "text" as const, defaultText: "Talent Platform" },
   { imageKey: "hiw_section_title", label: "How It Works - Section Title", defaultUrl: "", itemType: "text" as const, defaultText: "How It Works" },
@@ -217,15 +199,15 @@ const LIVERY_DEFAULTS = [
   { imageKey: "email_receipt_heading", label: "Purchase Receipt Email - Heading", defaultUrl: "", itemType: "text" as const, defaultText: "Purchase Receipt" },
   { imageKey: "email_receipt_body", label: "Purchase Receipt Email - Body", defaultUrl: "", itemType: "text" as const, defaultText: "Hi {buyerName}, thank you for your purchase!\n\nYour support helps power the competition and makes a real difference. Below are your transaction details." },
   { imageKey: "email_receipt_footer", label: "Purchase Receipt Email - Footer Note", defaultUrl: "", itemType: "text" as const, defaultText: "If you have questions about this purchase, please contact us." },
-  { imageKey: "home_banner_bg", label: "Home Page - Hero Background Image", defaultUrl: "/images/template/bg-1.jpg" },
-  { imageKey: "home_feature_1", label: "Home Page - Feature Image 1", defaultUrl: "/images/template/breadcumb.jpg" },
-  { imageKey: "home_feature_2", label: "Home Page - Feature Image 2", defaultUrl: "/images/template/breadcumb2.jpg" },
-  { imageKey: "home_feature_3", label: "Home Page - Feature Image 3", defaultUrl: "/images/template/breadcumb3.jpg" },
-  { imageKey: "home_feature_4", label: "Home Page - Feature Image 4", defaultUrl: "/images/template/bg-1.jpg" },
-  { imageKey: "home_feature_5", label: "Home Page - Feature Image 5", defaultUrl: "/images/template/bg-2.jpg" },
-  { imageKey: "home_about_img", label: "Home Page - About Section Image", defaultUrl: "/images/template/bg-2.jpg" },
-  { imageKey: "home_service_bg", label: "Home Page - Services Section Background", defaultUrl: "/images/template/breadcumb.jpg" },
-  { imageKey: "home_member_bg", label: "Home Page - Join Section Background", defaultUrl: "/images/template/bg-1.jpg" },
+  { imageKey: "home_banner_bg", label: "Home Page - Hero Background Image", defaultUrl: "" },
+  { imageKey: "home_feature_1", label: "Home Page - Feature Image 1", defaultUrl: "" },
+  { imageKey: "home_feature_2", label: "Home Page - Feature Image 2", defaultUrl: "" },
+  { imageKey: "home_feature_3", label: "Home Page - Feature Image 3", defaultUrl: "" },
+  { imageKey: "home_feature_4", label: "Home Page - Feature Image 4", defaultUrl: "" },
+  { imageKey: "home_feature_5", label: "Home Page - Feature Image 5", defaultUrl: "" },
+  { imageKey: "home_about_img", label: "Home Page - About Section Image", defaultUrl: "" },
+  { imageKey: "home_service_bg", label: "Home Page - Services Section Background", defaultUrl: "" },
+  { imageKey: "home_member_bg", label: "Home Page - Join Section Background", defaultUrl: "" },
   { imageKey: "home_brand_color", label: "CB Publishing - Brand Color (hex)", defaultUrl: "", itemType: "text" as const, defaultText: "#691cff" },
   { imageKey: "home_hero_title", label: "Home Page - Hero Title", defaultUrl: "", itemType: "text" as const, defaultText: "CB Publishing" },
   { imageKey: "home_hero_subtitle", label: "Home Page - Hero Subtitle", defaultUrl: "", itemType: "text" as const, defaultText: "Entertainment. Competition. Community." },
@@ -271,19 +253,14 @@ export async function seedLivery() {
 }
 
 const DEFAULT_CATEGORIES = [
-  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: "/images/categories/music-performance-generated.webp", order: 1, isActive: true },
-  { name: "Modeling/Fashion", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: "/images/categories/modeling-fashion-generated.webp", order: 2, isActive: true },
-  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: "/images/categories/bodybuilding-generated.webp", order: 3, isActive: true },
-  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: "/images/categories/dance-generated.webp", order: 4, isActive: true },
-  { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: "/images/categories/comedy-performance-generated.webp", order: 5, isActive: true },
-  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: "/images/categories/acting-generated.webp", order: 6, isActive: true },
-  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: "/images/categories/reality-generated.webp", order: 7, isActive: true },
+  { name: "Music", description: "Singing, rapping, DJing, and all musical performances", imageUrl: null, order: 1, isActive: true },
+  { name: "Modeling/Fashion", description: "Fashion, runway, commercial, and fitness modeling", imageUrl: null, order: 2, isActive: true },
+  { name: "Bodybuilding", description: "Classic physique, men's open, women's fitness, and athletic physique", imageUrl: null, order: 3, isActive: true },
+  { name: "Dance", description: "Hip-hop, contemporary, breakdancing, ballroom, and all dance styles", imageUrl: null, order: 4, isActive: true },
+  { name: "Comedy", description: "Stand-up, sketch, improv, and comedic performances", imageUrl: null, order: 5, isActive: true },
+  { name: "Acting", description: "Dramatic, comedic, and theatrical acting performances", imageUrl: null, order: 6, isActive: true },
+  { name: "Reality", description: "Reality competitions, challenges, and unscripted entertainment", imageUrl: null, order: 7, isActive: true },
 ];
-const LEGACY_CATEGORY_ARTWORK: Record<string, string> = {
-  fitness: "/images/categories/fitness-generated.webp",
-  sports: "/images/categories/sports-generated.webp",
-  "brand & business": "/images/categories/brand-business-generated.webp",
-};
 
 export async function seedCategories() {
   const existing = await firestoreCategories.getAll();
@@ -311,17 +288,6 @@ export async function seedCategories() {
     } else {
       await firestoreCategories.create({ ...cat, videoUrl: null });
       created.push(cat.name);
-    }
-  }
-
-  // These older built-in categories used Firebase Storage URLs that are no
-  // longer dependable in production. Keep the categories, but point their
-  // artwork at assets shipped with the web build.
-  for (const category of existing) {
-    const replacement = LEGACY_CATEGORY_ARTWORK[category.name.toLowerCase()];
-    if (replacement && category.imageUrl !== replacement) {
-      await firestoreCategories.update(category.id, { imageUrl: replacement });
-      updated.push(category.name);
     }
   }
 

@@ -225,13 +225,15 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                           preload="metadata"
                           className="w-full h-full object-cover"
                         />
-                      ) : (
+                      ) : item.thumbnail ? (
                         <img
-                          src={item.thumbnail || "/images/template/bg-1.jpg"}
+                          src={item.thumbnail}
                           alt={item.categoryName}
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
+                      ) : (
+                        <div className="w-full h-full bg-zinc-900" />
                       )}
                       <div className="coverflow-label">
                         <span className="coverflow-label-title">{item.categoryName}</span>
@@ -240,13 +242,15 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                         )}
                       </div>
                     </div>
-                    <div className="coverflow-reflection" aria-hidden="true">
-                      <img
-                        src={item.thumbnail || "/images/template/bg-1.jpg"}
-                        alt=""
-                        loading="lazy"
-                      />
-                    </div>
+                    {item.thumbnail && (
+                      <div className="coverflow-reflection" aria-hidden="true">
+                        <img
+                          src={item.thumbnail}
+                          alt=""
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="coverflow-caption" data-testid={`gallery-caption-${item.categoryId}`}>
                     <span className="coverflow-caption-title">

@@ -38,7 +38,7 @@ export default function ViewerDashboard() {
   const { viewer, logoutViewer, refreshViewer } = useViewerSession();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { getImage, getMedia } = useLivery();
+  const { getMedia } = useLivery();
 
   const [purchases, setPurchases] = useState<PurchaseDetail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,11 +94,11 @@ export default function ViewerDashboard() {
       <SiteNavbar />
 
       <section className="relative h-[230px] md:h-[290px] overflow-hidden">
-        {getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").type === "video" ? (
-          <video src={getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-        ) : (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${getImage("breadcrumb_bg", "/images/template/breadcumb.jpg")}')` }} />
-        )}
+        {(() => { const m = getMedia("breadcrumb_bg"); return m.type === "video" && m.url ? (
+          <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+        ) : m.url ? (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${m.url}')` }} />
+        ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/65" />
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/[0.88] backdrop-blur-sm text-center rounded-2xl pt-6 pb-5 px-6 sm:px-10 z-10 w-[calc(100%-32px)] max-w-[552px] shadow-2xl shadow-black/30">
           <p className="text-black/50 text-xs uppercase tracking-[0.2em] leading-relaxed mb-2">Voter account</p>

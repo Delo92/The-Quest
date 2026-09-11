@@ -39,7 +39,7 @@ interface LookupResult {
 
 export default function MyPurchasesPage() {
   const { toast } = useToast();
-  const { getImage, getMedia } = useLivery();
+  const { getMedia } = useLivery();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -81,11 +81,11 @@ export default function MyPurchasesPage() {
       <SiteNavbar />
 
       <section className="relative h-[270px] md:h-[300px] overflow-hidden">
-        {getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").type === "video" ? (
-          <video src={getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-        ) : (
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${getImage("breadcrumb_bg", "/images/template/breadcumb.jpg")}')` }} />
-        )}
+        {(() => { const m = getMedia("breadcrumb_bg"); return m.type === "video" && m.url ? (
+          <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+        ) : m.url ? (
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${m.url}')` }} />
+        ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/65" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-8 pb-5 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
           <p className="text-black/50 text-base leading-relaxed mb-1">Your Account</p>

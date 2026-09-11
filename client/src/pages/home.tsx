@@ -92,15 +92,15 @@ export default function HomePage() {
   const aboutTitle = getText("home_about_title", "About CB Publishing");
   const aboutBody = getText("home_about_body", "CB Publishing is an independent entertainment and digital media company. We specialize in creating competition platforms, music promotion, and event management tools that empower artists and audiences alike.\n\nOur properties include The Quest — an online talent competition and voting platform — and more exciting projects in development.");
 
-  const bannerBg = getImage("home_banner_bg", "/images/template/bg-1.jpg");
-  const feat1 = getImage("home_feature_1", "/images/template/breadcumb.jpg");
-  const feat2 = getImage("home_feature_2", "/images/template/breadcumb2.jpg");
-  const feat3 = getImage("home_feature_3", "/images/template/breadcumb3.jpg");
-  const feat4 = getImage("home_feature_4", "/images/template/bg-1.jpg");
-  const feat5 = getImage("home_feature_5", "/images/template/bg-2.jpg");
-  const aboutImg = getImage("home_about_img", "/images/template/bg-2.jpg");
-  const serviceBg = getImage("home_service_bg", "/images/template/breadcumb.jpg");
-  const memberBg = getImage("home_member_bg", "/images/template/bg-1.jpg");
+  const bannerBg = getImage("home_banner_bg");
+  const feat1 = getImage("home_feature_1");
+  const feat2 = getImage("home_feature_2");
+  const feat3 = getImage("home_feature_3");
+  const feat4 = getImage("home_feature_4");
+  const feat5 = getImage("home_feature_5");
+  const aboutImg = getImage("home_about_img");
+  const serviceBg = getImage("home_service_bg");
+  const memberBg = getImage("home_member_bg");
 
   const feat1Title = getText("home_feature_1_title", "The Quest Finals");
   const feat1Sub = getText("home_feature_1_subtitle", "Live competition event");

@@ -15,7 +15,7 @@ export default function FAQPage() {
     canonical: "https://thequest-2dc77.firebaseapp.com/faq",
   });
 
-  const breadcrumbBg = getImage("breadcrumb_bg", "/images/template/breadcumb.jpg");
+  const breadcrumbBg = getImage("breadcrumb_bg");
 
   const faqs: { question: string; answer: string }[] = [];
   for (let i = 1; i <= 19; i++) {

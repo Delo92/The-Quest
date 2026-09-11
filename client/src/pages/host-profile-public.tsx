@@ -77,7 +77,7 @@ export default function HostProfilePublic() {
   }
 
   const { host, competitions } = data;
-  const mainImage = host.profileImageUrl || host.imageUrls?.[0] || getImage("talent_profile_fallback", "/images/template/a1.jpg");
+  const mainImage = host.profileImageUrl || host.imageUrls?.[0] || getImage("talent_profile_fallback") || undefined;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -145,7 +145,7 @@ export default function HostProfilePublic() {
                   <div className="group cursor-pointer transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]" data-testid={`card-comp-${comp.id}`}>
                     <div className="overflow-hidden relative h-44">
                       <img
-                        src={comp.coverImage || getImage("competition_card_fallback", "/images/template/e1.jpg")}
+                        src={comp.coverImage || getImage("competition_card_fallback") || undefined}
                         alt={comp.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />

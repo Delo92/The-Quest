@@ -688,7 +688,7 @@ export default function CompetitionDetailPage() {
                     ) : selectedStage && stageSubmission?.mediaType === "image" ? (
                       <FallbackImage
                         src={stageSubmission.mediaUrl}
-                        fallbackSrc={stageSubmission.thumbnailUrl || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                        fallbackSrc={stageSubmission.thumbnailUrl || getImage("talent_profile_fallback") || undefined}
                         alt={`${contestant.talentProfile.stageName || contestant.talentProfile.displayName} — ${selectedStage.name}`}
                         className="h-52 w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
@@ -722,8 +722,8 @@ export default function CompetitionDetailPage() {
                       );
                     }) : (
                       <FallbackImage
-                        src={(contestant as any).videoThumbnail || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
-                        fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback", "/images/template/a1.jpg")}
+                        src={(contestant as any).videoThumbnail || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback") || undefined}
+                        fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback") || undefined}
                         alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />

@@ -32,8 +32,8 @@ export default function Landing() {
     canonical: "https://thequest-2dc77.firebaseapp.com",
   });
   const heroRef = useRef<HTMLDivElement>(null);
-  const { getImage, getMedia, getText } = useLivery();
-  const heroMedia = getMedia("hero_background", "/images/template/bg-1.jpg");
+  const { getMedia, getText } = useLivery();
+  const heroMedia = getMedia("hero_background");
   const { data: dynamicCategories } = useQuery<any[]>({ queryKey: ["/api/categories"] });
   const { data: featuredComp } = useQuery<any>({ queryKey: ["/api/competitions/featured?placement=hero"] });
   const featuredCountdownSource = featuredComp?.votingEndDate || featuredComp?.endDate || null;
@@ -41,38 +41,7 @@ export default function Landing() {
   const hasFeaturedCountdown = !!featuredCountdownDate && !Number.isNaN(featuredCountdownDate.getTime());
   const featuredCountdownTitle = featuredComp?.votingEndDate ? "Voting Closes In" : "Competition Ends In";
 
-  const categoryArtwork: Record<string, string> = {
-    music: "/images/categories/music-performance-generated.webp",
-    modeling: "/images/categories/modeling-fashion-generated.webp",
-    "modeling/fashion": "/images/categories/modeling-fashion-generated.webp",
-    bodybuilding: "/images/categories/bodybuilding-generated.webp",
-    fitness: "/images/categories/fitness-generated.webp",
-    dance: "/images/categories/dance-generated.webp",
-    comedy: "/images/categories/comedy-performance-generated.webp",
-    acting: "/images/categories/acting-generated.webp",
-    "brand & business": "/images/categories/brand-business-generated.webp",
-    sports: "/images/categories/sports-generated.webp",
-    reality: "/images/categories/reality-generated.webp",
-  };
-  const getCategoryMedia = (cat: any): { url: string; type: "image" | "video" } => {
-    const artwork = categoryArtwork[String(cat.name || "").trim().toLowerCase()];
-    if (artwork) return { url: `${artwork}?v=category-reference-20260910`, type: "image" };
-    if (cat.videoUrl) return { url: cat.videoUrl, type: "video" };
-    if (cat.imageUrl) return { url: cat.imageUrl, type: "image" };
-    return { url: "/images/competition-cover-1.png", type: "image" };
-  };
-  const categoryImageFallback = "/images/competition-cover-1.png";
-
-  const fallbackCategories = [
-    { id: "fb-music", name: "Music", description: "Singers, rappers, DJs & producers", imageUrl: "/images/categories/music-performance-generated.webp", isActive: true },
-    { id: "fb-modeling", name: "Modeling/Fashion", description: "Fashion, fitness & swimwear models", imageUrl: "/images/categories/modeling-fashion-generated.webp", isActive: true },
-    { id: "fb-bodybuilding", name: "Bodybuilding", description: "Physique, classic & open divisions", imageUrl: "/images/categories/bodybuilding-generated.webp", isActive: true },
-    { id: "fb-dance", name: "Dance", description: "Hip-hop, contemporary & freestyle", imageUrl: "/images/categories/dance-generated.webp", isActive: true },
-  ];
-
-  const activeCategories = (dynamicCategories && dynamicCategories.length > 0)
-    ? dynamicCategories.filter((c: any) => c.isActive)
-    : fallbackCategories;
+  const activeCategories = (dynamicCategories || []).filter((c: any) => c.isActive);
 
   const cats = useInView();
   const featured = useInView();
@@ -275,7 +244,6 @@ export default function Landing() {
 
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${(activeCategories.length) <= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-6`}>
             {activeCategories.map((cat: any, i: number) => {
-              const media = getCategoryMedia(cat);
               return (
               <Link href="/competitions" key={cat.id}>
                 <div
@@ -284,14 +252,20 @@ export default function Landing() {
                   data-testid={`card-category-${cat.name.toLowerCase()}`}
                 >
                   <div className="overflow-hidden">
-                    {media.type === "video" ? (
+                    {cat.videoUrl ? (
                       cats.isVisible ? (
-                        <video src={media.url} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline preload="none" />
+                        <video src={cat.videoUrl} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline preload="none" />
                       ) : (
-                        <img src={cat.imageUrl || categoryImageFallback} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = categoryImageFallback; }} />
+                        cat.imageUrl ? (
+                          <img src={cat.imageUrl} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
+                        ) : (
+                          <div className="w-full aspect-square bg-zinc-900 transition-transform duration-700 group-hover:scale-110" />
+                        )
                       )
+                    ) : cat.imageUrl ? (
+                      <img src={cat.imageUrl} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
                     ) : (
-                      <img src={media.url} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = categoryImageFallback; }} />
+                      <div className="w-full aspect-square bg-zinc-900 transition-transform duration-700 group-hover:scale-110" />
                     )}
                   </div>
                   <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
@@ -317,11 +291,11 @@ export default function Landing() {
       </section>
 
       <section ref={featureMedia.ref} className="relative py-24 md:py-28 overflow-hidden">
-        {getMedia("feature_background", "/images/template/bg-2.jpg").type === "video" && featureMedia.isVisible ? (
-          <video src={getMedia("feature_background", "/images/template/bg-2.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
-        ) : (
-          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${getMedia("feature_background", "/images/template/bg-2.jpg").type === "video" ? "/images/template/bg-2.jpg" : getImage("feature_background", "/images/template/bg-2.jpg")}')` }} />
-        )}
+        {(() => { const m = getMedia("feature_background"); return m.type === "video" && m.url && featureMedia.isVisible ? (
+          <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
+        ) : m.url ? (
+          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${m.url}')` }} />
+        ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/65" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div ref={featured.ref} className={`text-center mb-24 transition-all duration-1000 ${featured.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
@@ -389,11 +363,11 @@ export default function Landing() {
       </section>
 
       <section ref={ctaMedia.ref} className="relative py-24 md:py-28 overflow-hidden">
-        {getMedia("cta_background", "/images/template/breadcumb.jpg").type === "video" && ctaMedia.isVisible ? (
-          <video src={getMedia("cta_background", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
-        ) : (
-          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${getMedia("cta_background", "/images/template/breadcumb.jpg").type === "video" ? "/images/template/breadcumb.jpg" : getImage("cta_background", "/images/template/breadcumb.jpg")}')` }} />
-        )}
+        {(() => { const m = getMedia("cta_background"); return m.type === "video" && m.url && ctaMedia.isVisible ? (
+          <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline preload="metadata" />
+        ) : m.url ? (
+          <div className="absolute inset-0 bg-cover bg-center bg-fixed" style={{ backgroundImage: `url('${m.url}')` }} />
+        ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/65" />
         <div ref={cta.ref} className={`relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-1000 ${cta.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <p className="text-[#5f5f5f] text-sm mb-1">See what&apos;s new</p>

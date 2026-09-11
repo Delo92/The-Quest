@@ -56,7 +56,7 @@ export default function TalentProfilePublic() {
     );
   }
 
-  const fallbackDefault = getImage("talent_profile_fallback", "/images/template/a1.jpg");
+  const fallbackDefault = getImage("talent_profile_fallback") || undefined;
   const mainImage = profile.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, 0) || fallbackDefault;
 

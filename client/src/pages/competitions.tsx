@@ -52,11 +52,11 @@ export default function Competitions() {
 
       <section className="relative overflow-hidden">
         <div className="relative h-[270px] md:h-[340px]">
-          {getMedia("competitions_header", "/images/template/breadcumb2.jpg").type === "video" ? (
-            <video src={getMedia("competitions_header", "/images/template/breadcumb2.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-          ) : (
-            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${getImage("competitions_header", "/images/template/breadcumb2.jpg")}')` }} />
-          )}
+          {(() => { const m = getMedia("competitions_header"); return m.type === "video" && m.url ? (
+            <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+          ) : m.url ? (
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${m.url}')` }} />
+          ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
           <div className="absolute inset-0 bg-black/65" />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
             <p className="text-black/50 text-base leading-relaxed mb-1">See what&apos;s new</p>
@@ -169,7 +169,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
   const { getImage, getText } = useLivery();
   const websiteName = getText("site_name", "The Quest");
   const schedule = getCompetitionSchedule(competition);
-  const coverPoster = competition.coverVideoThumbnail || competition.coverImage || getImage("competition_card_fallback", "/images/competition-cover-1.png");
+  const coverPoster = competition.coverVideoThumbnail || competition.coverImage || getImage("competition_card_fallback");
   return (
     <div
       className="group relative overflow-hidden rounded-sm border border-white/10 bg-[#101010] shadow-[0_16px_35px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FF5A09]/60 hover:shadow-[0_20px_45px_rgba(0,0,0,0.65)]"
@@ -214,7 +214,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
               )
             ) : (
               <img
-                src={competition.coverImage || getImage("competition_card_fallback", "/images/template/e1.jpg")}
+                src={competition.coverImage || getImage("competition_card_fallback") || undefined}
                 alt={competition.title}
                 className="w-full h-52 object-cover transition-transform duration-700 group-hover:scale-105"
                 loading="lazy"

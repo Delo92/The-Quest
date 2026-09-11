@@ -57,7 +57,7 @@ export default function JoinPage() {
     canonical: "https://thequest-2dc77.firebaseapp.com/join",
   });
   const { toast } = useToast();
-  const { getImage, getMedia } = useLivery();
+  const { getMedia } = useLivery();
 
   const [mode] = useState<"nominate">("nominate");
   const [form, setForm] = useState<Record<string, string>>({});
@@ -384,11 +384,11 @@ export default function JoinPage() {
       <SiteNavbar />
 
       <section className="relative overflow-hidden">
-        {getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").type === "video" ? (
-          <video src={getMedia("breadcrumb_bg", "/images/template/breadcumb.jpg").url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-        ) : (
-          <div className="absolute inset-0 bg-cover bg-top" style={{ backgroundImage: `url('${getImage("breadcrumb_bg", "/images/template/breadcumb.jpg")}')` }} />
-        )}
+        {(() => { const m = getMedia("breadcrumb_bg"); return m.type === "video" && m.url ? (
+          <video src={m.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+        ) : m.url ? (
+          <div className="absolute inset-0 bg-cover bg-top" style={{ backgroundImage: `url('${m.url}')` }} />
+        ) : <div className="absolute inset-0 bg-zinc-950" />; })()}
         <div className="absolute inset-0 bg-black/65" />
         <div className="relative z-10 pt-[60px] md:pt-[72px] pb-0">
           <div className="max-w-5xl mx-auto">
