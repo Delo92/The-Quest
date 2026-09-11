@@ -47,7 +47,7 @@ export default function Competitions() {
   }) || [];
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="quest-page-surface min-h-screen text-white">
       <SiteNavbar />
 
       <section className="relative overflow-hidden">
@@ -70,10 +70,10 @@ export default function Competitions() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-b from-purple-950/40 to-black border-b border-white/10 py-12 px-4">
+        <div className="bg-gradient-to-b from-emerald-950/45 via-[#07100c]/85 to-black border-b border-white/10 py-12 px-4">
           <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-            <div className="flex-shrink-0 inline-flex items-center justify-center w-14 h-14 rounded-full bg-purple-500/20 border border-purple-500/30">
-              <Megaphone className="h-6 w-6 text-purple-300" />
+            <div className="flex-shrink-0 inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-400/30">
+              <Megaphone className="h-6 w-6 text-emerald-300" />
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold uppercase mb-1" style={{ letterSpacing: "4px" }}>Become a Host</h2>
@@ -83,7 +83,7 @@ export default function Competitions() {
             </div>
             <Link href="/host" className="flex-shrink-0">
               <span
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold uppercase px-6 py-3 text-sm cursor-pointer hover:from-purple-500 hover:to-purple-400 transition-all duration-300 whitespace-nowrap"
+                className="quest-action-label inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white uppercase px-6 py-3 text-sm cursor-pointer hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 whitespace-nowrap"
                 style={{ letterSpacing: "2px" }}
                 data-testid="button-become-a-host"
               >
@@ -252,8 +252,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
             )}
             <div className="mt-3 flex justify-center">
               <span
-                className="inline-block border border-white/20 bg-white/10 text-white text-[11px] font-bold uppercase px-5 py-2 tracking-widest transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
-                style={{ letterSpacing: "4px" }}
+                className="quest-action-label inline-block border border-white/20 bg-white/10 text-white text-[12px] uppercase px-5 py-2 transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
               >
                 See Competition
               </span>
@@ -269,8 +268,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
          ) : (
            <Link
              href={`/join?competition=${competition.id}`}
-             className="inline-block bg-[#FF5A09] text-white font-bold text-xs uppercase px-5 leading-[36px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
-             style={{ letterSpacing: "2px" }}
+              className="quest-action-label inline-block bg-[#FF5A09] text-white text-sm uppercase px-5 leading-[36px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
              data-testid={`button-join-${competition.id}`}
            >
              Start Nominating

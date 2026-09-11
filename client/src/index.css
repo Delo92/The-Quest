@@ -176,6 +176,14 @@
     @apply border-border;
   }
 
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    font-family: "Bebas Neue", Poppins, sans-serif;
+    letter-spacing: 0.08em;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
@@ -201,6 +209,22 @@
   * {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+}
+
+@layer components {
+  .quest-page-surface {
+    background-color: #060908;
+    background-image:
+      radial-gradient(ellipse 70% 42% at 18% 12%, rgba(22, 105, 72, 0.18), transparent 70%),
+      radial-gradient(ellipse 65% 44% at 86% 52%, rgba(13, 74, 52, 0.12), transparent 72%),
+      linear-gradient(180deg, #080d0b 0%, #050706 58%, #080a09 100%);
+  }
+
+  .quest-action-label {
+    font-family: "Bebas Neue", Poppins, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.12em;
   }
 }
 
