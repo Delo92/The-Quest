@@ -34,7 +34,7 @@ function LazyVimeoIframe({ src, title, className, allow }: { src: string; title:
     const el = containerRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      ([entry]) => { setVisible(entry.isIntersecting); },
       { rootMargin: "200px" }
     );
     observer.observe(el);
