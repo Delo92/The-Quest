@@ -168,6 +168,9 @@ export default function ContestantSharePage() {
   const hasImages = !!(profile.imageUrls && profile.imageUrls.length > 0);
   // If no profile images but there is a video, use the video as the hero
   const heroVideoEmbedUrl = !hasImages && videos.length > 0 ? videos[0].embedUrl : null;
+  const heroVideoIsPortrait = heroVideoEmbedUrl
+    && videos[0].height && videos[0].width
+    && videos[0].height > videos[0].width;
   const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0) || fallbackDefault;
   const isVotingOpen = competition.status === "active" || competition.status === "voting";
@@ -232,8 +235,24 @@ export default function ContestantSharePage() {
         {heroVideoEmbedUrl ? (
           <iframe
             src={`${heroVideoEmbedUrl}${heroVideoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`}
-            className="absolute inset-0 w-full h-full"
-            style={{ pointerEvents: "none", border: "none" }}
+            className="absolute left-0"
+            style={heroVideoIsPortrait ? {
+              /* Portrait (9:16) video in landscape hero:
+                 Size the iframe at the video's natural aspect ratio with 100% width,
+                 so it's taller than the container. Center vertically; container clips overflow. */
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: "100%",
+              aspectRatio: `${videos[0].width} / ${videos[0].height}`,
+              border: "none",
+              pointerEvents: "none",
+            } : {
+              top: 0,
+              width: "100%",
+              height: "100%",
+              border: "none",
+              pointerEvents: "none",
+            }}
             allow="autoplay; fullscreen"
             title={profile.stageName || profile.displayName || ""}
           />
