@@ -15,6 +15,7 @@ import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { slugify } from "@shared/slugify";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { HlsVideoPlayer } from "@/components/hls-video-player";
+import { useVideoPreloader } from "@/hooks/use-video-preloader";
 
 interface ResolvedData {
   competition: {
@@ -145,6 +146,10 @@ export default function ContestantSharePage() {
   const firstVideoPreloadedUrls = bundleData?.firstVideoHlsUrl
     ? { hls: bundleData.firstVideoHlsUrl, progressive: [] }
     : null;
+
+  // Background preloader — starts buffering the first video the moment bundle
+  // data arrives, before the user taps play.
+  const videoPreloader = useVideoPreloader(bundleData?.firstVideoHlsUrl ?? null);
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({
     queryKey: ["/api/referral/my-code"],
@@ -685,6 +690,11 @@ export default function ContestantSharePage() {
                           preloadedUrls={
                             mediaData?.videos?.[0]?.uri === video.uri
                               ? firstVideoPreloadedUrls
+                              : null
+                          }
+                          preloader={
+                            mediaData?.videos?.[0]?.uri === video.uri
+                              ? videoPreloader
                               : null
                           }
                         />

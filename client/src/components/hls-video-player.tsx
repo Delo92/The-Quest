@@ -6,9 +6,18 @@
  * - Native HLS on Safari/iOS (no hls.js needed)
  * - ChronicTV's exact ABR/buffer/retry config for reliable mobile playback
  * - Falls back to best progressive MP4 if HLS is unsupported
+ *
+ * Background preload handoff:
+ * When a VideoPreloaderState is passed via `preloader`, this player adopts
+ * the already-running hls.js instance instead of starting fresh.
+ * hls.detachMedia() removes it from the hidden video; hls.attachMedia()
+ * binds it to this player. The manifest is already parsed and the first
+ * segments may already be in the CDN/browser cache, so buffering resumes
+ * from where the preloader left off rather than starting from zero.
  */
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import type { VideoPreloaderState } from "@/hooks/use-video-preloader";
 
 interface HlsVideoPlayerProps {
   videoId: string;       // Vimeo URI like /videos/123 or bare numeric ID
@@ -21,12 +30,40 @@ interface HlsVideoPlayerProps {
   onEnded?: () => void;
   /** Pre-fetched play URLs from the bundle — skips the /api/vimeo/:id/play fetch */
   preloadedUrls?: PlayUrls | null;
+  /** Running background preloader to adopt on mount */
+  preloader?: VideoPreloaderState | null;
 }
 
 interface PlayUrls {
   hls: string | null;
   progressive: Array<{ rendition: string; width: number; height: number; link: string }>;
 }
+
+// ChronicTV's exact HLS config
+const HLS_CONFIG = {
+  enableWorker: true,
+  lowLatencyMode: false,
+  startLevel: -1,
+  abrEwmaDefaultEstimate: 1_500_000,
+  maxBufferLength: 30,
+  maxMaxBufferLength: 60,
+  maxBufferSize: 60 * 1000 * 1000,
+  backBufferLength: 30,
+  maxBufferHole: 0.3,
+  highBufferWatchdogPeriod: 1,
+  nudgeOffset: 0.1,
+  nudgeMaxRetry: 8,
+  fragLoadingMaxRetry: 8,
+  fragLoadingRetryDelay: 300,
+  fragLoadingMaxRetryTimeout: 4000,
+  manifestLoadingMaxRetry: 5,
+  manifestLoadingRetryDelay: 500,
+  levelLoadingMaxRetry: 5,
+  levelLoadingRetryDelay: 500,
+  capLevelToPlayerSize: true,
+  abrBandWidthFactor: 0.95,
+  abrBandWidthUpFactor: 0.7,
+};
 
 function extractVideoId(input: string): string {
   const match = input.match(/(\d+)(?:[^/]*)?$/);
@@ -43,6 +80,7 @@ export function HlsVideoPlayer({
   poster,
   onEnded,
   preloadedUrls,
+  preloader,
 }: HlsVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<any>(null);
@@ -69,7 +107,57 @@ export function HlsVideoPlayer({
 
     cleanup();
 
-    // Use pre-fetched URLs from the bundle when available — skips the network round-trip
+    // ── Background preloader handoff path ─────────────────────────────────
+    // If the preloader has an active hls.js instance, adopt it instead of
+    // starting a fresh one. detachMedia removes it from the hidden video;
+    // attachMedia binds it here. Manifest is already parsed — buffering
+    // resumes immediately. Falls through to normal init if preloader isn't ready.
+    if (preloader?.hlsRef.current) {
+      const hls = preloader.hlsRef.current;
+      try {
+        hls.detachMedia();
+        hls.attachMedia(video);
+        // Apply full player config (preloader used conservative settings)
+        hls.config.maxBufferLength = HLS_CONFIG.maxBufferLength;
+        hls.config.maxMaxBufferLength = HLS_CONFIG.maxMaxBufferLength;
+        hls.config.capLevelToPlayerSize = true;
+        hls.config.startLevel = -1; // Let ABR upgrade from preloader's start level
+
+        const onManifest = () => {
+          if (cancelled) return;
+          if (autoPlay) video.play().catch(() => {});
+          setLoading(false);
+        };
+        hls.on("hlsManifestParsed", onManifest);
+
+        // Manifest may already be parsed — check readyState
+        if (video.readyState >= 1) {
+          if (autoPlay) video.play().catch(() => {});
+          setLoading(false);
+        }
+
+        hls.on("hlsError", (_: any, data: any) => {
+          if (data.fatal) {
+            if (data.type === "networkError") hls.startLoad();
+            else if (data.type === "mediaError") hls.recoverMediaError();
+            else setError("Playback failed");
+          }
+        });
+
+        hlsRef.current = hls;
+        // Clear the preloader ref so it isn't adopted again
+        preloader.hlsRef.current = null;
+
+        return () => {
+          cancelled = true;
+          cleanup();
+        };
+      } catch {
+        // Fall through to normal init if handoff fails
+      }
+    }
+
+    // ── Normal init path ──────────────────────────────────────────────────
     const urlsPromise: Promise<PlayUrls> = preloadedUrls
       ? Promise.resolve(preloadedUrls)
       : fetch(`/api/vimeo/${id}/play`)
@@ -85,7 +173,7 @@ export function HlsVideoPlayer({
         const canNativeHls = video.canPlayType("application/vnd.apple.mpegurl");
 
         if (urls.hls && canNativeHls) {
-          // Safari / iOS — native HLS support, no library needed
+          // Safari / iOS — native HLS, no library needed
           video.src = urls.hls;
           video.load();
           if (autoPlay) video.play().catch(() => {});
@@ -94,52 +182,12 @@ export function HlsVideoPlayer({
         }
 
         if (urls.hls) {
-          // Chrome / Firefox / Android — dynamically import hls.js so it stays
-          // off the initial bundle (mirrors ChronicTV's initializeHls pattern)
           try {
             const { default: Hls } = await import("hls.js");
             if (cancelled) return;
-
             if (!Hls.isSupported()) throw new Error("HLS not supported");
 
-            // ChronicTV's exact HLS config
-            const hls = new Hls({
-              enableWorker: true,
-              lowLatencyMode: false,
-
-              // Startup — assume 1.5 Mbps so we don't begin at the lowest rendition
-              startLevel: -1,
-              abrEwmaDefaultEstimate: 1_500_000,
-
-              // Buffer — enough runway for unreliable mobile without excessive memory use
-              maxBufferLength: 30,
-              maxMaxBufferLength: 60,
-              maxBufferSize: 60 * 1000 * 1000,
-              backBufferLength: 30,
-              maxBufferHole: 0.3,
-
-              // Stall recovery
-              highBufferWatchdogPeriod: 1,
-              nudgeOffset: 0.1,
-              nudgeMaxRetry: 8,
-
-              // Fragment retry
-              fragLoadingMaxRetry: 8,
-              fragLoadingRetryDelay: 300,
-              fragLoadingMaxRetryTimeout: 4000,
-
-              // Manifest / level retry
-              manifestLoadingMaxRetry: 5,
-              manifestLoadingRetryDelay: 500,
-              levelLoadingMaxRetry: 5,
-              levelLoadingRetryDelay: 500,
-
-              // ABR — never fetch renditions larger than the element; conservative upgrades
-              capLevelToPlayerSize: true,
-              abrBandWidthFactor: 0.95,
-              abrBandWidthUpFactor: 0.7,
-            });
-
+            const hls = new Hls(HLS_CONFIG);
             hls.loadSource(urls.hls);
             hls.attachMedia(video);
 
@@ -157,7 +205,6 @@ export function HlsVideoPlayer({
                 } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                   hls.recoverMediaError();
                 } else {
-                  // Final fallback to best progressive MP4
                   const best = [...(urls.progressive ?? [])].reverse()[0];
                   if (best) { video.src = best.link; if (autoPlay) video.play().catch(() => {}); }
                   else setError("Playback failed");
@@ -168,8 +215,6 @@ export function HlsVideoPlayer({
             if (!cancelled) hlsRef.current = hls;
           } catch (err) {
             if (cancelled) return;
-            console.error("HLS init error:", err);
-            // Fall through to progressive
             const best = [...(urls.progressive ?? [])].reverse()[0];
             if (best) { video.src = best.link; if (autoPlay) video.play().catch(() => {}); setLoading(false); }
             else { setError("Could not start playback"); setLoading(false); }
@@ -177,7 +222,7 @@ export function HlsVideoPlayer({
           return;
         }
 
-        // No HLS — use best progressive MP4
+        // No HLS — best progressive MP4
         const best = [...(urls.progressive ?? [])].reverse()[0];
         if (best) {
           video.src = best.link;
