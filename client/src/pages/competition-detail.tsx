@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,38 @@ import {
   getCompetitionPhase,
   getCompetitionSchedule,
 } from "@/components/competition-countdown";
+
+/** Mounts the Vimeo iframe only when the container scrolls into the viewport.
+ *  Prevents the browser from opening dozens of player connections at page load. */
+function LazyVimeoIframe({ src, title, className, allow }: { src: string; title: string; className?: string; allow?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="absolute inset-0">
+      {visible && (
+        <iframe
+          src={src}
+          className={className ?? "absolute inset-0 w-full h-full"}
+          loading="eager"
+          allow={allow ?? "autoplay; fullscreen; picture-in-picture"}
+          title={title}
+        />
+      )}
+    </div>
+  );
+}
 
 interface ContestantWithProfile {
   id: number;
@@ -677,11 +709,8 @@ export default function CompetitionDetailPage() {
                       </div>
                     ) : selectedStage && stageSubmission?.mediaType === "video" ? (
                       <div className="relative aspect-video w-full overflow-hidden">
-                        <iframe
-                          src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`}
-                          className="absolute inset-0 h-full w-full"
-                          loading="eager"
-                          allow="autoplay; fullscreen; picture-in-picture"
+                        <LazyVimeoIframe
+                          src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&initial_quality=360p&quality=auto`}
                           title={`${contestant.talentProfile.displayName} — ${selectedStage.name}`}
                         />
                         {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
@@ -707,17 +736,15 @@ export default function CompetitionDetailPage() {
                         Loading media
                       </div>
                     ) : videos.length > 0 ? videos.slice(0, 1).map((video) => {
-                      const playerUrl = `${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1`;
+                      const sep = video.embedUrl.includes("?") ? "&" : "?";
+                      const playerUrl = `${video.embedUrl}${sep}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&initial_quality=360p&quality=auto`;
                       return (
                         <div
                           key={video.uri}
                           className={`relative w-full overflow-hidden ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
                         >
-                          <iframe
+                          <LazyVimeoIframe
                             src={playerUrl}
-                            className="absolute inset-0 w-full h-full"
-                            loading="eager"
-                            allow="autoplay; fullscreen; picture-in-picture"
                             title={`${contestant.talentProfile.displayName} — ${video.name}`}
                           />
                           {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
