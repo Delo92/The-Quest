@@ -25,6 +25,36 @@ function useInView(threshold = 0.15) {
   return { ref, isVisible };
 }
 
+/** Mounts the video element only when this specific card scrolls into view.
+ *  Prevents all 5 category videos from downloading simultaneously on page load. */
+function LazyVideoCard({ src, imageUrl, name, className }: { src: string; imageUrl?: string | null; name: string; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setMounted(true); obs.disconnect(); } },
+      { rootMargin: "150px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className={className}>
+      {mounted ? (
+        <video src={src} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline preload="none" />
+      ) : imageUrl ? (
+        <img src={imageUrl} alt={name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
+      ) : (
+        <div className="w-full aspect-square bg-zinc-900" />
+      )}
+    </div>
+  );
+}
+
 export default function Landing() {
   useSEO({
     title: "The Quest - Talent Competition & Voting Platform",
@@ -253,15 +283,12 @@ export default function Landing() {
                 >
                   <div className="overflow-hidden">
                     {cat.videoUrl ? (
-                      cats.isVisible ? (
-                        <video src={cat.videoUrl} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" autoPlay muted loop playsInline preload="none" />
-                      ) : (
-                        cat.imageUrl ? (
-                          <img src={cat.imageUrl} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
-                        ) : (
-                          <div className="w-full aspect-square bg-zinc-900 transition-transform duration-700 group-hover:scale-110" />
-                        )
-                      )
+                      <LazyVideoCard
+                        src={cat.videoUrl}
+                        imageUrl={cat.imageUrl}
+                        name={cat.name}
+                        className="overflow-hidden"
+                      />
                     ) : cat.imageUrl ? (
                       <img src={cat.imageUrl} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
                     ) : (
