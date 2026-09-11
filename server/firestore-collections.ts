@@ -1119,7 +1119,9 @@ export const firestoreLivery = {
   },
 
   async upsert(item: FirestoreLiveryItem): Promise<FirestoreLiveryItem> {
-    await db().collection(COLLECTIONS.LIVERY).doc(item.imageKey).set(item);
+    // merge: true ensures fields not included in `item` (e.g. imageUrl set by admin)
+    // are never silently wiped by a partial upsert.
+    await db().collection(COLLECTIONS.LIVERY).doc(item.imageKey).set(item, { merge: true });
     return item;
   },
 
