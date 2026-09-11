@@ -51,7 +51,11 @@ function LiveVoteCounter() {
 
   useEffect(() => {
     fetchVotes();
-    const interval = setInterval(fetchVotes, 5000);
+    // Poll every 60s — server caches for 15s so faster than this returns stale data anyway.
+    // Pause while the tab is hidden so background tabs don't hammer the server.
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchVotes();
+    }, 60_000);
     return () => clearInterval(interval);
   }, [fetchVotes]);
 
