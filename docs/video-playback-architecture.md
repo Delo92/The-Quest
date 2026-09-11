@@ -1,26 +1,26 @@
 # The Quest — Video Playback Architecture Breakdown
 *Prepared for Chronic TV technical exchange · September 2026*
 
----
+**GitHub repo:** https://github.com/Delo92/The-Quest
 
-## Overview
-
-The Quest uses a layered, context-aware video strategy. Rather than one player for everything, each surface (gallery, contestant profile, background loop, full playback) uses the mechanism that gives the best result for that context — native `<video>`, Vimeo iframe embed, or a signed HLS stream through a custom player. Mobile behavior is handled explicitly at every layer.
+All line references link directly to the file and line in the repo. Line numbers are current as of this writing — if the file has changed, use the anchored link as a starting point and search nearby.
 
 ---
 
 ## 1. Player Selection by Context
 
-| Surface | Mechanism | Why |
-|---|---|---|
-| Hero gallery card overlay | Vimeo iframe (muted, background mode) | Guaranteed autoplay across browsers; thumbnail stays visible underneath as fallback |
-| Contestant share / spotlight | Vimeo iframe, click-to-play | User intent required; Vimeo controls handle quality/fullscreen |
-| Talent profile (public) | Vimeo iframe, autoplay muted loop | Ambient, decorative; no controls needed |
-| Competition detail first video | Vimeo iframe, autoplay muted | Same ambient pattern; lazy-mounted |
-| Full screened / admin playback | Custom HLS player (`HlsVideoPlayer`) | Signed URL, adaptive bitrate, no Vimeo watermark |
-| Section background loops | Native `<video>` or Vimeo iframe via `MediaSlot` | CSS background fill; pointer-events off |
+Rather than one player for everything, each surface uses the mechanism that gives the best result for that context.
 
-The rule: **Vimeo iframe for ambient/autoplay surfaces, custom HLS player only when the user explicitly opens full playback.**
+| Surface | Mechanism | File |
+|---|---|---|
+| Hero gallery card overlay | Vimeo iframe (muted, background mode) | [`hero-coverflow-gallery.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx) |
+| Contestant share / spotlight | Vimeo iframe, click-to-play | [`contestant-share.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/contestant-share.tsx#L657) |
+| Talent profile (public) | Vimeo iframe, autoplay muted loop | [`talent-profile-public.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/talent-profile-public.tsx#L170) |
+| Competition detail first video | Vimeo iframe, autoplay muted, lazy mount | [`competition-detail.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/competition-detail.tsx#L712) |
+| Full / admin playback | Custom HLS player | [`hls-video-player.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hls-video-player.tsx) |
+| Section background loops | Native `<video>` or Vimeo iframe via MediaSlot | [`media-slot.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/media-slot.tsx) |
+
+**The rule:** Vimeo iframe for ambient/autoplay surfaces; custom HLS player only when the user explicitly opens full playback.
 
 ---
 
@@ -28,190 +28,268 @@ The rule: **Vimeo iframe for ambient/autoplay surfaces, custom HLS player only w
 
 Every embed uses a consistent param set. Deviating from this causes autoplay failures, especially on mobile.
 
+**File:** [`media-slot.tsx` lines 139–140, 165](https://github.com/Delo92/The-Quest/blob/main/client/src/components/media-slot.tsx#L139)
+
 ```
 autoplay=1
 muted=1
 loop=1
 autopause=0
-background=1      ← disables Vimeo's own controls and click-to-pause
+background=1      ← disables Vimeo UI, enables reliable mobile autoplay
 controls=0
 title=0
 byline=0
 portrait=0
 ```
 
-`background=1` is the critical one. Without it, Vimeo's UI sits on top of your layout and mobile autoplay is less reliable.
+`background=1` is the critical param. Without it, Vimeo's UI overlays your layout and mobile autoplay is unreliable.
 
-For click-to-play surfaces (contestant share page), `autoplay` and `background` are off; `controls=1` is on and the user initiates play.
+When `fit="contain"` is used (letterboxed), `background` flips to `0` because Vimeo's background mode crops to fill — contain requires it off:
 
-`dnt=1` (do not track) is added on pages where user privacy is a concern (talent dashboard).
+```ts
+// media-slot.tsx L140
+`autoplay=1&muted=1&loop=1&autopause=0&background=${fit === "contain" ? "0" : "1"}&controls=0&title=0&byline=0&portrait=0`
+```
+
+For click-to-play surfaces (contestant share), `autoplay` and `background` are off; `controls=1` is on.
+
+`dnt=1` (do not track) is added on the talent dashboard:
+[`talent-dashboard.tsx L1194`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/talent-dashboard.tsx#L1194)
 
 ---
 
 ## 3. Thumbnail-First Layering in the Gallery
 
-The hero coverflow gallery never shows a blank frame while video loads. The pattern:
+The hero gallery never shows a blank frame while video loads.
 
-```
-<div class="card">
-  <!-- Layer 1: always rendered, always visible -->
-  <img src={thumbnail} loading="eager" />
+**File:** [`hero-coverflow-gallery.tsx` lines 253–290](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L253)
 
-  <!-- Layer 2: video overlays absolutely on top once ready -->
-  {hasDirectMp4 && <video autoPlay muted loop playsInline preload="auto" />}
-  {hasVimeoEmbed && isInView && <iframe src={vimeoEmbedUrl} loading="lazy" />}
+```tsx
+<div className="card">
+  {/* Layer 1: always rendered, always visible — the guaranteed state */}
+  <img src={thumbnail} loading="eager" />   {/* L263 */}
+
+  {/* Layer 2: video overlays absolutely on top once ready */}
+  {hasDirectMp4 && (
+    <video autoPlay muted loop playsInline preload="auto" />  {/* L269–279 */}
+  )}
+  {hasVimeoEmbed && isInView && (
+    <iframe src={vimeoEmbedUrl} loading="lazy" />             {/* L280–289 */}
+  )}
 </div>
 ```
 
-Key decisions:
-- `loading="eager"` on the thumbnail. Lazy loading inside CSS 3D-transformed containers fails on mobile — the browser can't determine in-viewport status under `perspective` transforms.
-- `transform-style: preserve-3d` was **removed** from the card element. iOS Safari silently disables it when `overflow: hidden` is on the same element, causing cards to disappear or render incorrectly.
-- The iframe is only mounted when the gallery is in the viewport (IntersectionObserver, threshold 0.45). When the gallery scrolls out of view, the iframe is unmounted — freeing memory.
-- If the iframe fails, the thumbnail beneath it remains. The video is decoration; the thumbnail is truth.
+**Why `loading="eager"` on the thumbnail** ([L263](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L263)):
+Lazy loading inside CSS 3D-transformed containers fails on mobile — the browser can't determine in-viewport status under `perspective` transforms, so images never load. Eager forces them.
+
+**Why `transform-style: preserve-3d` was removed** from `.coverflow-cover` ([`index.css`](https://github.com/Delo92/The-Quest/blob/main/client/src/index.css)):
+iOS Safari silently disables `preserve-3d` when `overflow: hidden` is on the same element. Cards disappeared or rendered incorrectly. Removing it fixed the issue with no visual regression.
+
+**If the iframe fails**, the thumbnail beneath it remains. The video is decoration; the thumbnail is truth.
 
 ---
 
 ## 4. Lazy Mount / Unmount Pattern (IntersectionObserver)
 
-Used in two places: the hero gallery and individual video cards on the competition detail page.
+**File:** [`hero-coverflow-gallery.tsx` lines 60, 84–90](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L84)
 
 ```ts
-// hero-coverflow-gallery.tsx
-useEffect(() => {
-  const observer = new IntersectionObserver(
-    ([entry]) => setIsInView(entry.isIntersecting),  // toggle, not latch
-    { threshold: 0.45 }
-  );
-  if (ref.current) observer.observe(ref.current);
-  return () => observer.disconnect();
-}, []);
+const [isInView, setIsInView] = useState(false);  // L60
+
+const observer = new IntersectionObserver(
+  ([entry]) => setIsInView(entry.isIntersecting && entry.intersectionRatio >= 0.45),  // L90
+  { threshold: 0.45 }
+);
 ```
 
-**The toggle vs. latch distinction matters.** Setting `setVisible(true)` and never setting it back to `false` means all 10–12 gallery cards load their iframes into RAM simultaneously as the user scrolls past them. The observer must set `false` on exit or you accumulate players. We fixed a bug where this was latching — memory usage dropped significantly after the fix.
+**The toggle vs. latch distinction is critical.** Setting `setIsInView(true)` and never setting it back to `false` means all gallery cards load their iframes simultaneously as the user scrolls. The observer must set `false` on exit or you accumulate players in RAM. We fixed a latching bug — memory usage dropped significantly after the fix.
 
-For competition detail cards, the iframe is wrapped in a `LazyVimeoIframe` component with `rootMargin: '200px'` — it starts loading 200px before the card enters the viewport so there's no blank-frame flash on scroll.
+For competition detail cards, a `LazyVimeoIframe` component uses `rootMargin: '200px'` to start loading before the card enters the viewport — no blank-frame flash on scroll:
+
+**File:** [`competition-detail.tsx` lines 29–38](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/competition-detail.tsx#L29)
+
+```ts
+function LazyVimeoIframe({ src, title, className, allow }) {
+  const observer = new IntersectionObserver(callback, { rootMargin: "200px" });
+  // mounts iframe only when within 200px of viewport
+}
+```
+
+Used at [`competition-detail.tsx L712`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/competition-detail.tsx#L712) and [`L746`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/competition-detail.tsx#L746).
 
 ---
 
 ## 5. Custom HLS Player (Full Playback)
 
-`HlsVideoPlayer` is used when a user opens a video for full playback (not ambient). Flow:
+**File:** [`hls-video-player.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hls-video-player.tsx)
 
+**File (server):** [`vimeo.ts` lines 530–555](https://github.com/Delo92/The-Quest/blob/main/server/vimeo.ts#L530)
+
+Flow:
 1. Component mounts → calls `/api/vimeo/:id/play` on the server
-2. Server hits Vimeo API for signed HLS and progressive MP4 URLs, caches for 23 hours
-3. Browser capability check:
-   - **Safari / iOS**: `canPlayType('application/vnd.apple.mpegurl')` → native HLS, set `src` directly
-   - **All others**: dynamically import `hls.js`, attach to `<video>` element
-   - **Fallback**: highest-quality progressive MP4 if HLS fails entirely
-4. `playsInline` is always set — without it, iOS forces fullscreen on play
+2. Server hits Vimeo API for signed HLS + progressive MP4 URLs, caches for 23 hours ([`vimeo.ts L530`](https://github.com/Delo92/The-Quest/blob/main/server/vimeo.ts#L530))
+3. Browser capability check at [`hls-video-player.tsx L173`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hls-video-player.tsx#L173):
 
 ```ts
-if (video.canPlayType('application/vnd.apple.mpegurl')) {
+const canNativeHls = video.canPlayType("application/vnd.apple.mpegurl");  // L173
+
+if (canNativeHls) {
+  // Safari / iOS — native HLS, no library needed                         // L176
   video.src = hlsUrl;
   video.load();
 } else {
-  const { default: Hls } = await import('hls.js');
+  // All others — dynamically import hls.js (off the initial bundle)      // L186
+  const { default: Hls } = await import("hls.js");
   const hls = new Hls({ maxBufferLength: 30, maxMaxBufferLength: 60 });
   hls.loadSource(hlsUrl);
   hls.attachMedia(video);
 }
 ```
 
+`playsInline` is always set ([L266](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hls-video-player.tsx#L266)) — without it, iOS forces fullscreen on play.
+
+Dynamic `import("hls.js")` keeps hls.js off the initial JS bundle — it only loads when a user actually opens full playback. This is noted in the file header at [L5](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hls-video-player.tsx#L5).
+
 ---
 
 ## 6. Video Preloading Hook
 
-For surfaces where a video is about to be shown (e.g. the user is browsing toward it), `useVideoPreloader` buffers the first segments before the player mounts:
+**File:** [`use-video-preloader.ts`](https://github.com/Delo92/The-Quest/blob/main/client/src/hooks/use-video-preloader.ts)
 
-- Creates a hidden 1px offscreen `<video>` element
-- Safari: sets native HLS src and calls `.load()`
-- Others: imports hls.js and begins buffering
-- When the real `HlsVideoPlayer` mounts, it detaches hls.js from the preloader and attaches it to the visible `<video>` — no re-download, no blank frame
+For surfaces where a video is about to be shown, this hook buffers the first segments before the player mounts:
+
+```ts
+// use-video-preloader.ts L84–103
+// Safari: sets src on a hidden <video> and calls .load()
+video.src = hlsUrl;
+video.muted = true;
+video.load();                              // browser starts buffering natively
+
+// Other browsers: hls.js buffers on a hidden video
+hls.attachMedia(hiddenVideo);             // L102
+```
+
+When the real `HlsVideoPlayer` mounts, it adopts the existing hls.js instance — no re-download, no blank frame:
+
+```ts
+// hls-video-player.tsx L111–155
+// detach from preloader's hidden video, attach to the visible one
+hls.detachMedia();
+hls.attachMedia(visibleVideo);
+```
 
 ---
 
 ## 7. Muted Autoplay & Audio Unlock
 
-Browsers block autoplay with sound. The pattern used throughout:
+Browsers block autoplay with sound. All ambient embeds use `muted=1`. When the user clicks to unmute, two strategies are used depending on context:
 
-- All ambient/background embeds: `muted=1` in params, `background=1` mode
-- User can click to unmute — two strategies depending on context:
-  - **Native video**: toggle `.muted` property directly
-  - **Vimeo iframe**: first click remounts the iframe with `muted=0`; subsequent clicks send `postMessage` to `https://player.vimeo.com` with `{ method: 'setVolume', value: 1 }`
+**Strategy A — Vimeo iframe postMessage** (already-mounted iframes):
+
+**File:** [`media-slot.tsx` lines 62–63](https://github.com/Delo92/The-Quest/blob/main/client/src/components/media-slot.tsx#L62)
 
 ```ts
-// postMessage approach for already-mounted iframes
 iframeRef.current?.contentWindow?.postMessage(
-  JSON.stringify({ method: 'setVolume', value: isMuted ? 0 : 1 }),
-  'https://player.vimeo.com'
+  JSON.stringify({ method: "setVolume", value: next ? 0 : 1 }),
+  "https://player.vimeo.com"
 );
 ```
 
+**Strategy B — iframe remount** (first unmute):
+
+**File:** [`media-slot.tsx` lines 139](https://github.com/Delo92/The-Quest/blob/main/client/src/components/media-slot.tsx#L139)
+
+On first click, the iframe is remounted with `muted=0` in the src params. Subsequent clicks use postMessage (Strategy A) so the iframe isn't destroyed on every toggle.
+
 ---
 
-## 8. Service Worker — Video Exclusions
+## 8. Service Worker — Video Explicitly Excluded
 
-The service worker uses stale-while-revalidate for app shell assets (JS, CSS, fonts, images). Video is explicitly excluded:
+**File:** [`sw.js` lines 9–12, 51](https://github.com/Delo92/The-Quest/blob/main/client/public/sw.js#L9)
 
 ```js
-// sw.js — never cache these
 const BYPASS = [
-  '/api/',
-  'player.vimeo.com',
-  'vimeocdn.com',
-  'akamaized.net',   // Vimeo CDN
-  'firebasestorage.googleapis.com',
+  "player.vimeo.com",   // L9
+  "vimeocdn.com",       // L10
+  "akamaized.net",      // L11  ← Vimeo's CDN
+  "firebasestorage",    // L12
 ];
-
-if (BYPASS.some(p => url.href.includes(p))) {
-  return fetch(request); // straight to network
-}
+// L51: stale-while-revalidate for app shell; network-only for everything else
 ```
 
 Caching video through a service worker causes stale playback, broken range requests (seek fails), and unbounded cache growth. All video is network-only.
 
-Additionally, the SW actively **unregisters itself** on localhost and `.replit.dev` domains on every page load:
+**Active unregister on dev domains:**
+
+**File:** [`index.html` lines 145–150](https://github.com/Delo92/The-Quest/blob/main/client/index.html#L145)
 
 ```js
-if (hostname === 'localhost' || hostname.includes('.replit.dev')) {
+var isDev = location.hostname === "localhost"
+         || location.hostname.includes(".replit.dev");  // L145
+if (isDev) {
   navigator.serviceWorker.getRegistrations()
-    .then(regs => regs.forEach(r => r.unregister()));
+    .then(regs => regs.forEach(r => r.unregister()));   // L149–150
 }
 ```
 
-Skipping registration alone isn't enough — a previously registered SW continues to intercept requests. Active unregistration ensures Vite HMR and dev video requests are never intercepted.
+Skipping `register()` alone isn't enough — a previously registered SW continues to intercept requests. Active unregistration is required or Vite HMR and dev video requests get intercepted.
 
 ---
 
-## 9. Mobile-Specific Rules Applied
+## 9. Mobile-Specific Fixes (Reference Table)
 
-| Problem | Fix Applied |
-|---|---|
-| Lazy images don't load inside 3D-transformed containers | `loading="eager"` on gallery thumbnails |
-| `preserve-3d` + `overflow: hidden` breaks compositing on iOS | Removed `transform-style: preserve-3d` from card element |
-| Forced fullscreen on play | `playsInline` on every `<video>` element |
-| Autoplay blocked with audio | `muted` on all ambient players; audio unlocked on user gesture only |
-| `background-attachment: fixed` not supported in iOS scroll containers | Replaced with `background-image` CSS on a static div |
-| Gallery card overlap not proportional on small screens | `translateX` uses `offset * (cardWidth * 0.72)` where `cardWidth` is viewport-responsive (170px / 200px / 260px) |
-| Portrait vs landscape video | Aspect ratio selected per video: `aspect-[9/16]` for portrait, `aspect-video` for landscape |
+| Problem | Fix | File & Line |
+|---|---|---|
+| Lazy images don't load inside 3D-transformed containers | `loading="eager"` on gallery thumbnails | [`hero-coverflow-gallery.tsx L263`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L263) |
+| `preserve-3d` + `overflow:hidden` breaks compositing on iOS | Removed `transform-style: preserve-3d` from `.coverflow-cover` | [`index.css`](https://github.com/Delo92/The-Quest/blob/main/client/src/index.css) |
+| Forced fullscreen on play (iOS) | `playsInline` on every `<video>` | [`hls-video-player.tsx L266`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hls-video-player.tsx#L266) |
+| Autoplay blocked with audio | `muted` on all ambient players; audio unlocked on user gesture only | [`media-slot.tsx L140`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/media-slot.tsx#L140) |
+| `background-attachment: fixed` invisible on iOS scroll containers | Replaced with static `background-image` CSS divs | [`landing.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/landing.tsx) / [`home.tsx`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/home.tsx) |
+| Gallery card overlap not proportional on small screens | `translateX` uses `offset * (cardWidth * 0.72)` where `cardWidth` is viewport-responsive | [`hero-coverflow-gallery.tsx L214–215`](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L214) |
+| Portrait vs landscape video squashed | `aspect-[9/16]` for portrait, `aspect-video` for landscape, selected per video | [`competition-detail.tsx L743`](https://github.com/Delo92/The-Quest/blob/main/client/src/pages/competition-detail.tsx#L743) |
 
 ---
 
-## 10. Vimeo Server-Side (Storage & Upload)
+## 10. Responsive Card Width Hook (Gallery)
 
-- All contestant videos upload to Vimeo via TUS protocol, scoped to a per-competition folder
-- Folder naming: `{competitionId}-{competitionTitle}` — predictable, no folder-tree walking at page load
-- Video URLs are stored on the talent's Firestore profile (`videoUrls[]`) and read from there — the app never walks the Vimeo folder tree at runtime
-- Server caches signed play URLs for 23 hours (`vimeo.ts`)
-- Direct ambient URLs prefer 360p → 480p (low bandwidth for background loops)
+**File:** [`hero-coverflow-gallery.tsx` lines 6–17](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L6)
+
+```ts
+function useCardWidth() {
+  if (typeof window === "undefined") return 260;
+  if (window.innerWidth <= 480) return 170;   // L9
+  if (window.innerWidth <= 768) return 200;   // L10
+  return 260;                                  // L11 — desktop
+}
+```
+
+Used at [L52](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L52), then drives translateX at [L214–215](https://github.com/Delo92/The-Quest/blob/main/client/src/components/hero-coverflow-gallery.tsx#L214):
+
+```ts
+const step = Math.round(cardWidth * 0.72);   // L214 — 72% overlap ratio
+const translateX = offset * step;             // L215
+```
+
+---
+
+## 11. Vimeo Server-Side (Storage, Upload, Caching)
+
+**File:** [`vimeo.ts`](https://github.com/Delo92/The-Quest/blob/main/server/vimeo.ts)
+
+- Contestant videos upload via Vimeo TUS protocol into per-competition folders ([`vimeo.ts L340–375`](https://github.com/Delo92/The-Quest/blob/main/server/vimeo.ts#L340))
+- Folder naming: `{competitionId}-{competitionTitle}` — predictable, never walked at runtime
+- Video URLs stored on the talent's Firestore profile (`videoUrls[]`) and read from there — the app never traverses the Vimeo folder tree at page load
+- Signed play URLs cached 23 hours server-side ([`vimeo.ts L530`](https://github.com/Delo92/The-Quest/blob/main/server/vimeo.ts#L530))
+- Ambient/background URL prefers 360p → 480p → next available — low bandwidth for loops that don't need quality ([`vimeo.ts L520–523`](https://github.com/Delo92/The-Quest/blob/main/server/vimeo.ts#L520))
+- Vimeo folder cache: 30 minutes in-process ([`vimeo.ts L143`](https://github.com/Delo92/The-Quest/blob/main/server/vimeo.ts#L143))
 
 ---
 
 ## Summary: The Core Principles
 
-1. **Thumbnail first, video on top.** Never show a blank frame. The thumbnail is the guaranteed state; video is an enhancement.
-2. **Mount late, unmount on exit.** IntersectionObserver gates iframe creation. Toggle visibility — never latch — or you accumulate players in RAM.
-3. **Muted everywhere ambient.** Autoplay with audio fails on every mobile browser. Unlock audio only on explicit user gesture.
-4. **Vimeo iframe for ambient, custom player for full playback.** Don't mix them.
-5. **Service worker never touches video.** Explicitly bypass all streaming domains.
-6. **Mobile is a first-class target, not an afterthought.** Safari HLS, `playsInline`, `loading="eager"` inside transforms, and proportion-relative card offsets are all deliberate.
+1. **Thumbnail first, video on top.** Never show a blank frame. The thumbnail is the guaranteed state; video is an enhancement layered on top.
+2. **Mount late, unmount on exit.** IntersectionObserver gates iframe creation. Toggle `isInView` — never latch it to true — or you accumulate players in RAM across scroll.
+3. **Muted everywhere ambient.** Autoplay with audio fails on every mobile browser. Unlock audio only on explicit user gesture via postMessage or iframe remount.
+4. **Vimeo iframe for ambient, custom player for full playback.** Never mix the two on the same surface.
+5. **Service worker never touches video.** Explicitly bypass all streaming domains. Actively unregister the SW in dev environments — skipping registration alone is not enough.
+6. **Mobile is a first-class target.** Safari native HLS, `playsInline`, `loading="eager"` inside 3D transforms, and proportion-relative card offsets are all deliberate decisions, not afterthoughts.
