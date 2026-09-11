@@ -59,6 +59,7 @@ export default function TalentProfilePublic() {
   const fallbackDefault = getImage("talent_profile_fallback") || "";
   const mainImage = profile.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, 0) || fallbackDefault;
+  const accentColor = (profile as any).profileColor || "#FF5A09";
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -74,11 +75,11 @@ export default function TalentProfilePublic() {
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-black/65" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]" style={{ borderTop: `4px solid ${accentColor}` }}>
           <p className="text-black/50 text-base leading-relaxed mb-1">Talent Profile</p>
           <h2
-            className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none"
-            style={{ letterSpacing: "10px" }}
+            className="text-[24px] md:text-[30px] uppercase font-normal leading-none"
+            style={{ letterSpacing: "10px", color: accentColor }}
             data-testid="text-profile-name"
           >
             {profile.stageName || profile.displayName}
@@ -90,12 +91,12 @@ export default function TalentProfilePublic() {
         <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40 mb-10">
           {profile.category && (
             <span className="flex items-center gap-1.5" data-testid="text-category">
-              <Tag className="h-4 w-4 text-white/30" /> {profile.category}
+              <Tag className="h-4 w-4" style={{ color: accentColor }} /> {profile.category}
             </span>
           )}
           {profile.location && (
             <span className="flex items-center gap-1.5" data-testid="text-location">
-              <MapPin className="h-4 w-4 text-white/30" /> {profile.location}
+              <MapPin className="h-4 w-4" style={{ color: accentColor }} /> {profile.location}
             </span>
           )}
         </div>
@@ -138,7 +139,7 @@ export default function TalentProfilePublic() {
         {profile.imageUrls && profile.imageUrls.length > 0 && (
           <div className="mb-10">
             <div className="text-center mb-10">
-              <p className="text-[#5f5f5f] text-sm mb-1">See what&apos;s new</p>
+              <p className="text-sm mb-1" style={{ color: accentColor }}>See what&apos;s new</p>
               <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
                 Gallery
               </h2>
@@ -162,7 +163,7 @@ export default function TalentProfilePublic() {
         {videos.length > 0 && (
           <div className="mb-10">
             <div className="text-center mb-10">
-              <p className="text-[#5f5f5f] text-sm mb-1">Watch performances</p>
+              <p className="text-sm mb-1" style={{ color: accentColor }}>Watch performances</p>
               <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
                 Videos
               </h2>
@@ -192,7 +193,8 @@ export default function TalentProfilePublic() {
         <div className="text-center pb-10">
           <Link href="/competitions">
             <span
-              className="inline-block bg-transparent text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer"
+              className="inline-block bg-transparent font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border transition-all duration-500 cursor-pointer hover:text-white"
+              style={{ color: accentColor, borderColor: accentColor }}
               data-testid="button-back"
             >
               Back to Competitions <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
