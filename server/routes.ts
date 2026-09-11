@@ -1226,7 +1226,10 @@ export async function registerRoutes(
 
           const applyCompetitionCover = async (competition: any) => {
             if (!competition) return;
-            if (competition.coverImage) {
+            // Only use the competition's still cover when the category has no image of its own.
+            // If the category already has an imageUrl (e.g. the dancer photo for Dance),
+            // keep it — the competition cover is for categories without their own artwork.
+            if (competition.coverImage && !cat.imageUrl) {
               thumbnail = competition.coverImage;
             }
             if (!competition.coverVideo) return;
