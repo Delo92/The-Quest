@@ -504,7 +504,9 @@ export interface VimeoPlayUrls {
 
 /** Extract the numeric Vimeo video ID from any Vimeo URL format. */
 export function extractVimeoVideoId(url: string): string | null {
-  const match = url.match(/(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)/);
+  // Matches full URLs: vimeo.com/123, vimeo.com/video/123, player.vimeo.com/video/123
+  // Also matches Vimeo API URI paths: /videos/123
+  const match = url.match(/(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/|\/videos\/)(\d+)/);
   return match ? match[1] : null;
 }
 
@@ -620,18 +622,29 @@ export async function getVideoPlayUrls(videoId: string): Promise<VimeoPlayUrls> 
  * Runs non-blocking — a failure here never prevents the server from starting.
  */
 export async function warmVimeoPlayUrlCache(
-  getCompetitions: () => Promise<Array<{ coverVideo?: string | null }>>
+  getCompetitions: () => Promise<Array<{ coverVideo?: string | null }>>,
+  getTalentProfiles?: () => Promise<Array<{ videoUrls?: string[] }>>
 ): Promise<void> {
   try {
     const comps = await getCompetitions();
-    const ids = [
-      ...new Set(
-        comps
-          .map(c => c.coverVideo ? extractVimeoVideoId(c.coverVideo) : null)
-          .filter((id): id is string => !!id)
-      ),
-    ];
+    const competitionIds = comps
+      .map(c => c.coverVideo ? extractVimeoVideoId(c.coverVideo) : null)
+      .filter((id): id is string => !!id);
+
+    const profileIds: string[] = [];
+    if (getTalentProfiles) {
+      const profiles = await getTalentProfiles();
+      for (const p of profiles) {
+        for (const url of (p.videoUrls || [])) {
+          const id = extractVimeoVideoId(url);
+          if (id) profileIds.push(id);
+        }
+      }
+    }
+
+    const ids = [...new Set([...competitionIds, ...profileIds])];
     if (ids.length === 0) return;
+
     let warmed = 0;
     await Promise.allSettled(
       ids.map(id =>
@@ -640,7 +653,7 @@ export async function warmVimeoPlayUrlCache(
           .catch(() => {})
       )
     );
-    console.log(`[vimeo] Pre-warmed play URL cache for ${warmed}/${ids.length} competition videos`);
+    console.log(`[vimeo] Pre-warmed play URL cache for ${warmed}/${ids.length} videos (${competitionIds.length} competition, ${profileIds.length} contestant)`);
   } catch {
     // Non-fatal — cache will warm on first real request
   }

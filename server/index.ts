@@ -84,7 +84,10 @@ app.use((req, res, next) => {
 
   // Non-blocking: pre-warm Vimeo play URL cache so restarts don't cause cold-cache slowness
   const { storage } = await import("./storage");
-  warmVimeoPlayUrlCache(() => storage.getCompetitions()).catch(() => {});
+  warmVimeoPlayUrlCache(
+    () => storage.getCompetitions(),
+    () => import("./firestore-collections").then(m => m.firestoreTalentProfiles.getAll())
+  ).catch(() => {});
 
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
