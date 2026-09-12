@@ -252,20 +252,13 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                   </div>
                   <div className="coverflow-card-wrapper">
                     <div className="coverflow-cover">
-                      {/* Thumbnail always renders as the guaranteed base layer.
-                          Video (native or iframe) overlays absolutely on top.
-                          If the video fails or is slow, the thumbnail is already visible. */}
-                      {item.thumbnail ? (
-                        <img
-                          src={item.thumbnail}
-                          alt={item.categoryName}
-                          className="w-full h-full object-cover"
-                          loading="eager"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-zinc-900" />
-                      )}
+                      {/* Thumbnail always renders as the guaranteed base layer via
+                          background-image so 3D transforms and CORS never block it.
+                          Video overlays absolutely on top. */}
+                      <div
+                        className="w-full h-full bg-zinc-900"
+                        style={item.thumbnail ? { backgroundImage: `url(${item.thumbnail})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                      />
                       {item.directVideoUrl ? (
                         <video
                           src={item.directVideoUrl}
