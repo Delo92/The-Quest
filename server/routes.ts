@@ -1758,7 +1758,7 @@ export async function registerRoutes(
     refCode: z.string().optional().nullable(),
   });
 
-  app.post("/api/competitions/:id/vote", async (req, res) => {
+  app.post("/api/competitions/:id/vote", firebaseAuth, async (req, res) => {
     const compId = parseInt(req.params.id);
     if (isNaN(compId)) return res.status(400).json({ message: "Invalid competition ID" });
 
@@ -1819,6 +1819,7 @@ export async function registerRoutes(
       competitionId: compId,
       stageId: stageId || null,
       voterIp,
+      userId: req.firebaseUser!.uid,
       source,
       refCode: resolvedRefCode,
     });
