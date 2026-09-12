@@ -45,10 +45,9 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
 
           <a
             href="/thequest"
-            className="hidden md:inline-flex items-center gap-2 bg-[var(--cbp-brand)] text-white font-bold text-sm uppercase tracking-wider px-5 py-2.5 rounded-full hover:bg-[var(--cbp-brand-dark)] transition-colors"
+            className="hidden md:inline-flex items-center gap-2 border border-[var(--cbp-brand)] text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-widest px-5 py-2.5 rounded-full hover:bg-[var(--cbp-brand)]/10 transition-colors"
           >
-            <Trophy className="w-4 h-4" />
-            The Quest
+            Explore The Quest <span className="text-base leading-none">›</span>
           </a>
         </div>
       </div>
@@ -191,11 +190,12 @@ export default function HomePage() {
                 : heroSubtitle;
             })()}
           </p>
-          <div className="mt-5 sm:mt-6 animate-bounce">
-            <div className="w-6 h-10 border-2 border-white/40 rounded-full flex items-start justify-center pt-2">
-              <div className="w-1 h-3 bg-white/60 rounded-full" />
-            </div>
-          </div>
+          <a
+            href="/thequest"
+            className="mt-6 inline-flex items-center gap-2 border border-[var(--cbp-brand)] text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-widest px-7 py-3 rounded-full hover:bg-[var(--cbp-brand)]/10 transition-colors"
+          >
+            See More <span className="text-base leading-none">›</span>
+          </a>
         </div>
       </section>
 
