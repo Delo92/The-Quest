@@ -18,34 +18,39 @@ function useNearViewport(ref: React.RefObject<Element | null>) {
   return near;
 }
 
+interface NativeVideoResult {
+  status: "loading" | "ready" | "failed";
+  mp4: string | null;
+  poster: string | null;
+}
+
 /**
- * Fetches a direct progressive MP4 URL from our server's Vimeo play-URL cache.
- * Returns:
- *   "loading"  — fetch in flight
- *   string     — MP4 URL ready for native <video>
- *   null       — fetch failed or no progressive rendition — fall back to iframe
- *
- * Only fires when `enabled` is true (near the viewport). Prefers 360p for fast
- * start on mobile; steps up to 480p or whatever is available if 360p is absent.
+ * Fetches a direct progressive MP4 URL + thumbnail from our server's Vimeo
+ * play-URL cache. Only fires when `enabled` is true (near the viewport).
+ * Prefers 360p for fast start on mobile; steps up if 360p is absent.
  */
-function useVimeoNativeUrl(videoId: string | null, enabled: boolean): "loading" | string | null {
-  const [state, setState] = useState<"loading" | string | null>("loading");
+function useVimeoNative(videoId: string | null, enabled: boolean): NativeVideoResult {
+  const [state, setState] = useState<NativeVideoResult>({ status: "loading", mp4: null, poster: null });
   useEffect(() => {
     if (!videoId || !enabled) return;
-    setState("loading");
+    setState({ status: "loading", mp4: null, poster: null });
     let cancelled = false;
     fetch(`/api/vimeo/${videoId}/play`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then((data: { progressive?: Array<{ rendition: string; link: string }> }) => {
+      .then((data: { progressive?: Array<{ rendition: string; link: string }>; thumbnailUrl?: string | null }) => {
         if (cancelled) return;
         const pick =
           data.progressive?.find(p => p.rendition === "360p") ||
           data.progressive?.find(p => p.rendition === "480p") ||
           data.progressive?.[1] ||
           data.progressive?.[0];
-        setState(pick?.link ?? null);
+        setState({
+          status: pick ? "ready" : "failed",
+          mp4: pick?.link ?? null,
+          poster: data.thumbnailUrl ?? null,
+        });
       })
-      .catch(() => { if (!cancelled) setState(null); });
+      .catch(() => { if (!cancelled) setState({ status: "failed", mp4: null, poster: null }); });
     return () => { cancelled = true; };
   }, [videoId, enabled]);
   return state;
@@ -81,13 +86,13 @@ export default function MediaSlot({
   // true once the 500ms timer fires without canplay — forces iframe fallback
   const [useFallback, setUseFallback] = useState(false);
 
-  // Only activate near-viewport and native-URL logic for Vimeo bg slots
+  // Only activate near-viewport and native logic for Vimeo bg slots
   const isBgVimeo = type === "vimeo" && mode === "bg";
   const nearViewport = useNearViewport(containerRef);
 
   const vimeoId = type === "vimeo" ? getVimeoId(url) : null;
-  // For bg mode: try to get a native MP4 URL. For non-bg/interactive: skip (null).
-  const nativeUrl = useVimeoNativeUrl(
+  // For bg mode: fetch native MP4 + poster. For non-bg/interactive: skip.
+  const native = useVimeoNative(
     isBgVimeo ? vimeoId : null,
     isBgVimeo && nearViewport,
   );
@@ -237,17 +242,21 @@ export default function MediaSlot({
     if (mode === "bg" && !clickToUnmute) {
       const iframeSrc = buildVimeoSrc(url, `autoplay=1&muted=1&loop=1&autopause=0&background=${fit === "contain" ? "0" : "1"}&controls=0&title=0&byline=0&portrait=0`)!;
 
-      // Show native video while the MP4 URL is available and hasn't timed out.
-      // Falls back to Vimeo iframe if: fetch failed (null), or 500ms elapsed (useFallback).
-      const showNative = typeof nativeUrl === "string" && !useFallback;
-      const showIframe = nativeUrl === null || useFallback;
+      // native.status:
+      //   "loading" — fetch in flight, show nothing yet
+      //   "ready"   — MP4 URL available, try native <video>
+      //   "failed"  — no progressive rendition, go straight to iframe
+      // useFallback — native video didn't fire canplay within 500ms, swap to iframe
+      const showNative = native.status === "ready" && !!native.mp4 && !useFallback;
+      const showIframe = native.status === "failed" || useFallback;
 
       return (
         <div ref={containerRef} style={{ position: "absolute", inset: 0 }}>
           {showNative && (
             <video
-              key={nativeUrl}
-              src={nativeUrl}
+              key={native.mp4!}
+              src={native.mp4!}
+              poster={native.poster ?? undefined}
               className={`object-${fit} ${className}`}
               style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: fit }}
               muted
@@ -259,7 +268,7 @@ export default function MediaSlot({
               onCanPlay={handleNativeCanPlay}
             />
           )}
-          {(showIframe || nativeUrl === "loading") && nearViewport && showIframe && (
+          {showIframe && nearViewport && (
             <iframe
               ref={iframeRef}
               src={iframeSrc}

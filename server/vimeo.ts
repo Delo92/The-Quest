@@ -499,6 +499,7 @@ export interface VimeoPlayUrls {
   hls: string | null;
   dash: string | null;
   progressive: Array<{ rendition: string; width: number; height: number; link: string; size: number }>;
+  thumbnailUrl: string | null; // best available still — used as video poster
   expiresAt: number; // unix ms
 }
 
@@ -594,8 +595,12 @@ export async function getVideoPlayUrls(videoId: string): Promise<VimeoPlayUrls> 
   const cached = playUrlCache.get(videoId);
   if (cached && cached.expiresAt > now) return cached.data;
 
-  const data = await vimeoRequest(`/videos/${videoId}?fields=play`);
+  const data = await vimeoRequest(`/videos/${videoId}?fields=play,pictures`);
   const play = data?.play || {};
+
+  // Pick the largest thumbnail Vimeo provides — client can downscale, can't upscale.
+  const sizes: Array<{ width: number; link: string }> = data?.pictures?.sizes || [];
+  const bestThumb = sizes.sort((a: any, b: any) => b.width - a.width)[0]?.link || null;
 
   const result: VimeoPlayUrls = {
     hls: play.hls?.link || null,
@@ -607,6 +612,7 @@ export async function getVideoPlayUrls(videoId: string): Promise<VimeoPlayUrls> 
       link: f.link,
       size: f.size,
     })).sort((a: any, b: any) => a.height - b.height), // ascending: lowest quality first
+    thumbnailUrl: bestThumb,
     expiresAt: now + 23 * 60 * 60 * 1000,
   };
 
