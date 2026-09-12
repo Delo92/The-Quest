@@ -2,6 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { detectMediaType, getYouTubeId, getVimeoId, buildVimeoSrc, isFacebookVideo } from "@/lib/media-utils";
 import { Volume2, VolumeX } from "lucide-react";
 
+/** True once the element is within 200px of the viewport — resets to false when it leaves. */
+function useNearViewport(ref: React.RefObject<Element | null>) {
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setNear(entry.isIntersecting),
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return near;
+}
+
 interface MediaSlotProps {
   url: string;
   alt?: string;
@@ -16,8 +32,13 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
   const type = detectMediaType(url);
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeContainerRef = useRef<HTMLDivElement>(null);
   const [muted, setMuted] = useState(true);
   const [fullPlayer, setFullPlayer] = useState(false);
+
+  // Only load Vimeo/YouTube iframes when near the viewport — prevents
+  // 5+ simultaneous connections on the home page feature grid on mobile.
+  const nearViewport = useNearViewport(iframeContainerRef);
 
   const bgStyle: React.CSSProperties = mode === "bg"
     ? fit === "contain"
@@ -93,6 +114,7 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
         loop
         autoPlay
         playsInline
+        preload="none"
       />
     );
 
@@ -140,15 +162,16 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
         : buildVimeoSrc(url, `autoplay=1&muted=1&loop=1&autopause=0&background=${fit === "contain" ? "0" : "1"}&controls=0&title=0&byline=0&portrait=0`)!;
 
       return (
-        <>
+        <div ref={iframeContainerRef} style={{ position: "absolute", inset: 0 }}>
           <iframe
             key={fullPlayer ? "full" : "bg"}
             ref={iframeRef}
-            src={src}
+            src={nearViewport ? src : undefined}
             className={className}
             style={{ ...bgStyle, pointerEvents: "none" }}
             allow="autoplay; encrypted-media"
             allowFullScreen
+            loading="lazy"
             title={alt || "Vimeo video"}
           />
           <button
@@ -158,20 +181,23 @@ export default function MediaSlot({ url, alt = "", className = "", mode = "img",
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
-        </>
+        </div>
       );
     }
 
     const src = buildVimeoSrc(url, `autoplay=1&muted=1&loop=1&autopause=0&background=${fit === "contain" ? "0" : "1"}&controls=0&title=0&byline=0&portrait=0`)!;
     return (
-      <iframe
-        src={src}
-        className={className}
-        style={{ ...bgStyle, pointerEvents: mode === "bg" ? "none" : "auto" }}
-        allow="autoplay; encrypted-media"
-        allowFullScreen
-        title={alt || "Vimeo video"}
-      />
+      <div ref={iframeContainerRef} style={mode === "bg" ? { position: "absolute", inset: 0 } : { width: "100%", height: "100%" }}>
+        <iframe
+          src={nearViewport ? src : undefined}
+          className={className}
+          style={{ ...bgStyle, pointerEvents: mode === "bg" ? "none" : "auto" }}
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+          loading="lazy"
+          title={alt || "Vimeo video"}
+        />
+      </div>
     );
   }
 
