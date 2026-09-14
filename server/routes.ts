@@ -1470,14 +1470,15 @@ export async function registerRoutes(
     try {
       const code = decodeURIComponent(req.params.code).trim().toUpperCase();
       const referral = await firestoreReferrals.resolveCode(code);
-      if (!referral?.competitionId) return res.status(404).json({ message: "Referral event not found" });
+      if (!referral) return res.status(404).json({ message: "Referral event not found" });
 
-      const competition = await storage.getCompetition(referral.competitionId);
-      if (!competition) return res.status(404).json({ message: "Competition not found" });
-
-      let hostName = referral.ownerName || competition.title;
+      const landingCompetitionId = referral.competitionId
+        || (referral.competitionIds?.length === 1 ? referral.competitionIds[0] : null);
+      const competition = landingCompetitionId ? await storage.getCompetition(landingCompetitionId) : null;
+      let hostName = referral.ownerName || "The Quest";
       let hostImageUrl: string | null = null;
       let hostBio: string | null = null;
+
       if (referral.ownerId && !referral.ownerId.startsWith("competition:")) {
         const profile = await storage.getTalentProfileByUserId(referral.ownerId);
         if (profile) {
@@ -1487,11 +1488,28 @@ export async function registerRoutes(
         }
       }
 
+      // Global referral codes intentionally have no single competition. They
+      // still need a valid landing response so the client can open The Quest
+      // home page while preserving the code for attribution.
+      if (!competition) {
+        return res.json({
+          referralCode: referral.code,
+          hostName,
+          hostImageUrl,
+          hostBio,
+          competition: null,
+          isGlobal: true,
+        });
+      }
+
+      if (!competition) return res.status(404).json({ message: "Competition not found" });
+
       res.json({
         referralCode: referral.code,
         hostName,
         hostImageUrl,
         hostBio,
+        isGlobal: false,
         competition: {
           id: competition.id,
           title: competition.title,

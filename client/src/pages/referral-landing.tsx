@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
+import { useEffect } from "react";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import { useSEO } from "@/hooks/use-seo";
@@ -10,17 +11,19 @@ interface ReferralLandingResponse {
   hostName: string;
   hostImageUrl?: string | null;
   hostBio?: string | null;
+  isGlobal?: boolean;
   competition: {
     id: number;
     title: string;
     category: string;
     description?: string | null;
     coverImage?: string | null;
-  };
+  } | null;
 }
 
 export default function ReferralLandingPage() {
   const search = useSearch();
+  const [, setLocation] = useLocation();
   const referralCode = new URLSearchParams(search).get("ref")?.trim().toUpperCase() || "";
   const { data, isLoading, isError } = useQuery<ReferralLandingResponse>({
     queryKey: ["/api/referral", referralCode, "landing"],
@@ -28,11 +31,17 @@ export default function ReferralLandingPage() {
     staleTime: 5 * 60_000,
   });
 
+  useEffect(() => {
+    if (data?.isGlobal || (data && !data.competition)) {
+      setLocation(`/thequest?ref=${encodeURIComponent(data.referralCode)}`);
+    }
+  }, [data, setLocation]);
+
   useSEO({
-    title: data ? `${data.competition.title} — ${data.hostName}` : "Competition Invitation",
-    description: data?.competition.description || (data ? `Join ${data.competition.title}, hosted by ${data.hostName}.` : "Competition invitation"),
-    canonical: data ? `${window.location.origin}/thequest/${slugify(data.competition.category)}/${slugify(data.competition.title)}` : undefined,
-    ogImage: data?.competition.coverImage || data?.hostImageUrl || undefined,
+    title: data?.competition ? `${data.competition.title} — ${data.hostName}` : "The Quest — Talent Competition & Voting Platform",
+    description: data?.competition?.description || (data?.competition ? `Join ${data.competition.title}, hosted by ${data.hostName}.` : "Browse competitions, nominate talent, and vote on The Quest."),
+    canonical: data?.competition ? `${window.location.origin}/thequest/${slugify(data.competition.category)}/${slugify(data.competition.title)}` : `${window.location.origin}/thequest`,
+    ogImage: data?.competition?.coverImage || data?.hostImageUrl || undefined,
   });
 
   if (isLoading) {
@@ -51,6 +60,14 @@ export default function ReferralLandingPage() {
           <h1 className="mt-8 text-2xl font-semibold">This invitation is no longer available</h1>
           <p className="mt-2 text-sm text-white/50">The referral link may be invalid or the event may have been removed.</p>
         </div>
+      </main>
+    );
+  }
+
+  if (!data.competition) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#080006] text-white">
+        <Loader2 className="h-6 w-6 animate-spin text-[#FF0E9B]" aria-label="Opening The Quest" />
       </main>
     );
   }
