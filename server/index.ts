@@ -71,17 +71,6 @@ app.use((req, res, next) => {
   await registerRoutes(httpServer, app);
   startOCPurchaseFeedWorker();
 
-  const { seedDatabase, seedLivery, seedTestAccounts, seedCategories, seedStarrStruckCompetition, seedVotePackages, seedSettings, seedJoinTitle, synchronizeCompetitionMedia } = await import("./seed");
-  await seedLivery().catch((err) => console.error("Livery seed error:", err));
-  await seedCategories().catch((err) => console.error("Categories seed error:", err));
-  await seedVotePackages().catch((err) => console.error("Vote packages seed error:", err));
-  await seedSettings().catch((err) => console.error("Settings seed error:", err));
-  await seedJoinTitle().catch((err) => console.error("Join title seed error:", err));
-  await seedDatabase().catch((err) => console.error("Seed error:", err));
-  await synchronizeCompetitionMedia().catch((err) => console.error("Competition media sync error:", err));
-  await seedStarrStruckCompetition().catch((err) => console.error("Starr Struck seed error:", err));
-  await seedTestAccounts().catch((err) => console.error("Test accounts seed error:", err));
-
   // Non-blocking: pre-warm Vimeo play URL cache so restarts don't cause cold-cache slowness
   const { storage } = await import("./storage");
   warmVimeoPlayUrlCache(
