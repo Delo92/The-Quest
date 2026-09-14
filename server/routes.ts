@@ -112,10 +112,30 @@ function getCompetitionStage(competition: any, stageId: string | null | undefine
   return (competition.stages || []).find((stage: CompetitionStage) => stage.id === stageId) || null;
 }
 
-function getVimeoCoverThumbnail(coverVideo: string | null | undefined): string | null {
-  const match = coverVideo?.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  if (!match) return null;
-  return `https://vumbnail.com/${match[1]}.jpg`;
+async function getVimeoCoverThumbnail(coverVideo: string | null | undefined): Promise<string | null> {
+  const videoId = coverVideo ? extractVimeoVideoId(coverVideo) : null;
+  if (!videoId) return null;
+
+  // Vimeo's API poster is the uploaded/custom frame. Vumbnail can return
+  // Vimeo's generic privacy/lock placeholder even when a real poster exists.
+  try {
+    const playUrls = await getVideoPlayUrls(videoId);
+    if (playUrls.thumbnailUrl) return playUrls.thumbnailUrl;
+  } catch {
+    // Keep the public fallback below if Vimeo's API is temporarily unavailable.
+  }
+
+  return `https://vumbnail.com/${videoId}.jpg`;
+}
+
+function normalizeCategoryArtworkUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  // WebP is not supported by older Explorer/Edge builds. The shipped PNG
+  // companion is visually identical and works across the supported browsers.
+  return url.replace(
+    /^(\/images\/categories\/[^/]+)\.webp$/i,
+    "$1.png",
+  );
 }
 
 function getVimeoCoverEmbedUrl(coverVideo: string | null | undefined): string | null {
@@ -1172,7 +1192,7 @@ export async function registerRoutes(
             hostedBy,
             contestantCount,
             approvedCount,
-            coverVideoThumbnail: c.coverVideo ? getVimeoCoverThumbnail(c.coverVideo) : null,
+            coverVideoThumbnail: c.coverVideo ? await getVimeoCoverThumbnail(c.coverVideo) : null,
             directVideoUrl,
           };
         }));
@@ -1223,7 +1243,7 @@ export async function registerRoutes(
           let videoEmbedUrl: string | null = null;
           let displayName: string | null = null;
           let coverVideoUrl: string | null = null;
-          let thumbnail: string | null = cat.imageUrl || null;
+          let thumbnail: string | null = normalizeCategoryArtworkUrl(cat.imageUrl);
           const featuredCompetition = catComps.find((comp: any) => comp.isFeatured);
           let displayCompetition: any = featuredCompetition || null;
 
@@ -1236,7 +1256,7 @@ export async function registerRoutes(
             const isTemplatePlaceholder = (url: string) =>
               !url || url.startsWith("/images/template/");
             if (competition.coverImage && !isTemplatePlaceholder(competition.coverImage)) {
-              thumbnail = competition.coverImage;
+              thumbnail = normalizeCategoryArtworkUrl(competition.coverImage);
             }
             if (!competition.coverVideo) return;
 
