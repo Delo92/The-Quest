@@ -1475,6 +1475,7 @@ export async function registerRoutes(
       const landingCompetitionId = referral.competitionId
         || (referral.competitionIds?.length === 1 ? referral.competitionIds[0] : null);
       const competition = landingCompetitionId ? await storage.getCompetition(landingCompetitionId) : null;
+      const hasCompetitionBinding = Boolean(referral.competitionId || referral.competitionIds?.length);
       let hostName = referral.ownerName || "The Quest";
       let hostImageUrl: string | null = null;
       let hostBio: string | null = null;
@@ -1492,6 +1493,7 @@ export async function registerRoutes(
       // still need a valid landing response so the client can open The Quest
       // home page while preserving the code for attribution.
       if (!competition) {
+        if (hasCompetitionBinding) return res.status(404).json({ message: "Competition not found" });
         return res.json({
           referralCode: referral.code,
           hostName,
@@ -1501,8 +1503,6 @@ export async function registerRoutes(
           isGlobal: true,
         });
       }
-
-      if (!competition) return res.status(404).json({ message: "Competition not found" });
 
       res.json({
         referralCode: referral.code,
