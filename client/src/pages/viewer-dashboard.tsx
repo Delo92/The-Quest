@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useViewerSession, type ViewerSession } from "@/hooks/use-viewer-session";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
@@ -36,6 +37,7 @@ export default function ViewerDashboard() {
   });
 
   const { viewer, logoutViewer, refreshViewer } = useViewerSession();
+  const { user, isAuthenticated, isLoading: authLoading, logout: authLogout } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { getMedia } = useLivery();
@@ -44,29 +46,39 @@ export default function ViewerDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Firebase Auth level-1 viewer uses auth credentials; guest voter uses session
+  const isAuthViewer = isAuthenticated && user?.level === 1;
+  const effectiveName = isAuthViewer ? (user?.displayName || user?.email || "") : (viewer?.displayName || "");
+  const effectiveEmail = isAuthViewer ? (user?.email || "") : (viewer?.email || "");
+  const hasSession = isAuthViewer || !!viewer;
+
   useEffect(() => {
-    if (!viewer) {
+    if (authLoading) return;
+    if (!hasSession) {
       setLocation("/login");
       return;
     }
     loadData();
-  }, [viewer]);
+  }, [hasSession, authLoading]);
 
   const loadData = async () => {
-    if (!viewer) return;
+    if (!hasSession) return;
     try {
       const res = await apiRequest("POST", "/api/guest/lookup", {
-        name: viewer.displayName,
-        email: viewer.email,
+        name: effectiveName,
+        email: effectiveEmail,
       });
       const data: LookupResult = await res.json();
       setPurchases(data.purchases);
-      refreshViewer({
-        totalVotesPurchased: data.viewer.totalVotesPurchased,
-        totalSpent: data.viewer.totalSpent,
-      });
+      if (!isAuthViewer) {
+        refreshViewer({
+          totalVotesPurchased: data.viewer.totalVotesPurchased,
+          totalSpent: data.viewer.totalSpent,
+        });
+      }
     } catch {
-      toast({ title: "Could not load your data", variant: "destructive" });
+      // No purchases yet is fine for new accounts — just show empty state
+      setPurchases([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -79,11 +91,23 @@ export default function ViewerDashboard() {
   };
 
   const handleLogout = () => {
-    logoutViewer();
+    if (isAuthViewer) {
+      authLogout();
+    } else {
+      logoutViewer();
+    }
     window.location.href = "/";
   };
 
-  if (!viewer) return null;
+  const totalVotesPurchased = isAuthViewer
+    ? purchases.reduce((sum, p) => sum + p.voteCount, 0)
+    : (viewer?.totalVotesPurchased ?? 0);
+  const totalSpent = isAuthViewer
+    ? purchases.reduce((sum, p) => sum + p.amount, 0)
+    : (viewer?.totalSpent ?? 0);
+
+  if (authLoading) return null;
+  if (!hasSession) return null;
 
   const uniqueCompetitions = Array.from(
     new Map(purchases.map(p => [p.competitionId, p])).values()
@@ -107,7 +131,7 @@ export default function ViewerDashboard() {
             style={{ letterSpacing: "6px" }}
             data-testid="text-viewer-name"
           >
-            {viewer.displayName}
+            {effectiveName}
           </h2>
         </div>
       </section>
@@ -116,7 +140,7 @@ export default function ViewerDashboard() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-8 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-white/35">Signed in as</p>
-            <p className="text-white/70 text-sm mt-1 truncate max-w-[260px]">{viewer.email}</p>
+            <p className="text-white/70 text-sm mt-1 truncate max-w-[260px]">{effectiveEmail}</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -153,14 +177,14 @@ export default function ViewerDashboard() {
               <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center hover:border-orange-500/30 transition-colors">
                 <Heart className="h-6 w-6 text-[#FF5A09] mx-auto mb-2" />
                 <span className="text-3xl font-bold text-white" data-testid="text-total-votes">
-                  {viewer.totalVotesPurchased.toLocaleString()}
+                  {totalVotesPurchased.toLocaleString()}
                 </span>
                 <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Votes Purchased</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center hover:border-orange-500/30 transition-colors">
                 <Receipt className="h-6 w-6 text-[#FF5A09] mx-auto mb-2" />
                 <span className="text-3xl font-bold text-white" data-testid="text-total-spent">
-                  ${(viewer.totalSpent / 100).toFixed(2)}
+                  ${(totalSpent / 100).toFixed(2)}
                 </span>
                 <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Total Spent</p>
               </div>

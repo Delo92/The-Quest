@@ -58,9 +58,12 @@ export default function LoginPage() {
   const [displayName, setDisplayName] = useState("");
   const [viewerName, setViewerName] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<number>(2);
+  const [viewerLoginType, setViewerLoginType] = useState<"registered" | "guest">("registered");
   const [loading, setLoading] = useState(false);
 
   const isViewerMode = selectedLevel === 1;
+  // Guest voter = no password, just name+email lookup. Registered = Firebase Auth level-1.
+  const isGuestViewerMode = isViewerMode && mode === "login" && viewerLoginType === "guest";
 
   const { data: inviteInfo } = useQuery<InviteInfo>({
     queryKey: ["/api/invitations/token", inviteToken],
@@ -105,7 +108,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (mode === "login" && isViewerMode) {
+      if (isGuestViewerMode) {
         if (!viewerName.trim()) {
           toast({ title: "Please enter your full name", variant: "destructive" });
           setLoading(false);
@@ -292,27 +295,48 @@ export default function LoginPage() {
           </div>
 
           {mode !== "reset" && mode === "login" && isViewerMode && (
-            <div>
-              <Label htmlFor="viewerName" className="text-white/60 uppercase text-xs tracking-wider">
-                Full Name
-              </Label>
-              <Input
-                id="viewerName"
-                type="text"
-                value={viewerName}
-                onChange={(e) => setViewerName(e.target.value)}
-                className="bg-white/[0.08] border-white/20 text-white mt-2"
-                placeholder="Name you used at checkout"
-                required
-                data-testid="input-viewer-name"
-              />
-              <p className="text-white/30 text-xs mt-1.5">
-                Enter the name and email you used when purchasing votes
-              </p>
+            <div className="space-y-3">
+              {/* Registered vs Guest toggle */}
+              <div className="flex rounded-lg overflow-hidden border border-white/15">
+                <button
+                  type="button"
+                  onClick={() => setViewerLoginType("registered")}
+                  className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${viewerLoginType === "registered" ? "bg-orange-500 text-white" : "bg-white/[0.05] text-white/40 hover:text-white/70"}`}
+                >
+                  I have an account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewerLoginType("guest")}
+                  className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${viewerLoginType === "guest" ? "bg-orange-500 text-white" : "bg-white/[0.05] text-white/40 hover:text-white/70"}`}
+                >
+                  I voted as a guest
+                </button>
+              </div>
+              {isGuestViewerMode && (
+                <div>
+                  <Label htmlFor="viewerName" className="text-white/60 uppercase text-xs tracking-wider">
+                    Full Name
+                  </Label>
+                  <Input
+                    id="viewerName"
+                    type="text"
+                    value={viewerName}
+                    onChange={(e) => setViewerName(e.target.value)}
+                    className="bg-white/[0.08] border-white/20 text-white mt-2"
+                    placeholder="Name you used at checkout"
+                    required
+                    data-testid="input-viewer-name"
+                  />
+                  <p className="text-white/30 text-xs mt-1.5">
+                    Enter the name and email you used when purchasing votes
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
-          {mode !== "reset" && !(mode === "login" && isViewerMode) && (
+          {mode !== "reset" && !(isGuestViewerMode) && (
             <div>
               <Label htmlFor="password" className="text-white/60 uppercase text-xs tracking-wider">
                 Password

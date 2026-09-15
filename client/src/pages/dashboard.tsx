@@ -54,6 +54,7 @@ export default function Dashboard() {
 
   const isAdmin = profile?.role === "admin" || user.level >= 4;
   const isHost = user.level === 3;
+  const isViewer = user.level === 1;
 
   if (isAdmin) {
     return <AdminDashboard user={user as any} />;
@@ -61,6 +62,10 @@ export default function Dashboard() {
 
   if (isHost) {
     return <HostDashboard user={user as any} />;
+  }
+
+  if (isViewer) {
+    return <Redirect to="/viewer" />;
   }
 
   if (!profile) {
