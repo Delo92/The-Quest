@@ -656,6 +656,66 @@ export default function TalentDashboard({ user, profile }: Props) {
           ))}
         </div>
 
+        {/* Setup checklist — action items the user still needs to complete */}
+        {(() => {
+          const hasPhoto = !!(user.profileImageUrl || (profile?.imageUrls && profile.imageUrls.length > 0));
+          const hasNonprofitDecision = nonprofitDeclaration?.consentToDonate !== undefined && nonprofitDeclaration.consentToDonate !== null && (nonprofitDeclaration as any)._saved;
+          const hasEmail = !!(profile?.email || user.email);
+          const items = [
+            !hasPhoto && {
+              icon: "📸",
+              title: "Add a profile photo",
+              desc: "Fans and voters will see your picture — it makes a big difference.",
+              action: () => setActiveSection("media"),
+              cta: "Go to Media",
+            },
+            !hasEmail && {
+              icon: "📧",
+              title: "Add your email",
+              desc: "We need your email to reach you when it's time to arrange your payout.",
+              action: () => setActiveSection("profile"),
+              cta: "Update Profile",
+            },
+            !(profile?.nonprofitDeclaration as any)?.organizationName && {
+              icon: "💚",
+              title: "Nonprofit preference not set",
+              desc: "Tell us if you want part of your winnings donated to a charity — or skip it to keep everything.",
+              action: () => setActiveSection("earnings"),
+              cta: "Set Preference",
+            },
+          ].filter(Boolean) as { icon: string; title: string; desc: string; action: () => void; cta: string }[];
+
+          if (items.length === 0) return null;
+          return (
+            <div className="mb-6 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-amber-400 font-semibold text-sm">⚠️ A few things left to set up</span>
+                <span className="text-[11px] text-white/35">{items.length} item{items.length !== 1 ? "s" : ""} remaining</span>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {items.map((item) => (
+                  <button
+                    key={item.title}
+                    onClick={item.action}
+                    className="flex-1 min-w-[200px] text-left rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.07] hover:border-orange-500/25 transition-all p-3 group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-base leading-none mt-0.5">{item.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-white group-hover:text-orange-300 transition-colors">{item.title}</p>
+                        <p className="mt-0.5 text-[11px] text-white/40 leading-snug">{item.desc}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-[11px] font-semibold text-orange-400 group-hover:text-orange-300">
+                      {item.cta} →
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Layout: sidebar + content */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar nav - desktop */}
@@ -686,20 +746,22 @@ export default function TalentDashboard({ user, profile }: Props) {
           </aside>
 
           {/* Mobile tab bar */}
-          <div className="lg:hidden flex gap-2 mb-2">
+          <div className="lg:hidden flex gap-2 mb-4">
             {navItems.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveSection(id)}
                 data-testid={`tab-${id}`}
-                className={`flex-1 rounded-xl py-2.5 px-2 flex flex-col items-center gap-1 transition-all border ${
+                className={`flex-1 rounded-2xl py-3.5 px-1.5 flex flex-col items-center gap-1.5 transition-all border-2 ${
                   activeSection === id
-                    ? "bg-orange-500/15 border-orange-500/30 text-orange-400"
-                    : "bg-white/[0.04] border-white/8 text-white/35"
+                    ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/25"
+                    : "bg-white/[0.06] border-white/10 text-white/55 active:bg-white/[0.1]"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                <span className="text-[10px] font-semibold">{label.split(" ")[0]}</span>
+                <Icon className={`h-5 w-5 ${activeSection === id ? "text-white" : "text-white/50"}`} />
+                <span className={`text-[11px] font-bold leading-tight text-center ${activeSection === id ? "text-white" : "text-white/50"}`}>
+                  {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label}
+                </span>
               </button>
             ))}
           </div>
