@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
@@ -21,6 +21,7 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthToken } from "@/hooks/use-auth";
+import { firebaseReauthenticate } from "@/lib/firebase";
 import type { TalentProfile, Competition } from "@shared/schema";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -63,6 +64,11 @@ export default function TalentDashboard({ user, profile }: Props) {
   });
 
   const savedPayoutInfo = (profile as any)?.payoutInfo || {};
+  const hasSavedPayout = !!savedPayoutInfo.routingNumber;
+  const [payoutLocked, setPayoutLocked] = useState<boolean>(hasSavedPayout);
+  const [payoutReauthPassword, setPayoutReauthPassword] = useState("");
+  const [payoutReauthError, setPayoutReauthError] = useState("");
+  const [payoutReauthLoading, setPayoutReauthLoading] = useState(false);
   const [payoutRoutingNumber, setPayoutRoutingNumber] = useState<string>(savedPayoutInfo.routingNumber || "");
   const [payoutAccountNumber, setPayoutAccountNumber] = useState<string>(savedPayoutInfo.accountNumber || "");
   const [payoutAccountType, setPayoutAccountType] = useState<string>(savedPayoutInfo.accountType || "checking");
@@ -140,6 +146,20 @@ export default function TalentDashboard({ user, profile }: Props) {
     enabled: !!profile && !!selectedCompId,
   });
 
+  const handlePayoutReauth = async () => {
+    setPayoutReauthLoading(true);
+    setPayoutReauthError("");
+    try {
+      await firebaseReauthenticate(payoutReauthPassword);
+      setPayoutLocked(false);
+      setPayoutReauthPassword("");
+    } catch {
+      setPayoutReauthError("Incorrect password. Please try again.");
+    } finally {
+      setPayoutReauthLoading(false);
+    }
+  };
+
   const handleSavePayoutInfo = async () => {
     setPayoutSaving(true);
     try {
@@ -153,7 +173,8 @@ export default function TalentDashboard({ user, profile }: Props) {
         },
       });
       queryClient.invalidateQueries({ queryKey: ["/api/talent-profiles/me"] });
-      toast({ title: "Payout info saved!", description: "We'll use this when sending your earnings." });
+      setPayoutLocked(true);
+      toast({ title: "Bank info saved!", description: "We'll use this when sending your earnings." });
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message || "Could not save payout info.", variant: "destructive" });
     } finally {
@@ -1233,82 +1254,163 @@ export default function TalentDashboard({ user, profile }: Props) {
 
               {/* Payout / direct deposit info */}
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                {/* Header */}
                 <div className="px-5 pt-5 pb-4 border-b border-white/8">
                   <div className="flex items-center gap-2 mb-1">
-                    <Wallet className="h-4 w-4 text-orange-400" />
+                    <Lock className="h-4 w-4 text-orange-400" />
                     <p className="text-sm font-semibold text-white">Direct deposit info</p>
+                    {hasSavedPayout && (
+                      <span className="ml-auto flex items-center gap-1 text-[10px] text-green-400 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
+                        <ShieldCheck className="h-3 w-3" /> On file
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-white/45 leading-relaxed">
-                    Enter your bank details so we can send earnings directly to your account. This info is private and only visible to platform administrators.
+                    Your bank details are stored securely and are only accessible to platform administrators when processing your payout. They are never shared with third parties.
                   </p>
-                </div>
-                <div className="px-5 py-5 space-y-4">
-                  {savedPayoutInfo.routingNumber && (
-                    <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 text-sm text-green-300">
-                      <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
-                      Bank info on file — update the fields below to change it.
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-white/60 text-xs uppercase tracking-wider">Routing number</Label>
-                      <Input
-                        value={payoutRoutingNumber}
-                        onChange={(e) => setPayoutRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
-                        placeholder="9-digit routing number"
-                        inputMode="numeric"
-                        className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 font-mono tracking-wider"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white/60 text-xs uppercase tracking-wider">Account number</Label>
-                      <Input
-                        value={payoutAccountNumber}
-                        onChange={(e) => setPayoutAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 17))}
-                        placeholder="Account number"
-                        inputMode="numeric"
-                        className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 font-mono tracking-wider"
-                      />
-                    </div>
+                  {/* Trust badges */}
+                  <div className="flex flex-wrap gap-3 mt-3">
+                    {[
+                      { icon: ShieldCheck, label: "Admin-only access" },
+                      { icon: Lock,        label: "Encrypted at rest" },
+                      { icon: EyeOff,      label: "Never shared" },
+                    ].map(({ icon: Icon, label }) => (
+                      <span key={label} className="flex items-center gap-1 text-[10px] text-white/35 uppercase tracking-wide">
+                        <Icon className="h-3 w-3 text-orange-400/60" />{label}
+                      </span>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-white/60 text-xs uppercase tracking-wider">Account type</Label>
-                      <div className="flex gap-2">
-                        {["checking", "savings"].map((type) => (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => setPayoutAccountType(type)}
-                            className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold capitalize transition-colors ${payoutAccountType === type ? "border-orange-500 bg-orange-500/10 text-orange-300" : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/25"}`}
-                          >
-                            {type}
-                          </button>
+                <div className="px-5 py-5 space-y-5">
+                  {/* LOCKED — show masked info + re-auth prompt */}
+                  {payoutLocked && hasSavedPayout ? (
+                    <div className="space-y-4">
+                      {/* Masked summary */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                          { label: "Routing number", value: `••••• ${savedPayoutInfo.routingNumber?.slice(-4) ?? "••••"}` },
+                          { label: "Account number", value: `••••• ${savedPayoutInfo.accountNumber?.slice(-4) ?? "••••"}` },
+                          { label: "Account type",   value: savedPayoutInfo.accountType ?? "—" },
+                        ].map(({ label, value }) => (
+                          <div key={label} className="rounded-lg border border-white/8 bg-white/[0.03] px-4 py-3">
+                            <p className="text-[10px] uppercase tracking-wider text-white/35 mb-1">{label}</p>
+                            <p className="font-mono text-white/70 text-sm capitalize tracking-wider">{value}</p>
+                          </div>
                         ))}
                       </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white/60 text-xs uppercase tracking-wider">Legal name on account</Label>
-                      <Input
-                        value={payoutLegalName}
-                        onChange={(e) => setPayoutLegalName(e.target.value)}
-                        placeholder="Name exactly as it appears on your account"
-                        className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
-                      />
-                    </div>
-                  </div>
+                      <p className="text-xs text-white/35">
+                        Name on account: <span className="text-white/55">{savedPayoutInfo.legalName || "—"}</span>
+                      </p>
 
-                  <Button
-                    onClick={handleSavePayoutInfo}
-                    disabled={payoutSaving || !payoutRoutingNumber.trim() || !payoutAccountNumber.trim() || !payoutLegalName.trim()}
-                    className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white w-full sm:w-auto"
-                  >
-                    {payoutSaving
-                      ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</>
-                      : <><Check className="h-4 w-4 mr-2" />Save bank info</>}
-                  </Button>
+                      {/* Re-auth gate */}
+                      <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 px-4 py-4 space-y-3">
+                        <p className="text-xs text-white/60 flex items-center gap-1.5">
+                          <Lock className="h-3.5 w-3.5 text-orange-400" />
+                          To update your bank info, confirm your account password first.
+                        </p>
+                        <div className="flex gap-2">
+                          <Input
+                            type="password"
+                            value={payoutReauthPassword}
+                            onChange={(e) => { setPayoutReauthPassword(e.target.value); setPayoutReauthError(""); }}
+                            onKeyDown={(e) => e.key === "Enter" && payoutReauthPassword && handlePayoutReauth()}
+                            placeholder="Your account password"
+                            className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
+                          />
+                          <Button
+                            onClick={handlePayoutReauth}
+                            disabled={payoutReauthLoading || !payoutReauthPassword}
+                            className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white shrink-0"
+                          >
+                            {payoutReauthLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+                          </Button>
+                        </div>
+                        {payoutReauthError && (
+                          <p className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertTriangle className="h-3.5 w-3.5" />{payoutReauthError}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    /* UNLOCKED — full editable form */
+                    <>
+                      {hasSavedPayout && (
+                        <div className="flex items-center gap-2 rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-3 text-xs text-orange-300">
+                          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                          You are editing your saved bank info. Changes will take effect on your next payout.
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-white/60 text-xs uppercase tracking-wider">Routing number</Label>
+                          <Input
+                            value={payoutRoutingNumber}
+                            onChange={(e) => setPayoutRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                            placeholder="9-digit routing number"
+                            inputMode="numeric"
+                            className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 font-mono tracking-wider"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-white/60 text-xs uppercase tracking-wider">Account number</Label>
+                          <Input
+                            value={payoutAccountNumber}
+                            onChange={(e) => setPayoutAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 17))}
+                            placeholder="Account number"
+                            inputMode="numeric"
+                            className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 font-mono tracking-wider"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-white/60 text-xs uppercase tracking-wider">Account type</Label>
+                          <div className="flex gap-2">
+                            {["checking", "savings"].map((type) => (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setPayoutAccountType(type)}
+                                className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold capitalize transition-colors ${payoutAccountType === type ? "border-orange-500 bg-orange-500/10 text-orange-300" : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/25"}`}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-white/60 text-xs uppercase tracking-wider">Legal name on account</Label>
+                          <Input
+                            value={payoutLegalName}
+                            onChange={(e) => setPayoutLegalName(e.target.value)}
+                            placeholder="Name exactly as it appears on your account"
+                            className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3">
+                        <Button
+                          onClick={handleSavePayoutInfo}
+                          disabled={payoutSaving || !payoutRoutingNumber.trim() || !payoutAccountNumber.trim() || !payoutLegalName.trim()}
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                        >
+                          {payoutSaving
+                            ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</>
+                            : <><Check className="h-4 w-4 mr-2" />Save bank info</>}
+                        </Button>
+                        {hasSavedPayout && (
+                          <Button variant="ghost" onClick={() => { setPayoutLocked(true); setPayoutReauthPassword(""); setPayoutReauthError(""); }} className="text-white/40 hover:text-white">
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

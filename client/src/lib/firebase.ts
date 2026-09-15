@@ -7,9 +7,20 @@ import {
   signOut,
   sendPasswordResetEmail,
   onIdTokenChanged,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   type Auth,
   type User,
 } from "firebase/auth";
+
+export async function firebaseReauthenticate(password: string): Promise<void> {
+  const a = getFirebaseAuth();
+  if (!a || !a.currentUser) throw new Error("Not signed in");
+  const email = a.currentUser.email;
+  if (!email) throw new Error("No email on account");
+  const credential = EmailAuthProvider.credential(email, password);
+  await reauthenticateWithCredential(a.currentUser, credential);
+}
 
 let app: FirebaseApp | null = null;
 let analytics: Analytics | null = null;
