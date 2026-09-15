@@ -200,12 +200,21 @@ async function buildFinancialOverview() {
   const ledger = ledgerSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
   const transactions = transactionsSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
   const batches = batchesSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
-  const [purchasesByCompetition, freeVotesByCompetition] = await Promise.all([
+  const [purchasesByCompetition, freeVotesByCompetition, contestantVotesByCompetition] = await Promise.all([
     Promise.all(competitions.map(async (competition) => [competition.id, await storage.getVotePurchasesByCompetition(competition.id)] as const)),
     Promise.all(competitions.map(async (competition) => [competition.id, await storage.getTotalVotesByCompetition(competition.id)] as const)),
+    // getContestantsByCompetition returns rawVoteCount (true free vote count) per contestant
+    Promise.all(competitions.map(async (competition) => [competition.id, await storage.getContestantsByCompetition(competition.id)] as const)),
   ]);
   const purchaseMap = new Map(purchasesByCompetition);
   const freeVotesMap = new Map(freeVotesByCompetition);
+  // Map: competitionId → Map of contestantId → rawVoteCount
+  const contestantRawVotesMap = new Map(
+    contestantVotesByCompetition.map(([compId, contestants]) => [
+      compId,
+      new Map(contestants.map((c) => [c.id, c.rawVoteCount ?? 0])),
+    ]),
+  );
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   const profilesByUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
   const contestantById = new Map(allContestants.map((contestant) => [contestant.id, contestant]));
@@ -258,8 +267,8 @@ async function buildFinancialOverview() {
       const paidCents = entries.filter((entry: any) => entry.status === "paid").reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
       const totalPaidVoteShare = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
       const contestantPaidVoteCount = contestantPurchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
-      // freeVoteCount comes from the raw vote count stored on the contestant record
-      const freeVoteCount = Number(contestant.rawVoteCount ?? contestant.voteCount ?? 0);
+      // freeVoteCount: use the per-competition contestant vote map (rawVoteCount from getContestantsByCompetition)
+      const freeVoteCount = contestantRawVotesMap.get(competition.id)?.get(contestant.id) ?? 0;
       const totalVoteCount = freeVoteCount + contestantPaidVoteCount;
       return {
         contestantId: contestant.id,
