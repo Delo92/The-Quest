@@ -658,25 +658,6 @@ export default function TalentDashboard({ user, profile }: Props) {
           ))}
         </div>
 
-        {/* Stats strip */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
-          {[
-            { label: "Competitions", value: approvedCount, icon: Trophy, color: "text-orange-400" },
-            { label: "Tournament points", value: totalVotes.toLocaleString(), icon: Star, color: "text-amber-400" },
-            { label: "Pending", value: pendingCount, icon: AlertTriangle, color: "text-yellow-500" },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white/[0.04] border border-white/10 rounded-xl p-3 sm:p-4 flex items-center gap-3 hover:border-orange-500/25 transition-colors">
-              <div className={`hidden sm:flex h-9 w-9 rounded-lg bg-white/[0.06] items-center justify-center flex-shrink-0 ${color}`}>
-                <Icon className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-lg sm:text-2xl font-bold leading-none tabular-nums">{value}</p>
-                <p className="text-[11px] text-white/35 mt-0.5">{label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
         {/* Setup checklist — action items the user still needs to complete */}
         {(() => {
           const hasPhoto = !!(user.profileImageUrl || (profile?.imageUrls && profile.imageUrls.length > 0));
@@ -736,6 +717,25 @@ export default function TalentDashboard({ user, profile }: Props) {
             </div>
           );
         })()}
+
+        {/* Stats strip */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
+          {[
+            { label: "Competitions", value: approvedCount, icon: Trophy, color: "text-orange-400" },
+            { label: "Tournament points", value: totalVotes.toLocaleString(), icon: Star, color: "text-amber-400" },
+            { label: "Pending", value: pendingCount, icon: AlertTriangle, color: "text-yellow-500" },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-white/[0.04] border border-white/10 rounded-xl p-3 sm:p-4 flex items-center gap-3 hover:border-orange-500/25 transition-colors">
+              <div className={`hidden sm:flex h-9 w-9 rounded-lg bg-white/[0.06] items-center justify-center flex-shrink-0 ${color}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-lg sm:text-2xl font-bold leading-none tabular-nums">{value}</p>
+                <p className="text-[11px] text-white/35 mt-0.5">{label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Layout: sidebar + content */}
         <div className="flex flex-col lg:flex-row gap-6">
