@@ -61,6 +61,13 @@ export default function TalentDashboard({ user, profile }: Props) {
     ...emptyNonprofitDeclaration,
     ...((profile as any)?.nonprofitDeclaration || {}),
   });
+
+  const savedPayoutInfo = (profile as any)?.payoutInfo || {};
+  const [payoutMethod, setPayoutMethod] = useState<string>(savedPayoutInfo.method || "");
+  const [payoutHandle, setPayoutHandle] = useState<string>(savedPayoutInfo.accountHandle || "");
+  const [payoutLegalName, setPayoutLegalName] = useState<string>(savedPayoutInfo.legalName || "");
+  const [payoutNotes, setPayoutNotes] = useState<string>(savedPayoutInfo.notes || "");
+  const [payoutSaving, setPayoutSaving] = useState(false);
   const [bgImageUploading, setBgImageUploading] = useState(false);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
   const [selectedCompId, setSelectedCompId] = useState<string>("");
@@ -132,6 +139,26 @@ export default function TalentDashboard({ user, profile }: Props) {
     },
     enabled: !!profile && !!selectedCompId,
   });
+
+  const handleSavePayoutInfo = async () => {
+    setPayoutSaving(true);
+    try {
+      await apiRequest("PATCH", "/api/talent-profiles/me", {
+        payoutInfo: {
+          method: payoutMethod,
+          accountHandle: payoutHandle.trim(),
+          legalName: payoutLegalName.trim(),
+          notes: payoutNotes.trim(),
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/talent-profiles/me"] });
+      toast({ title: "Payout info saved!", description: "We'll use this when sending your earnings." });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message || "Could not save payout info.", variant: "destructive" });
+    } finally {
+      setPayoutSaving(false);
+    }
+  };
 
   const saveProfileMutation = useMutation({
     mutationFn: async () => {
@@ -1203,6 +1230,118 @@ export default function TalentDashboard({ user, profile }: Props) {
                 </div>
               )}
 
+              {/* Payout / direct deposit info */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                <div className="px-5 pt-5 pb-4 border-b border-white/8">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wallet className="h-4 w-4 text-orange-400" />
+                    <p className="text-sm font-semibold text-white">Where should we send your earnings?</p>
+                  </div>
+                  <p className="text-xs text-white/45 leading-relaxed">
+                    Tell us how you prefer to receive payments. The Quest uses this when processing your payout — your info is private and only visible to platform administrators.
+                  </p>
+                </div>
+                <div className="px-5 py-5 space-y-4">
+                  {/* Method selector */}
+                  <div className="space-y-1.5">
+                    <Label className="text-white/60 text-xs uppercase tracking-wider">Payment method</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { value: "zelle",   label: "Zelle",         hint: "Phone or email" },
+                        { value: "paypal",  label: "PayPal",        hint: "Email or @username" },
+                        { value: "cashapp", label: "Cash App",      hint: "$cashtag" },
+                        { value: "venmo",   label: "Venmo",         hint: "@username" },
+                        { value: "check",   label: "Check",         hint: "Mailed to address" },
+                        { value: "ach",     label: "Bank transfer",  hint: "Routing + account" },
+                      ].map(({ value, label, hint }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setPayoutMethod(value)}
+                          className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left transition-colors ${payoutMethod === value ? "border-orange-500 bg-orange-500/10" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}
+                        >
+                          <span className={`text-sm font-semibold ${payoutMethod === value ? "text-orange-300" : "text-white/80"}`}>{label}</span>
+                          <span className="text-[10px] text-white/35 mt-0.5">{hint}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {payoutMethod && (
+                    <>
+                      {/* Account handle */}
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60 text-xs uppercase tracking-wider">
+                          {payoutMethod === "zelle"   && "Zelle phone number or email"}
+                          {payoutMethod === "paypal"  && "PayPal email or @username"}
+                          {payoutMethod === "cashapp" && "Cash App $cashtag"}
+                          {payoutMethod === "venmo"   && "Venmo @username"}
+                          {payoutMethod === "check"   && "Mailing address"}
+                          {payoutMethod === "ach"     && "Routing number — Account number"}
+                        </Label>
+                        <Input
+                          value={payoutHandle}
+                          onChange={(e) => setPayoutHandle(e.target.value)}
+                          placeholder={
+                            payoutMethod === "zelle"   ? "+1 (555) 000-0000  or  you@email.com" :
+                            payoutMethod === "paypal"  ? "you@email.com  or  @yourname" :
+                            payoutMethod === "cashapp" ? "$yourcashtag" :
+                            payoutMethod === "venmo"   ? "@yourname" :
+                            payoutMethod === "check"   ? "123 Main St, City, State ZIP" :
+                            payoutMethod === "ach"     ? "021000021 — 1234567890" : ""
+                          }
+                          className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
+                        />
+                      </div>
+
+                      {/* Legal name — always required for check/ACH, optional but helpful for others */}
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60 text-xs uppercase tracking-wider">
+                          Legal name {(payoutMethod === "check" || payoutMethod === "ach") ? "" : <span className="text-white/25 normal-case">(optional — for check / tax records)</span>}
+                        </Label>
+                        <Input
+                          value={payoutLegalName}
+                          onChange={(e) => setPayoutLegalName(e.target.value)}
+                          placeholder="Full legal name as it appears on your ID"
+                          className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
+                        />
+                      </div>
+
+                      {/* Notes */}
+                      <div className="space-y-1.5">
+                        <Label className="text-white/60 text-xs uppercase tracking-wider">Notes for admin <span className="text-white/25 normal-case">(optional)</span></Label>
+                        <Textarea
+                          value={payoutNotes}
+                          onChange={(e) => setPayoutNotes(e.target.value)}
+                          placeholder="Any additional instructions, preferred contact, or timing requests…"
+                          className="min-h-[72px] resize-y bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
+                          maxLength={500}
+                        />
+                      </div>
+
+                      <Button
+                        onClick={handleSavePayoutInfo}
+                        disabled={payoutSaving || !payoutMethod || (!payoutHandle.trim() && !payoutLegalName.trim())}
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white w-full sm:w-auto"
+                      >
+                        {payoutSaving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save payout info"}
+                      </Button>
+                    </>
+                  )}
+
+                  {!payoutMethod && (savedPayoutInfo.method) && (
+                    <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3">
+                      <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+                      <p className="text-sm text-green-300">
+                        Payout info on file: <strong>{savedPayoutInfo.method?.toUpperCase()}</strong>
+                        {savedPayoutInfo.accountHandle ? ` — ${savedPayoutInfo.accountHandle}` : ""}
+                      </p>
+                      <button onClick={() => setPayoutMethod(savedPayoutInfo.method)} className="ml-auto text-xs text-white/40 hover:text-white underline">Edit</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Nonprofit declaration — relabelled for clarity */}
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
                 <div className="px-5 pt-5 pb-3">
@@ -1211,8 +1350,25 @@ export default function TalentDashboard({ user, profile }: Props) {
                     If you represent a nonprofit organization, you can register it here. A portion of your competition earnings will then be directed to that organization instead of paid to you personally. This is entirely optional.
                   </p>
                 </div>
-                <div className="px-5 pb-5">
+                <div className="px-5 pb-5 space-y-4">
                   <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} />
+                  <div className="flex items-center gap-3 pt-1">
+                    <Button
+                      onClick={() => saveProfileMutation.mutate()}
+                      disabled={saveProfileMutation.isPending || !displayName.trim()}
+                      className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                      data-testid="button-save-nonprofit"
+                    >
+                      {saveProfileMutation.isPending
+                        ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</>
+                        : <><Check className="h-4 w-4 mr-2" />Save nonprofit info</>}
+                    </Button>
+                    {(profile as any)?.nonprofitDeclaration?.legalName && (
+                      <span className="text-xs text-green-400 flex items-center gap-1">
+                        <Check className="h-3 w-3" /> Info on file
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

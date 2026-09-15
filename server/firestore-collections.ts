@@ -135,6 +135,15 @@ export interface FirestoreTalentProfile {
   role: string;
   hiddenVideoUris?: string[];
   nonprofitDeclaration?: FirestoreNonprofitDeclaration | null;
+  payoutInfo?: FirestorePayoutInfo | null;
+}
+
+export interface FirestorePayoutInfo {
+  method: "zelle" | "paypal" | "cashapp" | "venmo" | "check" | "ach" | "";
+  accountHandle: string;   // email, phone, or @username depending on method
+  legalName: string;       // required for check / ACH
+  notes: string;           // anything else admin needs to know
+  updatedAt: string;
 }
 
 export interface FirestoreContestant {

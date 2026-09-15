@@ -2039,6 +2039,17 @@ export async function registerRoutes(
     if (safeData.nonprofitDeclaration !== undefined) {
       safeData.nonprofitDeclaration = normalizeNonprofitDeclaration(safeData.nonprofitDeclaration);
     }
+    if (safeData.payoutInfo !== undefined && safeData.payoutInfo !== null) {
+      const pi = safeData.payoutInfo as any;
+      const allowed = ["zelle", "paypal", "cashapp", "venmo", "check", "ach", ""];
+      safeData.payoutInfo = {
+        method: allowed.includes(pi.method) ? pi.method : "",
+        accountHandle: String(pi.accountHandle || "").slice(0, 200),
+        legalName: String(pi.legalName || "").slice(0, 200),
+        notes: String(pi.notes || "").slice(0, 500),
+        updatedAt: new Date().toISOString(),
+      };
+    }
     const updated = await storage.updateTalentProfile(uid, safeData);
     if (!updated) return res.status(404).json({ message: "Profile not found" });
     res.json(updated);
