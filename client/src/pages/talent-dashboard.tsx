@@ -621,13 +621,16 @@ export default function TalentDashboard({ user, profile }: Props) {
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-5 sm:p-6 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
-                <LayoutDashboard className="h-5 w-5 text-white" />
-              </div>
+              <Avatar className="h-12 w-12 rounded-xl border border-orange-500/30 flex-shrink-0">
+                <AvatarImage src={user.profileImageUrl || profile?.profileBgImage || ""} className="object-cover" />
+                <AvatarFallback className="rounded-xl bg-orange-500/15 text-orange-300 text-lg font-bold">
+                  {(displayName || user.displayName || "C").charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80 mb-1">Creator workspace</p>
-                <h1 className="text-xl sm:text-2xl font-bold leading-none" data-testid="text-dashboard-title">Talent Dashboard</h1>
-                <p className="text-white/35 text-xs mt-0.5">Welcome back, {displayName || user.displayName || "Competitor"}</p>
+                <h1 className="text-xl sm:text-2xl font-bold leading-none" data-testid="text-dashboard-title">{displayName || user.displayName || "Talent Dashboard"}</h1>
+                <p className="text-white/35 text-xs mt-0.5">Welcome back — manage your profile, media, and earnings here</p>
               </div>
             </div>
             <InviteDialog senderLevel={2} />
@@ -918,35 +921,162 @@ export default function TalentDashboard({ user, profile }: Props) {
 
           <TabsContent value="earnings">
             <div className="space-y-5">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80">Financial operations</p>
-                <h2 className="mt-1 font-serif text-2xl font-bold">My earnings</h2>
-                <p className="mt-2 max-w-2xl text-sm text-white/45">Winner and placement earnings are tracked as audited ledger entries. The Quest records payouts manually after approval.</p>
+
+              {/* How earnings work — always visible banner */}
+              <div className="rounded-2xl border border-orange-500/20 bg-orange-500/[0.06] p-5">
+                <div className="flex items-start gap-3">
+                  <Wallet className="h-5 w-5 text-orange-300 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">How your earnings work</p>
+                    <p className="mt-1 text-sm text-white/55 leading-relaxed">
+                      When you place in a competition, The Quest records your prize in this section. Once your payout is approved, we send it to you manually — you'll see the status update below. <span className="text-white/40">No action is needed on your end unless we reach out.</span>
+                    </p>
+                  </div>
+                </div>
               </div>
+
+              {/* Four stat cards */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
-                  ["Gross earnings", financialOverview?.earnings?.grossCents],
-                  ["Upcoming payout", financialOverview?.earnings?.nextPayoutCents],
-                  ["Pending", financialOverview?.earnings?.pendingCents],
-                  ["Paid", financialOverview?.earnings?.paidCents],
-                ].map(([label, cents]) => (
-                  <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                    <p className="text-xl font-semibold tabular-nums text-white">${((Number(cents || 0) / 100)).toFixed(2)}</p>
-                    <p className="mt-1 text-xs text-white/40">{label}</p>
+                  {
+                    label: "Total earned",
+                    hint: "Your full prize amount before any deductions",
+                    cents: financialOverview?.earnings?.grossCents,
+                    highlight: false,
+                  },
+                  {
+                    label: "Coming your way",
+                    hint: "The next payment scheduled for you",
+                    cents: financialOverview?.earnings?.nextPayoutCents,
+                    highlight: true,
+                  },
+                  {
+                    label: "Waiting on approval",
+                    hint: "Earnings that are being reviewed before payout",
+                    cents: financialOverview?.earnings?.pendingCents,
+                    highlight: false,
+                  },
+                  {
+                    label: "Already paid to you",
+                    hint: "Money you've already received from The Quest",
+                    cents: financialOverview?.earnings?.paidCents,
+                    highlight: false,
+                  },
+                ].map(({ label, hint, cents, highlight }) => (
+                  <div key={label} className={`rounded-xl border p-4 ${highlight && Number(cents || 0) > 0 ? "border-orange-500/40 bg-orange-500/[0.08]" : "border-white/10 bg-white/[0.04]"}`}>
+                    <p className={`text-2xl font-bold tabular-nums ${highlight && Number(cents || 0) > 0 ? "text-orange-300" : "text-white"}`}>
+                      ${((Number(cents || 0)) / 100).toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-white/70">{label}</p>
+                    <p className="mt-1 text-[11px] text-white/35 leading-snug">{hint}</p>
                   </div>
                 ))}
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                <h3 className="text-sm font-semibold text-white">Competition breakdown</h3>
-                <div className="mt-3 space-y-2">
-                  {(financialOverview?.competitions || []).map((competition: any) => {
-                    const contestant = competition.contestants?.[0];
-                    return <div key={competition.competitionId} className="flex flex-col gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{contestant?.voteSharePercentage || 0}% paid-vote share · {contestant?.paidVoteCount || 0} paid votes</p></div><div className="text-left sm:text-right"><p className="font-semibold text-orange-200">${((Number(contestant?.earningsCents || 0) / 100)).toFixed(2)}</p><p className="text-[11px] text-white/35">Nonprofit allocation ${((Number(contestant?.nonprofitCents || 0) / 100)).toFixed(2)}</p></div></div>;
-                  })}
-                  {(!financialOverview?.competitions || financialOverview.competitions.length === 0) && <p className="text-sm text-white/40">No competition earnings have been recorded.</p>}
+
+              {/* Zero-state — no earnings yet */}
+              {(!financialOverview?.competitions || financialOverview.competitions.length === 0 || financialOverview.competitions.every((c: any) => !c.contestants?.length)) && (
+                <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
+                  <Trophy className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-white/60">No prize money yet</p>
+                  <p className="mt-1 text-xs text-white/35 max-w-xs mx-auto">
+                    Earnings are added here after a competition ends and placements are confirmed. Keep competing — your first payout could be right around the corner.
+                  </p>
+                </div>
+              )}
+
+              {/* Per-competition breakdown */}
+              {financialOverview?.competitions && financialOverview.competitions.some((c: any) => c.contestants?.length) && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">Your competition results</h3>
+                      <p className="mt-0.5 text-xs text-white/40">One row per competition you've entered. Earnings are added after the competition closes.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {financialOverview.competitions.map((competition: any) => {
+                      const contestant = competition.contestants?.[0];
+                      if (!contestant) return null;
+                      const totalVotes = (contestant.freeVoteCount ?? 0) + (contestant.paidVoteCount ?? 0);
+                      const hasEarnings = Number(contestant.earningsCents || 0) > 0;
+                      return (
+                        <div key={competition.competitionId} className={`rounded-xl border p-4 ${hasEarnings ? "border-orange-500/25 bg-orange-500/[0.04]" : "border-white/10 bg-black/20"}`}>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-semibold text-white">{competition.title}</p>
+                                <Badge variant="outline" className="border-white/15 text-[10px] text-white/45 capitalize">{competition.status || "active"}</Badge>
+                              </div>
+                              {/* Vote counts — plain language */}
+                              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/45">
+                                <span>🗳 <b className="text-white">{totalVotes.toLocaleString()}</b> total votes</span>
+                                {(contestant.freeVoteCount ?? 0) > 0 && <span>{contestant.freeVoteCount} free</span>}
+                                {(contestant.paidVoteCount ?? 0) > 0 && <span className="text-orange-300/70">{contestant.paidVoteCount} paid</span>}
+                              </div>
+                            </div>
+                            <div className="text-left sm:text-right flex-shrink-0">
+                              <p className={`text-lg font-bold tabular-nums ${hasEarnings ? "text-orange-300" : "text-white/40"}`}>
+                                ${((Number(contestant.earningsCents || 0)) / 100).toFixed(2)}
+                              </p>
+                              <p className="text-[11px] text-white/35 mt-0.5">
+                                {hasEarnings ? "your prize share" : "no prize recorded yet"}
+                              </p>
+                            </div>
+                          </div>
+                          {/* Payout status row */}
+                          {contestant.payoutEntries && contestant.payoutEntries.length > 0 && (
+                            <div className="mt-3 border-t border-white/[0.07] pt-3 space-y-1.5">
+                              {contestant.payoutEntries.map((entry: any) => (
+                                <div key={entry.id} className="flex items-center justify-between gap-3 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-block h-2 w-2 rounded-full flex-shrink-0 ${
+                                      entry.status === "paid" ? "bg-green-400" :
+                                      entry.status === "approved" ? "bg-blue-400" :
+                                      entry.status === "blocked" ? "bg-red-400" : "bg-amber-400"
+                                    }`} />
+                                    <span className="text-white/55 capitalize">{
+                                      entry.status === "paid" ? "Paid to you" :
+                                      entry.status === "approved" ? "Approved — payment being arranged" :
+                                      entry.status === "pending_approval" ? "Waiting on approval" :
+                                      entry.status === "blocked" ? `On hold${entry.blockedReason ? `: ${entry.blockedReason}` : ""}` :
+                                      entry.status
+                                    }</span>
+                                  </div>
+                                  <span className="text-white tabular-nums">${((Number(entry.netCents || 0)) / 100).toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* No payout yet explanation */}
+                          {(!contestant.payoutEntries || contestant.payoutEntries.length === 0) && hasEarnings && (
+                            <p className="mt-2 text-[11px] text-white/35">Payout details will appear here once this competition closes and results are finalized.</p>
+                          )}
+                          {/* Charity row */}
+                          {Number(contestant.nonprofitCents || 0) > 0 && (
+                            <div className="mt-2 rounded-md bg-white/[0.03] border border-white/[0.07] px-3 py-2 text-xs text-white/45">
+                              💚 <b className="text-white/60">${((Number(contestant.nonprofitCents)) / 100).toFixed(2)}</b> from your share goes to charity
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Nonprofit declaration — relabelled for clarity */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                <div className="px-5 pt-5 pb-3">
+                  <p className="text-sm font-semibold text-white">Want your prize share to go to a charity?</p>
+                  <p className="mt-1 text-xs text-white/45 leading-relaxed">
+                    If you represent a nonprofit organization, you can register it here. A portion of your competition earnings will then be directed to that organization instead of paid to you personally. This is entirely optional.
+                  </p>
+                </div>
+                <div className="px-5 pb-5">
+                  <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} />
                 </div>
               </div>
-              <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} />
+
             </div>
           </TabsContent>
 
