@@ -200,10 +200,12 @@ async function buildFinancialOverview() {
   const ledger = ledgerSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
   const transactions = transactionsSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
   const batches = batchesSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
-  const purchasesByCompetition = await Promise.all(
-    competitions.map(async (competition) => [competition.id, await storage.getVotePurchasesByCompetition(competition.id)] as const),
-  );
+  const [purchasesByCompetition, freeVotesByCompetition] = await Promise.all([
+    Promise.all(competitions.map(async (competition) => [competition.id, await storage.getVotePurchasesByCompetition(competition.id)] as const)),
+    Promise.all(competitions.map(async (competition) => [competition.id, await storage.getTotalVotesByCompetition(competition.id)] as const)),
+  ]);
   const purchaseMap = new Map(purchasesByCompetition);
+  const freeVotesMap = new Map(freeVotesByCompetition);
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   const profilesByUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
   const contestantById = new Map(allContestants.map((contestant) => [contestant.id, contestant]));
@@ -243,6 +245,7 @@ async function buildFinancialOverview() {
       .filter((payee) => hostProfile && payeeMatchesProfile(payee, hostProfile))
       .map((payee) => payee.id));
     const hostEntries = compLedger.filter((entry: any) => hostPayeeIds.has(entry.payeeId));
+    const compFreeVotes = freeVotesMap.get(competition.id) || 0;
     const contestantRows = compContestants.map((contestant: any, index) => {
       const profile = profilesById.get(contestant.talentProfileId) || contestant.talentProfile;
       const entries = profile ? entriesForProfile(profile, competition.id) : [];
@@ -253,17 +256,21 @@ async function buildFinancialOverview() {
         .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
         .reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
       const paidCents = entries.filter((entry: any) => entry.status === "paid").reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
-      const voteShare = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
-      const contestantVoteCount = contestantPurchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
+      const totalPaidVoteShare = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
+      const contestantPaidVoteCount = contestantPurchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
+      // freeVoteCount comes from the raw vote count stored on the contestant record
+      const freeVoteCount = Number(contestant.rawVoteCount ?? contestant.voteCount ?? 0);
+      const totalVoteCount = freeVoteCount + contestantPaidVoteCount;
       return {
         contestantId: contestant.id,
         talentProfileId: contestant.talentProfileId,
         name: displayName(profile, `Contestant ${index + 1}`),
         profileUserId: profile?.userId || null,
-        voteCount: contestant.voteCount || 0,
-        paidVoteCount: contestantVoteCount,
+        freeVoteCount,
+        paidVoteCount: contestantPaidVoteCount,
+        totalVoteCount,
         paidVoteRevenueCents: contestantPurchases.reduce((sum, purchase: any) => sum + dollarsToCents(purchase.amount), 0),
-        voteSharePercentage: voteShare > 0 ? Math.round((contestantVoteCount / voteShare) * 10000) / 100 : 0,
+        voteSharePercentage: totalPaidVoteShare > 0 ? Math.round((contestantPaidVoteCount / totalPaidVoteShare) * 10000) / 100 : 0,
         earningsCents: grossCents,
         nonprofitCents,
         pendingCents,
@@ -287,6 +294,8 @@ async function buildFinancialOverview() {
       .filter((item: any) => item.type === "nonprofit_allocation")
       .reduce((sum, item: any) => sum + numericCents(item.amountCents), 0)
       + compLedger.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
+    const paidVoteCount = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
+    const totalVoteCount = compFreeVotes + paidVoteCount;
     return {
       competitionId: competition.id,
       title: competition.title,
@@ -299,10 +308,15 @@ async function buildFinancialOverview() {
       hostSharePercentage: paidVoteRevenueCents > 0 ? Math.round((hostShareCents / paidVoteRevenueCents) * 10000) / 100 : 0,
       charityShareCents,
       contestantShareCents,
+      votes: {
+        freeVoteCount: compFreeVotes,
+        paidVoteCount,
+        totalVoteCount,
+      },
       paidVoting: {
         revenueCents: paidVoteRevenueCents,
         purchaseCount: purchases.length,
-        purchasedVoteCount: purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0),
+        purchasedVoteCount: paidVoteCount,
       },
       paidVoteDetails: purchases
         .map((purchase: any) => {
@@ -407,6 +421,8 @@ async function buildFinancialOverview() {
       paidVotingRevenueCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.paidVoting.revenueCents, 0),
       paidVotingPurchases: competitionBreakdowns.reduce((sum, competition) => sum + competition.paidVoting.purchaseCount, 0),
       paidVotingVoteCount: competitionBreakdowns.reduce((sum, competition) => sum + competition.paidVoting.purchasedVoteCount, 0),
+      freeVoteCount: competitionBreakdowns.reduce((sum, competition) => sum + competition.votes.freeVoteCount, 0),
+      totalVoteCount: competitionBreakdowns.reduce((sum, competition) => sum + competition.votes.totalVoteCount, 0),
       hostShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.hostShareCents, 0),
       contestantShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.contestantShareCents, 0),
       charityShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.charityShareCents, 0),

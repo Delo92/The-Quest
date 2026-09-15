@@ -2102,7 +2102,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                   { label: "Competitions", value: financialData?.competitions?.length ?? stats.totalCompetitions, icon: Trophy, view: "competitions" as const },
                   { label: "Talent Profiles", value: financialData?.profileEarnings?.length ?? stats.totalTalentProfiles, icon: Users, view: "profiles" as const },
                   { label: "Contestants", value: financialData?.profileEarnings?.filter((profile: any) => profile.profileType === "contestant").length ?? stats.totalContestants, icon: Flame, view: "contestants" as const },
-                  { label: "Total Votes", value: financialData?.summary?.paidVotingVoteCount ?? 0, icon: Vote, view: "votes" as const },
+                  { label: "Total Votes", value: financialData?.summary?.totalVoteCount ?? financialData?.summary?.paidVotingVoteCount ?? 0, icon: Vote, view: "votes" as const },
                   { label: "Pending", value: financialData?.pendingPayouts?.length ?? 0, icon: BarChart3, view: "pending" as const },
                 ].map((stat) => (
                   <button
