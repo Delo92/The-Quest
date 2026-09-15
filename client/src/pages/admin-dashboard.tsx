@@ -29,7 +29,7 @@ import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 import AdminPayrollSettings from "@/components/admin-payroll-settings";
-import AdminFinancialOverview from "@/components/admin-financial-overview";
+import AdminFinancialOverview, { type FinancialView } from "@/components/admin-financial-overview";
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
@@ -1023,9 +1023,12 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [assignHostDialogOpen, setAssignHostDialogOpen] = useState(false);
   const [assignHostUid, setAssignHostUid] = useState<string | null>(null);
   const [assignCompId, setAssignCompId] = useState("");
+  const [activeAdminTab, setActiveAdminTab] = useState("competitions");
+  const [financialView, setFinancialView] = useState<FinancialView | null>(null);
   const HOSTS_PER_PAGE = 10;
 
   const { data: stats } = useQuery<AdminStats>({ queryKey: ["/api/admin/stats"] });
+  const { data: financialData } = useQuery<any>({ queryKey: ["/api/admin/financial-overview"] });
   const { data: competitions } = useQuery<CompetitionWithCreator[]>({ queryKey: ["/api/competitions"] });
   const { data: storageData, isLoading: storageLoading, refetch: refetchStorage } = useQuery<any>({
     queryKey: ["/api/admin/storage"],
@@ -1693,7 +1696,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   }, [filteredUsers, userPage]);
 
   return (
-    <Tabs defaultValue="competitions" className="quest-dashboard flex flex-col md:flex-row min-h-[100dvh] bg-black text-white w-full overflow-hidden">
+    <Tabs value={activeAdminTab} onValueChange={setActiveAdminTab} className="quest-dashboard flex flex-col md:flex-row min-h-[100dvh] bg-black text-white w-full overflow-hidden">
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-zinc-950 sticky top-0 z-50">
         <Link href="/" className="flex items-center gap-2" data-testid="link-home">
@@ -2096,17 +2099,27 @@ export default function AdminDashboard({ user }: { user: any }) {
             {stats && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-8">
                 {[
-                  { label: "Competitions", value: stats.totalCompetitions, icon: Trophy },
-                  { label: "Talent Profiles", value: stats.totalTalentProfiles, icon: Users },
-                  { label: "Contestants", value: stats.totalContestants, icon: Flame },
-                  { label: "Total Votes", value: stats.totalVotes, icon: Vote },
-                  { label: "Pending", value: stats.pendingApplications, icon: BarChart3 },
+                  { label: "Competitions", value: financialData?.competitions?.length ?? stats.totalCompetitions, icon: Trophy, view: "competitions" as const },
+                  { label: "Talent Profiles", value: financialData?.profileEarnings?.length ?? stats.totalTalentProfiles, icon: Users, view: "profiles" as const },
+                  { label: "Contestants", value: financialData?.profileEarnings?.filter((profile: any) => profile.profileType === "contestant").length ?? stats.totalContestants, icon: Flame, view: "contestants" as const },
+                  { label: "Total Votes", value: financialData?.summary?.paidVotingVoteCount ?? 0, icon: Vote, view: "votes" as const },
+                  { label: "Pending", value: financialData?.pendingPayouts?.length ?? 0, icon: BarChart3, view: "pending" as const },
                 ].map((stat) => (
-                  <div key={stat.label} className="rounded-md bg-white/5 border border-white/5 p-4" data-testid={`stat-${stat.label.toLowerCase().replace(/\s/g, "-")}`}>
-                    <stat.icon className="h-5 w-5 text-orange-400/60 mb-2" />
+                  <button
+                    type="button"
+                    key={stat.label}
+                    onClick={() => {
+                      setFinancialView((current) => current === stat.view && activeAdminTab === "payroll-contracts" ? null : stat.view);
+                      setActiveAdminTab("payroll-contracts");
+                    }}
+                    className={`rounded-md border p-4 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70 ${activeAdminTab === "payroll-contracts" && financialView === stat.view ? "border-orange-400/45 bg-orange-400/10" : "border-white/10 bg-white/5 hover:border-orange-400/25 hover:bg-white/[0.075]"}`}
+                    data-testid={`stat-${stat.label.toLowerCase().replace(/\s/g, "-")}`}
+                    aria-pressed={activeAdminTab === "payroll-contracts" && financialView === stat.view}
+                  >
+                    <div className="flex items-start justify-between gap-3"><stat.icon className="h-5 w-5 text-orange-400/70" /><ChevronDown className={`h-4 w-4 text-white/35 transition-transform ${activeAdminTab === "payroll-contracts" && financialView === stat.view ? "rotate-180 text-orange-300" : ""}`} /></div>
                     <p className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">{stat.value}</p>
                     <p className="text-xs text-white/30 mt-0.5">{stat.label}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -4621,7 +4634,7 @@ export default function AdminDashboard({ user }: { user: any }) {
           </TabsContent>
           <TabsContent value="payroll-contracts">
             <div className="space-y-8">
-              <AdminFinancialOverview />
+              <AdminFinancialOverview activeView={financialView} onViewChange={setFinancialView} />
               <AdminPayrollSettings />
             </div>
           </TabsContent>

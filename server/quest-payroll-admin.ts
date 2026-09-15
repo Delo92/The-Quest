@@ -3,6 +3,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { getFirestore } from "./firebase-admin";
 import { firebaseAuth, requireAdmin, requireHost } from "./auth-middleware";
 import { storage } from "./storage";
+import { firestoreJoinSettings } from "./firestore-collections";
 
 const SETTINGS = "questPayrollSettings";
 const PAYEES = "questPayrollPayees";
@@ -184,7 +185,7 @@ function displayName(profile: any, fallback = "Unknown") {
 }
 
 async function buildFinancialOverview() {
-  const [competitions, allContestants, profiles, payeesSnap, ledgerSnap, transactionsSnap, batchesSnap] = await Promise.all([
+  const [competitions, allContestants, profiles, payeesSnap, ledgerSnap, transactionsSnap, batchesSnap, joinSettings] = await Promise.all([
     storage.getCompetitions(),
     storage.getAllContestants(),
     storage.getAllTalentProfiles(),
@@ -192,6 +193,7 @@ async function buildFinancialOverview() {
     db().collection(LEDGER).get(),
     db().collection(TRANSACTIONS).get(),
     db().collection(BATCHES).get(),
+    firestoreJoinSettings.get(),
   ]);
 
   const payees = payeesSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
@@ -302,6 +304,23 @@ async function buildFinancialOverview() {
         purchaseCount: purchases.length,
         purchasedVoteCount: purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0),
       },
+      paidVoteDetails: purchases
+        .map((purchase: any) => {
+          const contestant = contestantById.get(Number(purchase.contestantId));
+          const profile = contestant ? profilesById.get(contestant.talentProfileId) : null;
+          return {
+            id: purchase.id,
+            contestantId: purchase.contestantId,
+            contestantName: displayName(profile, "Unknown contestant"),
+            purchaserName: purchase.guestName || "Registered voter",
+            purchaserEmail: purchase.guestEmail || null,
+            voteCount: Number(purchase.voteCount || 0),
+            amountCents: dollarsToCents(purchase.amount),
+            transactionId: purchase.transactionId || null,
+            purchasedAt: purchase.purchasedAt || null,
+          };
+        })
+        .sort((a: any, b: any) => String(b.purchasedAt || "").localeCompare(String(a.purchasedAt || ""))),
       contestants: contestantRows,
       pendingPayouts: compLedger
         .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
@@ -318,8 +337,12 @@ async function buildFinancialOverview() {
     };
   });
 
+  const hostUserIds = new Set(competitions.map((competition) => competition.createdBy).filter(Boolean));
+  const contestantProfileIds = new Set(allContestants.map((contestant) => contestant.talentProfileId));
+  const platformDefaultCharity = joinSettings.charityName || "Platform default nonprofit";
+  const platformDefaultCharityPercentage = Math.max(0, Math.min(100, Number(joinSettings.charityPercentage || 0)));
   const profileEarnings = profiles
-    .filter((profile) => profile.role !== "admin")
+    .filter((profile) => profile.role !== "admin" && (profile.role === "host" || hostUserIds.has(profile.userId) || contestantProfileIds.has(profile.id)))
     .map((profile) => {
       const entries = entriesForProfile(profile);
       const pending = entries
@@ -329,17 +352,26 @@ async function buildFinancialOverview() {
       const gross = entries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
       const nextEntry = entries
         .filter((entry: any) => ["pending_approval", "approved"].includes(entry.status))
-        .sort((a: any, b: any) => String(a.paymentInfoDeadline || "").localeCompare(String(b.paymentInfoDeadline || "")))[0];
+        .sort((a: any, b: any) => String(batches.find((batch: any) => batch.id === a.batchId)?.payoutDueDate || "").localeCompare(String(batches.find((batch: any) => batch.id === b.batchId)?.payoutDueDate || "")))[0];
+      const nonprofitCents = entries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
+      const declaration = profile.nonprofitDeclaration;
+      const declaredCharity = declaration?.consentToDonate && (declaration.publicName || declaration.legalName);
       return {
         userId: profile.userId,
         talentProfileId: profile.id,
         name: displayName(profile),
         role: profile.role,
-        nonprofitDeclaration: profile.nonprofitDeclaration || null,
+        profileType: profile.role === "host" || hostUserIds.has(profile.userId) ? "host" : "contestant",
+        nonprofitDeclaration: declaration || null,
+        charitySource: declaredCharity ? (declaration.publicName || declaration.legalName) : platformDefaultCharity,
+        charitySourceType: declaredCharity ? "declared" : "platform_default",
+        charityPercentage: gross > 0
+          ? Math.round((nonprofitCents / gross) * 10000) / 100
+          : platformDefaultCharityPercentage,
         grossCents: gross,
         pendingCents: pending,
         paidCents: paid,
-        nonprofitCents: entries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0),
+        nonprofitCents,
         nextPayoutCents: nextEntry ? numericCents(nextEntry.netCents) : 0,
         nextPayoutDate: nextEntry ? (batches.find((batch: any) => batch.id === nextEntry.batchId)?.payoutDueDate || null) : null,
         payoutEntries: entries.map((entry: any) => ({
@@ -354,7 +386,7 @@ async function buildFinancialOverview() {
         })),
       };
     })
-    .filter((profile) => profile.grossCents > 0 || profile.pendingCents > 0 || profile.paidCents > 0);
+    .sort((a, b) => a.profileType.localeCompare(b.profileType) || a.name.localeCompare(b.name));
 
   const pendingPayouts = ledger
     .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
@@ -394,6 +426,10 @@ async function buildFinancialOverview() {
         role: profile.role,
         declaration: profile.nonprofitDeclaration,
       })),
+    platformDefaultCharity: {
+      name: platformDefaultCharity,
+      percentage: platformDefaultCharityPercentage,
+    },
   };
 }
 

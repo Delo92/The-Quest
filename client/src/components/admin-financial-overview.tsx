@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, CircleDollarSign, Landmark, ShieldCheck, Users, Vote, Wallet } from "lucide-react";
+import { ChevronDown, ChevronRight, Landmark, Users, Vote, Wallet } from "lucide-react";
+
+export type FinancialView = "competitions" | "profiles" | "contestants" | "votes" | "pending";
 
 type FinancialOverview = {
   summary: {
@@ -28,6 +30,16 @@ type FinancialOverview = {
     charityShareCents: number;
     contestantShareCents: number;
     paidVoting: { revenueCents: number; purchaseCount: number; purchasedVoteCount: number };
+    paidVoteDetails: Array<{
+      id: number;
+      contestantName: string;
+      purchaserName: string;
+      purchaserEmail?: string | null;
+      voteCount: number;
+      amountCents: number;
+      transactionId?: string | null;
+      purchasedAt?: string | null;
+    }>;
     contestants: Array<{
       contestantId: number;
       name: string;
@@ -57,12 +69,16 @@ type FinancialOverview = {
     talentProfileId: number;
     name: string;
     role: string;
+    profileType: "host" | "contestant";
     grossCents: number;
     pendingCents: number;
     paidCents: number;
     nonprofitCents: number;
     nextPayoutCents: number;
     nextPayoutDate?: string | null;
+    charitySource: string;
+    charitySourceType: "declared" | "platform_default";
+    charityPercentage: number;
   }>;
   pendingPayouts: Array<{
     id: string;
@@ -91,6 +107,7 @@ type FinancialOverview = {
       verificationStatus: string;
     };
   }>;
+  platformDefaultCharity: { name: string; percentage: number };
 };
 
 const money = (cents: number | undefined) =>
@@ -123,32 +140,26 @@ function Section({ title, subtitle, icon: Icon, open, onToggle, children, testId
   );
 }
 
-export default function AdminFinancialOverview() {
+export default function AdminFinancialOverview({
+  activeView,
+  onViewChange,
+}: {
+  activeView: FinancialView | null;
+  onViewChange: (view: FinancialView | null) => void;
+}) {
   const { data, isLoading, isError } = useQuery<FinancialOverview>({
     queryKey: ["/api/admin/financial-overview"],
   });
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    competitions: true,
-    people: true,
-    payouts: false,
-    nonprofits: false,
-  });
   const [openCompetitions, setOpenCompetitions] = useState<Record<number, boolean>>({});
 
-  const toggle = (key: string) => setOpenSections((current) => ({ ...current, [key]: !current[key] }));
   const toggleCompetition = (id: number) => setOpenCompetitions((current) => ({ ...current, [id]: !current[id] }));
 
   if (isLoading) return <div className="rounded-xl border border-white/10 bg-white/[0.035] p-6 text-sm text-white/45">Loading financial operations...</div>;
   if (isError || !data) return <div className="rounded-xl border border-red-400/20 bg-red-400/5 p-6 text-sm text-red-200">Financial operations could not be loaded.</div>;
 
-  const summaryCards = [
-    { label: "Paid voting revenue", value: money(data.summary.paidVotingRevenueCents), detail: `${data.summary.paidVotingPurchases.toLocaleString()} purchases`, icon: Vote },
-    { label: "Host share recorded", value: money(data.summary.hostShareCents), detail: "From payroll ledger", icon: Users },
-    { label: "Contestant earnings", value: money(data.summary.contestantShareCents), detail: "Gross winner entitlements", icon: CircleDollarSign },
-    { label: "Pending payouts", value: money(data.summary.pendingPayoutCents), detail: "Approval, blocked, or due", icon: Wallet },
-    { label: "Nonprofit allocations", value: money(data.summary.charityShareCents), detail: "Declared in ledger", icon: Landmark },
-    { label: "Paid out", value: money(data.summary.paidPayoutCents), detail: "Manually recorded", icon: ShieldCheck },
-  ];
+  const visibleProfiles = activeView === "contestants"
+    ? data.profileEarnings.filter((profile) => profile.profileType === "contestant")
+    : data.profileEarnings;
 
   return (
     <div className="space-y-5" data-testid="admin-financial-overview">
@@ -161,18 +172,9 @@ export default function AdminFinancialOverview() {
         <Badge variant="outline" className="w-fit border-amber-400/25 bg-amber-400/5 text-amber-200">Manual payout recording</Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {summaryCards.map((card) => (
-          <div key={card.label} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-            <card.icon className="mb-3 h-4 w-4 text-orange-300" />
-            <p className="text-xl font-semibold tabular-nums text-white">{card.value}</p>
-            <p className="mt-1 text-xs font-medium text-white/65">{card.label}</p>
-            <p className="mt-1 text-[11px] text-white/35">{card.detail}</p>
-          </div>
-        ))}
-      </div>
+      {!activeView && <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-sm text-white/45">Select one of the dashboard cards above to open its financial breakdown.</div>}
 
-      <Section title="Competitions and host earnings" subtitle="Expand a competition for paid voting, host share, charity allocation, and contestant-level details." icon={Landmark} open={openSections.competitions} onToggle={() => toggle("competitions")} testId="financial-section-competitions">
+      {activeView === "competitions" && <Section title="Competitions and host earnings" subtitle="One competition at a time: paid voting, host share, charity allocation, and contestant details." icon={Landmark} open onToggle={() => onViewChange(null)} testId="financial-section-competitions">
         <div className="space-y-2">
           {data.competitions.length === 0 ? <p className="text-sm text-white/40">No competitions have financial activity yet.</p> : data.competitions.map((competition) => {
             const open = Boolean(openCompetitions[competition.competitionId]);
@@ -226,23 +228,58 @@ export default function AdminFinancialOverview() {
             );
           })}
         </div>
-      </Section>
+      </Section>}
 
-      <Section title="Talent and profile earnings" subtitle="Review gross entitlements, upcoming payout amounts, paid totals, and nonprofit allocations by person." icon={Users} open={openSections.people} onToggle={() => toggle("people")} testId="financial-section-people">
+      {(activeView === "profiles" || activeView === "contestants") && <Section
+        title={activeView === "contestants" ? "Contestant earnings" : "Talent and host profile earnings"}
+        subtitle={activeView === "contestants" ? "Contestants only: total earnings, next payout, and charity destination." : "Every competitor and host profile, including profiles with no earnings yet."}
+        icon={Users}
+        open
+        onToggle={() => onViewChange(null)}
+        testId={activeView === "contestants" ? "financial-section-contestants" : "financial-section-people"}
+      >
         <div className="space-y-2">
-          {data.profileEarnings.length === 0 ? <p className="text-sm text-white/40">No profile earnings have been recorded.</p> : data.profileEarnings.map((earning) => (
-            <div key={earning.userId} className="grid gap-3 rounded-lg border border-white/10 bg-black/20 p-3 sm:grid-cols-[1fr_repeat(4,auto)] sm:items-center">
-              <div><p className="text-sm font-medium text-white">{earning.name}</p><p className="mt-1 text-xs capitalize text-white/40">{earning.role} · Next payout {earning.nextPayoutDate ? dateLabel(earning.nextPayoutDate) : "not scheduled"}</p></div>
-              <div className="text-left sm:text-right"><span className="block text-[10px] text-white/35">Upcoming</span><b className="text-sm tabular-nums text-orange-200">{money(earning.nextPayoutCents)}</b></div>
-              <div className="text-left sm:text-right"><span className="block text-[10px] text-white/35">Pending</span><b className="text-sm tabular-nums text-white">{money(earning.pendingCents)}</b></div>
-              <div className="text-left sm:text-right"><span className="block text-[10px] text-white/35">Paid</span><b className="text-sm tabular-nums text-white">{money(earning.paidCents)}</b></div>
-              <div className="text-left sm:text-right"><span className="block text-[10px] text-white/35">Nonprofit</span><b className="text-sm tabular-nums text-white">{money(earning.nonprofitCents)}</b></div>
+          {visibleProfiles.length === 0 ? <p className="text-sm text-white/40">No matching profiles were found.</p> : visibleProfiles.map((earning) => (
+            <div key={earning.userId} className="grid gap-4 rounded-lg border border-white/10 bg-black/20 p-4 lg:grid-cols-[minmax(180px,1.4fr)_repeat(3,minmax(100px,.65fr))_minmax(190px,1fr)] lg:items-center">
+              <div>
+                <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-medium text-white">{earning.name}</p><Badge variant="outline" className="border-white/15 text-[10px] capitalize text-white/55">{earning.profileType}</Badge></div>
+                <p className="mt-1 text-xs text-white/40">Next payout {earning.nextPayoutDate ? dateLabel(earning.nextPayoutDate) : "not scheduled"}</p>
+              </div>
+              <div><span className="block text-[10px] uppercase tracking-wider text-white/35">Total earnings</span><b className="mt-1 block text-sm tabular-nums text-white">{money(earning.grossCents)}</b></div>
+              <div><span className="block text-[10px] uppercase tracking-wider text-white/35">Next payout</span><b className="mt-1 block text-sm tabular-nums text-orange-200">{money(earning.nextPayoutCents)}</b></div>
+              <div><span className="block text-[10px] uppercase tracking-wider text-white/35">Paid to date</span><b className="mt-1 block text-sm tabular-nums text-white">{money(earning.paidCents)}</b></div>
+              <div className="rounded-md border border-white/10 bg-white/[0.035] p-3">
+                <span className="block text-[10px] uppercase tracking-wider text-white/35">Charity allocation</span>
+                <b className="mt-1 block text-sm text-white">{earning.charityPercentage}% · {earning.charitySource}</b>
+                <span className="mt-1 block text-[10px] text-white/35">{earning.charitySourceType === "platform_default" ? "Platform default" : "Profile declaration"} · {money(earning.nonprofitCents)} allocated</span>
+              </div>
             </div>
           ))}
         </div>
-      </Section>
+      </Section>}
 
-      <Section title="Pending payout queue" subtitle="Entries that still need approval, payment information, or manual payout recording." icon={Wallet} open={openSections.payouts} onToggle={() => toggle("payouts")} testId="financial-section-payouts">
+      {activeView === "votes" && <Section title="Paid voting details" subtitle={`${data.summary.paidVotingVoteCount.toLocaleString()} paid votes across ${data.summary.paidVotingPurchases.toLocaleString()} purchases.`} icon={Vote} open onToggle={() => onViewChange(null)} testId="financial-section-votes">
+        <div className="space-y-4">
+          {data.competitions.map((competition) => (
+            <div key={competition.competitionId} className="overflow-hidden rounded-lg border border-white/10 bg-black/20">
+              <div className="flex flex-col gap-2 border-b border-white/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div><p className="text-sm font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} purchases · {competition.paidVoting.purchasedVoteCount} votes</p></div>
+                <b className="tabular-nums text-orange-200">{money(competition.paidVoting.revenueCents)}</b>
+              </div>
+              {competition.paidVoteDetails.length === 0 ? <p className="p-4 text-xs text-white/35">No paid votes for this competition.</p> : <div className="divide-y divide-white/10">{competition.paidVoteDetails.map((purchase) => (
+                <div key={purchase.id} className="grid gap-2 px-4 py-3 text-xs sm:grid-cols-[1.2fr_1fr_auto_auto] sm:items-center">
+                  <div><p className="text-white">{purchase.contestantName}</p><p className="mt-1 text-white/35">{purchase.purchaserName}{purchase.purchaserEmail ? ` · ${purchase.purchaserEmail}` : ""}</p></div>
+                  <span className="text-white/45">{purchase.purchasedAt ? dateLabel(purchase.purchasedAt) : "Date unavailable"}</span>
+                  <span className="tabular-nums text-white">{purchase.voteCount.toLocaleString()} votes</span>
+                  <b className="tabular-nums text-orange-200">{money(purchase.amountCents)}</b>
+                </div>
+              ))}</div>}
+            </div>
+          ))}
+        </div>
+      </Section>}
+
+      {activeView === "pending" && <Section title="Pending payout queue" subtitle="All payouts waiting for approval, payment information, or manual payout recording." icon={Wallet} open onToggle={() => onViewChange(null)} testId="financial-section-payouts">
         <div className="space-y-2">
           {data.pendingPayouts.length === 0 ? <p className="text-sm text-white/40">No pending payouts.</p> : data.pendingPayouts.map((payout) => (
             <div key={payout.id} className="flex flex-col gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -251,18 +288,7 @@ export default function AdminFinancialOverview() {
             </div>
           ))}
         </div>
-      </Section>
-
-      <Section title="Nonprofit declarations" subtitle="Host and contestant declarations available for formal donation review; no donation is executed from this view." icon={ShieldCheck} open={openSections.nonprofits} onToggle={() => toggle("nonprofits")} testId="financial-section-nonprofits">
-        <div className="grid gap-3 lg:grid-cols-2">
-          {data.nonprofitDeclarations.length === 0 ? <p className="text-sm text-white/40">No participant has submitted a donation declaration yet.</p> : data.nonprofitDeclarations.map((item) => (
-            <div key={`${item.name}-${item.declaration.publicName}`} className="rounded-lg border border-white/10 bg-black/20 p-4">
-              <div className="flex items-start justify-between gap-3"><div><p className="font-medium text-white">{item.declaration.publicName || item.declaration.legalName}</p><p className="mt-1 text-xs text-white/40">{item.name} · {item.role}</p></div><Badge variant="outline" className="border-orange-400/25 text-orange-200">{item.declaration.verificationStatus}</Badge></div>
-              <div className="mt-3 space-y-1 text-xs text-white/55"><p>Legal entity: <span className="text-white/75">{item.declaration.legalName}</span></p><p>Contact: <span className="text-white/75">{item.declaration.donationContactName} · {item.declaration.donationContactEmail}</span></p>{item.declaration.website && <p>Website: <span className="text-white/75">{item.declaration.website}</span></p>}<p>Tax ID status: <span className="text-white/75">{item.declaration.taxIdStatus}{item.declaration.taxIdLast4 ? ` · ending ${item.declaration.taxIdLast4}` : ""}</span></p>{item.declaration.designation && <p>Designation: <span className="text-white/75">{item.declaration.designation}</span></p>}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
+      </Section>}
     </div>
   );
 }
