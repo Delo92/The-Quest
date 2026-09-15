@@ -662,3 +662,131 @@ input, textarea, select {
 @media (min-width: 1024px) {
   .mobile-sticky-bar { display: none; }
 }
+
+/* ── Dashboard readability ─────────────────────────────────────── */
+/*
+ * Product pages use a near-black visual language, but operational screens
+ * need enough surface separation to support long sessions. Keep this scoped
+ * to authenticated dashboards so public pages retain their existing art
+ * direction.
+ */
+.quest-dashboard {
+  background-color: #171717 !important;
+  color: #f5f2ec;
+  color-scheme: dark;
+}
+
+.quest-dashboard [class~="bg-black"],
+.quest-dashboard [class~="bg-[#080808]"],
+.quest-dashboard [class~="bg-[#090909]"],
+.quest-dashboard [class~="bg-[#0d0d0d]"] {
+  background-color: #171717 !important;
+}
+
+.quest-dashboard [class~="bg-zinc-950"] {
+  background-color: #121212 !important;
+}
+
+.quest-dashboard [class~="bg-[#111]"],
+.quest-dashboard [class~="bg-white/[0.02]"],
+.quest-dashboard [class~="bg-white/[0.025]"] {
+  background-color: #1d1d1d !important;
+}
+
+.quest-dashboard [class~="bg-white/[0.03]"],
+.quest-dashboard [class~="bg-white/5"] {
+  background-color: #222222 !important;
+}
+
+.quest-dashboard [class~="bg-white/[0.04]"] {
+  background-color: #252525 !important;
+}
+
+.quest-dashboard [class~="bg-white/[0.06]"],
+.quest-dashboard [class~="bg-white/10"] {
+  background-color: #2b2b2b !important;
+}
+
+.quest-dashboard [class~="bg-white/[0.08]"] {
+  background-color: #303030 !important;
+}
+
+.quest-dashboard [class~="from-white/[0.08]"] {
+  --tw-gradient-from: #303030 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(48 48 48 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.quest-dashboard [class~="to-white/[0.02]"] {
+  --tw-gradient-to: #1d1d1d var(--tw-gradient-to-position) !important;
+}
+
+.quest-dashboard [class~="border-white/5"] {
+  border-color: #343434 !important;
+}
+
+.quest-dashboard [class~="border-white/10"],
+.quest-dashboard [class~="border-white/[0.10]"] {
+  border-color: #414141 !important;
+}
+
+.quest-dashboard [class~="border-white/12"] {
+  border-color: #4a4a4a !important;
+}
+
+.quest-dashboard [class~="border-white/15"] {
+  border-color: #505050 !important;
+}
+
+.quest-dashboard [class~="border-white/20"] {
+  border-color: #5a5a5a !important;
+}
+
+.quest-dashboard [class~="text-white/20"] {
+  color: #99948c !important;
+}
+
+.quest-dashboard [class~="text-white/25"],
+.quest-dashboard [class~="text-white/30"] {
+  color: #aaa59d !important;
+}
+
+.quest-dashboard [class~="text-white/35"],
+.quest-dashboard [class~="text-white/40"] {
+  color: #b9b4ac !important;
+}
+
+.quest-dashboard [class~="text-white/45"],
+.quest-dashboard [class~="text-white/50"] {
+  color: #c5c0b8 !important;
+}
+
+.quest-dashboard [class~="text-white/55"],
+.quest-dashboard [class~="text-white/60"] {
+  color: #d0cbc3 !important;
+}
+
+.quest-dashboard [class~="text-white/70"],
+.quest-dashboard [class~="text-white/75"] {
+  color: #e2ddd5 !important;
+}
+
+.quest-dashboard input:not([type="checkbox"]):not([type="radio"]),
+.quest-dashboard textarea,
+.quest-dashboard select {
+  background-color: #292929 !important;
+  border-color: #4d4d4d !important;
+  color: #f7f4ee !important;
+}
+
+.quest-dashboard input::placeholder,
+.quest-dashboard textarea::placeholder {
+  color: #aaa59d !important;
+  opacity: 1;
+}
+
+.quest-dashboard input:focus,
+.quest-dashboard textarea:focus,
+.quest-dashboard select:focus {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 2px rgb(249 115 22 / 0.18) !important;
+}
