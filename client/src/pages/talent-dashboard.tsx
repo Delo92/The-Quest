@@ -836,7 +836,7 @@ export default function TalentDashboard({ user, profile }: Props) {
                 <Label htmlFor="bio" className="text-white/60">Bio</Label>
                 <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)}
                   placeholder="Tell us about yourself and your talent..."
-                  className="min-h-[120px] resize-none bg-white/[0.07] border-white/15 text-white placeholder:text-white/20" data-testid="input-bio" />
+                  className="min-h-[120px] resize-y bg-white/[0.07] border-white/15 text-white placeholder:text-white/20" data-testid="input-bio" />
               </div>
 
               <div className="space-y-4 rounded-md bg-white/[0.03] border border-white/10 p-5">
