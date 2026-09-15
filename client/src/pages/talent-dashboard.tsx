@@ -1692,16 +1692,9 @@ export default function TalentDashboard({ user, profile }: Props) {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => { setCustomPromoCode(""); setEditingPromoCode(true); }}
-                          className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
-                          data-testid="button-create-promo-code"
-                        >
-                          Create My Code
-                        </Button>
-                        <span className="text-sm text-white/30">or it will be auto-generated when you share a link</span>
+                      <div className="flex items-center gap-2 text-sm text-white/30 italic">
+                        <Loader2 className="h-4 w-4 animate-spin text-orange-400/60" />
+                        Generating your code…
                       </div>
                     )}
                     </>
@@ -1838,14 +1831,10 @@ export default function TalentDashboard({ user, profile }: Props) {
                                       {myRefCode.code}
                                     </div>
                                   ) : (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => { setCustomPromoCode(""); setEditingPromoCode(true); }}
-                                      className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
-                                      data-testid={`button-create-promo-code-${contest.id}`}
-                                    >
-                                      Create My Code
-                                    </Button>
+                                    <div className="flex items-center gap-1.5 text-xs text-white/30 italic">
+                                      <Loader2 className="h-3 w-3 animate-spin text-orange-400/50" />
+                                      Generating…
+                                    </div>
                                   )}
                                   {myRefCode?.code && (
                                     <Button

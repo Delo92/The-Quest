@@ -6830,7 +6830,39 @@ export async function registerRoutes(
   app.get("/api/referral/my-code", firebaseAuth, async (req, res) => {
     try {
       const uid = req.firebaseUser!.uid;
-      const code = await firestoreReferrals.getCodeByOwner(uid);
+      let code = await firestoreReferrals.getCodeByOwner(uid);
+
+      // Auto-generate a code based on stage/display name if none exists yet
+      if (!code) {
+        const fsUser = await getFirestoreUser(uid);
+        const profile = await storage.getTalentProfileByUserId(uid);
+        const level = typeof fsUser?.level === "number" ? fsUser.level : 2;
+        if (level >= 2) {
+          // Prefer stageName, then displayName, then email prefix
+          const rawName = profile?.stageName || profile?.displayName || fsUser?.displayName || fsUser?.email?.split("@")[0] || uid;
+          const preferredCode = rawName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20) || "TALENT";
+          let ownerType: "talent" | "host" | "admin" = "talent";
+          if (level >= 4) ownerType = "admin";
+          else if (level >= 3) ownerType = "host";
+          const ownerName = profile?.displayName || fsUser?.email || uid;
+          const contests = profile ? await storage.getContestantsByTalent(profile.id) : [];
+          const competitionIds = contests.filter(c => c.applicationStatus === "approved").map(c => c.competitionId);
+          try {
+            code = await firestoreReferrals.generateCode(uid, ownerType, ownerName, profile?.id || null, {
+              customCode: preferredCode,
+              competitionIds,
+              competitionId: competitionIds[0] || undefined,
+            });
+          } catch {
+            // preferred code taken — generate a random one
+            code = await firestoreReferrals.generateCode(uid, ownerType, ownerName, profile?.id || null, {
+              competitionIds,
+              competitionId: competitionIds[0] || undefined,
+            });
+          }
+        }
+      }
+
       res.json(code || null);
     } catch (err: any) {
       console.error("Get referral code error:", err);
