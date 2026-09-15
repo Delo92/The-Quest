@@ -26,6 +26,8 @@ import AboutPage from "@/pages/about";
 import FAQPage from "@/pages/faq";
 import ViewerDashboard from "@/pages/viewer-dashboard";
 import ReferralLandingPage from "@/pages/referral-landing";
+import AdminFormsPage from "@/pages/admin-forms";
+import PublicFormPage from "@/pages/public-form";
 
 function RootEntryPage() {
   const search = useSearch();
@@ -52,6 +54,8 @@ function QuestRouter() {
       <Route path="/viewer" component={ViewerDashboard} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin" component={Dashboard} />
+      <Route path="/admin/forms" component={AdminFormsPage} />
+      <Route path="/f/:slug" component={PublicFormPage} />
       <Route path="/:categorySlug/:compSlug/:talentSlug" component={ContestantSharePage} />
       <Route path="/:categorySlug/:compSlug" component={CompetitionDetail} />
       <Route component={NotFound} />

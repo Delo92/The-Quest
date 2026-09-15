@@ -46,6 +46,8 @@ import {
 import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchaseFeed";
+import { registerQuestPayrollAdmin } from "./quest-payroll-admin";
+import { registerQuestForms } from "./quest-forms";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
   uploadImageToDrive,
@@ -531,6 +533,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  registerQuestPayrollAdmin(app);
+  registerQuestForms(app);
 
   const clientErrorTypes = new Set<ErrorType>([
     "registration",

@@ -2,6 +2,7 @@
 - [The Quest artifact setup](the-quest-artifact.md) — dev command must cd to workspace root; PORT=22558 injected by artifact
 - [Payment outcome handling](payment-outcome-handling.md) — uncertain Authorize.net outcomes stay locked; never make them automatically retryable
 - [Payment security controls](payment-security-controls.md) — every paid path must use shared server-side velocity, billing, duplicate, and reservation controls
+- [Quest payroll ledger](payroll-ledger-architecture.md) — freelance winner entitlements are audited and manually recorded until an outbound payout provider is deliberately selected
 - [Dashboard visual verification](dashboard-visual-verification.md) — protected pages need authenticated browser passes plus element-bound checks for clipping
 - [Competition Vimeo routing](competition-vimeo-routing.md) — optional per-competition Vimeo folder is preferred; standard Quest/CB destinations remain backups and folder failures must block unfiled uploads
 - [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing

@@ -86,6 +86,14 @@ export interface FirestoreCompetition {
   chronicBrandsPromotionEnabled: boolean;
   themeColor?: string | null;
   stages?: CompetitionStage[];
+  payrollRules?: {
+    payoutModel: "winner_only" | "top_three" | "custom";
+    placements: Array<{ place: number; percentage: number; label?: string }>;
+    prizePoolCents: number;
+    paymentInfoDeadline: "competition_final_day";
+    missingPaymentPolicy: "forfeit" | "block";
+    updatedAt?: admin.firestore.Timestamp;
+  };
   createdAt: string | null;
   createdBy: string | null;
 }

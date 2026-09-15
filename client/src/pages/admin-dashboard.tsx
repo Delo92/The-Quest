@@ -28,6 +28,7 @@ import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import AdminAnalyticsTab from "@/components/admin-analytics-tab";
+import AdminPayrollSettings from "@/components/admin-payroll-settings";
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
@@ -4220,6 +4221,13 @@ export default function AdminDashboard({ user }: { user: any }) {
                 >
                   <BarChart3 className="h-4 w-4" /> Diagnostics
                 </TabsTrigger>
+                <TabsTrigger
+                  value="payroll-contracts"
+                  className="text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white flex items-center gap-2"
+                  data-testid="tab-settings-payroll"
+                >
+                  <DollarSign className="h-4 w-4" /> Payroll & Agreements
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="platform-settings">
             {(() => {
@@ -4608,6 +4616,9 @@ export default function AdminDashboard({ user }: { user: any }) {
               </TabsContent>
               <TabsContent value="diagnostics">
                 <AdminDiagnostics />
+              </TabsContent>
+              <TabsContent value="payroll-contracts">
+                <AdminPayrollSettings />
               </TabsContent>
             </Tabs>
           </TabsContent>
