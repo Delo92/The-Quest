@@ -54,6 +54,9 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [socialInstagram, setSocialInstagram] = useState(parsedSocial.instagram || "");
   const [socialTiktok, setSocialTiktok] = useState(parsedSocial.tiktok || "");
   const [socialFacebook, setSocialFacebook] = useState(parsedSocial.facebook || "");
+  const [customLinks, setCustomLinks] = useState<{ label: string; url: string }[]>(
+    Array.isArray(parsedSocial.customLinks) ? parsedSocial.customLinks : [],
+  );
   const [nonprofitDeclaration, setNonprofitDeclaration] = useState<NonprofitDeclaration>({
     ...emptyNonprofitDeclaration,
     ...((profile as any)?.nonprofitDeclaration || {}),
@@ -132,11 +135,13 @@ export default function TalentDashboard({ user, profile }: Props) {
 
   const saveProfileMutation = useMutation({
     mutationFn: async () => {
-      const socialLinks: Record<string, string> = {};
+      const socialLinks: Record<string, any> = {};
       if (socialYoutube.trim()) socialLinks.youtube = socialYoutube.trim();
       if (socialInstagram.trim()) socialLinks.instagram = socialInstagram.trim();
       if (socialTiktok.trim()) socialLinks.tiktok = socialTiktok.trim();
       if (socialFacebook.trim()) socialLinks.facebook = socialFacebook.trim();
+      const validCustomLinks = customLinks.filter((l) => l.label.trim() && l.url.trim() && /^https?:\/\//i.test(l.url.trim()));
+      if (validCustomLinks.length > 0) socialLinks.customLinks = validCustomLinks;
       const data = { displayName, email, showEmail, bio, category, location, profileColor, profileBgImage: profileBgImage || null, socialLinks: Object.keys(socialLinks).length > 0 ? JSON.stringify(socialLinks) : null, nonprofitDeclaration };
       if (profile) {
         await apiRequest("PATCH", "/api/talent-profiles/me", data);
@@ -872,6 +877,59 @@ export default function TalentDashboard({ user, profile }: Props) {
                       placeholder="https://facebook.com/yourpage" data-testid="input-social-facebook"
                       className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20" />
                   </div>
+                </div>
+
+                {/* Custom CTA links */}
+                <div className="pt-2 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-white">Custom Links</p>
+                      <p className="text-[11px] text-white/40 mt-0.5">Merch store, booking site, official website — up to 5 links shown as buttons on your profile.</p>
+                    </div>
+                    {customLinks.length < 5 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-orange-500/30 text-orange-300 hover:bg-orange-500/10 text-xs h-7 px-2"
+                        onClick={() => setCustomLinks([...customLinks, { label: "", url: "" }])}
+                      >
+                        + Add link
+                      </Button>
+                    )}
+                  </div>
+                  {customLinks.length === 0 && (
+                    <p className="text-xs text-white/25 italic">No custom links yet. Click "Add link" to add your first one.</p>
+                  )}
+                  {customLinks.map((link, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-2">
+                        <Input
+                          value={link.label}
+                          onChange={(e) => setCustomLinks(customLinks.map((l, j) => j === i ? { ...l, label: e.target.value } : l))}
+                          placeholder="Label (e.g. Book Me)"
+                          maxLength={30}
+                          className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 text-sm"
+                        />
+                        <Input
+                          value={link.url}
+                          onChange={(e) => setCustomLinks(customLinks.map((l, j) => j === i ? { ...l, url: e.target.value } : l))}
+                          placeholder="https://yoursite.com"
+                          className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 text-sm"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-9 w-9 text-white/30 hover:text-red-400 hover:bg-red-400/10 flex-shrink-0"
+                        onClick={() => setCustomLinks(customLinks.filter((_, j) => j !== i))}
+                        aria-label="Remove link"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
 

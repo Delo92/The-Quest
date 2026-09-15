@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, MapPin, Tag, ChevronRight } from "lucide-react";
+import { Trophy, MapPin, Tag, ChevronRight, ExternalLink } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import type { TalentProfile } from "@shared/schema";
@@ -110,7 +110,7 @@ export default function TalentProfilePublic() {
         )}
 
         {(() => {
-          let socialObj: Record<string, string> = {};
+          let socialObj: Record<string, any> = {};
           try {
             const raw = (profile as any).socialLinks;
             if (raw) socialObj = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -122,16 +122,43 @@ export default function TalentProfilePublic() {
             { key: "facebook", icon: SiFacebook, label: "Facebook", color: "text-[#1877F2] hover:text-[#1877F2]/80" },
           ];
           const active = platforms.filter(p => socialObj[p.key] && /^https?:\/\//i.test(socialObj[p.key]));
-          if (active.length === 0) return null;
+          const customLinks: { label: string; url: string }[] = Array.isArray(socialObj.customLinks)
+            ? socialObj.customLinks.filter((l: any) => l.label && l.url && /^https?:\/\//i.test(l.url))
+            : [];
+          if (active.length === 0 && customLinks.length === 0) return null;
           return (
-            <div className="flex flex-wrap items-center justify-center gap-5 mb-10" data-testid="social-links">
-              {active.map(({ key, icon: Icon, label, color }) => (
-                <a key={key} href={socialObj[key]} target="_blank" rel="noopener noreferrer"
-                  className={`${color} transition-colors duration-300`}
-                  data-testid={`link-social-${key}`} title={label}>
-                  <Icon className="h-6 w-6" />
-                </a>
-              ))}
+            <div className="flex flex-col items-center gap-5 mb-10" data-testid="social-links">
+              {/* Platform icons */}
+              {active.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center gap-5">
+                  {active.map(({ key, icon: Icon, label, color }) => (
+                    <a key={key} href={socialObj[key]} target="_blank" rel="noopener noreferrer"
+                      className={`${color} transition-colors duration-300`}
+                      data-testid={`link-social-${key}`} title={label}>
+                      <Icon className="h-6 w-6" />
+                    </a>
+                  ))}
+                </div>
+              )}
+              {/* Custom CTA buttons */}
+              {customLinks.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-3">
+                  {customLinks.map((link, i) => (
+                    <a
+                      key={i}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ borderColor: accentColor, color: accentColor }}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-5 py-2 text-sm font-semibold transition-all hover:opacity-80 hover:scale-105"
+                      data-testid={`link-custom-${i}`}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}
