@@ -637,6 +637,27 @@ export default function TalentDashboard({ user, profile }: Props) {
           </div>
         </div>
 
+        {/* Mobile tab bar — above stats on mobile, sidebar handles desktop */}
+        <div className="lg:hidden flex gap-2 mb-4">
+          {navItems.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveSection(id)}
+              data-testid={`tab-${id}`}
+              className={`flex-1 rounded-2xl py-3.5 px-1.5 flex flex-col items-center gap-1.5 transition-all border-2 ${
+                activeSection === id
+                  ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/25"
+                  : "bg-white/[0.06] border-white/10 text-white/55 active:bg-white/[0.1]"
+              }`}
+            >
+              <Icon className={`h-5 w-5 ${activeSection === id ? "text-white" : "text-white/50"}`} />
+              <span className={`text-[11px] font-bold leading-tight text-center ${activeSection === id ? "text-white" : "text-white/50"}`}>
+                {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label}
+              </span>
+            </button>
+          ))}
+        </div>
+
         {/* Stats strip */}
         <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
           {[
@@ -744,27 +765,6 @@ export default function TalentDashboard({ user, profile }: Props) {
               </button>
             ))}
           </aside>
-
-          {/* Mobile tab bar */}
-          <div className="lg:hidden flex gap-2 mb-4">
-            {navItems.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveSection(id)}
-                data-testid={`tab-${id}`}
-                className={`flex-1 rounded-2xl py-3.5 px-1.5 flex flex-col items-center gap-1.5 transition-all border-2 ${
-                  activeSection === id
-                    ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/25"
-                    : "bg-white/[0.06] border-white/10 text-white/55 active:bg-white/[0.1]"
-                }`}
-              >
-                <Icon className={`h-5 w-5 ${activeSection === id ? "text-white" : "text-white/50"}`} />
-                <span className={`text-[11px] font-bold leading-tight text-center ${activeSection === id ? "text-white" : "text-white/50"}`}>
-                  {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label}
-                </span>
-              </button>
-            ))}
-          </div>
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
