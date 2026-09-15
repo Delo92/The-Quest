@@ -63,10 +63,10 @@ export default function TalentDashboard({ user, profile }: Props) {
   });
 
   const savedPayoutInfo = (profile as any)?.payoutInfo || {};
-  const [payoutMethod, setPayoutMethod] = useState<string>(savedPayoutInfo.method || "");
-  const [payoutHandle, setPayoutHandle] = useState<string>(savedPayoutInfo.accountHandle || "");
+  const [payoutRoutingNumber, setPayoutRoutingNumber] = useState<string>(savedPayoutInfo.routingNumber || "");
+  const [payoutAccountNumber, setPayoutAccountNumber] = useState<string>(savedPayoutInfo.accountNumber || "");
+  const [payoutAccountType, setPayoutAccountType] = useState<string>(savedPayoutInfo.accountType || "checking");
   const [payoutLegalName, setPayoutLegalName] = useState<string>(savedPayoutInfo.legalName || "");
-  const [payoutNotes, setPayoutNotes] = useState<string>(savedPayoutInfo.notes || "");
   const [payoutSaving, setPayoutSaving] = useState(false);
   const [bgImageUploading, setBgImageUploading] = useState(false);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
@@ -145,10 +145,11 @@ export default function TalentDashboard({ user, profile }: Props) {
     try {
       await apiRequest("PATCH", "/api/talent-profiles/me", {
         payoutInfo: {
-          method: payoutMethod,
-          accountHandle: payoutHandle.trim(),
+          method: "ach",
+          routingNumber: payoutRoutingNumber.trim(),
+          accountNumber: payoutAccountNumber.trim(),
+          accountType: payoutAccountType,
           legalName: payoutLegalName.trim(),
-          notes: payoutNotes.trim(),
         },
       });
       queryClient.invalidateQueries({ queryKey: ["/api/talent-profiles/me"] });
@@ -1235,110 +1236,79 @@ export default function TalentDashboard({ user, profile }: Props) {
                 <div className="px-5 pt-5 pb-4 border-b border-white/8">
                   <div className="flex items-center gap-2 mb-1">
                     <Wallet className="h-4 w-4 text-orange-400" />
-                    <p className="text-sm font-semibold text-white">Where should we send your earnings?</p>
+                    <p className="text-sm font-semibold text-white">Direct deposit info</p>
                   </div>
                   <p className="text-xs text-white/45 leading-relaxed">
-                    Tell us how you prefer to receive payments. The Quest uses this when processing your payout — your info is private and only visible to platform administrators.
+                    Enter your bank details so we can send earnings directly to your account. This info is private and only visible to platform administrators.
                   </p>
                 </div>
                 <div className="px-5 py-5 space-y-4">
-                  {/* Method selector */}
-                  <div className="space-y-1.5">
-                    <Label className="text-white/60 text-xs uppercase tracking-wider">Payment method</Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        { value: "zelle",   label: "Zelle",         hint: "Phone or email" },
-                        { value: "paypal",  label: "PayPal",        hint: "Email or @username" },
-                        { value: "cashapp", label: "Cash App",      hint: "$cashtag" },
-                        { value: "venmo",   label: "Venmo",         hint: "@username" },
-                        { value: "check",   label: "Check",         hint: "Mailed to address" },
-                        { value: "ach",     label: "Bank transfer",  hint: "Routing + account" },
-                      ].map(({ value, label, hint }) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setPayoutMethod(value)}
-                          className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-left transition-colors ${payoutMethod === value ? "border-orange-500 bg-orange-500/10" : "border-white/10 bg-white/[0.03] hover:border-white/25"}`}
-                        >
-                          <span className={`text-sm font-semibold ${payoutMethod === value ? "text-orange-300" : "text-white/80"}`}>{label}</span>
-                          <span className="text-[10px] text-white/35 mt-0.5">{hint}</span>
-                        </button>
-                      ))}
+                  {savedPayoutInfo.routingNumber && (
+                    <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3 text-sm text-green-300">
+                      <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+                      Bank info on file — update the fields below to change it.
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs uppercase tracking-wider">Routing number</Label>
+                      <Input
+                        value={payoutRoutingNumber}
+                        onChange={(e) => setPayoutRoutingNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                        placeholder="9-digit routing number"
+                        inputMode="numeric"
+                        className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 font-mono tracking-wider"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs uppercase tracking-wider">Account number</Label>
+                      <Input
+                        value={payoutAccountNumber}
+                        onChange={(e) => setPayoutAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 17))}
+                        placeholder="Account number"
+                        inputMode="numeric"
+                        className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20 font-mono tracking-wider"
+                      />
                     </div>
                   </div>
 
-                  {payoutMethod && (
-                    <>
-                      {/* Account handle */}
-                      <div className="space-y-1.5">
-                        <Label className="text-white/60 text-xs uppercase tracking-wider">
-                          {payoutMethod === "zelle"   && "Zelle phone number or email"}
-                          {payoutMethod === "paypal"  && "PayPal email or @username"}
-                          {payoutMethod === "cashapp" && "Cash App $cashtag"}
-                          {payoutMethod === "venmo"   && "Venmo @username"}
-                          {payoutMethod === "check"   && "Mailing address"}
-                          {payoutMethod === "ach"     && "Routing number — Account number"}
-                        </Label>
-                        <Input
-                          value={payoutHandle}
-                          onChange={(e) => setPayoutHandle(e.target.value)}
-                          placeholder={
-                            payoutMethod === "zelle"   ? "+1 (555) 000-0000  or  you@email.com" :
-                            payoutMethod === "paypal"  ? "you@email.com  or  @yourname" :
-                            payoutMethod === "cashapp" ? "$yourcashtag" :
-                            payoutMethod === "venmo"   ? "@yourname" :
-                            payoutMethod === "check"   ? "123 Main St, City, State ZIP" :
-                            payoutMethod === "ach"     ? "021000021 — 1234567890" : ""
-                          }
-                          className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
-                        />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs uppercase tracking-wider">Account type</Label>
+                      <div className="flex gap-2">
+                        {["checking", "savings"].map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setPayoutAccountType(type)}
+                            className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold capitalize transition-colors ${payoutAccountType === type ? "border-orange-500 bg-orange-500/10 text-orange-300" : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/25"}`}
+                          >
+                            {type}
+                          </button>
+                        ))}
                       </div>
-
-                      {/* Legal name — always required for check/ACH, optional but helpful for others */}
-                      <div className="space-y-1.5">
-                        <Label className="text-white/60 text-xs uppercase tracking-wider">
-                          Legal name {(payoutMethod === "check" || payoutMethod === "ach") ? "" : <span className="text-white/25 normal-case">(optional — for check / tax records)</span>}
-                        </Label>
-                        <Input
-                          value={payoutLegalName}
-                          onChange={(e) => setPayoutLegalName(e.target.value)}
-                          placeholder="Full legal name as it appears on your ID"
-                          className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
-                        />
-                      </div>
-
-                      {/* Notes */}
-                      <div className="space-y-1.5">
-                        <Label className="text-white/60 text-xs uppercase tracking-wider">Notes for admin <span className="text-white/25 normal-case">(optional)</span></Label>
-                        <Textarea
-                          value={payoutNotes}
-                          onChange={(e) => setPayoutNotes(e.target.value)}
-                          placeholder="Any additional instructions, preferred contact, or timing requests…"
-                          className="min-h-[72px] resize-y bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
-                          maxLength={500}
-                        />
-                      </div>
-
-                      <Button
-                        onClick={handleSavePayoutInfo}
-                        disabled={payoutSaving || !payoutMethod || (!payoutHandle.trim() && !payoutLegalName.trim())}
-                        className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white w-full sm:w-auto"
-                      >
-                        {payoutSaving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</> : "Save payout info"}
-                      </Button>
-                    </>
-                  )}
-
-                  {!payoutMethod && (savedPayoutInfo.method) && (
-                    <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/5 px-4 py-3">
-                      <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
-                      <p className="text-sm text-green-300">
-                        Payout info on file: <strong>{savedPayoutInfo.method?.toUpperCase()}</strong>
-                        {savedPayoutInfo.accountHandle ? ` — ${savedPayoutInfo.accountHandle}` : ""}
-                      </p>
-                      <button onClick={() => setPayoutMethod(savedPayoutInfo.method)} className="ml-auto text-xs text-white/40 hover:text-white underline">Edit</button>
                     </div>
-                  )}
+                    <div className="space-y-1.5">
+                      <Label className="text-white/60 text-xs uppercase tracking-wider">Legal name on account</Label>
+                      <Input
+                        value={payoutLegalName}
+                        onChange={(e) => setPayoutLegalName(e.target.value)}
+                        placeholder="Name exactly as it appears on your account"
+                        className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/20"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleSavePayoutInfo}
+                    disabled={payoutSaving || !payoutRoutingNumber.trim() || !payoutAccountNumber.trim() || !payoutLegalName.trim()}
+                    className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white w-full sm:w-auto"
+                  >
+                    {payoutSaving
+                      ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</>
+                      : <><Check className="h-4 w-4 mr-2" />Save bank info</>}
+                  </Button>
                 </div>
               </div>
 
