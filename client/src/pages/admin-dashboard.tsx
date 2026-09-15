@@ -1766,6 +1766,9 @@ export default function AdminDashboard({ user }: { user: any }) {
             <TabsTrigger value="settings" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-settings">
               <Settings className="h-4 w-4 mr-3 shrink-0" /> Settings
             </TabsTrigger>
+            <TabsTrigger value="payroll-contracts" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-payroll-contracts">
+              <DollarSign className="h-4 w-4 mr-3 shrink-0" /> Payroll & Agreements
+            </TabsTrigger>
           </TabsList>
         </div>
       </aside>
@@ -1803,6 +1806,9 @@ export default function AdminDashboard({ user }: { user: any }) {
               </TabsTrigger>
               <TabsTrigger value="settings" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-settings-mobile">
                 Settings
+              </TabsTrigger>
+              <TabsTrigger value="payroll-contracts" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-payroll-contracts-mobile">
+                Payroll
               </TabsTrigger>
             </TabsList>
           </div>
@@ -4221,13 +4227,6 @@ export default function AdminDashboard({ user }: { user: any }) {
                 >
                   <BarChart3 className="h-4 w-4" /> Diagnostics
                 </TabsTrigger>
-                <TabsTrigger
-                  value="payroll-contracts"
-                  className="text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white flex items-center gap-2"
-                  data-testid="tab-settings-payroll"
-                >
-                  <DollarSign className="h-4 w-4" /> Payroll & Agreements
-                </TabsTrigger>
               </TabsList>
               <TabsContent value="platform-settings">
             {(() => {
@@ -4617,10 +4616,10 @@ export default function AdminDashboard({ user }: { user: any }) {
               <TabsContent value="diagnostics">
                 <AdminDiagnostics />
               </TabsContent>
-              <TabsContent value="payroll-contracts">
-                <AdminPayrollSettings />
-              </TabsContent>
             </Tabs>
+          </TabsContent>
+          <TabsContent value="payroll-contracts">
+            <AdminPayrollSettings />
           </TabsContent>
           </div>
         </div>

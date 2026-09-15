@@ -4,6 +4,7 @@
 - [Payment security controls](payment-security-controls.md) — every paid path must use shared server-side velocity, billing, duplicate, and reservation controls
 - [Quest payroll ledger](payroll-ledger-architecture.md) — freelance winner entitlements are audited and manually recorded until an outbound payout provider is deliberately selected
 - [Dashboard visual verification](dashboard-visual-verification.md) — protected pages need authenticated browser passes plus element-bound checks for clipping
+- [Quest admin navigation](admin-navigation.md) — Payroll & Agreements is a top-level System destination, not a nested Settings tab
 - [Competition Vimeo routing](competition-vimeo-routing.md) — optional per-competition Vimeo folder is preferred; standard Quest/CB destinations remain backups and folder failures must block unfiled uploads
 - [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing
 - [Public page performance](public-performance.md) — public listings must render from Firestore first and load Vimeo media separately
