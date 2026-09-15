@@ -74,6 +74,23 @@ export interface FirestoreUser {
     zip?: string;
     country?: string;
   };
+  nonprofitDeclaration?: {
+    publicName: string;
+    legalName: string;
+    legalStatus: "501c3" | "other" | "pending" | "not_verified";
+    taxIdStatus: "not_provided" | "on_file_external" | "verified";
+    taxIdLast4: string | null;
+    mailingAddress: string;
+    website: string | null;
+    donationContactName: string;
+    donationContactEmail: string;
+    donationContactPhone: string | null;
+    designation: string | null;
+    consentToDonate: boolean;
+    verificationStatus: "unverified" | "pending" | "verified" | "rejected";
+    verifiedAt: string | null;
+    updatedAt: string | null;
+  } | null;
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }

@@ -29,6 +29,7 @@ import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 import AdminPayrollSettings from "@/components/admin-payroll-settings";
+import AdminFinancialOverview from "@/components/admin-financial-overview";
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
@@ -4619,7 +4620,10 @@ export default function AdminDashboard({ user }: { user: any }) {
             </Tabs>
           </TabsContent>
           <TabsContent value="payroll-contracts">
-            <AdminPayrollSettings />
+            <div className="space-y-8">
+              <AdminFinancialOverview />
+              <AdminPayrollSettings />
+            </div>
           </TabsContent>
           </div>
         </div>

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
@@ -25,6 +25,7 @@ import type { TalentProfile, Competition } from "@shared/schema";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
+import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 
 interface Props {
   user: any;
@@ -53,6 +54,10 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [socialInstagram, setSocialInstagram] = useState(parsedSocial.instagram || "");
   const [socialTiktok, setSocialTiktok] = useState(parsedSocial.tiktok || "");
   const [socialFacebook, setSocialFacebook] = useState(parsedSocial.facebook || "");
+  const [nonprofitDeclaration, setNonprofitDeclaration] = useState<NonprofitDeclaration>({
+    ...emptyNonprofitDeclaration,
+    ...((profile as any)?.nonprofitDeclaration || {}),
+  });
   const [bgImageUploading, setBgImageUploading] = useState(false);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
   const [selectedCompId, setSelectedCompId] = useState<string>("");
@@ -86,6 +91,11 @@ export default function TalentDashboard({ user, profile }: Props) {
 
   const { data: myContests } = useQuery<any[]>({
     queryKey: ["/api/contestants/me"],
+    enabled: !!profile,
+  });
+
+  const { data: financialOverview } = useQuery<any>({
+    queryKey: ["/api/payroll/my-overview"],
     enabled: !!profile,
   });
 
@@ -127,7 +137,7 @@ export default function TalentDashboard({ user, profile }: Props) {
       if (socialInstagram.trim()) socialLinks.instagram = socialInstagram.trim();
       if (socialTiktok.trim()) socialLinks.tiktok = socialTiktok.trim();
       if (socialFacebook.trim()) socialLinks.facebook = socialFacebook.trim();
-      const data = { displayName, email, showEmail, bio, category, location, profileColor, profileBgImage: profileBgImage || null, socialLinks: Object.keys(socialLinks).length > 0 ? JSON.stringify(socialLinks) : null };
+      const data = { displayName, email, showEmail, bio, category, location, profileColor, profileBgImage: profileBgImage || null, socialLinks: Object.keys(socialLinks).length > 0 ? JSON.stringify(socialLinks) : null, nonprofitDeclaration };
       if (profile) {
         await apiRequest("PATCH", "/api/talent-profiles/me", data);
       } else {
@@ -567,7 +577,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     await handleCopyShareLink(contest);
   };
 
-  const [activeSection, setActiveSection] = useState<"profile" | "media" | "competitions">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "media" | "competitions" | "earnings">("profile");
 
   const totalVotes = myContests?.reduce((acc: number, c: any) => acc + (c.voteCount || 0), 0) || 0;
   const approvedCount = approvedContests.length;
@@ -577,6 +587,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     { id: "profile" as const, label: "My Profile", sublabel: "Info, bio & customization", icon: User },
     { id: "media" as const, label: "Media Library", sublabel: "Photos & videos", icon: FolderOpen },
     { id: "competitions" as const, label: "Competitions", sublabel: "Applications & sharing", icon: Trophy },
+    { id: "earnings" as const, label: "Earnings", sublabel: "Payouts & nonprofit", icon: Wallet },
   ];
 
   return (
@@ -902,6 +913,40 @@ export default function TalentDashboard({ user, profile }: Props) {
                   )}
                 </div>
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="earnings">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80">Financial operations</p>
+                <h2 className="mt-1 font-serif text-2xl font-bold">My earnings</h2>
+                <p className="mt-2 max-w-2xl text-sm text-white/45">Winner and placement earnings are tracked as audited ledger entries. The Quest records payouts manually after approval.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  ["Gross earnings", financialOverview?.earnings?.grossCents],
+                  ["Upcoming payout", financialOverview?.earnings?.nextPayoutCents],
+                  ["Pending", financialOverview?.earnings?.pendingCents],
+                  ["Paid", financialOverview?.earnings?.paidCents],
+                ].map(([label, cents]) => (
+                  <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                    <p className="text-xl font-semibold tabular-nums text-white">${((Number(cents || 0) / 100)).toFixed(2)}</p>
+                    <p className="mt-1 text-xs text-white/40">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                <h3 className="text-sm font-semibold text-white">Competition breakdown</h3>
+                <div className="mt-3 space-y-2">
+                  {(financialOverview?.competitions || []).map((competition: any) => {
+                    const contestant = competition.contestants?.[0];
+                    return <div key={competition.competitionId} className="flex flex-col gap-2 rounded-lg border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{contestant?.voteSharePercentage || 0}% paid-vote share · {contestant?.paidVoteCount || 0} paid votes</p></div><div className="text-left sm:text-right"><p className="font-semibold text-orange-200">${((Number(contestant?.earningsCents || 0) / 100)).toFixed(2)}</p><p className="text-[11px] text-white/35">Nonprofit allocation ${((Number(contestant?.nonprofitCents || 0) / 100)).toFixed(2)}</p></div></div>;
+                  })}
+                  {(!financialOverview?.competitions || financialOverview.competitions.length === 0) && <p className="text-sm text-white/40">No competition earnings have been recorded.</p>}
+                </div>
+              </div>
+              <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} />
             </div>
           </TabsContent>
 

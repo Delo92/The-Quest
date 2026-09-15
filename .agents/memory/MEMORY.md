@@ -3,6 +3,7 @@
 - [Payment outcome handling](payment-outcome-handling.md) — uncertain Authorize.net outcomes stay locked; never make them automatically retryable
 - [Payment security controls](payment-security-controls.md) — every paid path must use shared server-side velocity, billing, duplicate, and reservation controls
 - [Quest payroll ledger](payroll-ledger-architecture.md) — freelance winner entitlements are audited and manually recorded until an outbound payout provider is deliberately selected
+- [Financial operations aggregation](financial-operations-aggregation.md) — charity totals need one authoritative allocation source to avoid ledger/transaction double counting
 - [Dashboard visual verification](dashboard-visual-verification.md) — protected pages need authenticated browser passes plus element-bound checks for clipping
 - [Quest admin navigation](admin-navigation.md) — Payroll & Agreements is a top-level System destination, not a nested Settings tab
 - [Dashboard readability](dashboard-readability.md) — authenticated dashboards use elevated charcoal surfaces and stronger secondary contrast without changing the public site

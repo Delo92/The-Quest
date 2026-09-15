@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download, Settings, UserCircle, EyeOff } from "lucide-react";
+import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download, Settings, UserCircle, EyeOff, Wallet } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteDialog } from "@/components/invite-dialog";
@@ -25,6 +25,7 @@ import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import CompetitionShareLinks from "@/components/competition-share-links";
 import type { CompetitionStage } from "@shared/schema";
+import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 
 interface HostStats {
   totalCompetitions: number;
@@ -221,6 +222,7 @@ export default function HostDashboard({ user }: { user: any }) {
   const [accountPassword, setAccountPassword] = useState("");
   const [showAccountPassword, setShowAccountPassword] = useState(false);
   const [profileImageUploading, setProfileImageUploading] = useState(false);
+  const [nonprofitDeclaration, setNonprofitDeclaration] = useState<NonprofitDeclaration>({ ...emptyNonprofitDeclaration });
 
   const { data: myProfile, refetch: refetchMyProfile } = useQuery<any>({
     queryKey: ["/api/talent-profiles/me"],
@@ -238,6 +240,10 @@ export default function HostDashboard({ user }: { user: any }) {
       toast({ title: "Account updated", description: "Your host profile changes are saved." });
     },
     onError: (err: Error) => toast({ title: "Could not update account", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" }),
+  });
+
+  const { data: financialOverview } = useQuery<any>({
+    queryKey: ["/api/payroll/my-overview"],
   });
 
   const uploadProfileImage = async (file: File) => {
@@ -267,7 +273,9 @@ export default function HostDashboard({ user }: { user: any }) {
       category: myProfile?.category || "",
       location: myProfile?.location || "",
       profileImageUrl: user?.profileImageUrl || myProfile?.imageUrls?.[0] || "",
+      nonprofitDeclaration: { ...emptyNonprofitDeclaration, ...(myProfile?.nonprofitDeclaration || {}) },
     });
+    setNonprofitDeclaration({ ...emptyNonprofitDeclaration, ...(myProfile?.nonprofitDeclaration || {}) });
     setAccountPassword("");
     setAccountOpen(true);
   };
@@ -580,6 +588,7 @@ export default function HostDashboard({ user }: { user: any }) {
               <Label>Bio</Label>
               <Textarea value={accountForm.bio || ""} onChange={(e) => setAccountForm({ ...accountForm, bio: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2 min-h-28" placeholder="Tell contestants and viewers about you." data-testid="input-host-account-bio" />
             </div>
+            <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} />
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 border-t border-white/10 pt-4">
               <Button variant="ghost" onClick={() => setAccountOpen(false)} className="text-white/55">Cancel</Button>
               <Button
@@ -591,6 +600,7 @@ export default function HostDashboard({ user }: { user: any }) {
                   bio: accountForm.bio?.trim() || null,
                   category: accountForm.category?.trim() || null,
                   location: accountForm.location?.trim() || null,
+                  nonprofitDeclaration,
                   ...(accountPassword ? { password: accountPassword } : {}),
                 })}
                 className="bg-orange-500 hover:bg-orange-400 border-0 text-white"
@@ -704,6 +714,9 @@ export default function HostDashboard({ user }: { user: any }) {
               </TabsTrigger>
               <TabsTrigger value="analytics" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300" data-testid="tab-analytics">
                 <BarChart3 className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Analytics</span>
+              </TabsTrigger>
+              <TabsTrigger value="financials" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300" data-testid="tab-financials">
+                <Wallet className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Financials</span>
               </TabsTrigger>
               <TabsTrigger value="calendar" className="text-xs sm:text-sm data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-300" data-testid="tab-calendar">
                 <Calendar className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Calendar</span>
@@ -1304,6 +1317,33 @@ export default function HostDashboard({ user }: { user: any }) {
                   ))}
                 </div>
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="financials">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80">Host financials</p>
+                <h2 className="mt-1 font-serif text-2xl font-bold">Competition earnings</h2>
+                <p className="mt-2 text-sm text-white/45">Review paid voting income, your recorded host share, contestant earnings, charity allocations, and pending payout items for your competitions.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  ["Host share", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.hostShareCents || 0), 0)],
+                  ["Paid voting", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.paidVoting?.revenueCents || 0), 0)],
+                  ["Pending payouts", financialOverview?.pendingPayouts?.reduce((sum: number, item: any) => sum + Number(item.netCents || 0), 0)],
+                  ["Contestant share", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.contestantShareCents || 0), 0)],
+                ].map(([label, cents]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.04] p-4"><p className="text-xl font-semibold tabular-nums text-white">${((Number(cents || 0) / 100)).toFixed(2)}</p><p className="mt-1 text-xs text-white/40">{label}</p></div>)}
+              </div>
+              <div className="space-y-2">
+                {(financialOverview?.competitions || []).map((competition: any) => (
+                  <div key={competition.competitionId} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} purchases · {competition.paidVoting.purchasedVoteCount} paid votes</p></div><div className="grid grid-cols-3 gap-3 text-left sm:text-right"><span className="text-xs text-white/40">Voting<b className="mt-1 block text-sm text-white">${((Number(competition.paidVoting.revenueCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Host<b className="mt-1 block text-sm text-orange-200">${((Number(competition.hostShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Charity<b className="mt-1 block text-sm text-white">${((Number(competition.charityShareCents || 0) / 100)).toFixed(2)}</b></span></div></div>
+                    {competition.contestants?.length > 0 && <div className="mt-4 space-y-2 border-t border-white/10 pt-3">{competition.contestants.map((contestant: any) => <div key={contestant.contestantId} className="flex items-center justify-between gap-3 text-xs"><span className="text-white/65">{contestant.name}<span className="ml-2 text-white/35">{contestant.voteSharePercentage}% paid-vote share</span></span><span className="tabular-nums text-white">${((Number(contestant.earningsCents || 0) / 100)).toFixed(2)}</span></div>)}</div>}
+                  </div>
+                ))}
+                {(!financialOverview?.competitions || financialOverview.competitions.length === 0) && <p className="rounded-xl border border-white/10 p-5 text-sm text-white/40">No financial activity has been recorded for your competitions.</p>}
+              </div>
             </div>
           </TabsContent>
 

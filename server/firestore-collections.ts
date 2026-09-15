@@ -98,6 +98,24 @@ export interface FirestoreCompetition {
   createdBy: string | null;
 }
 
+export interface FirestoreNonprofitDeclaration {
+  publicName: string;
+  legalName: string;
+  legalStatus: "501c3" | "other" | "pending" | "not_verified";
+  taxIdStatus: "not_provided" | "on_file_external" | "verified";
+  taxIdLast4: string | null;
+  mailingAddress: string;
+  website: string | null;
+  donationContactName: string;
+  donationContactEmail: string;
+  donationContactPhone: string | null;
+  designation: string | null;
+  consentToDonate: boolean;
+  verificationStatus: "unverified" | "pending" | "verified" | "rejected";
+  verifiedAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface FirestoreTalentProfile {
   id: number;
   userId: string;
@@ -116,6 +134,7 @@ export interface FirestoreTalentProfile {
   profileBgImage?: string | null;
   role: string;
   hiddenVideoUris?: string[];
+  nonprofitDeclaration?: FirestoreNonprofitDeclaration | null;
 }
 
 export interface FirestoreContestant {

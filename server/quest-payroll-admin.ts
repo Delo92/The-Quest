@@ -169,6 +169,234 @@ function normalizedRules(body: any) {
   };
 }
 
+function numericCents(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
+}
+
+function dollarsToCents(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0;
+}
+
+function displayName(profile: any, fallback = "Unknown") {
+  return profile?.stageName || profile?.displayName || fallback;
+}
+
+async function buildFinancialOverview() {
+  const [competitions, allContestants, profiles, payeesSnap, ledgerSnap, transactionsSnap, batchesSnap] = await Promise.all([
+    storage.getCompetitions(),
+    storage.getAllContestants(),
+    storage.getAllTalentProfiles(),
+    db().collection(PAYEES).get(),
+    db().collection(LEDGER).get(),
+    db().collection(TRANSACTIONS).get(),
+    db().collection(BATCHES).get(),
+  ]);
+
+  const payees = payeesSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+  const ledger = ledgerSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
+  const transactions = transactionsSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
+  const batches = batchesSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
+  const purchasesByCompetition = await Promise.all(
+    competitions.map(async (competition) => [competition.id, await storage.getVotePurchasesByCompetition(competition.id)] as const),
+  );
+  const purchaseMap = new Map(purchasesByCompetition);
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
+  const profilesByUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
+  const contestantById = new Map(allContestants.map((contestant) => [contestant.id, contestant]));
+
+  const payeeMatchesProfile = (payee: any, profile: any) => {
+    const payeeEmail = String(payee.email || "").toLowerCase();
+    const profileEmail = String(profile.email || "").toLowerCase();
+    const payeeName = String(payee.name || "").trim().toLowerCase();
+    const profileNames = [profile.displayName, profile.stageName].filter(Boolean).map((value) => String(value).trim().toLowerCase());
+    return payee.userId === profile.userId
+      || Number(payee.talentProfileId) === Number(profile.id)
+      || (payeeEmail && profileEmail && payeeEmail === profileEmail)
+      || (payeeName && profileNames.includes(payeeName));
+  };
+
+  const entriesForProfile = (profile: any, competitionId?: number) => {
+    const matchingPayeeIds = new Set(payees.filter((payee) => payeeMatchesProfile(payee, profile)).map((payee) => payee.id));
+    return ledger.filter((entry: any) =>
+      matchingPayeeIds.has(entry.payeeId)
+      && (competitionId === undefined || Number(entry.competitionId) === competitionId),
+    );
+  };
+
+  const transactionsForCompetition = (competitionId: number) =>
+    transactions.filter((item: any) => Number(item.competitionId) === competitionId);
+
+  const ledgerForCompetition = (competitionId: number) =>
+    ledger.filter((item: any) => Number(item.competitionId) === competitionId);
+
+  const competitionBreakdowns = competitions.map((competition) => {
+    const purchases = purchaseMap.get(competition.id) || [];
+    const compContestants = allContestants.filter((contestant) => contestant.competitionId === competition.id);
+    const compTransactions = transactionsForCompetition(competition.id);
+    const compLedger = ledgerForCompetition(competition.id);
+    const hostProfile = competition.createdBy ? profilesByUserId.get(competition.createdBy) : null;
+    const hostPayeeIds = new Set(payees
+      .filter((payee) => hostProfile && payeeMatchesProfile(payee, hostProfile))
+      .map((payee) => payee.id));
+    const hostEntries = compLedger.filter((entry: any) => hostPayeeIds.has(entry.payeeId));
+    const contestantRows = compContestants.map((contestant: any, index) => {
+      const profile = profilesById.get(contestant.talentProfileId) || contestant.talentProfile;
+      const entries = profile ? entriesForProfile(profile, competition.id) : [];
+      const contestantPurchases = purchases.filter((purchase: any) => Number(purchase.contestantId) === contestant.id);
+      const grossCents = entries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
+      const nonprofitCents = entries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
+      const pendingCents = entries
+        .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
+        .reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
+      const paidCents = entries.filter((entry: any) => entry.status === "paid").reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
+      const voteShare = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
+      const contestantVoteCount = contestantPurchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
+      return {
+        contestantId: contestant.id,
+        talentProfileId: contestant.talentProfileId,
+        name: displayName(profile, `Contestant ${index + 1}`),
+        profileUserId: profile?.userId || null,
+        voteCount: contestant.voteCount || 0,
+        paidVoteCount: contestantVoteCount,
+        paidVoteRevenueCents: contestantPurchases.reduce((sum, purchase: any) => sum + dollarsToCents(purchase.amount), 0),
+        voteSharePercentage: voteShare > 0 ? Math.round((contestantVoteCount / voteShare) * 10000) / 100 : 0,
+        earningsCents: grossCents,
+        nonprofitCents,
+        pendingCents,
+        paidCents,
+        placement: entries[0]?.placement || null,
+        payoutEntries: entries.map((entry: any) => ({
+          id: entry.id,
+          status: entry.status,
+          grossCents: numericCents(entry.grossCents),
+          netCents: numericCents(entry.netCents),
+          payoutDueDate: batches.find((batch: any) => batch.id === entry.batchId)?.payoutDueDate || null,
+          paymentInfoProvided: Boolean(entry.paymentInfoProvided),
+          blockedReason: entry.blockedReason || null,
+        })),
+      };
+    });
+    const paidVoteRevenueCents = purchases.reduce((sum, purchase: any) => sum + dollarsToCents(purchase.amount), 0);
+    const hostShareCents = hostEntries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
+    const contestantShareCents = contestantRows.reduce((sum, row) => sum + row.earningsCents, 0);
+    const charityShareCents = compTransactions
+      .filter((item: any) => item.type === "nonprofit_allocation")
+      .reduce((sum, item: any) => sum + numericCents(item.amountCents), 0)
+      + compLedger.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
+    return {
+      competitionId: competition.id,
+      title: competition.title,
+      category: competition.category,
+      status: competition.status,
+      endDate: competition.endDate,
+      hostUid: competition.createdBy || null,
+      hostName: displayName(hostProfile, competition.createdBy ? "Assigned host" : "The Quest"),
+      hostShareCents,
+      hostSharePercentage: paidVoteRevenueCents > 0 ? Math.round((hostShareCents / paidVoteRevenueCents) * 10000) / 100 : 0,
+      charityShareCents,
+      contestantShareCents,
+      paidVoting: {
+        revenueCents: paidVoteRevenueCents,
+        purchaseCount: purchases.length,
+        purchasedVoteCount: purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0),
+      },
+      contestants: contestantRows,
+      pendingPayouts: compLedger
+        .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
+        .map((entry: any) => ({
+          id: entry.id,
+          payeeId: entry.payeeId,
+          status: entry.status,
+          netCents: numericCents(entry.netCents),
+          grossCents: numericCents(entry.grossCents),
+          dueDate: batches.find((batch: any) => batch.id === entry.batchId)?.payoutDueDate || null,
+          paymentInfoProvided: Boolean(entry.paymentInfoProvided),
+          blockedReason: entry.blockedReason || null,
+        })),
+    };
+  });
+
+  const profileEarnings = profiles
+    .filter((profile) => profile.role !== "admin")
+    .map((profile) => {
+      const entries = entriesForProfile(profile);
+      const pending = entries
+        .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
+        .reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
+      const paid = entries.filter((entry: any) => entry.status === "paid").reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
+      const gross = entries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
+      const nextEntry = entries
+        .filter((entry: any) => ["pending_approval", "approved"].includes(entry.status))
+        .sort((a: any, b: any) => String(a.paymentInfoDeadline || "").localeCompare(String(b.paymentInfoDeadline || "")))[0];
+      return {
+        userId: profile.userId,
+        talentProfileId: profile.id,
+        name: displayName(profile),
+        role: profile.role,
+        nonprofitDeclaration: profile.nonprofitDeclaration || null,
+        grossCents: gross,
+        pendingCents: pending,
+        paidCents: paid,
+        nonprofitCents: entries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0),
+        nextPayoutCents: nextEntry ? numericCents(nextEntry.netCents) : 0,
+        nextPayoutDate: nextEntry ? (batches.find((batch: any) => batch.id === nextEntry.batchId)?.payoutDueDate || null) : null,
+        payoutEntries: entries.map((entry: any) => ({
+          id: entry.id,
+          competitionId: entry.competitionId,
+          status: entry.status,
+          grossCents: numericCents(entry.grossCents),
+          netCents: numericCents(entry.netCents),
+          nonprofitCents: numericCents(entry.nonprofitCents),
+          dueDate: batches.find((batch: any) => batch.id === entry.batchId)?.payoutDueDate || null,
+          blockedReason: entry.blockedReason || null,
+        })),
+      };
+    })
+    .filter((profile) => profile.grossCents > 0 || profile.pendingCents > 0 || profile.paidCents > 0);
+
+  const pendingPayouts = ledger
+    .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
+    .map((entry: any) => ({
+      id: entry.id,
+      competitionId: entry.competitionId,
+      payeeId: entry.payeeId,
+      payeeName: payees.find((payee: any) => payee.id === entry.payeeId)?.name || "Unmatched payee",
+      status: entry.status,
+      netCents: numericCents(entry.netCents),
+      dueDate: batches.find((batch: any) => batch.id === entry.batchId)?.payoutDueDate || null,
+      paymentInfoProvided: Boolean(entry.paymentInfoProvided),
+      blockedReason: entry.blockedReason || null,
+    }));
+
+  return {
+    summary: {
+      paidVotingRevenueCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.paidVoting.revenueCents, 0),
+      paidVotingPurchases: competitionBreakdowns.reduce((sum, competition) => sum + competition.paidVoting.purchaseCount, 0),
+      paidVotingVoteCount: competitionBreakdowns.reduce((sum, competition) => sum + competition.paidVoting.purchasedVoteCount, 0),
+      hostShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.hostShareCents, 0),
+      contestantShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.contestantShareCents, 0),
+      charityShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.charityShareCents, 0),
+      pendingPayoutCents: pendingPayouts.reduce((sum, payout) => sum + payout.netCents, 0),
+      paidPayoutCents: ledger.filter((entry: any) => entry.status === "paid").reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0),
+      forfeitedCents: ledger.filter((entry: any) => entry.status === "forfeited").reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0),
+    },
+    competitions: competitionBreakdowns,
+    profileEarnings,
+    pendingPayouts,
+    nonprofitDeclarations: profiles
+      .filter((profile) => profile.role !== "admin" && profile.nonprofitDeclaration?.consentToDonate)
+      .map((profile) => ({
+        userId: profile.userId,
+        talentProfileId: profile.id,
+        name: displayName(profile),
+        role: profile.role,
+        declaration: profile.nonprofitDeclaration,
+      })),
+  };
+}
+
 export function registerQuestPayrollAdmin(app: Express) {
   app.get("/api/admin/payroll/settings", firebaseAuth, requireAdmin, async (_req: any, res: any) => {
     try {
@@ -218,6 +446,50 @@ export function registerQuestPayrollAdmin(app: Express) {
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Could not load payroll summary." });
+    }
+  });
+
+  app.get("/api/admin/financial-overview", firebaseAuth, requireAdmin, async (_req: any, res: any) => {
+    try {
+      res.json(await buildFinancialOverview());
+    } catch (error: any) {
+      console.error("Financial overview error:", error);
+      res.status(500).json({ message: error.message || "Could not load financial overview." });
+    }
+  });
+
+  app.get("/api/payroll/my-overview", firebaseAuth, async (req: any, res: any) => {
+    try {
+      const uid = req.firebaseUser?.uid;
+      const profile = await storage.getTalentProfileByUserId(uid);
+      if (!profile) return res.json({ role: "viewer", competitions: [], earnings: null, pendingPayouts: [] });
+      const overview = await buildFinancialOverview();
+      if (profile.role === "host" || Number(req.firebaseUser?.level) === 3) {
+        return res.json({
+          role: "host",
+          competitions: overview.competitions.filter((competition) => competition.hostUid === uid),
+          earnings: overview.profileEarnings.find((earning) => earning.userId === uid) || null,
+          pendingPayouts: overview.pendingPayouts.filter((payout) =>
+            overview.competitions.some((competition) => competition.competitionId === payout.competitionId && competition.hostUid === uid),
+          ),
+        });
+      }
+      const myCompetitions = overview.competitions
+        .map((competition) => ({
+          ...competition,
+          contestants: competition.contestants.filter((contestant) => contestant.profileUserId === uid),
+        }))
+        .filter((competition) => competition.contestants.length > 0);
+      return res.json({
+        role: "contestant",
+        competitions: myCompetitions,
+        earnings: overview.profileEarnings.find((earning) => earning.userId === uid) || null,
+        pendingPayouts: overview.pendingPayouts.filter((payout) => overview.profileEarnings
+          .find((earning) => earning.userId === uid)?.payoutEntries.some((entry) => entry.id === payout.id)),
+      });
+    } catch (error: any) {
+      console.error("Personal financial overview error:", error);
+      res.status(500).json({ message: error.message || "Could not load your financial overview." });
     }
   });
 

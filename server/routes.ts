@@ -529,6 +529,30 @@ async function secureAuthorizeCharge(
   return { replay: false as const, paymentId: reservation.paymentId, charge };
 }
 
+function normalizeNonprofitDeclaration(value: any) {
+  if (!value || typeof value !== "object") return null;
+  const clean = (input: unknown, max: number) => typeof input === "string" ? input.trim().slice(0, max) : "";
+  const legalStatus = ["501c3", "other", "pending", "not_verified"].includes(value.legalStatus) ? value.legalStatus : "pending";
+  const taxIdStatus = ["not_provided", "on_file_external", "verified"].includes(value.taxIdStatus) ? value.taxIdStatus : "not_provided";
+  return {
+    publicName: clean(value.publicName, 180),
+    legalName: clean(value.legalName, 240),
+    legalStatus,
+    taxIdStatus,
+    taxIdLast4: clean(value.taxIdLast4, 4).replace(/\D/g, "").slice(-4) || null,
+    mailingAddress: clean(value.mailingAddress, 500),
+    website: clean(value.website, 320) || null,
+    donationContactName: clean(value.donationContactName, 160),
+    donationContactEmail: clean(value.donationContactEmail, 320).toLowerCase(),
+    donationContactPhone: clean(value.donationContactPhone, 50) || null,
+    designation: clean(value.designation, 500) || null,
+    consentToDonate: value.consentToDonate === true,
+    verificationStatus: "unverified",
+    verifiedAt: null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1971,6 +1995,7 @@ export async function registerRoutes(
     imageUrls: z.array(z.string()).optional().default([]),
     videoUrls: z.array(z.string()).optional().default([]),
     socialLinks: z.string().optional().nullable(),
+    nonprofitDeclaration: z.any().optional().nullable(),
   });
 
   app.post("/api/talent-profiles", firebaseAuth, async (req, res) => {
@@ -2010,6 +2035,9 @@ export async function registerRoutes(
       } catch {
         safeData.socialLinks = null;
       }
+    }
+    if (safeData.nonprofitDeclaration !== undefined) {
+      safeData.nonprofitDeclaration = normalizeNonprofitDeclaration(safeData.nonprofitDeclaration);
     }
     const updated = await storage.updateTalentProfile(uid, safeData);
     if (!updated) return res.status(404).json({ message: "Profile not found" });
@@ -5945,13 +5973,14 @@ export async function registerRoutes(
   app.patch("/api/auth/profile", firebaseAuth, async (req, res) => {
     try {
       const { uid } = req.firebaseUser!;
-      const { displayName, stageName, bio, category, location, socialLinks, billingAddress, email, password } = req.body;
+      const { displayName, stageName, bio, category, location, socialLinks, billingAddress, email, password, nonprofitDeclaration } = req.body;
 
       const updateData: Record<string, any> = {};
       if (displayName !== undefined) updateData.displayName = displayName;
       if (stageName !== undefined) updateData.stageName = stageName;
       if (socialLinks !== undefined) updateData.socialLinks = socialLinks;
       if (billingAddress !== undefined) updateData.billingAddress = billingAddress;
+      if (nonprofitDeclaration !== undefined) updateData.nonprofitDeclaration = normalizeNonprofitDeclaration(nonprofitDeclaration);
       if (email !== undefined) updateData.email = email;
 
       if (email !== undefined || password !== undefined || displayName !== undefined) {
@@ -5975,6 +6004,7 @@ export async function registerRoutes(
       if (category !== undefined) profileUpdate.category = category;
       if (location !== undefined) profileUpdate.location = location;
       if (socialLinks !== undefined) profileUpdate.socialLinks = typeof socialLinks === "string" ? socialLinks : JSON.stringify(socialLinks);
+      if (nonprofitDeclaration !== undefined) profileUpdate.nonprofitDeclaration = normalizeNonprofitDeclaration(nonprofitDeclaration);
       if (Object.keys(profileUpdate).length > 0) {
         await storage.updateTalentProfile(uid, profileUpdate);
       }
@@ -5991,6 +6021,7 @@ export async function registerRoutes(
         profileImageUrl: firestoreUser?.profileImageUrl || null,
         socialLinks: firestoreUser?.socialLinks || null,
         billingAddress: firestoreUser?.billingAddress || null,
+        nonprofitDeclaration: firestoreUser?.nonprofitDeclaration || profile?.nonprofitDeclaration || null,
         hasProfile: !!profile,
         profileRole: profile?.role || null,
       });
