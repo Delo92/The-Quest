@@ -1692,7 +1692,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   }, [filteredUsers, userPage]);
 
   return (
-    <Tabs defaultValue="competitions" className="flex flex-col md:flex-row min-h-[100dvh] bg-black text-white w-full overflow-hidden">
+    <Tabs defaultValue="competitions" className="quest-dashboard flex flex-col md:flex-row min-h-[100dvh] bg-black text-white w-full overflow-hidden">
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-zinc-950 sticky top-0 z-50">
         <Link href="/" className="flex items-center gap-2" data-testid="link-home">

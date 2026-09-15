@@ -78,7 +78,7 @@ export default function AdminFormsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0d0d0d] px-4 py-6 text-white sm:px-6 lg:px-10">
+    <main className="quest-dashboard min-h-screen bg-[#0d0d0d] px-4 py-6 text-white sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3"><Link href="/thequest/admin"><Button variant="ghost" size="icon" className="text-white/60"><ArrowLeft className="h-4 w-4" /></Button></Link><div><p className="text-xs uppercase tracking-[0.2em] text-orange-300">The Quest</p><h1 className="font-serif text-2xl">Form builder</h1></div></div>

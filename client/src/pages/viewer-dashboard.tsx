@@ -90,7 +90,7 @@ export default function ViewerDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-[#090909] text-white">
+    <div className="quest-dashboard min-h-screen bg-[#090909] text-white">
       <SiteNavbar />
 
       <section className="relative h-[230px] md:h-[290px] overflow-hidden">

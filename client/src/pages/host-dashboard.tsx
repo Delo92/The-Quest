@@ -488,7 +488,7 @@ export default function HostDashboard({ user }: { user: any }) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#090909] text-white" data-testid="host-dashboard">
+    <div className="quest-dashboard min-h-screen bg-[#090909] text-white" data-testid="host-dashboard">
       <nav className="sticky top-0 z-50 bg-[#090909]/90 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 h-16 lg:h-20">
           <Link href="/" className="flex items-center gap-2" data-testid="link-home">

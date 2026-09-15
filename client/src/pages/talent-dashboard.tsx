@@ -580,7 +580,7 @@ export default function TalentDashboard({ user, profile }: Props) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#090909] text-white">
+    <div className="quest-dashboard min-h-screen bg-[#090909] text-white">
       {/* Top Nav */}
       <nav className="sticky top-0 z-50 bg-[#090909]/90 backdrop-blur-xl border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
