@@ -616,9 +616,49 @@ export default function TalentDashboard({ user, profile }: Props) {
         </div>
       </nav>
 
+      {/* Mobile sticky context bar — identity + tab switcher, always visible while scrolling */}
+      <div className="lg:hidden sticky top-14 z-40 bg-[#090909]/95 backdrop-blur-xl border-b border-white/10">
+        {/* Identity strip */}
+        <div className="flex items-center gap-2.5 px-4 pt-2.5 pb-2">
+          <Avatar className="h-7 w-7 rounded-lg border border-orange-500/30 flex-shrink-0">
+            <AvatarImage src={user.profileImageUrl || profile?.profileBgImage || ""} className="object-cover" />
+            <AvatarFallback className="rounded-lg bg-orange-500/15 text-orange-300 text-xs font-bold">
+              {(displayName || user.displayName || "C").charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white leading-none truncate">{displayName || user.displayName}</p>
+            <p className="text-[10px] text-white/35 mt-0.5">
+              {navItems.find((n) => n.id === activeSection)?.label ?? "Dashboard"}
+            </p>
+          </div>
+          <InviteDialog senderLevel={2} />
+        </div>
+        {/* Tab strip */}
+        <div className="flex gap-1.5 px-4 pb-2.5">
+          {navItems.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveSection(id)}
+              data-testid={`sticky-tab-${id}`}
+              className={`flex-1 rounded-xl py-2 px-1 flex flex-col items-center gap-1 transition-all border ${
+                activeSection === id
+                  ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/20"
+                  : "bg-white/[0.05] border-white/10 text-white/45 active:bg-white/[0.09]"
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${activeSection === id ? "text-white" : "text-white/40"}`} />
+              <span className={`text-[10px] font-bold leading-none ${activeSection === id ? "text-white" : "text-white/40"}`}>
+                {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 lg:py-8">
-        {/* Header */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-5 sm:p-6 mb-6">
+        {/* Header — desktop only; mobile identity + tabs live in the sticky bar */}
+        <div className="hidden lg:block rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-5 sm:p-6 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 rounded-xl border border-orange-500/30 flex-shrink-0">
@@ -635,27 +675,6 @@ export default function TalentDashboard({ user, profile }: Props) {
             </div>
             <InviteDialog senderLevel={2} />
           </div>
-        </div>
-
-        {/* Mobile tab bar — above stats on mobile, sidebar handles desktop */}
-        <div className="lg:hidden flex gap-2 mb-4">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveSection(id)}
-              data-testid={`tab-${id}`}
-              className={`flex-1 rounded-2xl py-3.5 px-1.5 flex flex-col items-center gap-1.5 transition-all border-2 ${
-                activeSection === id
-                  ? "bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/25"
-                  : "bg-white/[0.06] border-white/10 text-white/55 active:bg-white/[0.1]"
-              }`}
-            >
-              <Icon className={`h-5 w-5 ${activeSection === id ? "text-white" : "text-white/50"}`} />
-              <span className={`text-[11px] font-bold leading-tight text-center ${activeSection === id ? "text-white" : "text-white/50"}`}>
-                {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label}
-              </span>
-            </button>
-          ))}
         </div>
 
         {/* Setup checklist — action items the user still needs to complete */}
