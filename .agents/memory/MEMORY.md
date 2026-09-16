@@ -22,6 +22,7 @@
 - [Competition share links](competition-share-links.md) — public page and root-domain referral URLs both need to stay available to hosts
 - [Centralized error logging](chronicdocs-error-logging.md) — ChronicDocs logging behavior is ported onto The Quest's own Firestore helper and identity model
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
+- [OC Integration Bridge](oc-integration-bridge.md) — Quest calls OC for all Stripe payments/payouts; OC must set QUEST_OC_INTEGRATION_TOKEN before going live
 - [Category artwork references](category-artwork-references.md) — category cards use shipped local artwork that matches the approved reference screenshots, not unstable Firebase Storage URLs
 - [Hero gallery competition media](hero-gallery-competition-media.md) — thumbnail always renders as base layer; video overlays on top so privacy-blocked iframes never black out a card
 - [Cross-browser gallery media](cross-browser-gallery-media.md) — use Vimeo API posters instead of vumbnail placeholders and PNG category artwork for older browser support

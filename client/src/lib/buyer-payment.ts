@@ -56,9 +56,12 @@ export async function confirmStripeCardPayment(input: {
   name: string;
   email: string;
   billingAddress: { address: string; city: string; state: string; zip: string };
-}) {
+  /** Path for the intent endpoint — defaults to /api/payment-provider/stripe-intent */
+  intentPath?: string;
+}): Promise<{ paymentIntentId: string; ocPaymentId?: string }> {
   if (!window.Stripe) throw new Error("Stripe is not ready.");
-  const intentResponse = await apiRequest("POST", "/api/payment-provider/stripe-intent", {
+  const intentPath = input.intentPath || "/api/payment-provider/stripe-intent";
+  const intentResponse = await apiRequest("POST", intentPath, {
     ...input.intentPayload,
     purpose: input.purpose,
     email: input.email,
@@ -90,7 +93,11 @@ export async function confirmStripeCardPayment(input: {
   if (result.error || !result.paymentIntent || result.paymentIntent.status !== "succeeded") {
     throw new Error(result.error?.message || "Stripe payment was not completed.");
   }
-  return result.paymentIntent.id;
+  return {
+    paymentIntentId: result.paymentIntent.id,
+    // When the intent was created via OC, the server echoes back ocPaymentId
+    ocPaymentId: typeof intent.ocPaymentId === "string" ? intent.ocPaymentId : undefined,
+  };
 }
 
 export async function createPayPalRedirect(input: {

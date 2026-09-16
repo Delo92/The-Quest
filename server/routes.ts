@@ -51,6 +51,11 @@ import {
   getPayPalAccessToken,
   getPayPalApiBase,
 } from "./buyer-payment-providers";
+import {
+  isOCAdapterConfigured,
+  createOCPayment,
+  getOCPayment,
+} from "./services/ocAdapter";
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchaseFeed";
 import { registerQuestPayrollAdmin } from "./quest-payroll-admin";
@@ -462,6 +467,8 @@ async function secureAuthorizeCharge(
     dataDescriptor?: string;
     dataValue?: string;
     stripePaymentIntentId?: string;
+    /** OC payment ID returned by OC's /api/integrations/quest/payments endpoint */
+    ocPaymentId?: string;
     paypalOrderId?: string;
     description: string;
     customerEmail?: string;
@@ -472,6 +479,30 @@ async function secureAuthorizeCharge(
   const billingAddress = details.billingAddress;
   if (!isValidBillingAddress(billingAddress)) {
     throw Object.assign(new Error("Billing address is required for payment"), { status: 400 });
+  }
+
+  // ── OC-routed Stripe payment ──────────────────────────────────────────────
+  // When Quest created the PaymentIntent via OC, verify through OC so Quest
+  // never needs OC's Stripe secret key.
+  if (details.ocPaymentId && isOCAdapterConfigured()) {
+    const ocPayment = await getOCPayment(details.ocPaymentId);
+    const expectedAmount = Math.round(details.amountDollars * 100);
+    if (ocPayment.status !== "paid" || (ocPayment.amountCents && ocPayment.amountCents !== expectedAmount)) {
+      throw Object.assign(new Error("OC payment has not completed for this order"), { status: 400 });
+    }
+    const transactionId = ocPayment.stripePaymentIntentId || `oc_${details.ocPaymentId}`;
+    const reservation = await reserveExternalPayment(req, details);
+    if (reservation.replay) return reservation;
+    await markPaymentCharged(reservation.paymentId, transactionId, {
+      provider: "stripe",
+      paymentIntentId: transactionId,
+      ocPaymentId: details.ocPaymentId,
+    });
+    return {
+      replay: false as const,
+      paymentId: reservation.paymentId,
+      charge: { transactionId },
+    };
   }
 
   const buyerConfig = await getBuyerPaymentConfig();
@@ -4452,7 +4483,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Join applications are currently closed" });
       }
 
-      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, chosenNonprofit } = req.body;
+      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId, chosenNonprofit } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Name and email are required" });
       }
@@ -4471,14 +4502,14 @@ export async function registerRoutes(
       let amountPaid = 0;
       let paymentId: string | null = null;
       if (settings.mode === "purchase" && settings.price > 0) {
-        if (!dataDescriptor || !dataValue) {
+        if (!dataDescriptor && !dataValue && !stripePaymentIntentId && !paypalOrderId && !joinOcPaymentId) {
           return res.status(400).json({ message: "Payment is required to join" });
         }
         const secured = await secureAuthorizeCharge(req, {
           route: "/api/join/submit", amountDollars: settings.price / 100,
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `join:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
-          stripePaymentIntentId, paypalOrderId,
+          stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId,
           description: "Join competition application", customerEmail: email, customerName: fullName,
         });
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
@@ -4603,7 +4634,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Nominations are not currently accepted" });
       }
 
-      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress } = req.body;
+      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Nominee name and email are required" });
       }
@@ -4627,14 +4658,14 @@ export async function registerRoutes(
       let amountPaid = 0;
       let paymentId: string | null = null;
       if (settings.nominationFee > 0 && !promoValid) {
-        if (!dataDescriptor || !dataValue) {
+        if (!dataDescriptor && !dataValue && !stripePaymentIntentId && !paypalOrderId && !nominateOcPaymentId) {
           return res.status(400).json({ message: "Payment is required for nominations" });
         }
         const secured = await secureAuthorizeCharge(req, {
           route: "/api/join/nominate", amountDollars: settings.nominationFee / 100,
           ownerKey: `email:${nominatorEmail.toLowerCase().trim()}`, packageKey: `nomination:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
-          stripePaymentIntentId, paypalOrderId,
+          stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
           description: `Nomination fee for ${fullName}`, customerEmail: nominatorEmail, customerName: nominatorName,
           billingAddress,
         });
@@ -4951,7 +4982,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Host applications are currently closed" });
       }
 
-      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
+      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: hostOcPaymentId, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
       if (!fullName || !email || !eventName) {
         return res.status(400).json({ message: "Name, email, and event name are required" });
       }
@@ -4980,13 +5011,14 @@ export async function registerRoutes(
       }
 
       if (verifiedPackagePrice > 0) {
-        if (!dataDescriptor || !dataValue) {
+        if (!dataDescriptor && !dataValue && !stripePaymentIntentId && !paypalOrderId && !hostOcPaymentId) {
           return res.status(400).json({ message: "Payment is required for the selected hosting package" });
         }
         const secured = await secureAuthorizeCharge(req, {
           route: "/api/host/submit", amountDollars: verifiedPackagePrice,
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `host:${verifiedPackageName}`,
-          dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, description: `Host package (${verifiedPackageName}): ${eventName}`,
+          dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: hostOcPaymentId,
+          description: `Host package (${verifiedPackageName}): ${eventName}`,
           customerEmail: email, customerName: fullName,
           billingAddress,
         });
@@ -5418,12 +5450,29 @@ export async function registerRoutes(
 
   app.post("/api/payment-provider/stripe-intent", async (req, res) => {
     try {
-      const config = await getBuyerPaymentConfig();
-      if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
       const input = req.body || {};
       const purpose = input.purpose as "join" | "nominate" | "host" | "vote";
       if (!["join", "nominate", "host", "vote"].includes(purpose)) return res.status(400).json({ message: "Invalid payment purpose" });
       const charge = await resolveProviderPaymentAmount({ ...input, purpose });
+
+      // ── Route through OC when integration token is configured ──────────────
+      if (isOCAdapterConfigured()) {
+        const questOrderId = String(input.idempotencyKey || `${purpose}-${Date.now()}`);
+        const ocPayment = await createOCPayment({
+          amountCents: charge.amountCents,
+          questOrderId,
+          description: charge.description,
+          idempotencyKey: String(input.idempotencyKey || questOrderId),
+        });
+        return res.json({
+          clientSecret: ocPayment.clientSecret,
+          ocPaymentId: ocPayment.ocPaymentId,
+          provider: "oc-stripe",
+        });
+      }
+
+      const config = await getBuyerPaymentConfig();
+      if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
       const stripe = await getStripeBuyerClient();
       const intent = await stripe.paymentIntents.create({
         amount: charge.amountCents,
@@ -5489,9 +5538,25 @@ export async function registerRoutes(
     try {
       const parsed = guestPaymentSetupSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid checkout data" });
+      const charge = await resolveGuestVoteCharge(parsed.data);
+
+      // ── Route through OC when integration token is configured ──────────────
+      if (isOCAdapterConfigured()) {
+        const ocPayment = await createOCPayment({
+          amountCents: Math.round(charge.amountInDollars * 100),
+          questOrderId: parsed.data.idempotencyKey,
+          description: `${charge.totalVotes} votes for ${charge.comp.title}`,
+          idempotencyKey: parsed.data.idempotencyKey,
+        });
+        return res.json({
+          clientSecret: ocPayment.clientSecret,
+          ocPaymentId: ocPayment.ocPaymentId,
+          provider: "oc-stripe",
+        });
+      }
+
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
-      const charge = await resolveGuestVoteCharge(parsed.data);
       const stripe = await getStripeBuyerClient();
       const intent = await stripe.paymentIntents.create({
         amount: Math.round(charge.amountInDollars * 100),
@@ -5560,6 +5625,7 @@ export async function registerRoutes(
       }
 
       const { name, email, competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, referralCode, billingAddress } = parsed.data;
+      const checkoutOcPaymentId = typeof req.body?.ocPaymentId === "string" ? req.body.ocPaymentId : undefined;
 
       let resolvedRefCode: string | null = referralCode || null;
       if (referralCode) {
@@ -5585,7 +5651,30 @@ export async function registerRoutes(
       const packageKey = `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}:stage:${stageId || "overall"}`;
 
       let secured: any;
-      if (activeProvider === "stripe" && parsed.data.stripePaymentIntentId) {
+      // ── OC-routed payment verification ───────────────────────────────────────
+      if (checkoutOcPaymentId && isOCAdapterConfigured()) {
+        const ocPayment = await getOCPayment(checkoutOcPaymentId);
+        const expectedCents = Math.round(amountInDollars * 100);
+        if (ocPayment.status !== "paid" || (ocPayment.amountCents && ocPayment.amountCents !== expectedCents)) {
+          return res.status(400).json({ message: "OC payment has not completed for this order." });
+        }
+        const transactionId = ocPayment.stripePaymentIntentId || `oc_${checkoutOcPaymentId}`;
+        const reservation = await reservePayment({
+          idempotencyKey: parsed.data.idempotencyKey,
+          route: "/api/guest/checkout",
+          amountCents: expectedCents,
+          ownerKey: `email:${email.toLowerCase().trim()}`,
+          packageKey,
+          competitionId,
+          contestantId,
+          customerEmail: email,
+          customerName: name,
+        });
+        if (reservation.state === "completed") return res.status(200).json({ ...(reservation.response as object), idempotentReplay: true });
+        if (reservation.state !== "reserved") throw Object.assign(new Error("This payment request is already processing"), { status: 409 });
+        await markPaymentCharged(reservation.paymentId, transactionId, { provider: "stripe", paymentIntentId: transactionId, ocPaymentId: checkoutOcPaymentId });
+        secured = { replay: false, paymentId: reservation.paymentId, charge: { transactionId } };
+      } else if (activeProvider === "stripe" && parsed.data.stripePaymentIntentId) {
         const stripe = await getStripeBuyerClient();
         const intent = await stripe.paymentIntents.retrieve(parsed.data.stripePaymentIntentId);
         if (intent.status !== "succeeded" || intent.amount !== Math.round(amountInDollars * 100)) {

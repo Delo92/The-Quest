@@ -221,7 +221,7 @@ export default function HostPage() {
     setShowConfirmModal(false);
     setProcessing(true);
 
-    const submitData = async (dataDescriptor?: string, dataValue?: string, stripePaymentIntentId?: string, paypalOrderId?: string) => {
+    const submitData = async (dataDescriptor?: string, dataValue?: string, stripePaymentIntentId?: string, paypalOrderId?: string, ocPaymentId?: string) => {
       try {
         await apiRequest("POST", "/api/host/submit", {
           idempotencyKey: paymentIdempotencyKey.current,
@@ -233,6 +233,7 @@ export default function HostPage() {
           dataValue,
           stripePaymentIntentId,
           paypalOrderId,
+          ocPaymentId,
           selectedPackageName: selectedPackage?.name || null,
           selectedPackagePrice: selectedPrice,
           referralCode: referralCode.trim().toUpperCase() || undefined,
@@ -249,7 +250,7 @@ export default function HostPage() {
 
     if (selectedPrice > 0 && paymentConfig?.provider === "stripe") {
       try {
-        const stripePaymentIntentId = await confirmStripeCardPayment({
+        const { paymentIntentId: stripePaymentIntentId, ocPaymentId } = await confirmStripeCardPayment({
           publishableKey: paymentConfig.stripePublishableKey!,
           purpose: "host",
           intentPayload: {
@@ -264,7 +265,7 @@ export default function HostPage() {
           email: form.email || "",
           billingAddress,
         });
-        await submitData(undefined, undefined, stripePaymentIntentId);
+        await submitData(undefined, undefined, stripePaymentIntentId, undefined, ocPaymentId);
       } catch (error: any) {
         setProcessing(false);
         toast({ title: "Stripe payment failed", description: error.message, variant: "destructive" });

@@ -273,7 +273,7 @@ export default function JoinPage() {
     setShowConfirmModal(false);
     setProcessing(true);
 
-    const submitData = async (dataDescriptor?: string, dataValue?: string, stripePaymentIntentId?: string, paypalOrderId?: string) => {
+    const submitData = async (dataDescriptor?: string, dataValue?: string, stripePaymentIntentId?: string, paypalOrderId?: string, ocPaymentId?: string) => {
       try {
         await apiRequest("POST", "/api/join/nominate", {
           idempotencyKey: paymentIdempotencyKey.current,
@@ -294,6 +294,7 @@ export default function JoinPage() {
           dataValue,
           stripePaymentIntentId,
           paypalOrderId,
+          ocPaymentId,
           billingAddress,
         });
         setSuccess(true);
@@ -307,7 +308,7 @@ export default function JoinPage() {
 
     if (needsPayment && paymentConfig?.provider === "stripe") {
       try {
-        const stripePaymentIntentId = await confirmStripeCardPayment({
+        const { paymentIntentId: stripePaymentIntentId, ocPaymentId } = await confirmStripeCardPayment({
           publishableKey: paymentConfig.stripePublishableKey!,
           purpose: "nominate",
           intentPayload: {
@@ -323,7 +324,7 @@ export default function JoinPage() {
           email: nominatorForm.email || "",
           billingAddress,
         });
-        await submitData(undefined, undefined, stripePaymentIntentId);
+        await submitData(undefined, undefined, stripePaymentIntentId, undefined, ocPaymentId);
       } catch (error: any) {
         setProcessing(false);
         toast({ title: "Stripe payment failed", description: error.message, variant: "destructive" });
