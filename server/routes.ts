@@ -54,6 +54,7 @@ import {
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchaseFeed";
 import { registerQuestPayrollAdmin } from "./quest-payroll-admin";
+import { registerPaymentProviderWebhooks } from "./payment-provider-webhooks";
 import { registerQuestForms } from "./quest-forms";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
@@ -458,8 +459,10 @@ async function secureAuthorizeCharge(
     packageKey: string;
     competitionId?: number | null;
     contestantId?: number | null;
-    dataDescriptor: string;
-    dataValue: string;
+    dataDescriptor?: string;
+    dataValue?: string;
+    stripePaymentIntentId?: string;
+    paypalOrderId?: string;
     description: string;
     customerEmail?: string;
     customerName?: string;
@@ -469,6 +472,74 @@ async function secureAuthorizeCharge(
   const billingAddress = details.billingAddress;
   if (!isValidBillingAddress(billingAddress)) {
     throw Object.assign(new Error("Billing address is required for payment"), { status: 400 });
+  }
+
+  const buyerConfig = await getBuyerPaymentConfig();
+  if (buyerConfig.provider === "stripe") {
+    if (!details.stripePaymentIntentId) {
+      throw Object.assign(new Error("Stripe payment confirmation is required"), { status: 400 });
+    }
+    const stripe = await getStripeBuyerClient();
+    const intent = await stripe.paymentIntents.retrieve(details.stripePaymentIntentId);
+    const expectedAmount = Math.round(details.amountDollars * 100);
+    if (intent.status !== "succeeded" || intent.amount !== expectedAmount) {
+      throw Object.assign(new Error("Stripe payment has not completed for this order"), { status: 400 });
+    }
+    const reservation = await reserveExternalPayment(req, details);
+    if (reservation.replay) return reservation;
+    await markPaymentCharged(reservation.paymentId, intent.id, {
+      provider: "stripe",
+      paymentIntentId: intent.id,
+    });
+    return {
+      replay: false as const,
+      paymentId: reservation.paymentId,
+      charge: { transactionId: intent.id },
+    };
+  }
+
+  if (buyerConfig.provider === "paypal") {
+    if (!details.paypalOrderId) {
+      throw Object.assign(new Error("PayPal order confirmation is required"), { status: 400 });
+    }
+    const token = await getPayPalAccessToken(buyerConfig);
+    const base = getPayPalApiBase(buyerConfig.paypalEnvironment);
+    const orderResponse = await fetch(`${base}/v2/checkout/orders/${encodeURIComponent(details.paypalOrderId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!orderResponse.ok) throw Object.assign(new Error("PayPal order could not be verified"), { status: 400 });
+    const currentOrder = await orderResponse.json() as any;
+    let capture = currentOrder;
+    if (currentOrder.status !== "COMPLETED") {
+      const captureResponse = await fetch(`${base}/v2/checkout/orders/${encodeURIComponent(details.paypalOrderId)}/capture`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      if (!captureResponse.ok) throw Object.assign(new Error("PayPal could not complete this payment"), { status: 400 });
+      capture = await captureResponse.json();
+    }
+    const captureUnit = capture.purchase_units?.[0];
+    const capturedAmount = captureUnit?.payments?.captures?.[0]?.amount?.value
+      || captureUnit?.amount?.value;
+    if (capture.status !== "COMPLETED" || Number(capturedAmount) !== Number(details.amountDollars.toFixed(2))) {
+      throw Object.assign(new Error("PayPal payment amount could not be verified"), { status: 400 });
+    }
+    const reservation = await reserveExternalPayment(req, details);
+    if (reservation.replay) return reservation;
+    const transactionId = `paypal_${details.paypalOrderId}`;
+    await markPaymentCharged(reservation.paymentId, transactionId, {
+      provider: "paypal",
+      orderId: details.paypalOrderId,
+    });
+    return {
+      replay: false as const,
+      paymentId: reservation.paymentId,
+      charge: { transactionId },
+    };
+  }
+
+  if (!details.dataDescriptor || !details.dataValue) {
+    throw Object.assign(new Error("Payment token is required"), { status: 400 });
   }
 
   const idempotencyKey = String(req.body?.idempotencyKey || req.headers["idempotency-key"] || "");
@@ -534,6 +605,48 @@ async function secureAuthorizeCharge(
     throw Object.assign(new Error("Payment status is being reconciled; do not submit another payment"), { status: 503 });
   }
   return { replay: false as const, paymentId: reservation.paymentId, charge };
+}
+
+async function reserveExternalPayment(
+  req: Request,
+  details: {
+    route: string;
+    amountDollars: number;
+    ownerKey: string;
+    packageKey: string;
+    competitionId?: number | null;
+    contestantId?: number | null;
+    customerEmail?: string;
+    customerName?: string;
+  },
+) {
+  const idempotencyKey = String(req.body?.idempotencyKey || req.headers["idempotency-key"] || "");
+  try {
+    await enforcePaymentVelocity(req.ip || "unknown", details.customerEmail);
+  } catch (error: any) {
+    if (error.retryAfterSeconds) req.res?.set("Retry-After", String(error.retryAfterSeconds));
+    throw error;
+  }
+  const reservation = await reservePayment({
+    idempotencyKey,
+    route: details.route,
+    amountCents: Math.round(details.amountDollars * 100),
+    ownerKey: details.ownerKey,
+    packageKey: details.packageKey,
+    competitionId: details.competitionId,
+    contestantId: details.contestantId,
+    customerEmail: details.customerEmail?.trim().toLowerCase() || null,
+    customerName: details.customerName?.trim() || null,
+  });
+  if (reservation.state === "completed") {
+    return { replay: true as const, paymentId: reservation.paymentId, response: reservation.response };
+  }
+  if (reservation.state !== "reserved") {
+    throw Object.assign(new Error(reservation.state === "charged"
+      ? "Payment was charged and is awaiting fulfillment; contact support with the payment reference"
+      : "This payment request is already processing"), { status: 409 });
+  }
+  return { replay: false as const, paymentId: reservation.paymentId };
 }
 
 function normalizeNonprofitDeclaration(value: any) {
@@ -683,6 +796,8 @@ export async function registerRoutes(
       return res.status(500).json({ message: "Webhook persistence failed" });
     }
   });
+
+  registerPaymentProviderWebhooks(app);
 
   app.use(async (req, res, next) => {
     const originalJson = (res.json as Function).bind(res);
@@ -4337,7 +4452,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Join applications are currently closed" });
       }
 
-      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, chosenNonprofit } = req.body;
+      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, chosenNonprofit } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Name and email are required" });
       }
@@ -4363,6 +4478,7 @@ export async function registerRoutes(
           route: "/api/join/submit", amountDollars: settings.price / 100,
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `join:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
+          stripePaymentIntentId, paypalOrderId,
           description: "Join competition application", customerEmail: email, customerName: fullName,
         });
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
@@ -4487,7 +4603,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Nominations are not currently accepted" });
       }
 
-      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress } = req.body;
+      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Nominee name and email are required" });
       }
@@ -4518,6 +4634,7 @@ export async function registerRoutes(
           route: "/api/join/nominate", amountDollars: settings.nominationFee / 100,
           ownerKey: `email:${nominatorEmail.toLowerCase().trim()}`, packageKey: `nomination:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
+          stripePaymentIntentId, paypalOrderId,
           description: `Nomination fee for ${fullName}`, customerEmail: nominatorEmail, customerName: nominatorName,
           billingAddress,
         });
@@ -4834,7 +4951,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Host applications are currently closed" });
       }
 
-      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
+      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
       if (!fullName || !email || !eventName) {
         return res.status(400).json({ message: "Name, email, and event name are required" });
       }
@@ -4869,7 +4986,7 @@ export async function registerRoutes(
         const secured = await secureAuthorizeCharge(req, {
           route: "/api/host/submit", amountDollars: verifiedPackagePrice,
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `host:${verifiedPackageName}`,
-          dataDescriptor, dataValue, description: `Host package (${verifiedPackageName}): ${eventName}`,
+          dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, description: `Host package (${verifiedPackageName}): ${eventName}`,
           customerEmail: email, customerName: fullName,
           billingAddress,
         });
@@ -5014,6 +5131,8 @@ export async function registerRoutes(
         paypalConfigured: config.paypalConfigured,
         paypalClientId: config.paypalClientId,
         paypalEnvironment: config.paypalEnvironment,
+        stripeWebhookConfigured: Boolean(config.stripeWebhookSecret),
+        paypalWebhookConfigured: Boolean(config.paypalWebhookId),
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to load payment settings" });
@@ -5032,6 +5151,8 @@ export async function registerRoutes(
         stripeSecretKey: req.body?.stripeSecretKey,
         paypalClientId: req.body?.paypalClientId,
         paypalSecret: req.body?.paypalSecret,
+        stripeWebhookSecret: req.body?.stripeWebhookSecret,
+        paypalWebhookId: req.body?.paypalWebhookId,
         paypalEnvironment: req.body?.paypalEnvironment === "live" ? "live" : "sandbox",
       });
       res.json({
@@ -5238,6 +5359,132 @@ export async function registerRoutes(
     return { comp, stage, pkg, totalVotes, subtotalDollars, salesTaxPercent, taxAmount, amountInDollars };
   }
 
+  async function resolveProviderPaymentAmount(input: {
+    purpose: "join" | "nominate" | "host" | "vote";
+    competitionId?: number;
+    selectedPackageName?: string;
+    promoCode?: string;
+    packageId?: string;
+    packageIndex?: number;
+    individualVoteCount?: number;
+    contestantId?: number;
+    stageId?: string;
+  }) {
+    if (input.purpose === "vote") {
+      if (!input.competitionId || !input.contestantId || !input.packageId) {
+        throw Object.assign(new Error("Vote payment details are incomplete"), { status: 400 });
+      }
+      const charge = await resolveGuestVoteCharge({
+        competitionId: input.competitionId,
+        contestantId: input.contestantId,
+        stageId: input.stageId,
+        packageId: input.packageId,
+        packageIndex: input.packageIndex,
+        individualVoteCount: input.individualVoteCount,
+      });
+      return {
+        amountCents: Math.round(charge.amountInDollars * 100),
+        description: `${charge.totalVotes} votes for ${charge.comp.title}`,
+      };
+    }
+    if (input.purpose === "join") {
+      const settings = await firestoreJoinSettings.get();
+      if (settings.mode !== "purchase" || settings.price <= 0) {
+        throw Object.assign(new Error("This join application does not require payment"), { status: 400 });
+      }
+      return { amountCents: settings.price, description: "Join competition application" };
+    }
+    if (input.purpose === "nominate") {
+      const settings = await firestoreJoinSettings.get();
+      const promoValid = Boolean(input.promoCode && settings.freeNominationPromoCode
+        && input.promoCode.trim().toUpperCase() === settings.freeNominationPromoCode.trim().toUpperCase());
+      if (promoValid || settings.nominationFee <= 0) {
+        throw Object.assign(new Error("This nomination does not require payment"), { status: 400 });
+      }
+      return { amountCents: settings.nominationFee, description: "Competition nomination fee" };
+    }
+    const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
+    const packages = settingsDoc.data()?.hostingPackages || [
+      { name: "Starter", price: 49 },
+      { name: "Pro", price: 149 },
+      { name: "Premium", price: 399 },
+    ];
+    const selected = packages.find((pkg: any) => pkg.name === input.selectedPackageName);
+    if (!selected || Number(selected.price) <= 0) {
+      throw Object.assign(new Error("Invalid paid hosting package"), { status: 400 });
+    }
+    return { amountCents: Math.round(Number(selected.price) * 100), description: `Host package: ${selected.name}` };
+  }
+
+  app.post("/api/payment-provider/stripe-intent", async (req, res) => {
+    try {
+      const config = await getBuyerPaymentConfig();
+      if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
+      const input = req.body || {};
+      const purpose = input.purpose as "join" | "nominate" | "host" | "vote";
+      if (!["join", "nominate", "host", "vote"].includes(purpose)) return res.status(400).json({ message: "Invalid payment purpose" });
+      const charge = await resolveProviderPaymentAmount({ ...input, purpose });
+      const stripe = await getStripeBuyerClient();
+      const intent = await stripe.paymentIntents.create({
+        amount: charge.amountCents,
+        currency: "usd",
+        automatic_payment_methods: { enabled: true },
+        receipt_email: typeof input.email === "string" ? input.email : undefined,
+        description: charge.description,
+        metadata: {
+          idempotencyKey: String(input.idempotencyKey || ""),
+          purpose,
+          route: String(input.route || ""),
+        },
+      }, { idempotencyKey: String(input.idempotencyKey || "") || undefined });
+      res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id });
+    } catch (error: any) {
+      console.error("Provider Stripe intent creation error:", error);
+      res.status(error.status || 500).json({ message: error.message || "Unable to start Stripe checkout" });
+    }
+  });
+
+  app.post("/api/payment-provider/paypal-order", async (req, res) => {
+    try {
+      const config = await getBuyerPaymentConfig();
+      if (config.provider !== "paypal") return res.status(409).json({ message: "PayPal is not the active payment provider." });
+      const input = req.body || {};
+      const purpose = input.purpose as "join" | "nominate" | "host" | "vote";
+      if (!["join", "nominate", "host", "vote"].includes(purpose)) return res.status(400).json({ message: "Invalid payment purpose" });
+      const charge = await resolveProviderPaymentAmount({ ...input, purpose });
+      const token = await getPayPalAccessToken(config);
+      const response = await fetch(`${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "PayPal-Request-Id": String(input.idempotencyKey || ""),
+        },
+        body: JSON.stringify({
+          intent: "CAPTURE",
+          purchase_units: [{
+            reference_id: String(input.idempotencyKey || ""),
+            custom_id: purpose,
+            description: charge.description,
+            amount: { currency_code: "USD", value: (charge.amountCents / 100).toFixed(2) },
+          }],
+          application_context: {
+            brand_name: "The Quest",
+            user_action: "PAY_NOW",
+            return_url: String(input.returnUrl || ""),
+            cancel_url: String(input.cancelUrl || ""),
+          },
+        }),
+      });
+      if (!response.ok) throw new Error(`PayPal order creation failed (${response.status}).`);
+      const order = await response.json() as { id: string; links?: Array<{ rel: string; href: string }> };
+      res.json({ orderId: order.id, approvalUrl: order.links?.find((link) => link.rel === "approve")?.href || null });
+    } catch (error: any) {
+      console.error("Provider PayPal order creation error:", error);
+      res.status(error.status || 500).json({ message: error.message || "Unable to start PayPal checkout" });
+    }
+  });
+
   app.post("/api/guest/checkout/stripe-intent", async (req, res) => {
     try {
       const parsed = guestPaymentSetupSchema.safeParse(req.body);
@@ -5312,7 +5559,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
       }
 
-      const { name, email, competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, referralCode, billingAddress } = parsed.data;
+      const { name, email, competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, referralCode, billingAddress } = parsed.data;
 
       let resolvedRefCode: string | null = referralCode || null;
       if (referralCode) {
@@ -5394,6 +5641,7 @@ export async function registerRoutes(
           route: "/api/guest/checkout", amountDollars: amountInDollars,
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey,
           competitionId, contestantId, dataDescriptor, dataValue,
+          stripePaymentIntentId, paypalOrderId,
           description: `${totalVotes} votes for ${comp.title}${stage ? ` — ${stage.name}` : ""}`, customerEmail: email, customerName: name,
           billingAddress,
         });

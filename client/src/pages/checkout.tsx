@@ -852,7 +852,7 @@ export default function CheckoutPage() {
         </button>
 
         <p className="text-white/30 text-xs text-center mt-4">
-          Payments processed securely via Authorize.Net. Your card info never touches our servers.
+          Payments processed securely via {paymentConfig?.provider === "stripe" ? "Stripe" : paymentConfig?.provider === "paypal" ? "PayPal" : "Authorize.Net"}. Your card info never touches our servers.
         </p>
 
         {showConfirmModal && (() => {

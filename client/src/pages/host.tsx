@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { confirmStripeCardPayment, createPayPalRedirect, loadStripeScript, type BuyerPaymentConfig } from "@/lib/buyer-payment";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
@@ -48,11 +49,11 @@ interface PlatformSettings {
   termsFinePrint?: string;
 }
 
-interface PaymentConfig {
+type PaymentConfig = BuyerPaymentConfig & {
   apiLoginId: string;
   clientKey: string;
   environment: string;
-}
+};
 
 const FIELD_LABELS: Record<string, string> = {
   fullName: "Full Name",
@@ -130,6 +131,7 @@ export default function HostPage() {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [acceptLoaded, setAcceptLoaded] = useState(false);
+  const [stripeLoaded, setStripeLoaded] = useState(false);
   const [selectedPackageIdx, setSelectedPackageIdx] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -156,7 +158,7 @@ export default function HostPage() {
   const referenceCompetition = competitions?.find(c => c.id === referenceCompetitionId) || null;
 
   useEffect(() => {
-    if (paymentConfig && hostingPackages.length > 0 && hostingPackages.some(p => p.price > 0) && !acceptLoaded) {
+    if (paymentConfig?.provider === "authorize" && hostingPackages.length > 0 && hostingPackages.some(p => p.price > 0) && !acceptLoaded) {
       const scriptUrl = paymentConfig.environment === "production"
         ? "https://js.authorize.net/v1/Accept.js"
         : "https://jstest.authorize.net/v1/Accept.js";
@@ -169,6 +171,11 @@ export default function HostPage() {
       document.head.appendChild(script);
     }
   }, [paymentConfig, hostingPackages, acceptLoaded]);
+
+  useEffect(() => {
+    if (paymentConfig?.provider !== "stripe" || selectedPrice <= 0 || stripeLoaded) return;
+    loadStripeScript().then(setStripeLoaded);
+  }, [paymentConfig, selectedPrice, stripeLoaded]);
 
   const updateField = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -197,7 +204,12 @@ export default function HostPage() {
         toast({ title: "Please enter your billing address", variant: "destructive" });
         return false;
       }
-      if (!paymentConfig || !window.Accept) {
+      const ready = paymentConfig?.provider === "paypal"
+        ? Boolean(paymentConfig.paypalConfigured)
+        : paymentConfig?.provider === "stripe"
+          ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe)
+          : Boolean(paymentConfig && window.Accept);
+      if (!ready) {
         toast({ title: "Payment system not ready", variant: "destructive" });
         return false;
       }
@@ -209,7 +221,7 @@ export default function HostPage() {
     setShowConfirmModal(false);
     setProcessing(true);
 
-    const submitData = async (dataDescriptor?: string, dataValue?: string) => {
+    const submitData = async (dataDescriptor?: string, dataValue?: string, stripePaymentIntentId?: string, paypalOrderId?: string) => {
       try {
         await apiRequest("POST", "/api/host/submit", {
           idempotencyKey: paymentIdempotencyKey.current,
@@ -219,6 +231,8 @@ export default function HostPage() {
           mediaUrls: [],
           dataDescriptor,
           dataValue,
+          stripePaymentIntentId,
+          paypalOrderId,
           selectedPackageName: selectedPackage?.name || null,
           selectedPackagePrice: selectedPrice,
           referralCode: referralCode.trim().toUpperCase() || undefined,
@@ -233,7 +247,54 @@ export default function HostPage() {
       }
     };
 
-    if (selectedPrice > 0) {
+    if (selectedPrice > 0 && paymentConfig?.provider === "stripe") {
+      try {
+        const stripePaymentIntentId = await confirmStripeCardPayment({
+          publishableKey: paymentConfig.stripePublishableKey!,
+          purpose: "host",
+          intentPayload: {
+            idempotencyKey: paymentIdempotencyKey.current,
+            selectedPackageName: selectedPackage?.name,
+          },
+          cardNumber,
+          expMonth,
+          expYear,
+          cvv,
+          name: form.fullName || "",
+          email: form.email || "",
+          billingAddress,
+        });
+        await submitData(undefined, undefined, stripePaymentIntentId);
+      } catch (error: any) {
+        setProcessing(false);
+        toast({ title: "Stripe payment failed", description: error.message, variant: "destructive" });
+      }
+    } else if (selectedPrice > 0 && paymentConfig?.provider === "paypal") {
+      const paypalPayload = {
+        idempotencyKey: paymentIdempotencyKey.current,
+        ...form,
+        referenceCompetitionId,
+        inviteToken: inviteToken || undefined,
+        mediaUrls: [],
+        selectedPackageName: selectedPackage?.name || null,
+        selectedPackagePrice: selectedPrice,
+        referralCode: referralCode.trim().toUpperCase() || undefined,
+        billingAddress,
+      };
+      sessionStorage.setItem("quest_paypal_host", JSON.stringify(paypalPayload));
+      try {
+        await createPayPalRedirect({
+          purpose: "host",
+          payload: paypalPayload,
+          returnUrl: `${window.location.origin}/host?paypalReturn=1`,
+          cancelUrl: `${window.location.origin}/host?paypalCancel=1`,
+        });
+      } catch (error: any) {
+        sessionStorage.removeItem("quest_paypal_host");
+        setProcessing(false);
+        toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" });
+      }
+    } else if (selectedPrice > 0) {
       window.Accept!.dispatchData({
         authData: { clientKey: paymentConfig!.clientKey, apiLoginID: paymentConfig!.apiLoginId },
         cardData: {
@@ -258,7 +319,26 @@ export default function HostPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, billingAddress, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId, inviteToken, referralCode]);
+  }, [settings, form, billingAddress, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId, inviteToken, referralCode, stripeLoaded]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const paypalOrderId = params.get("token");
+    if (params.get("paypalReturn") !== "1" || !paypalOrderId) return;
+    const saved = sessionStorage.getItem("quest_paypal_host");
+    if (!saved) return;
+    setProcessing(true);
+    apiRequest("POST", "/api/host/submit", { ...JSON.parse(saved), paypalOrderId })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "PayPal payment could not be completed.");
+        sessionStorage.removeItem("quest_paypal_host");
+        setSuccess(true);
+        toast({ title: "Application submitted!", description: "We'll review your event proposal and get back to you." });
+      })
+      .catch((error: any) => toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" }))
+      .finally(() => setProcessing(false));
+  }, [searchString, toast]);
 
   const handlePayClick = useCallback(() => {
     if (!validateForm()) return;
@@ -635,7 +715,9 @@ export default function HostPage() {
 
         {selectedPrice > 0 && (
           <div className="mt-4 space-y-1 text-center">
-            <p className="text-white/30 text-xs">Payments processed securely via Authorize.Net.</p>
+            <p className="text-white/30 text-xs">
+              Payments processed securely via {paymentConfig?.provider === "stripe" ? "Stripe" : paymentConfig?.provider === "paypal" ? "PayPal" : "Authorize.Net"}.
+            </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}
               <a href="/about#terms" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.

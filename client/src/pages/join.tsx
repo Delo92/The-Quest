@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { confirmStripeCardPayment, createPayPalRedirect, loadStripeScript, type BuyerPaymentConfig } from "@/lib/buyer-payment";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
@@ -30,11 +31,11 @@ interface JoinSettings {
   hasPromoCode?: boolean;
 }
 
-interface PaymentConfig {
+type PaymentConfig = BuyerPaymentConfig & {
   apiLoginId: string;
   clientKey: string;
   environment: string;
-}
+};
 
 const FIELD_LABELS: Record<string, string> = {
   fullName: "Full Name",
@@ -75,6 +76,7 @@ export default function JoinPage() {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [acceptLoaded, setAcceptLoaded] = useState(false);
+  const [stripeLoaded, setStripeLoaded] = useState(false);
   const searchString = useSearch();
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -171,7 +173,7 @@ export default function JoinPage() {
   const paymentAmount = settings?.nominationFee || 0;
 
   useEffect(() => {
-    if (paymentConfig && needsPayment && !acceptLoaded) {
+    if (paymentConfig?.provider === "authorize" && needsPayment && !acceptLoaded) {
       const scriptUrl = paymentConfig.environment === "production"
         ? "https://js.authorize.net/v1/Accept.js"
         : "https://jstest.authorize.net/v1/Accept.js";
@@ -184,6 +186,11 @@ export default function JoinPage() {
       document.head.appendChild(script);
     }
   }, [paymentConfig, needsPayment, acceptLoaded]);
+
+  useEffect(() => {
+    if (paymentConfig?.provider !== "stripe" || !needsPayment || stripeLoaded) return;
+    loadStripeScript().then(setStripeLoaded);
+  }, [paymentConfig, needsPayment, stripeLoaded]);
 
   const updateField = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -249,19 +256,24 @@ export default function JoinPage() {
         toast({ title: "Please enter your billing address", variant: "destructive" });
         return false;
       }
-      if (!paymentConfig || !window.Accept) {
+      const ready = paymentConfig?.provider === "paypal"
+        ? Boolean(paymentConfig.paypalConfigured)
+        : paymentConfig?.provider === "stripe"
+          ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe)
+          : Boolean(paymentConfig && window.Accept);
+      if (!ready) {
         toast({ title: "Payment system not ready", variant: "destructive" });
         return false;
       }
     }
     return true;
-  }, [settings, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast]);
+  }, [settings, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
     setProcessing(true);
 
-    const submitData = async (dataDescriptor?: string, dataValue?: string) => {
+    const submitData = async (dataDescriptor?: string, dataValue?: string, stripePaymentIntentId?: string, paypalOrderId?: string) => {
       try {
         await apiRequest("POST", "/api/join/nominate", {
           idempotencyKey: paymentIdempotencyKey.current,
@@ -280,6 +292,8 @@ export default function JoinPage() {
           promoCode: promoValidated ? promoCode : undefined,
           dataDescriptor,
           dataValue,
+          stripePaymentIntentId,
+          paypalOrderId,
           billingAddress,
         });
         setSuccess(true);
@@ -291,7 +305,61 @@ export default function JoinPage() {
       }
     };
 
-    if (needsPayment) {
+    if (needsPayment && paymentConfig?.provider === "stripe") {
+      try {
+        const stripePaymentIntentId = await confirmStripeCardPayment({
+          publishableKey: paymentConfig.stripePublishableKey!,
+          purpose: "nominate",
+          intentPayload: {
+            idempotencyKey: paymentIdempotencyKey.current,
+            competitionId: selectedCompetitionId,
+            promoCode: promoValidated ? promoCode : undefined,
+          },
+          cardNumber,
+          expMonth,
+          expYear,
+          cvv,
+          name: nominatorForm.name || form.fullName || "",
+          email: nominatorForm.email || "",
+          billingAddress,
+        });
+        await submitData(undefined, undefined, stripePaymentIntentId);
+      } catch (error: any) {
+        setProcessing(false);
+        toast({ title: "Stripe payment failed", description: error.message, variant: "destructive" });
+      }
+    } else if (needsPayment && paymentConfig?.provider === "paypal") {
+      const paypalPayload = {
+        idempotencyKey: paymentIdempotencyKey.current,
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone || "",
+        bio: form.bio || "",
+        category: form.category || "",
+        chosenNonprofit: form.chosenNonprofit || null,
+        competitionId: selectedCompetitionId,
+        nominatorName: nominatorForm.name,
+        nominatorEmail: nominatorForm.email,
+        nominatorPhone: nominatorForm.phone || "",
+        referralCode: referralCode || undefined,
+        mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
+        promoCode: promoValidated ? promoCode : undefined,
+        billingAddress,
+      };
+      sessionStorage.setItem("quest_paypal_nomination", JSON.stringify(paypalPayload));
+      try {
+        await createPayPalRedirect({
+          purpose: "nominate",
+          payload: paypalPayload,
+          returnUrl: `${window.location.origin}/join?paypalReturn=1`,
+          cancelUrl: `${window.location.origin}/join?paypalCancel=1`,
+        });
+      } catch (error: any) {
+        sessionStorage.removeItem("quest_paypal_nomination");
+        setProcessing(false);
+        toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" });
+      }
+    } else if (needsPayment) {
       window.Accept!.dispatchData({
         authData: { clientKey: paymentConfig!.clientKey, apiLoginID: paymentConfig!.apiLoginId },
         cardData: {
@@ -316,7 +384,26 @@ export default function JoinPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl]);
+  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const paypalOrderId = params.get("token");
+    if (params.get("paypalReturn") !== "1" || !paypalOrderId) return;
+    const saved = sessionStorage.getItem("quest_paypal_nomination");
+    if (!saved) return;
+    setProcessing(true);
+    apiRequest("POST", "/api/join/nominate", { ...JSON.parse(saved), paypalOrderId })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "PayPal payment could not be completed.");
+        sessionStorage.removeItem("quest_paypal_nomination");
+        setSuccess(true);
+        toast({ title: "Nomination submitted!", description: "Thank you for your nomination!" });
+      })
+      .catch((error: any) => toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" }))
+      .finally(() => setProcessing(false));
+  }, [searchString, toast]);
 
   const handlePayClick = useCallback(() => {
     if (!validateForm()) return;
@@ -937,7 +1024,9 @@ export default function JoinPage() {
 
         {needsPayment && (
           <div className="mt-4 space-y-1 text-center">
-            <p className="text-white/30 text-xs">Payments processed securely via Authorize.Net.</p>
+            <p className="text-white/30 text-xs">
+              Payments processed securely via {paymentConfig?.provider === "stripe" ? "Stripe" : paymentConfig?.provider === "paypal" ? "PayPal" : "Authorize.Net"}.
+            </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}
               <a href="/about#terms" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.

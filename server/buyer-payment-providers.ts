@@ -8,8 +8,10 @@ type BuyerPaymentSettings = {
   paymentProvider?: BuyerPaymentProvider;
   stripePublishableKey?: string;
   stripeSecretKeyEncrypted?: string;
+  stripeWebhookSecretEncrypted?: string;
   paypalClientId?: string;
   paypalSecretEncrypted?: string;
+  paypalWebhookId?: string;
   paypalEnvironment?: "sandbox" | "live";
 };
 
@@ -33,6 +35,9 @@ export async function getBuyerPaymentConfig() {
   const stripePublishableKey = settings.stripePublishableKey || envValue("STRIPE_PUBLISHABLE_KEY");
   const paypalClientId = settings.paypalClientId || envValue("PAYPAL_CLIENT_ID");
   const paypalEnvironment = settings.paypalEnvironment || (process.env.PAYPAL_USE_LIVE === "true" ? "live" : "sandbox");
+  const stripeWebhookSecret = settings.stripeWebhookSecretEncrypted
+    ? decrypt(settings.stripeWebhookSecretEncrypted)
+    : envValue("STRIPE_WEBHOOK_SECRET");
   const stripeConfigured = Boolean(stripeSecretKey && stripePublishableKey);
   const paypalConfigured = Boolean(paypalClientId && paypalSecret);
   const requestedProvider = settings.paymentProvider || "authorize";
@@ -50,6 +55,8 @@ export async function getBuyerPaymentConfig() {
     paypalConfigured,
     paypalClientId: paypalClientId || null,
     paypalEnvironment,
+    stripeWebhookSecret,
+    paypalWebhookId: settings.paypalWebhookId || envValue("PAYPAL_WEBHOOK_ID") || null,
     stripeSecretKey,
     paypalSecret,
   };
@@ -61,6 +68,8 @@ export async function saveBuyerPaymentSettings(input: {
   stripeSecretKey?: string;
   paypalClientId?: string;
   paypalSecret?: string;
+  stripeWebhookSecret?: string;
+  paypalWebhookId?: string;
   paypalEnvironment?: "sandbox" | "live";
 }) {
   const update: BuyerPaymentSettings = {
@@ -70,13 +79,15 @@ export async function saveBuyerPaymentSettings(input: {
 
   if (input.stripePublishableKey?.trim()) update.stripePublishableKey = input.stripePublishableKey.trim();
   if (input.paypalClientId?.trim()) update.paypalClientId = input.paypalClientId.trim();
+  if (input.paypalWebhookId?.trim()) update.paypalWebhookId = input.paypalWebhookId.trim();
 
-  if (input.stripeSecretKey?.trim() || input.paypalSecret?.trim()) {
+  if (input.stripeSecretKey?.trim() || input.paypalSecret?.trim() || input.stripeWebhookSecret?.trim()) {
     if (!isEncryptionKeySet()) {
       throw Object.assign(new Error("ENCRYPTION_KEY must be configured before saving payment secrets."), { status: 400 });
     }
     if (input.stripeSecretKey?.trim()) update.stripeSecretKeyEncrypted = encrypt(input.stripeSecretKey.trim());
     if (input.paypalSecret?.trim()) update.paypalSecretEncrypted = encrypt(input.paypalSecret.trim());
+    if (input.stripeWebhookSecret?.trim()) update.stripeWebhookSecretEncrypted = encrypt(input.stripeWebhookSecret.trim());
   }
 
   await getFirestore().collection("site_settings").doc("main").set(update, { merge: true });
