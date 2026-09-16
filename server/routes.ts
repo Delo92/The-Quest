@@ -2041,12 +2041,19 @@ export async function registerRoutes(
     }
     if (safeData.payoutInfo !== undefined && safeData.payoutInfo !== null) {
       const pi = safeData.payoutInfo as any;
-      const allowed = ["zelle", "paypal", "cashapp", "venmo", "check", "ach", ""];
+      const routing = String(pi.routingNumber || "").replace(/\D/g, "").slice(0, 9);
+      const account = String(pi.accountNumber || "").replace(/\D/g, "").slice(0, 17);
+      const accountType = ["checking", "savings"].includes(pi.accountType) ? pi.accountType : "checking";
+      const legalName = String(pi.legalName || "").trim().slice(0, 200);
+      const paypalEmail = String(pi.paypalEmail || "").trim().toLowerCase().slice(0, 200);
+      const method = routing && account ? "ach" : paypalEmail ? "paypal" : "";
       safeData.payoutInfo = {
-        method: allowed.includes(pi.method) ? pi.method : "",
-        accountHandle: String(pi.accountHandle || "").slice(0, 200),
-        legalName: String(pi.legalName || "").slice(0, 200),
-        notes: String(pi.notes || "").slice(0, 500),
+        method,
+        routingNumber: routing,
+        accountNumber: account,
+        accountType,
+        legalName,
+        ...(paypalEmail ? { paypalEmail } : {}),
         updatedAt: new Date().toISOString(),
       };
     }

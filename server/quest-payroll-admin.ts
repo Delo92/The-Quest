@@ -4,6 +4,7 @@ import { getFirestore } from "./firebase-admin";
 import { firebaseAuth, requireAdmin, requireHost } from "./auth-middleware";
 import { storage } from "./storage";
 import { firestoreJoinSettings } from "./firestore-collections";
+import { runMonthlyPayouts } from "./quest-payout-job";
 
 const SETTINGS = "questPayrollSettings";
 const PAYEES = "questPayrollPayees";
@@ -14,7 +15,7 @@ const SIGNINGS = "questPayrollSignings";
 const TRANSACTIONS = "questPayrollTransactions";
 const AUDIT = "questPayrollAuditEvents";
 
-const PAYMENT_METHODS = ["manual", "ach", "paypal", "check", "other"] as const;
+const PAYMENT_METHODS = ["manual", "ach", "stripe_ach", "paypal", "check", "other"] as const;
 const PAYEE_TYPES = ["contestant", "host", "referrer", "nonprofit"] as const;
 const AGREEMENT_STATUSES = ["draft", "active", "archived"] as const;
 const LEDGER_STATUSES = ["pending_approval", "approved", "paid", "blocked", "failed", "forfeited"] as const;
@@ -919,4 +920,38 @@ export function registerQuestPayrollAdmin(app: Express) {
 
   app.put("/api/admin/payroll/competition-rules/:competitionId", firebaseAuth, requireAdmin, saveCompetitionRules);
   app.put("/api/host/competitions/:competitionId/payroll-rules", firebaseAuth, requireHost, saveCompetitionRules);
+
+  /**
+   * POST /api/admin/payroll/execute-monthly
+   * Triggers the monthly payout job immediately.
+   * Safe to call manually from the admin UI or by a cron scheduler on the 1st.
+   * Returns a full summary: paid, skipped, and failed entries.
+   */
+  app.post("/api/admin/payroll/execute-monthly", firebaseAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      const triggeredBy = req.firebaseUser?.email || req.firebaseUser?.uid || "admin";
+      await audit(req.firebaseUser, "monthly_payout_job_triggered", { triggeredBy });
+      const result = await runMonthlyPayouts(triggeredBy);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[payroll/execute-monthly]", error);
+      res.status(500).json({ message: error.message || "Payout job failed." });
+    }
+  });
+
+  /**
+   * GET /api/admin/payroll/stripe-balance
+   * Returns current platform Stripe balance (available + pending cents).
+   * Used in the admin payroll UI to show how much is ready to disburse.
+   */
+  app.get("/api/admin/payroll/stripe-balance", firebaseAuth, requireAdmin, async (_req: any, res: any) => {
+    try {
+      const { getStripeBalance } = await import("./stripe-payouts");
+      const balance = await getStripeBalance();
+      res.json(balance);
+    } catch (error: any) {
+      // Not fatal — Stripe may not be configured yet
+      res.json({ available: null, pending: null, error: error.message });
+    }
+  });
 }

@@ -139,10 +139,14 @@ export interface FirestoreTalentProfile {
 }
 
 export interface FirestorePayoutInfo {
-  method: "zelle" | "paypal" | "cashapp" | "venmo" | "check" | "ach" | "";
-  accountHandle: string;   // email, phone, or @username depending on method
-  legalName: string;       // required for check / ACH
-  notes: string;           // anything else admin needs to know
+  method: "ach" | "paypal" | "";
+  // ACH direct deposit
+  routingNumber: string;
+  accountNumber: string;
+  accountType: "checking" | "savings" | "";
+  legalName: string;
+  // PayPal fallback (used when no ACH info is on file)
+  paypalEmail?: string;
   updatedAt: string;
 }
 
