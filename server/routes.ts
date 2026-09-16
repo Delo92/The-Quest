@@ -55,6 +55,8 @@ import {
   isOCAdapterConfigured,
   createOCPayment,
   getOCPayment,
+  captureOCPayPalPayment,
+  refundOCPayment,
 } from "./services/ocAdapter";
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchaseFeed";
@@ -5459,6 +5461,7 @@ export async function registerRoutes(
       if (isOCAdapterConfigured()) {
         const questOrderId = String(input.idempotencyKey || `${purpose}-${Date.now()}`);
         const ocPayment = await createOCPayment({
+          provider: "stripe",
           amountCents: charge.amountCents,
           questOrderId,
           description: charge.description,
@@ -5495,12 +5498,30 @@ export async function registerRoutes(
 
   app.post("/api/payment-provider/paypal-order", async (req, res) => {
     try {
-      const config = await getBuyerPaymentConfig();
-      if (config.provider !== "paypal") return res.status(409).json({ message: "PayPal is not the active payment provider." });
       const input = req.body || {};
       const purpose = input.purpose as "join" | "nominate" | "host" | "vote";
       if (!["join", "nominate", "host", "vote"].includes(purpose)) return res.status(400).json({ message: "Invalid payment purpose" });
       const charge = await resolveProviderPaymentAmount({ ...input, purpose });
+
+      // ── Route through OC when integration token is configured ──────────────
+      if (isOCAdapterConfigured()) {
+        const questOrderId = String(input.idempotencyKey || `${purpose}-${Date.now()}`);
+        const ocPayment = await createOCPayment({
+          provider: "paypal",
+          amountCents: charge.amountCents,
+          questOrderId,
+          description: charge.description,
+          idempotencyKey: questOrderId,
+        });
+        return res.json({
+          approvalUrl: ocPayment.approvalUrl,
+          ocPaymentId: ocPayment.ocPaymentId,
+          provider: "oc-paypal",
+        });
+      }
+
+      const config = await getBuyerPaymentConfig();
+      if (config.provider !== "paypal") return res.status(409).json({ message: "PayPal is not the active payment provider." });
       const token = await getPayPalAccessToken(config);
       const response = await fetch(`${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
         method: "POST",
@@ -5543,6 +5564,7 @@ export async function registerRoutes(
       // ── Route through OC when integration token is configured ──────────────
       if (isOCAdapterConfigured()) {
         const ocPayment = await createOCPayment({
+          provider: "stripe",
           amountCents: Math.round(charge.amountInDollars * 100),
           questOrderId: parsed.data.idempotencyKey,
           description: `${charge.totalVotes} votes for ${charge.comp.title}`,
@@ -5581,9 +5603,26 @@ export async function registerRoutes(
     try {
       const parsed = guestPaymentSetupSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid checkout data" });
+      const charge = await resolveGuestVoteCharge(parsed.data);
+
+      // ── Route through OC when integration token is configured ──────────────
+      if (isOCAdapterConfigured()) {
+        const ocPayment = await createOCPayment({
+          provider: "paypal",
+          amountCents: Math.round(charge.amountInDollars * 100),
+          questOrderId: parsed.data.idempotencyKey,
+          description: `${charge.totalVotes} votes for ${charge.comp.title}`,
+          idempotencyKey: parsed.data.idempotencyKey,
+        });
+        return res.json({
+          approvalUrl: ocPayment.approvalUrl,
+          ocPaymentId: ocPayment.ocPaymentId,
+          provider: "oc-paypal",
+        });
+      }
+
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "paypal") return res.status(409).json({ message: "PayPal is not the active payment provider." });
-      const charge = await resolveGuestVoteCharge(parsed.data);
       const token = await getPayPalAccessToken(config);
       const response = await fetch(`${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
         method: "POST",
@@ -5614,6 +5653,42 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("PayPal order creation error:", error);
       res.status(error.status || 500).json({ message: error.message || "Unable to start PayPal checkout" });
+    }
+  });
+
+  // ── OC PayPal capture — called after buyer returns from PayPal approval ─────
+  // The frontend stores ocPaymentId in sessionStorage before the redirect, then
+  // calls this endpoint on return to capture the approved PayPal order.
+  app.post("/api/oc/paypal-capture", async (req, res) => {
+    try {
+      if (!isOCAdapterConfigured()) {
+        return res.status(503).json({ message: "OC integration is not configured." });
+      }
+      const { ocPaymentId } = req.body || {};
+      if (!ocPaymentId || typeof ocPaymentId !== "string") {
+        return res.status(400).json({ message: "ocPaymentId is required." });
+      }
+      const result = await captureOCPayPalPayment(ocPaymentId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[oc/paypal-capture] error:", error.message);
+      res.status(error.status || 500).json({ message: error.message || "Could not capture PayPal payment." });
+    }
+  });
+
+  // ── OC payment refund — admin-initiated refund via OC ──────────────────────
+  app.post("/api/oc/payments/:ocPaymentId/refund", firebaseAuth, requireAdmin, async (req: any, res: any) => {
+    try {
+      if (!isOCAdapterConfigured()) {
+        return res.status(503).json({ message: "OC integration is not configured." });
+      }
+      const { ocPaymentId } = req.params;
+      const { amountCents, reason } = req.body || {};
+      const result = await refundOCPayment(ocPaymentId, { amountCents, reason });
+      res.json(result);
+    } catch (error: any) {
+      console.error("[oc/refund] error:", error.message);
+      res.status(error.status || 500).json({ message: error.message || "Could not process refund." });
     }
   });
 
