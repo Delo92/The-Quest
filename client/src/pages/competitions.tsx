@@ -8,6 +8,7 @@ import { slugify } from "@shared/slugify";
 type CompetitionExt = Competition & {
   coverVideo?: string | null;
   coverVideoThumbnail?: string | null;
+  directVideoUrl?: string | null;
   hostedBy?: string | null;
 };
 import { useState } from "react";

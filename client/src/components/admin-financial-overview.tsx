@@ -16,6 +16,8 @@ type FinancialOverview = {
     pendingPayoutCents: number;
     paidPayoutCents: number;
     forfeitedCents: number;
+    freeVoteCount: number;
+    totalVoteCount: number;
   };
   competitions: Array<{
     competitionId: number;
@@ -94,7 +96,6 @@ type FinancialOverview = {
     paymentInfoProvided: boolean;
     blockedReason?: string | null;
   }>;
-  summary: FinancialOverview["summary"] & { freeVoteCount: number; totalVoteCount: number };
   nonprofitDeclarations: Array<{
     name: string;
     role: string;

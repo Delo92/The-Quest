@@ -6909,7 +6909,7 @@ export async function registerRoutes(
         (async () => {
           try {
             if (!comp.createdBy) return null;
-            return await storage.getUserProfile(comp.createdBy) || null;
+            return await storage.getUser(comp.createdBy) || null;
           } catch { return null; }
         })(),
       ]);

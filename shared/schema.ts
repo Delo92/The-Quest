@@ -59,6 +59,10 @@ export interface TalentProfile {
   socialLinks: string | null;
   profileColor?: string | null;
   profileBgImage?: string | null;
+  nonprofitDeclaration?: {
+    organizationName?: string | null;
+    [key: string]: unknown;
+  } | null;
   role: string;
 }
 

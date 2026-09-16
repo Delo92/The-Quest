@@ -197,7 +197,8 @@ async function buildFinancialOverview() {
     firestoreJoinSettings.get(),
   ]);
 
-  const payees = payeesSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+  const payees: Array<{ id: string; name?: string; [key: string]: any }> =
+    payeesSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
   const ledger = ledgerSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
   const transactions = transactionsSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
   const batches = batchesSnap.docs.map((doc) => serialize(doc.id, doc.data() || {}));
