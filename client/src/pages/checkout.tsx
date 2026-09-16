@@ -16,6 +16,17 @@ import { slugify } from "@shared/slugify";
 
 declare global {
   interface Window {
+    Stripe?: (publishableKey: string) => {
+      confirmCardPayment: (
+        clientSecret: string,
+        data: {
+          payment_method: {
+            card: { number: string; exp_month: number; exp_year: number; cvc: string };
+            billing_details: { name: string; email: string; address?: { line1?: string; city?: string; state?: string; postal_code?: string; country?: string } };
+          };
+        },
+      ) => Promise<{ paymentIntent?: { id: string; status: string }; error?: { message?: string } }>;
+    };
     Accept?: {
       dispatchData: (
         secureData: {
@@ -57,6 +68,10 @@ interface PaymentConfig {
   apiLoginId: string;
   clientKey: string;
   environment: string;
+  provider?: "authorize" | "stripe" | "paypal";
+  stripePublishableKey?: string | null;
+  stripeConfigured?: boolean;
+  paypalConfigured?: boolean;
 }
 
 export default function CheckoutPage() {
@@ -89,6 +104,7 @@ export default function CheckoutPage() {
   const [successData, setSuccessData] = useState<{ transactionId: string; votesAdded: number } | null>(null);
   const [referralCode, setReferralCode] = useState("");
   const [acceptLoaded, setAcceptLoaded] = useState(false);
+  const [stripeLoaded, setStripeLoaded] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const { data: competition, isLoading: compLoading } = useQuery<CompetitionDetail>({
@@ -121,7 +137,7 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (paymentConfig && !acceptLoaded) {
+    if (paymentConfig?.provider === "authorize" && !acceptLoaded) {
       const scriptUrl = paymentConfig.environment === "production"
         ? "https://js.authorize.net/v1/Accept.js"
         : "https://jstest.authorize.net/v1/Accept.js";
@@ -140,6 +156,20 @@ export default function CheckoutPage() {
     }
   }, [paymentConfig, acceptLoaded]);
 
+  useEffect(() => {
+    if (paymentConfig?.provider !== "stripe" || stripeLoaded) return;
+    const existing = document.querySelector('script[src="https://js.stripe.com/v3/"]');
+    if (existing && window.Stripe) {
+      setStripeLoaded(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://js.stripe.com/v3/";
+    script.async = true;
+    script.onload = () => setStripeLoaded(Boolean(window.Stripe));
+    document.head.appendChild(script);
+  }, [paymentConfig, stripeLoaded]);
+
   const contestant = competition?.contestants?.find((c) => c.id === contestantId);
   const selectedPkg = packages?.find((p) => p.id === selectedPackage);
   const isIndividual = selectedPackage === "individual";
@@ -157,7 +187,7 @@ export default function CheckoutPage() {
       toast({ title: "Please enter a valid number of votes (1-10,000)", variant: "destructive" });
       return false;
     }
-    if (!cardNumber || !expMonth || !expYear || !cvv) {
+    if (paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv)) {
       toast({ title: "Please enter your card details", variant: "destructive" });
       return false;
     }
@@ -165,16 +195,99 @@ export default function CheckoutPage() {
       toast({ title: "Please enter your billing address", variant: "destructive" });
       return false;
     }
-    if (!paymentConfig || !window.Accept) {
+    const paymentReady = paymentConfig?.provider === "paypal"
+      ? Boolean(paymentConfig.paypalConfigured)
+      : paymentConfig?.provider === "stripe"
+        ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe)
+        : Boolean(paymentConfig && window.Accept);
+    if (!paymentReady) {
       toast({ title: "Payment system not ready. Please try again.", variant: "destructive" });
       return false;
     }
     return true;
-  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast]);
+  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
 
   const processCheckout = useCallback(async () => {
     setShowConfirmModal(false);
     setProcessing(true);
+
+    const pkgIndex = selectedPackage?.startsWith("pkg_") ? parseInt(selectedPackage.replace("pkg_", "")) : undefined;
+    const checkoutBody: any = {
+      idempotencyKey: paymentIdempotencyKey.current,
+      name: name.trim(),
+      email: email.trim(),
+      competitionId,
+      contestantId,
+      stageId: stageId || undefined,
+      packageId: selectedPackage,
+      packageIndex: isIndividual ? undefined : pkgIndex,
+      createAccount,
+      referralCode: referralCode || undefined,
+      billingAddress,
+      paymentProvider: paymentConfig?.provider || "authorize",
+    };
+    if (isIndividual) checkoutBody.individualVoteCount = individualVoteCount;
+
+    if (paymentConfig?.provider === "paypal") {
+      try {
+        sessionStorage.setItem("quest_paypal_checkout", JSON.stringify(checkoutBody));
+        const response = await apiRequest("POST", "/api/guest/checkout/paypal-order", checkoutBody);
+        const order = await response.json();
+        if (!order.approvalUrl) throw new Error("PayPal did not return an approval link.");
+        window.location.assign(order.approvalUrl);
+      } catch (error: any) {
+        setProcessing(false);
+        toast({ title: "PayPal checkout failed", description: error.message?.replace(/^\d+:\s*/, "") || "Unable to start PayPal checkout", variant: "destructive" });
+      }
+      return;
+    }
+
+    if (paymentConfig?.provider === "stripe") {
+      try {
+        const intentResponse = await apiRequest("POST", "/api/guest/checkout/stripe-intent", checkoutBody);
+        const intent = await intentResponse.json();
+        if (!window.Stripe || !paymentConfig.stripePublishableKey || !intent.clientSecret) {
+          throw new Error("Stripe is not ready.");
+        }
+        const stripe = window.Stripe(paymentConfig.stripePublishableKey);
+        const result = await stripe.confirmCardPayment(intent.clientSecret, {
+          payment_method: {
+            card: {
+              number: cardNumber.replace(/\s/g, ""),
+              exp_month: parseInt(expMonth, 10),
+              exp_year: parseInt(expYear.length === 2 ? `20${expYear}` : expYear, 10),
+              cvc: cvv,
+            },
+            billing_details: {
+              name: name.trim(),
+              email: email.trim(),
+              address: {
+                line1: billingAddress.address,
+                city: billingAddress.city,
+                state: billingAddress.state,
+                postal_code: billingAddress.zip,
+              },
+            },
+          },
+        });
+        if (result.error || !result.paymentIntent || result.paymentIntent.status !== "succeeded") {
+          throw new Error(result.error?.message || "Stripe payment was not completed.");
+        }
+        const resultResponse = await apiRequest("POST", "/api/guest/checkout", {
+          ...checkoutBody,
+          stripePaymentIntentId: result.paymentIntent.id,
+        });
+        const data = await resultResponse.json();
+        setSuccess(true);
+        setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
+        toast({ title: "Purchase successful!", description: `${data.votesAdded} votes added!` });
+      } catch (error: any) {
+        toast({ title: "Checkout Failed", description: error.message?.replace(/^\d+:\s*/, "") || "Something went wrong", variant: "destructive" });
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
 
     const secureData = {
       authData: {
@@ -204,25 +317,11 @@ export default function CheckoutPage() {
       }
 
       try {
-        const pkgIndex = selectedPackage?.startsWith("pkg_") ? parseInt(selectedPackage.replace("pkg_", "")) : undefined;
-        const body: any = {
-          idempotencyKey: paymentIdempotencyKey.current,
-          name: name.trim(),
-          email: email.trim(),
-          competitionId,
-          contestantId,
-          stageId: stageId || undefined,
-          packageId: selectedPackage,
-          packageIndex: isIndividual ? undefined : pkgIndex,
-          createAccount,
-          dataDescriptor: tokenResponse.opaqueData.dataDescriptor,
-          dataValue: tokenResponse.opaqueData.dataValue,
-          referralCode: referralCode || undefined,
-          billingAddress,
-        };
-        if (isIndividual) {
-          body.individualVoteCount = individualVoteCount;
-        }
+         const body = {
+           ...checkoutBody,
+           dataDescriptor: tokenResponse.opaqueData.dataDescriptor,
+           dataValue: tokenResponse.opaqueData.dataValue,
+         };
         const result = await apiRequest("POST", "/api/guest/checkout", body);
 
         const data = await result.json();
@@ -235,7 +334,33 @@ export default function CheckoutPage() {
         setProcessing(false);
       }
     });
-  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode]);
+  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode, stageId, stripeLoaded]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paypalOrderId = params.get("token");
+    if (params.get("paypalReturn") !== "1" || !paypalOrderId) return;
+    const saved = sessionStorage.getItem("quest_paypal_checkout");
+    if (!saved) return;
+    try {
+      const body = { ...JSON.parse(saved), paypalOrderId, paymentProvider: "paypal" };
+      setProcessing(true);
+      apiRequest("POST", "/api/guest/checkout", body)
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || "PayPal payment could not be completed.");
+          setSuccess(true);
+          setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
+          sessionStorage.removeItem("quest_paypal_checkout");
+          toast({ title: "Purchase successful!", description: `${data.votesAdded} votes added!` });
+        })
+        .catch((error: any) => toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" }))
+        .finally(() => setProcessing(false));
+    } catch {
+      toast({ title: "PayPal checkout failed", description: "Your checkout session could not be restored.", variant: "destructive" });
+      setProcessing(false);
+    }
+  }, [toast]);
 
   const handlePayClick = useCallback(() => {
     if (!validateCheckout()) return;

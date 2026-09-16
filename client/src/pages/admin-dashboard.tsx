@@ -1010,6 +1010,14 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [calendarSelectedDay, setCalendarSelectedDay] = useState<number | null>(null);
   const [calendarSelectedComp, setCalendarSelectedComp] = useState<number | null>(null);
   const [settingsForm, setSettingsForm] = useState<any>(null);
+  const [paymentForm, setPaymentForm] = useState({
+    paymentProvider: "authorize" as "authorize" | "stripe" | "paypal",
+    stripePublishableKey: "",
+    stripeSecretKey: "",
+    paypalClientId: "",
+    paypalSecret: "",
+    paypalEnvironment: "sandbox" as "sandbox" | "live",
+  });
   const [compSearch, setCompSearch] = useState("");
   const [compCategoryFilter, setCompCategoryFilter] = useState("all");
   const [compPage, setCompPage] = useState(1);
@@ -1153,12 +1161,27 @@ export default function AdminDashboard({ user }: { user: any }) {
   const { data: platformSettings } = useQuery<any>({
     queryKey: ["/api/platform-settings"],
   });
+  const { data: paymentSettings } = useQuery<any>({
+    queryKey: ["/api/admin/payment-settings"],
+  });
 
   useEffect(() => {
     if (platformSettings && !settingsForm) {
       setSettingsForm(platformSettings);
     }
   }, [platformSettings]);
+
+  useEffect(() => {
+    if (paymentSettings) {
+      setPaymentForm((current) => ({
+        ...current,
+        paymentProvider: paymentSettings.provider || "authorize",
+        stripePublishableKey: paymentSettings.stripePublishableKey || "",
+        paypalClientId: paymentSettings.paypalClientId || "",
+        paypalEnvironment: paymentSettings.paypalEnvironment || "sandbox",
+      }));
+    }
+  }, [paymentSettings]);
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (settings: any) => {
@@ -1171,6 +1194,27 @@ export default function AdminDashboard({ user }: { user: any }) {
     },
     onError: (err: Error) => {
       toast({ title: "Failed to save settings", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const savePaymentMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PUT", "/api/admin/payment-settings", paymentForm);
+      return res.json();
+    },
+    onSuccess: (saved) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payment-config"] });
+      setPaymentForm((current) => ({ ...current, stripeSecretKey: "", paypalSecret: "" }));
+      toast({
+        title: "Payment provider saved",
+        description: saved.provider === paymentForm.paymentProvider
+          ? `${saved.provider === "authorize" ? "Authorize.Net" : saved.provider === "stripe" ? "Stripe" : "PayPal"} is now active.`
+          : "Credentials saved, but the selected provider is not fully configured yet.",
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to save payment provider", description: err.message, variant: "destructive" });
     },
   });
 
@@ -4278,6 +4322,105 @@ export default function AdminDashboard({ user }: { user: any }) {
                       {saveSettingsMutation.isPending ? "Saving..." : "Save All Settings"}
                     </Button>
                   </div>
+
+                   <div className="rounded-md bg-white/5 border border-orange-500/20 p-5 space-y-5">
+                     <div>
+                       <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Buyer Payment Provider</h4>
+                       <p className="text-[11px] text-white/40 mt-2 max-w-2xl">
+                         Authorize.Net remains the safe fallback. Save Stripe or PayPal credentials here, then select that provider to route new vote purchases through its balance.
+                       </p>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+                         <Label className="text-white/50 text-xs">Active provider</Label>
+                         <Select
+                           value={paymentForm.paymentProvider}
+                           onValueChange={(value: "authorize" | "stripe" | "paypal") => setPaymentForm((current) => ({ ...current, paymentProvider: value }))}
+                         >
+                           <SelectTrigger className="bg-white/[0.08] border-white/20 text-white mt-2" data-testid="select-buyer-payment-provider">
+                             <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent className="bg-[#222] border-white/20 text-white">
+                             <SelectItem value="authorize">Authorize.Net</SelectItem>
+                             <SelectItem value="stripe">Stripe</SelectItem>
+                             <SelectItem value="paypal">PayPal</SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </div>
+                       <div>
+                         <Label className="text-white/50 text-xs">PayPal environment</Label>
+                         <Select
+                           value={paymentForm.paypalEnvironment}
+                           onValueChange={(value: "sandbox" | "live") => setPaymentForm((current) => ({ ...current, paypalEnvironment: value }))}
+                         >
+                           <SelectTrigger className="bg-white/[0.08] border-white/20 text-white mt-2" data-testid="select-paypal-environment">
+                             <SelectValue />
+                           </SelectTrigger>
+                           <SelectContent className="bg-[#222] border-white/20 text-white">
+                             <SelectItem value="sandbox">PayPal Sandbox</SelectItem>
+                             <SelectItem value="live">PayPal Live</SelectItem>
+                           </SelectContent>
+                         </Select>
+                       </div>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+                         <Label className="text-white/50 text-xs">Stripe publishable key</Label>
+                         <Input
+                           value={paymentForm.stripePublishableKey}
+                           onChange={(e) => setPaymentForm((current) => ({ ...current, stripePublishableKey: e.target.value }))}
+                           placeholder="pk_live_... or pk_test_..."
+                           className="bg-white/[0.08] border-white/20 text-white mt-2"
+                           data-testid="input-stripe-publishable-key"
+                         />
+                       </div>
+                       <div>
+                         <Label className="text-white/50 text-xs">Stripe secret key</Label>
+                         <Input
+                           type="password"
+                           value={paymentForm.stripeSecretKey}
+                           onChange={(e) => setPaymentForm((current) => ({ ...current, stripeSecretKey: e.target.value }))}
+                           placeholder={paymentSettings?.stripeConfigured ? "Saved — enter only to replace" : "sk_live_... or sk_test_..."}
+                           className="bg-white/[0.08] border-white/20 text-white mt-2"
+                           data-testid="input-stripe-secret-key"
+                         />
+                       </div>
+                       <div>
+                         <Label className="text-white/50 text-xs">PayPal client ID</Label>
+                         <Input
+                           value={paymentForm.paypalClientId}
+                           onChange={(e) => setPaymentForm((current) => ({ ...current, paypalClientId: e.target.value }))}
+                           placeholder="PayPal app client ID"
+                           className="bg-white/[0.08] border-white/20 text-white mt-2"
+                           data-testid="input-paypal-client-id"
+                         />
+                       </div>
+                       <div>
+                         <Label className="text-white/50 text-xs">PayPal secret</Label>
+                         <Input
+                           type="password"
+                           value={paymentForm.paypalSecret}
+                           onChange={(e) => setPaymentForm((current) => ({ ...current, paypalSecret: e.target.value }))}
+                           placeholder={paymentSettings?.paypalConfigured ? "Saved — enter only to replace" : "PayPal app secret"}
+                           className="bg-white/[0.08] border-white/20 text-white mt-2"
+                           data-testid="input-paypal-secret"
+                         />
+                       </div>
+                     </div>
+                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                       <p className="text-[10px] text-white/30">
+                         Stripe: {paymentSettings?.stripeConfigured ? "configured" : "not configured"} · PayPal: {paymentSettings?.paypalConfigured ? "configured" : "not configured"}
+                       </p>
+                       <Button
+                         onClick={() => savePaymentMutation.mutate()}
+                         disabled={savePaymentMutation.isPending}
+                         className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                         data-testid="button-save-payment-provider"
+                       >
+                         {savePaymentMutation.isPending ? "Saving..." : "Save Payment Provider"}
+                       </Button>
+                     </div>
+                   </div>
 
                   <div className="rounded-md bg-white/5 border border-white/10 p-5 space-y-4">
                     <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Sales Tax</h4>

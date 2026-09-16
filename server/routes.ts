@@ -44,6 +44,13 @@ import {
   firestoreStageSubmissions,
 } from "./firestore-collections";
 import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
+import {
+  getBuyerPaymentConfig,
+  saveBuyerPaymentSettings,
+  getStripeBuyerClient,
+  getPayPalAccessToken,
+  getPayPalApiBase,
+} from "./buyer-payment-providers";
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchaseFeed";
 import { registerQuestPayrollAdmin } from "./quest-payroll-admin";
@@ -4978,8 +4985,65 @@ export async function registerRoutes(
 
 
   app.get("/api/payment-config", (_req, res) => {
-    const config = getPublicConfig();
-    res.json(config);
+    void (async () => {
+      const config = getPublicConfig();
+      const buyerConfig = await getBuyerPaymentConfig();
+      res.json({
+        ...config,
+        provider: buyerConfig.provider,
+        requestedProvider: buyerConfig.requestedProvider,
+        stripeConfigured: buyerConfig.stripeConfigured,
+        stripePublishableKey: buyerConfig.stripePublishableKey,
+        paypalConfigured: buyerConfig.paypalConfigured,
+        paypalClientId: buyerConfig.paypalClientId,
+        paypalEnvironment: buyerConfig.paypalEnvironment,
+      });
+    })().catch((error) => {
+      console.error("Payment config error:", error);
+      res.status(500).json({ message: "Failed to load payment configuration" });
+    });
+  });
+
+  app.get("/api/admin/payment-settings", firebaseAuth, requireAdmin, async (_req, res) => {
+    try {
+      const config = await getBuyerPaymentConfig();
+      res.json({
+        provider: config.requestedProvider,
+        stripeConfigured: config.stripeConfigured,
+        stripePublishableKey: config.stripePublishableKey,
+        paypalConfigured: config.paypalConfigured,
+        paypalClientId: config.paypalClientId,
+        paypalEnvironment: config.paypalEnvironment,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to load payment settings" });
+    }
+  });
+
+  app.put("/api/admin/payment-settings", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const provider = req.body?.paymentProvider;
+      if (!["authorize", "stripe", "paypal"].includes(provider)) {
+        return res.status(400).json({ message: "Choose Authorize.Net, Stripe, or PayPal." });
+      }
+      const settings = await saveBuyerPaymentSettings({
+        paymentProvider: provider,
+        stripePublishableKey: req.body?.stripePublishableKey,
+        stripeSecretKey: req.body?.stripeSecretKey,
+        paypalClientId: req.body?.paypalClientId,
+        paypalSecret: req.body?.paypalSecret,
+        paypalEnvironment: req.body?.paypalEnvironment === "live" ? "live" : "sandbox",
+      });
+      res.json({
+        provider: settings.provider,
+        requestedProvider: settings.requestedProvider,
+        stripeConfigured: settings.stripeConfigured,
+        paypalConfigured: settings.paypalConfigured,
+        paypalEnvironment: settings.paypalEnvironment,
+      });
+    } catch (error: any) {
+      res.status(error.status || 500).json({ message: error.message || "Failed to save payment settings" });
+    }
   });
 
   app.get("/api/code-registry/lookup/:code", async (req, res) => {
@@ -5086,8 +5150,11 @@ export async function registerRoutes(
     packageIndex: z.number().int().min(0).optional(),
     individualVoteCount: z.number().int().min(1).max(10000).optional(),
     createAccount: z.boolean().default(false),
-    dataDescriptor: z.string().min(1, "Payment token is required"),
-    dataValue: z.string().min(1, "Payment token is required"),
+    paymentProvider: z.enum(["authorize", "stripe", "paypal"]).optional(),
+    dataDescriptor: z.string().min(1).optional(),
+    dataValue: z.string().min(1).optional(),
+    stripePaymentIntentId: z.string().min(1).optional(),
+    paypalOrderId: z.string().min(1).optional(),
     referralCode: z.string().optional().nullable(),
     idempotencyKey: z.string().min(16).max(128),
     billingAddress: z.object({
@@ -5097,6 +5164,145 @@ export async function registerRoutes(
       zip: z.string().trim().min(1, "Billing ZIP code is required").max(20),
       country: z.string().trim().max(60).optional(),
     }),
+  });
+
+  const guestPaymentSetupSchema = guestCheckoutSchema.omit({
+    dataDescriptor: true,
+    dataValue: true,
+    stripePaymentIntentId: true,
+    paypalOrderId: true,
+  });
+
+  async function resolveGuestVoteCharge(input: {
+    competitionId: number;
+    contestantId: number;
+    stageId?: string;
+    packageId: string;
+    packageIndex?: number;
+    individualVoteCount?: number;
+  }) {
+    const { competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount } = input;
+    const comp = await storage.getCompetition(competitionId);
+    if (!comp) throw Object.assign(new Error("Competition not found"), { status: 404 });
+    if (comp.status !== "voting" && comp.status !== "active") {
+      throw Object.assign(new Error("Voting is not open for this competition"), { status: 400 });
+    }
+    const stage = getCompetitionStage(comp, stageId);
+    if (stageId && !stage) throw Object.assign(new Error("Stage not found"), { status: 404 });
+    if (stage) {
+      const [votingStart, votingEnd] = getStageWindow(stage, "voting");
+      if (!isStageWindowOpen(votingStart, votingEnd)) {
+        throw Object.assign(new Error(`${stage.name} voting is not open right now.`), { status: 400 });
+      }
+    }
+    const boundContestant = await firestoreContestants.getById(contestantId);
+    if (!boundContestant || boundContestant.competitionId !== competitionId || boundContestant.applicationStatus !== "approved") {
+      throw Object.assign(new Error("Contestant is not eligible for this competition"), { status: 400 });
+    }
+
+    let pkg: { voteCount: number; bonusVotes: number; price: number; name: string } | null = null;
+    const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : null;
+    if (packageId === "individual" && individualVoteCount) {
+      const pricePerVote = settings?.pricePerVote || 1;
+      pkg = {
+        voteCount: individualVoteCount,
+        bonusVotes: 0,
+        price: individualVoteCount * pricePerVote * 100,
+        name: `${individualVoteCount} Individual Vote${individualVoteCount !== 1 ? "s" : ""}`,
+      };
+    } else if (packageIndex !== undefined) {
+      const votePackages = settings?.votePackages || [
+        { name: "Starter Pack", voteCount: 500, bonusVotes: 0, price: 10 },
+        { name: "Fan Pack", voteCount: 1000, bonusVotes: 300, price: 15 },
+        { name: "Super Fan Pack", voteCount: 2000, bonusVotes: 600, price: 30 },
+      ];
+      if (packageIndex >= 0 && packageIndex < votePackages.length) {
+        const vpkg = votePackages[packageIndex];
+        pkg = { voteCount: vpkg.voteCount, bonusVotes: vpkg.bonusVotes || 0, price: vpkg.price * 100, name: vpkg.name };
+      }
+    }
+    if (!pkg) {
+      const firestorePkg = await firestoreVotePackages.get(packageId);
+      if (firestorePkg && firestorePkg.isActive) {
+        pkg = { voteCount: firestorePkg.voteCount, bonusVotes: firestorePkg.bonusVotes || 0, price: firestorePkg.price, name: firestorePkg.name };
+      }
+    }
+    if (!pkg) throw Object.assign(new Error("Vote package not found"), { status: 404 });
+
+    const totalVotes = pkg.voteCount + (pkg.bonusVotes || 0);
+    const subtotalDollars = pkg.price / 100;
+    const salesTaxPercent = settings?.salesTaxPercent || 0;
+    const taxAmount = subtotalDollars * (salesTaxPercent / 100);
+    const amountInDollars = Math.round((subtotalDollars + taxAmount) * 100) / 100;
+    return { comp, stage, pkg, totalVotes, subtotalDollars, salesTaxPercent, taxAmount, amountInDollars };
+  }
+
+  app.post("/api/guest/checkout/stripe-intent", async (req, res) => {
+    try {
+      const parsed = guestPaymentSetupSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid checkout data" });
+      const config = await getBuyerPaymentConfig();
+      if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
+      const charge = await resolveGuestVoteCharge(parsed.data);
+      const stripe = await getStripeBuyerClient();
+      const intent = await stripe.paymentIntents.create({
+        amount: Math.round(charge.amountInDollars * 100),
+        currency: "usd",
+        automatic_payment_methods: { enabled: true },
+        receipt_email: parsed.data.email,
+        description: `${charge.totalVotes} votes for ${charge.comp.title}`,
+        metadata: {
+          idempotencyKey: parsed.data.idempotencyKey,
+          competitionId: String(parsed.data.competitionId),
+          contestantId: String(parsed.data.contestantId),
+        },
+      }, { idempotencyKey: parsed.data.idempotencyKey });
+      res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id });
+    } catch (error: any) {
+      console.error("Stripe intent creation error:", error);
+      res.status(error.status || 500).json({ message: error.message || "Unable to start Stripe checkout" });
+    }
+  });
+
+  app.post("/api/guest/checkout/paypal-order", async (req, res) => {
+    try {
+      const parsed = guestPaymentSetupSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid checkout data" });
+      const config = await getBuyerPaymentConfig();
+      if (config.provider !== "paypal") return res.status(409).json({ message: "PayPal is not the active payment provider." });
+      const charge = await resolveGuestVoteCharge(parsed.data);
+      const token = await getPayPalAccessToken(config);
+      const response = await fetch(`${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "PayPal-Request-Id": parsed.data.idempotencyKey,
+        },
+        body: JSON.stringify({
+          intent: "CAPTURE",
+          purchase_units: [{
+            reference_id: parsed.data.idempotencyKey,
+            custom_id: `${parsed.data.competitionId}:${parsed.data.contestantId}`,
+            description: `${charge.totalVotes} votes for ${charge.comp.title}`,
+            amount: { currency_code: "USD", value: charge.amountInDollars.toFixed(2) },
+          }],
+          application_context: {
+            brand_name: "The Quest",
+            user_action: "PAY_NOW",
+            return_url: `${process.env.SITE_URL || ""}/checkout/${parsed.data.competitionId}/${parsed.data.contestantId}?paypalReturn=1`,
+            cancel_url: `${process.env.SITE_URL || ""}/checkout/${parsed.data.competitionId}/${parsed.data.contestantId}?paypalCancel=1`,
+          },
+        }),
+      });
+      if (!response.ok) throw new Error(`PayPal order creation failed (${response.status}).`);
+      const order = await response.json() as { id: string; links?: Array<{ rel: string; href: string }> };
+      res.json({ orderId: order.id, approvalUrl: order.links?.find((link) => link.rel === "approve")?.href || null });
+    } catch (error: any) {
+      console.error("PayPal order creation error:", error);
+      res.status(error.status || 500).json({ message: error.message || "Unable to start PayPal checkout" });
+    }
   });
 
   app.post("/api/guest/checkout", async (req, res) => {
@@ -5118,70 +5324,80 @@ export async function registerRoutes(
         }
       }
 
-      const comp = await storage.getCompetition(competitionId);
-      if (!comp) return res.status(404).json({ message: "Competition not found" });
-      if (comp.status !== "voting" && comp.status !== "active") {
-        return res.status(400).json({ message: "Voting is not open for this competition" });
-      }
-      const stage = getCompetitionStage(comp, stageId);
-      if (stageId && !stage) return res.status(404).json({ message: "Stage not found" });
-      if (stage) {
-        const [votingStart, votingEnd] = getStageWindow(stage, "voting");
-        if (!isStageWindowOpen(votingStart, votingEnd)) {
-          return res.status(400).json({ message: `${stage.name} voting is not open right now.` });
-        }
-      }
-      const boundContestant = await firestoreContestants.getById(contestantId);
-      if (!boundContestant || boundContestant.competitionId !== competitionId || boundContestant.applicationStatus !== "approved") {
-        return res.status(400).json({ message: "Contestant is not eligible for this competition" });
-      }
-
-      let pkg: { voteCount: number; bonusVotes: number; price: number; name: string } | null = null;
-
-      if (packageId === "individual" && individualVoteCount) {
-        const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
-        const settings = settingsDoc.exists ? settingsDoc.data() : null;
-        const pricePerVote = settings?.pricePerVote || 1;
-        const totalPrice = individualVoteCount * pricePerVote * 100;
-        pkg = { voteCount: individualVoteCount, bonusVotes: 0, price: totalPrice, name: `${individualVoteCount} Individual Vote${individualVoteCount !== 1 ? "s" : ""}` };
-      } else if (packageIndex !== undefined) {
-        const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
-        const settings = settingsDoc.exists ? settingsDoc.data() : null;
-        const votePackages = settings?.votePackages || [
-          { name: "Starter Pack", voteCount: 500, bonusVotes: 0, price: 10 },
-          { name: "Fan Pack", voteCount: 1000, bonusVotes: 300, price: 15 },
-          { name: "Super Fan Pack", voteCount: 2000, bonusVotes: 600, price: 30 },
-        ];
-        if (packageIndex >= 0 && packageIndex < votePackages.length) {
-          const vpkg = votePackages[packageIndex];
-          pkg = { voteCount: vpkg.voteCount, bonusVotes: vpkg.bonusVotes || 0, price: vpkg.price * 100, name: vpkg.name };
-        }
-      }
-
-      if (!pkg) {
-        const firestorePkg = await firestoreVotePackages.get(packageId);
-        if (firestorePkg && firestorePkg.isActive) {
-          pkg = { voteCount: firestorePkg.voteCount, bonusVotes: firestorePkg.bonusVotes || 0, price: firestorePkg.price, name: firestorePkg.name };
-        }
-      }
-
-      if (!pkg) return res.status(404).json({ message: "Vote package not found" });
-
-      const totalVotes = pkg.voteCount + (pkg.bonusVotes || 0);
-      const subtotalDollars = pkg.price / 100;
-
-      const settingsForTax = await getFirestore().collection("platformSettings").doc("global").get();
-      const salesTaxPercent = settingsForTax.exists ? (settingsForTax.data()?.salesTaxPercent || 0) : 0;
-      const taxAmount = subtotalDollars * (salesTaxPercent / 100);
-      const amountInDollars = Math.round((subtotalDollars + taxAmount) * 100) / 100;
-
-      const secured = await secureAuthorizeCharge(req, {
-        route: "/api/guest/checkout", amountDollars: amountInDollars,
-        ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}:stage:${stageId || "overall"}`,
-        competitionId, contestantId, dataDescriptor, dataValue,
-        description: `${totalVotes} votes for ${comp.title}${stage ? ` — ${stage.name}` : ""}`, customerEmail: email, customerName: name,
-        billingAddress,
+      const providerConfig = await getBuyerPaymentConfig();
+      const activeProvider = providerConfig.provider;
+      const chargeData = await resolveGuestVoteCharge({
+        competitionId,
+        contestantId,
+        stageId,
+        packageId,
+        packageIndex,
+        individualVoteCount,
       });
+      const { comp, stage, pkg, totalVotes, subtotalDollars, salesTaxPercent, taxAmount, amountInDollars } = chargeData;
+      const packageKey = `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}:stage:${stageId || "overall"}`;
+
+      let secured: any;
+      if (activeProvider === "stripe" && parsed.data.stripePaymentIntentId) {
+        const stripe = await getStripeBuyerClient();
+        const intent = await stripe.paymentIntents.retrieve(parsed.data.stripePaymentIntentId);
+        if (intent.status !== "succeeded" || intent.amount !== Math.round(amountInDollars * 100)) {
+          return res.status(400).json({ message: "Stripe payment has not completed for this order." });
+        }
+        const reservation = await reservePayment({
+          idempotencyKey: parsed.data.idempotencyKey,
+          route: "/api/guest/checkout",
+          amountCents: Math.round(amountInDollars * 100),
+          ownerKey: `email:${email.toLowerCase().trim()}`,
+          packageKey,
+          competitionId,
+          contestantId,
+          customerEmail: email,
+          customerName: name,
+        });
+        if (reservation.state === "completed") return res.status(200).json({ ...(reservation.response as object), idempotentReplay: true });
+        if (reservation.state !== "reserved") throw Object.assign(new Error("This payment request is already processing"), { status: 409 });
+        await markPaymentCharged(reservation.paymentId, intent.id, { provider: "stripe", paymentIntentId: intent.id });
+        secured = { replay: false, paymentId: reservation.paymentId, charge: { transactionId: intent.id } };
+      } else if (activeProvider === "paypal" && parsed.data.paypalOrderId) {
+        const token = await getPayPalAccessToken(providerConfig);
+        const captureResponse = await fetch(`${getPayPalApiBase(providerConfig.paypalEnvironment)}/v2/checkout/orders/${encodeURIComponent(parsed.data.paypalOrderId)}/capture`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        });
+        if (!captureResponse.ok) return res.status(400).json({ message: "PayPal could not complete this payment." });
+        const capture = await captureResponse.json() as any;
+        const captureUnit = capture.purchase_units?.[0];
+        const capturedAmount = captureUnit?.payments?.captures?.[0]?.amount?.value;
+        if (capture.status !== "COMPLETED" || Number(capturedAmount) !== amountInDollars) {
+          return res.status(400).json({ message: "PayPal payment amount could not be verified." });
+        }
+        const reservation = await reservePayment({
+          idempotencyKey: parsed.data.idempotencyKey,
+          route: "/api/guest/checkout",
+          amountCents: Math.round(amountInDollars * 100),
+          ownerKey: `email:${email.toLowerCase().trim()}`,
+          packageKey,
+          competitionId,
+          contestantId,
+          customerEmail: email,
+          customerName: name,
+        });
+        if (reservation.state === "completed") return res.status(200).json({ ...(reservation.response as object), idempotentReplay: true });
+        if (reservation.state !== "reserved") throw Object.assign(new Error("This payment request is already processing"), { status: 409 });
+        const transactionId = `paypal_${parsed.data.paypalOrderId}`;
+        await markPaymentCharged(reservation.paymentId, transactionId, { provider: "paypal", orderId: parsed.data.paypalOrderId });
+        secured = { replay: false, paymentId: reservation.paymentId, charge: { transactionId } };
+      } else {
+        if (!dataDescriptor || !dataValue) return res.status(400).json({ message: "Payment token is required" });
+        secured = await secureAuthorizeCharge(req, {
+          route: "/api/guest/checkout", amountDollars: amountInDollars,
+          ownerKey: `email:${email.toLowerCase().trim()}`, packageKey,
+          competitionId, contestantId, dataDescriptor, dataValue,
+          description: `${totalVotes} votes for ${comp.title}${stage ? ` — ${stage.name}` : ""}`, customerEmail: email, customerName: name,
+          billingAddress,
+        });
+      }
       if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
       const paymentId = secured.paymentId;
       const chargeResult = secured.charge;
@@ -5858,6 +6074,7 @@ export async function registerRoutes(
             Accept: "application/vnd.vimeo.*+json;version=3.4",
           },
         });
+
         if (!response.ok) {
           throw new Error(`Vimeo completion failed with status ${response.status}`);
         }
