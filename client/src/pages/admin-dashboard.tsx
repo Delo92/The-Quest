@@ -4402,15 +4402,15 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <div>
                           <h5 className="text-xs font-bold uppercase tracking-wider text-white/70">Server-side credential status</h5>
                           <p className="mt-1 text-[10px] text-white/35">
-                            Values are read from Replit Secrets only. They are never displayed or entered in this dashboard.
+                            These are the Original Concepts variable names. Values are read from Replit Secrets only and are never displayed or entered in this dashboard.
                           </p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
                           {[
-                            ["STRIPE_PUBLISHABLE_KEY", envSecretStatus.stripePublishableKey],
-                            ["STRIPE_SECRET_KEY", envSecretStatus.stripeSecretKey],
                             ["PAYPAL_CLIENT_ID", envSecretStatus.paypalClientId],
                             ["PAYPAL_CLIENT_SECRET", envSecretStatus.paypalClientSecret],
+                            ["PAYPAL_USE_LIVE", envSecretStatus.paypalUseLive],
+                            ["STRIPE_WEBHOOK_SECRET", envSecretStatus.stripeWebhookSecret],
                           ].map(([name, configured]) => (
                             <div key={name as string} className="flex items-center justify-between gap-3 border border-white/10 px-3 py-2">
                               <span className="font-mono text-white/45">{name as string}</span>
@@ -4420,6 +4420,9 @@ export default function AdminDashboard({ user }: { user: any }) {
                             </div>
                           ))}
                         </div>
+                        <p className="text-[10px] text-white/30">
+                          <span className="font-mono text-white/45">STRIPE_WEBHOOK_SECRET</span> verifies Stripe webhook signatures; it does not provide Stripe checkout credentials.
+                        </p>
                       </div>
                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                        <p className="text-[10px] text-white/30">
