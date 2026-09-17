@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download, Settings, UserCircle, EyeOff, Wallet } from "lucide-react";
+import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download, Settings, UserCircle, EyeOff, Wallet, Copy } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteDialog } from "@/components/invite-dialog";
@@ -282,6 +282,10 @@ export default function HostDashboard({ user }: { user: any }) {
 
   const { data: stats } = useQuery<HostStats>({
     queryKey: ["/api/host/stats"],
+  });
+
+  const { data: referral } = useQuery<{ code?: string | null }>({
+    queryKey: ["/api/referral/my-code"],
   });
 
   const { data: competitions = [] } = useQuery<HostCompetition[]>({
@@ -662,6 +666,28 @@ export default function HostDashboard({ user }: { user: any }) {
               </DialogContent>
             </Dialog>
           </div>
+          {referral?.code && (
+            <div className="mt-5 rounded-xl border border-orange-400/20 bg-orange-400/[0.06] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80">Your platform share link</p>
+                  <p className="mt-1 truncate font-mono text-sm text-white/75">{`${window.location.origin}/?ref=${referral.code}`}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-none border-orange-400/30 bg-transparent text-orange-200 hover:bg-orange-400/10 hover:text-white"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/?ref=${referral.code}`);
+                    toast({ title: "Platform share link copied" });
+                  }}
+                  data-testid="button-copy-platform-share-link"
+                >
+                  <Copy className="mr-2 h-3.5 w-3.5" /> Copy link
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">

@@ -199,6 +199,44 @@ async function getOrCreateCompetitionReferralCode(competition: any) {
   });
 }
 
+async function getOrCreateUserReferralCode(
+  uid: string,
+  ownerTypeOverride?: "talent" | "host" | "admin",
+) {
+  const ownerCodes = await firestoreReferrals.getCodesByOwner(uid);
+  const existingGlobal = ownerCodes.find((code) =>
+    !code.competitionId && !(code.competitionIds || []).length && !code.contestantId
+  );
+  if (existingGlobal) return existingGlobal;
+
+  const fsUser = await getFirestoreUser(uid);
+  if (!fsUser) return null;
+  const profile = await storage.getTalentProfileByUserId(uid);
+  const level = typeof fsUser.level === "number"
+    ? fsUser.level
+    : (fsUser.level === "admin" ? 4 : fsUser.level === "host" ? 3 : 2);
+  if (level < 2) return null;
+
+  const ownerType = ownerTypeOverride || (level >= 4 ? "admin" : level >= 3 ? "host" : "talent");
+  const ownerName = profile?.displayName || fsUser.displayName || fsUser.email || uid;
+  const rawName = profile?.stageName || profile?.displayName || fsUser.displayName || fsUser.email?.split("@")[0] || uid;
+  const preferredCode = rawName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20) || (ownerType === "host" ? "HOST" : "TALENT");
+  const collision = await firestoreReferrals.getCodeByCode(preferredCode);
+
+  if (!collision) {
+    return firestoreReferrals.generateCode(uid, ownerType, ownerName, profile?.id || null, {
+      ownerEmail: fsUser.email || undefined,
+      customCode: preferredCode,
+      skipDuplicateCheck: true,
+    });
+  }
+
+  return firestoreReferrals.generateCode(uid, ownerType, ownerName, profile?.id || null, {
+    ownerEmail: fsUser.email || undefined,
+    skipDuplicateCheck: true,
+  });
+}
+
 function dateBoundary(value: string | null | undefined, endOfDay = false): number | null {
   if (!value) return null;
   const parsed = Date.parse(value.includes("T") ? value : `${value}${endOfDay ? "T23:59:59.999" : "T00:00:00.000"}`);
@@ -2352,6 +2390,7 @@ export async function registerRoutes(
 
   app.get("/api/host/stats", firebaseAuth, requireHost, async (req, res) => {
     const { uid } = req.firebaseUser!;
+    await getOrCreateUserReferralCode(uid, "host");
     const competitions = await storage.getCompetitionsByCreator(uid);
     let totalContestants = 0;
     let totalVotes = 0;
@@ -3142,6 +3181,7 @@ export async function registerRoutes(
       const hosts = await Promise.all(hostProfiles.map(async (h) => {
         const hostComps = allComps.filter(c => c.createdBy === h.userId);
         const fsUser = await getFirestoreUser(h.userId);
+        const referral = await getOrCreateUserReferralCode(h.userId, "host");
         return {
           ...h,
           email: fsUser?.email || null,
@@ -3149,6 +3189,7 @@ export async function registerRoutes(
           socialLinks: fsUser?.socialLinks || (h as any).socialLinks || null,
           competitionCount: hostComps.length,
           activeCompetitions: hostComps.filter(c => c.status === "active" || c.status === "voting").length,
+          referralCode: referral?.code || null,
         };
       }));
       res.json(hosts);
@@ -3338,6 +3379,9 @@ export async function registerRoutes(
 
       const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
       await storage.updateTalentProfile(uid, { role: roleMap[level] as any });
+      if (level >= 3) {
+        await getOrCreateUserReferralCode(uid, level === 4 ? "admin" : "host");
+      }
 
       res.json({ message: "User level updated", uid, level });
     } catch (error: any) {
@@ -3381,6 +3425,9 @@ export async function registerRoutes(
         socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
         role: roleMap[level],
       });
+      if (level >= 3) {
+        await getOrCreateUserReferralCode(firebaseUser.uid, "host");
+      }
 
       res.status(201).json({
         uid: firebaseUser.uid,
@@ -3422,6 +3469,9 @@ export async function registerRoutes(
             socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
             role: roleMap[level],
           });
+          if (level >= 3) {
+            await getOrCreateUserReferralCode(existingFbUser.uid, "host");
+          }
           return res.status(201).json({ uid: existingFbUser.uid, email, displayName, level });
         } catch (recoveryErr: any) {
           console.error("Admin create user recovery error:", recoveryErr);
@@ -3539,6 +3589,10 @@ export async function registerRoutes(
           } else if (existingProfile && targetLevel >= 3 && existingProfile.role === "talent") {
             await storage.updateTalentProfile(firebaseUid, { role: "host" });
             await setUserLevel(firebaseUid, targetLevel);
+          }
+
+          if (firebaseUid && targetLevel >= 3) {
+            await getOrCreateUserReferralCode(firebaseUid, targetLevel >= 4 ? "admin" : "host");
           }
 
           if (firebaseUid && existingProfile && competitionId && targetLevel === 2) {
@@ -7490,39 +7544,7 @@ export async function registerRoutes(
   app.get("/api/referral/my-code", firebaseAuth, async (req, res) => {
     try {
       const uid = req.firebaseUser!.uid;
-      let code = await firestoreReferrals.getCodeByOwner(uid);
-
-      // Auto-generate a code based on stage/display name if none exists yet
-      if (!code) {
-        const fsUser = await getFirestoreUser(uid);
-        const profile = await storage.getTalentProfileByUserId(uid);
-        const level = typeof fsUser?.level === "number" ? fsUser.level : 2;
-        if (level >= 2) {
-          // Prefer stageName, then displayName, then email prefix
-          const rawName = profile?.stageName || profile?.displayName || fsUser?.displayName || fsUser?.email?.split("@")[0] || uid;
-          const preferredCode = rawName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20) || "TALENT";
-          let ownerType: "talent" | "host" | "admin" = "talent";
-          if (level >= 4) ownerType = "admin";
-          else if (level >= 3) ownerType = "host";
-          const ownerName = profile?.displayName || fsUser?.email || uid;
-          const contests = profile ? await storage.getContestantsByTalent(profile.id) : [];
-          const competitionIds = contests.filter(c => c.applicationStatus === "approved").map(c => c.competitionId);
-          try {
-            code = await firestoreReferrals.generateCode(uid, ownerType, ownerName, profile?.id || null, {
-              customCode: preferredCode,
-              competitionIds,
-              competitionId: competitionIds[0] || undefined,
-            });
-          } catch {
-            // preferred code taken — generate a random one
-            code = await firestoreReferrals.generateCode(uid, ownerType, ownerName, profile?.id || null, {
-              competitionIds,
-              competitionId: competitionIds[0] || undefined,
-            });
-          }
-        }
-      }
-
+      const code = await getOrCreateUserReferralCode(uid);
       res.json(code || null);
     } catch (err: any) {
       console.error("Get referral code error:", err);

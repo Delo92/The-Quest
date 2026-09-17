@@ -128,6 +128,7 @@ interface HostProfile {
   role: string;
   competitionCount: number;
   activeCompetitions: number;
+  referralCode?: string | null;
 }
 
 interface HostCompetitionDetail {
@@ -3654,6 +3655,29 @@ export default function AdminDashboard({ user }: { user: any }) {
                       </div>
                       {host.bio && (
                         <div className="px-4 pt-3 text-xs leading-relaxed text-white/50 line-clamp-2">{host.bio}</div>
+                      )}
+                      {host.referralCode && (
+                        <div className="mx-4 mt-3 rounded-md border border-orange-400/20 bg-orange-400/[0.06] p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-orange-300/70">Platform share link</p>
+                          <div className="mt-1 flex items-center gap-2">
+                            <code className="min-w-0 flex-1 truncate text-xs text-white/70">
+                              {`${window.location.origin}/?ref=${host.referralCode}`}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 flex-none text-orange-300"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/?ref=${host.referralCode}`);
+                                toast({ title: "Host share link copied" });
+                              }}
+                              data-testid={`button-copy-host-share-${host.userId}`}
+                              aria-label={`Copy ${host.displayName} platform share link`}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
                       )}
                       <div className="flex flex-wrap items-center justify-between gap-2 p-4">
                         <Button
