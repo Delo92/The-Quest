@@ -30,11 +30,9 @@ interface GalleryItem {
   videoEmbedUrl: string | null;
   coverVideoUrl: string | null;
   directVideoUrl: string | null;
-  topContestantName: string | null;
   voteCount: number;
   competitionCount: number;
   competitionSlug: string | null;
-  contestantSlug: string | null;
 }
 
 function CardWrapper({ useLink, href, children }: { useLink: boolean; href: string; children: React.ReactNode }) {
@@ -239,9 +237,7 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                 data-testid={`gallery-item-${item.categoryId}`}
               >
                 <CardWrapper useLink={!onCardClick} href={
-                  item.competitionSlug && item.contestantSlug
-                    ? `/${slugify(item.categoryName || "")}/${item.competitionSlug}/${item.contestantSlug}`
-                    : item.competitionSlug
+                  item.competitionSlug
                     ? `/${slugify(item.categoryName || "")}/${item.competitionSlug}`
                     : `/competitions?category=${encodeURIComponent(item.categoryName || "")}`
                 }>
@@ -284,9 +280,6 @@ export default function HeroCoverflowGallery({ onCardClick }: HeroCoverflowGalle
                       <div className="absolute inset-0 z-10" />
                       <div className="coverflow-label">
                         <span className="coverflow-label-title">{item.categoryName}</span>
-                        {item.topContestantName && (
-                          <span className="coverflow-label-sub">{item.topContestantName}</span>
-                        )}
                       </div>
                     </div>
                     {item.thumbnail && (

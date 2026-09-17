@@ -1424,7 +1424,6 @@ export async function registerRoutes(
           }
 
           let videoEmbedUrl: string | null = null;
-          let displayName: string | null = null;
           let coverVideoUrl: string | null = null;
           let thumbnail: string | null = normalizeCategoryArtworkUrl(cat.imageUrl);
           const featuredCompetition = catComps.find((comp: any) => comp.isFeatured);
@@ -1473,7 +1472,6 @@ export async function registerRoutes(
 
           if (topContestant && topVoteCount > 0 && topCompetition) {
             displayCompetition = topCompetition;
-            displayName = topContestant.talentProfile.stageName || topContestant.talentProfile.displayName;
             await applyCompetitionCover(topCompetition);
           }
 
@@ -1492,20 +1490,13 @@ export async function registerRoutes(
              ) || null;
              topCompetition = featuredCompetition;
              topVoteCount = topContestant?.voteCount || 0;
-             displayName = topContestant
-               ? topContestant.talentProfile.stageName || topContestant.talentProfile.displayName
-               : null;
              await applyCompetitionCover(featuredCompetition);
            }
 
           let competitionSlug: string | null = null;
-          let contestantSlug: string | null = null;
            if (displayCompetition) {
              competitionSlug = slugify(displayCompetition.title);
            }
-           if (topCompetition && topContestant && topCompetition.id === displayCompetition?.id) {
-            contestantSlug = slugify(topContestant.talentProfile.stageName || topContestant.talentProfile.displayName || "");
-          }
 
           // Resolve a direct progressive MP4 URL for native <video> playback.
           // Eliminates Vimeo player JS overhead on background/ambient cards.
@@ -1526,11 +1517,9 @@ export async function registerRoutes(
             videoEmbedUrl,
             coverVideoUrl,
             directVideoUrl,
-            topContestantName: displayName,
             voteCount: topVoteCount,
             competitionCount: catComps.length,
             competitionSlug,
-            contestantSlug,
             };
           }),
         );
