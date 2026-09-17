@@ -4354,7 +4354,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                     ? `Buyer ${ocCheckoutProvider === "stripe" ? "Stripe" : "PayPal"} checkout is currently routed through OC.`
                                     : ocConnected
                                       ? "OC is connected. Select Stripe or PayPal below to use OC for buyer checkout."
-                                    : "Buyer checkout is not currently confirmed through OC. The local provider fallback remains available."}
+                                    : "OC is not currently confirmed. No OC checkout route is active."}
                                 </p>
                               </div>
                               <span className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${ocConnected ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-300"}`}>
@@ -4367,11 +4367,11 @@ export default function AdminDashboard({ user }: { user: any }) {
                           </div>
                         );
                       })()}
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4">
                        <div>
                           <Label className="text-white/50 text-xs">Buyer checkout provider</Label>
                           <p className="mt-1 text-[10px] text-white/30">
-                            When OC is connected, Stripe or PayPal here selects the OC payment route. Authorize.Net remains the fallback.
+                             When OC is connected, Stripe or PayPal here selects the OC payment route. Authorize.Net remains active until you explicitly change this selection and save.
                           </p>
                          <Select
                            value={paymentForm.paymentProvider}
@@ -4387,35 +4387,6 @@ export default function AdminDashboard({ user }: { user: any }) {
                            </SelectContent>
                          </Select>
                        </div>
-                        <div>
-                          {ocBridgeConnected ? (
-                            <>
-                              <Label className="text-white/50 text-xs">OC PayPal environment</Label>
-                              <div className="mt-2 flex h-10 items-center rounded-md border border-emerald-400/30 bg-emerald-400/[0.08] px-3 text-sm font-medium text-emerald-200">
-                                {paymentSettings?.ocPaypalEnvironment === "live" ? "PayPal Live" : "PayPal Sandbox"}
-                              </div>
-                              <p className="mt-1 text-[10px] text-white/30">
-                                Controlled by <span className="font-mono text-white/45">PAYPAL_USE_LIVE</span> in Replit Secrets.
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <Label className="text-white/50 text-xs">Local PayPal fallback environment</Label>
-                              <Select
-                                value={paymentForm.paypalEnvironment}
-                                onValueChange={(value: "sandbox" | "live") => setPaymentForm((current) => ({ ...current, paypalEnvironment: value }))}
-                              >
-                                <SelectTrigger className="bg-white/[0.08] border-white/20 text-white mt-2" data-testid="select-paypal-environment">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-[#222] border-white/20 text-white">
-                                  <SelectItem value="sandbox">PayPal Sandbox</SelectItem>
-                                  <SelectItem value="live">PayPal Live</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </>
-                          )}
-                        </div>
                      </div>
                       <div className="rounded-md border border-white/10 bg-black/20 p-4 space-y-3">
                         <div>
@@ -4444,8 +4415,8 @@ export default function AdminDashboard({ user }: { user: any }) {
                         </p>
                       </div>
                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                       <p className="text-[10px] text-white/30">
-                         Stripe: {paymentSettings?.stripeConfigured ? "configured" : "not configured"} · PayPal: {paymentSettings?.paypalConfigured ? "configured" : "not configured"}
+                         <p className="text-[10px] text-white/30">
+                           Active route: {paymentSettings?.provider === "paypal" ? "OC PayPal" : paymentSettings?.provider === "stripe" ? "OC Stripe" : "Authorize.Net"} · OC PayPal variables: {envSecretStatus.paypalClientId && envSecretStatus.paypalClientSecret && envSecretStatus.paypalUseLive ? "set" : "incomplete"}
                        </p>
                        <Button
                          onClick={() => savePaymentMutation.mutate()}
