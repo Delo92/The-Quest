@@ -53,6 +53,7 @@ import {
 } from "./buyer-payment-providers";
 import {
   isOCAdapterConfigured,
+  getOCConnectionStatus,
   createOCPayment,
   getOCPayment,
   captureOCPayPalPayment,
@@ -5146,10 +5147,13 @@ export async function registerRoutes(
         provider: buyerConfig.provider,
         requestedProvider: buyerConfig.requestedProvider,
         stripeConfigured: buyerConfig.stripeConfigured,
+        stripeLocalConfigured: buyerConfig.stripeLocalConfigured,
         stripePublishableKey: buyerConfig.stripePublishableKey,
         paypalConfigured: buyerConfig.paypalConfigured,
+        paypalLocalConfigured: buyerConfig.paypalLocalConfigured,
         paypalClientId: buyerConfig.paypalClientId,
         paypalEnvironment: buyerConfig.paypalEnvironment,
+        ocManaged: buyerConfig.ocManaged,
       });
     })().catch((error) => {
       console.error("Payment config error:", error);
@@ -5163,12 +5167,16 @@ export async function registerRoutes(
       res.json({
         provider: config.requestedProvider,
         stripeConfigured: config.stripeConfigured,
+        stripeLocalConfigured: config.stripeLocalConfigured,
         stripePublishableKey: config.stripePublishableKey,
         paypalConfigured: config.paypalConfigured,
+        paypalLocalConfigured: config.paypalLocalConfigured,
         paypalClientId: config.paypalClientId,
         paypalEnvironment: config.paypalEnvironment,
+        ocManaged: config.ocManaged,
         stripeWebhookConfigured: Boolean(config.stripeWebhookSecret),
         paypalWebhookConfigured: Boolean(config.paypalWebhookId),
+        ocIntegration: await getOCConnectionStatus(),
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to load payment settings" });

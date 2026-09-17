@@ -4323,16 +4323,53 @@ export default function AdminDashboard({ user }: { user: any }) {
                     </Button>
                   </div>
 
-                   <div className="rounded-md bg-white/5 border border-orange-500/20 p-5 space-y-5">
+                    <div className="rounded-md bg-white/5 border border-orange-500/20 p-5 space-y-5">
                      <div>
                        <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Buyer Payment Provider</h4>
                        <p className="text-[11px] text-white/40 mt-2 max-w-2xl">
-                         Authorize.Net remains the safe fallback. Save Stripe or PayPal credentials here, then select that provider to route new vote purchases through its balance.
+                          This controls the local fallback provider. When the Original Concepts bridge is connected, all new Stripe and PayPal checkouts are routed through OC instead.
                        </p>
                      </div>
+                      {(() => {
+                        const oc = paymentSettings?.ocIntegration;
+                        const ocConnected = Boolean(oc?.configured && oc?.reachable && oc?.authorized);
+                        const selectedProvider = paymentSettings?.provider;
+                        const ocCheckoutProvider = ocConnected && (selectedProvider === "stripe" || selectedProvider === "paypal")
+                          ? selectedProvider
+                          : null;
+                        const ocStatus = !oc?.configured
+                          ? "Not configured"
+                          : !oc.reachable
+                            ? "Gateway unavailable"
+                            : !oc.authorized
+                              ? "Token rejected"
+                              : "Connected";
+                        return (
+                          <div className={`rounded-md border p-4 ${ocConnected ? "border-emerald-500/30 bg-emerald-500/[0.08]" : "border-amber-500/30 bg-amber-500/[0.06]"}`}>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <h5 className="text-sm font-semibold text-white">Original Concepts payment bridge</h5>
+                                <p className="mt-1 text-[11px] text-white/45">
+                                  {ocCheckoutProvider
+                                    ? `Buyer ${ocCheckoutProvider === "stripe" ? "Stripe" : "PayPal"} checkout is currently routed through OC.`
+                                    : ocConnected
+                                      ? "OC is connected. Select Stripe or PayPal below to use OC for buyer checkout."
+                                    : "Buyer checkout is not currently confirmed through OC. The local provider fallback remains available."}
+                                </p>
+                              </div>
+                              <span className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${ocConnected ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-300"}`}>
+                                {ocStatus}
+                              </span>
+                            </div>
+                            <p className="mt-3 text-[10px] text-white/30">
+                              OC endpoint: {oc?.baseUrl || "not configured"} · Selected route: {ocCheckoutProvider ? `OC ${ocCheckoutProvider}` : selectedProvider === "authorize" ? "Authorize.Net" : "not selected"} · No Stripe or PayPal secrets are stored in Quest for this bridge.
+                            </p>
+                          </div>
+                        );
+                      })()}
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <div>
-                         <Label className="text-white/50 text-xs">Active provider</Label>
+                          <Label className="text-white/50 text-xs">Local fallback provider</Label>
                          <Select
                            value={paymentForm.paymentProvider}
                            onValueChange={(value: "authorize" | "stripe" | "paypal") => setPaymentForm((current) => ({ ...current, paymentProvider: value }))}

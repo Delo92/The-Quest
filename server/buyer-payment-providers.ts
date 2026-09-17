@@ -38,9 +38,17 @@ export async function getBuyerPaymentConfig() {
   const stripeWebhookSecret = settings.stripeWebhookSecretEncrypted
     ? decrypt(settings.stripeWebhookSecretEncrypted)
     : envValue("STRIPE_WEBHOOK_SECRET");
-  const stripeConfigured = Boolean(stripeSecretKey && stripePublishableKey);
-  const paypalConfigured = Boolean(paypalClientId && paypalSecret);
+  const stripeLocalConfigured = Boolean(stripeSecretKey && stripePublishableKey);
+  const paypalLocalConfigured = Boolean(paypalClientId && paypalSecret);
   const requestedProvider = settings.paymentProvider || "authorize";
+  const ocManaged = Boolean(process.env.QUEST_OC_API_TOKEN);
+  // OC owns the processor secrets. Quest only needs Stripe's public key for
+  // Stripe.js; PayPal returns an approval URL from OC and needs no client-side
+  // PayPal credential.
+  const stripeConfigured = stripeLocalConfigured
+    || Boolean(ocManaged && requestedProvider === "stripe" && stripePublishableKey);
+  const paypalConfigured = paypalLocalConfigured
+    || Boolean(ocManaged && requestedProvider === "paypal");
   const provider = requestedProvider === "stripe" && stripeConfigured
     ? "stripe"
     : requestedProvider === "paypal" && paypalConfigured
@@ -50,6 +58,9 @@ export async function getBuyerPaymentConfig() {
   return {
     provider: provider as BuyerPaymentProvider,
     requestedProvider,
+    ocManaged,
+    stripeLocalConfigured,
+    paypalLocalConfigured,
     stripeConfigured,
     stripePublishableKey: stripePublishableKey || null,
     paypalConfigured,

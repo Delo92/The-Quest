@@ -19,6 +19,38 @@ export function isOCAdapterConfigured(): boolean {
   return Boolean(OC_TOKEN);
 }
 
+/**
+ * Non-mutating connection probe for the admin status panel.
+ *
+ * OC does not expose a separate health endpoint. A request for a deliberately
+ * nonexistent payout batch still proves that the integration route is
+ * reachable and that the shared token was accepted when it returns 404.
+ */
+export async function getOCConnectionStatus(): Promise<{
+  configured: boolean;
+  reachable: boolean;
+  authorized: boolean;
+  baseUrl: string;
+}> {
+  if (!OC_TOKEN) {
+    return { configured: false, reachable: false, authorized: false, baseUrl: OC_BASE_URL };
+  }
+
+  try {
+    await questFetch(`/payouts/${encodeURIComponent("__quest_connection_check__")}`);
+    return { configured: true, reachable: true, authorized: true, baseUrl: OC_BASE_URL };
+  } catch (error: any) {
+    const status = Number(error?.status || 0);
+    if (status === 404) {
+      return { configured: true, reachable: true, authorized: true, baseUrl: OC_BASE_URL };
+    }
+    if (status === 401 || status === 403) {
+      return { configured: true, reachable: true, authorized: false, baseUrl: OC_BASE_URL };
+    }
+    return { configured: true, reachable: false, authorized: false, baseUrl: OC_BASE_URL };
+  }
+}
+
 // ─── Low-level fetch helpers ──────────────────────────────────────────────────
 
 async function ocFetch(fullPath: string, options: RequestInit = {}): Promise<any> {
