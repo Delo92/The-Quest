@@ -1480,9 +1480,22 @@ export async function registerRoutes(
            // An explicitly featured competition should drive its category card,
            // regardless of whether another competition currently has more votes.
            // This keeps the dashboard's Featured control meaningful on the homepage.
+           // Keep the contestant metadata paired with that competition. Otherwise
+           // a high-vote contestant from a different competition can be combined
+           // with the featured competition slug and generate a dead profile URL.
            if (featuredCompetition) {
-              displayCompetition = featuredCompetition;
-              await applyCompetitionCover(featuredCompetition);
+             displayCompetition = featuredCompetition;
+             topContestant = contestantsByCompetition[catComps.indexOf(featuredCompetition)]?.reduce(
+               (best: any, contestant: any) =>
+                 !best || contestant.voteCount > best.voteCount ? contestant : best,
+               null,
+             ) || null;
+             topCompetition = featuredCompetition;
+             topVoteCount = topContestant?.voteCount || 0;
+             displayName = topContestant
+               ? topContestant.talentProfile.stageName || topContestant.talentProfile.displayName
+               : null;
+             await applyCompetitionCover(featuredCompetition);
            }
 
           let competitionSlug: string | null = null;
@@ -1490,7 +1503,7 @@ export async function registerRoutes(
            if (displayCompetition) {
              competitionSlug = slugify(displayCompetition.title);
            }
-           if (topCompetition && topContestant) {
+           if (topCompetition && topContestant && topCompetition.id === displayCompetition?.id) {
             contestantSlug = slugify(topContestant.talentProfile.stageName || topContestant.talentProfile.displayName || "");
           }
 
