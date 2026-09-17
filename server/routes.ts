@@ -5177,6 +5177,7 @@ export async function registerRoutes(
         stripeWebhookConfigured: Boolean(config.stripeWebhookSecret),
         paypalWebhookConfigured: Boolean(config.paypalWebhookId),
         ocIntegration: await getOCConnectionStatus(),
+        envSecretStatus: config.envSecretStatus,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message || "Failed to load payment settings" });

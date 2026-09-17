@@ -38,6 +38,12 @@ export async function getBuyerPaymentConfig() {
   const stripeWebhookSecret = settings.stripeWebhookSecretEncrypted
     ? decrypt(settings.stripeWebhookSecretEncrypted)
     : envValue("STRIPE_WEBHOOK_SECRET");
+  const envSecretStatus = {
+    stripeSecretKey: Boolean(envValue("STRIPE_SECRET_KEY")),
+    stripePublishableKey: Boolean(envValue("STRIPE_PUBLISHABLE_KEY")),
+    paypalClientId: Boolean(envValue("PAYPAL_CLIENT_ID")),
+    paypalClientSecret: Boolean(envValue("PAYPAL_CLIENT_SECRET", "PAYPAL_SECRET")),
+  };
   const stripeLocalConfigured = Boolean(stripeSecretKey && stripePublishableKey);
   const paypalLocalConfigured = Boolean(paypalClientId && paypalSecret);
   const requestedProvider = settings.paymentProvider || "authorize";
@@ -68,6 +74,7 @@ export async function getBuyerPaymentConfig() {
     paypalEnvironment,
     stripeWebhookSecret,
     paypalWebhookId: settings.paypalWebhookId || envValue("PAYPAL_WEBHOOK_ID") || null,
+    envSecretStatus,
     stripeSecretKey,
     paypalSecret,
   };

@@ -1012,10 +1012,6 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [settingsForm, setSettingsForm] = useState<any>(null);
   const [paymentForm, setPaymentForm] = useState({
     paymentProvider: "authorize" as "authorize" | "stripe" | "paypal",
-    stripePublishableKey: "",
-    stripeSecretKey: "",
-    paypalClientId: "",
-    paypalSecret: "",
     paypalEnvironment: "sandbox" as "sandbox" | "live",
   });
   const [compSearch, setCompSearch] = useState("");
@@ -1176,8 +1172,6 @@ export default function AdminDashboard({ user }: { user: any }) {
       setPaymentForm((current) => ({
         ...current,
         paymentProvider: paymentSettings.provider || "authorize",
-        stripePublishableKey: paymentSettings.stripePublishableKey || "",
-        paypalClientId: paymentSettings.paypalClientId || "",
         paypalEnvironment: paymentSettings.paypalEnvironment || "sandbox",
       }));
     }
@@ -1205,7 +1199,6 @@ export default function AdminDashboard({ user }: { user: any }) {
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payment-settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/payment-config"] });
-      setPaymentForm((current) => ({ ...current, stripeSecretKey: "", paypalSecret: "" }));
       toast({
         title: "Payment provider saved",
         description: saved.provider === paymentForm.paymentProvider
@@ -1217,6 +1210,8 @@ export default function AdminDashboard({ user }: { user: any }) {
       toast({ title: "Failed to save payment provider", description: err.message, variant: "destructive" });
     },
   });
+
+  const envSecretStatus = paymentSettings?.envSecretStatus || {};
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -4362,7 +4357,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                               </span>
                             </div>
                             <p className="mt-3 text-[10px] text-white/30">
-                              OC endpoint: {oc?.baseUrl || "not configured"} · Selected route: {ocCheckoutProvider ? `OC ${ocCheckoutProvider}` : selectedProvider === "authorize" ? "Authorize.Net" : "not selected"} · No Stripe or PayPal secrets are stored in Quest for this bridge.
+                              OC endpoint: {oc?.baseUrl || "not configured"} · Selected route: {ocCheckoutProvider ? `OC ${ocCheckoutProvider}` : selectedProvider === "authorize" ? "Authorize.Net" : "not selected"} · Provider values are managed through Replit Secrets, not this browser form.
                             </p>
                           </div>
                         );
@@ -4403,50 +4398,29 @@ export default function AdminDashboard({ user }: { user: any }) {
                          </Select>
                        </div>
                      </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div>
-                         <Label className="text-white/50 text-xs">Stripe publishable key</Label>
-                         <Input
-                           value={paymentForm.stripePublishableKey}
-                           onChange={(e) => setPaymentForm((current) => ({ ...current, stripePublishableKey: e.target.value }))}
-                           placeholder="pk_live_... or pk_test_..."
-                           className="bg-white/[0.08] border-white/20 text-white mt-2"
-                           data-testid="input-stripe-publishable-key"
-                         />
-                       </div>
-                       <div>
-                         <Label className="text-white/50 text-xs">Stripe secret key</Label>
-                         <Input
-                           type="password"
-                           value={paymentForm.stripeSecretKey}
-                           onChange={(e) => setPaymentForm((current) => ({ ...current, stripeSecretKey: e.target.value }))}
-                           placeholder={paymentSettings?.stripeConfigured ? "Saved — enter only to replace" : "sk_live_... or sk_test_..."}
-                           className="bg-white/[0.08] border-white/20 text-white mt-2"
-                           data-testid="input-stripe-secret-key"
-                         />
-                       </div>
-                       <div>
-                         <Label className="text-white/50 text-xs">PayPal client ID</Label>
-                         <Input
-                           value={paymentForm.paypalClientId}
-                           onChange={(e) => setPaymentForm((current) => ({ ...current, paypalClientId: e.target.value }))}
-                           placeholder="PayPal app client ID"
-                           className="bg-white/[0.08] border-white/20 text-white mt-2"
-                           data-testid="input-paypal-client-id"
-                         />
-                       </div>
-                       <div>
-                         <Label className="text-white/50 text-xs">PayPal secret</Label>
-                         <Input
-                           type="password"
-                           value={paymentForm.paypalSecret}
-                           onChange={(e) => setPaymentForm((current) => ({ ...current, paypalSecret: e.target.value }))}
-                           placeholder={paymentSettings?.paypalConfigured ? "Saved — enter only to replace" : "PayPal app secret"}
-                           className="bg-white/[0.08] border-white/20 text-white mt-2"
-                           data-testid="input-paypal-secret"
-                         />
-                       </div>
-                     </div>
+                      <div className="rounded-md border border-white/10 bg-black/20 p-4 space-y-3">
+                        <div>
+                          <h5 className="text-xs font-bold uppercase tracking-wider text-white/70">Server-side credential status</h5>
+                          <p className="mt-1 text-[10px] text-white/35">
+                            Values are read from Replit Secrets only. They are never displayed or entered in this dashboard.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                          {[
+                            ["STRIPE_PUBLISHABLE_KEY", envSecretStatus.stripePublishableKey],
+                            ["STRIPE_SECRET_KEY", envSecretStatus.stripeSecretKey],
+                            ["PAYPAL_CLIENT_ID", envSecretStatus.paypalClientId],
+                            ["PAYPAL_CLIENT_SECRET", envSecretStatus.paypalClientSecret],
+                          ].map(([name, configured]) => (
+                            <div key={name as string} className="flex items-center justify-between gap-3 border border-white/10 px-3 py-2">
+                              <span className="font-mono text-white/45">{name as string}</span>
+                              <span className={configured ? "font-semibold uppercase tracking-wider text-emerald-300" : "font-semibold uppercase tracking-wider text-amber-300"}>
+                                {configured ? "Set" : "Missing"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                        <p className="text-[10px] text-white/30">
                          Stripe: {paymentSettings?.stripeConfigured ? "configured" : "not configured"} · PayPal: {paymentSettings?.paypalConfigured ? "configured" : "not configured"}
