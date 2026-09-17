@@ -35,6 +35,7 @@ export async function getBuyerPaymentConfig() {
   const stripePublishableKey = settings.stripePublishableKey || envValue("STRIPE_PUBLISHABLE_KEY");
   const paypalClientId = settings.paypalClientId || envValue("PAYPAL_CLIENT_ID");
   const paypalEnvironment = settings.paypalEnvironment || (process.env.PAYPAL_USE_LIVE === "true" ? "live" : "sandbox");
+  const ocPaypalEnvironment = process.env.PAYPAL_USE_LIVE === "true" ? "live" : "sandbox";
   const stripeWebhookSecret = settings.stripeWebhookSecretEncrypted
     ? decrypt(settings.stripeWebhookSecretEncrypted)
     : envValue("STRIPE_WEBHOOK_SECRET");
@@ -72,6 +73,7 @@ export async function getBuyerPaymentConfig() {
     paypalConfigured,
     paypalClientId: paypalClientId || null,
     paypalEnvironment,
+    ocPaypalEnvironment,
     stripeWebhookSecret,
     paypalWebhookId: settings.paypalWebhookId || envValue("PAYPAL_WEBHOOK_ID") || null,
     envSecretStatus,

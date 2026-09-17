@@ -5153,6 +5153,7 @@ export async function registerRoutes(
         paypalLocalConfigured: buyerConfig.paypalLocalConfigured,
         paypalClientId: buyerConfig.paypalClientId,
         paypalEnvironment: buyerConfig.paypalEnvironment,
+        ocPaypalEnvironment: buyerConfig.ocPaypalEnvironment,
         ocManaged: buyerConfig.ocManaged,
       });
     })().catch((error) => {
@@ -5173,6 +5174,7 @@ export async function registerRoutes(
         paypalLocalConfigured: config.paypalLocalConfigured,
         paypalClientId: config.paypalClientId,
         paypalEnvironment: config.paypalEnvironment,
+        ocPaypalEnvironment: config.ocPaypalEnvironment,
         ocManaged: config.ocManaged,
         stripeWebhookConfigured: Boolean(config.stripeWebhookSecret),
         paypalWebhookConfigured: Boolean(config.paypalWebhookId),

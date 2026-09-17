@@ -1212,6 +1212,11 @@ export default function AdminDashboard({ user }: { user: any }) {
   });
 
   const envSecretStatus = paymentSettings?.envSecretStatus || {};
+  const ocBridgeConnected = Boolean(
+    paymentSettings?.ocIntegration?.configured
+    && paymentSettings?.ocIntegration?.reachable
+    && paymentSettings?.ocIntegration?.authorized,
+  );
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -4322,7 +4327,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                      <div>
                        <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Buyer Payment Provider</h4>
                        <p className="text-[11px] text-white/40 mt-2 max-w-2xl">
-                          This controls the local fallback provider. When the Original Concepts bridge is connected, all new Stripe and PayPal checkouts are routed through OC instead.
+                          Select the buyer checkout route. When the Original Concepts bridge is connected, Stripe and PayPal checkouts are routed through OC.
                        </p>
                      </div>
                       {(() => {
@@ -4382,21 +4387,35 @@ export default function AdminDashboard({ user }: { user: any }) {
                            </SelectContent>
                          </Select>
                        </div>
-                       <div>
-                          <Label className="text-white/50 text-xs">Local PayPal fallback environment</Label>
-                         <Select
-                           value={paymentForm.paypalEnvironment}
-                           onValueChange={(value: "sandbox" | "live") => setPaymentForm((current) => ({ ...current, paypalEnvironment: value }))}
-                         >
-                           <SelectTrigger className="bg-white/[0.08] border-white/20 text-white mt-2" data-testid="select-paypal-environment">
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent className="bg-[#222] border-white/20 text-white">
-                             <SelectItem value="sandbox">PayPal Sandbox</SelectItem>
-                             <SelectItem value="live">PayPal Live</SelectItem>
-                           </SelectContent>
-                         </Select>
-                       </div>
+                        <div>
+                          {ocBridgeConnected ? (
+                            <>
+                              <Label className="text-white/50 text-xs">OC PayPal environment</Label>
+                              <div className="mt-2 flex h-10 items-center rounded-md border border-emerald-400/30 bg-emerald-400/[0.08] px-3 text-sm font-medium text-emerald-200">
+                                {paymentSettings?.ocPaypalEnvironment === "live" ? "PayPal Live" : "PayPal Sandbox"}
+                              </div>
+                              <p className="mt-1 text-[10px] text-white/30">
+                                Controlled by <span className="font-mono text-white/45">PAYPAL_USE_LIVE</span> in Replit Secrets.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <Label className="text-white/50 text-xs">Local PayPal fallback environment</Label>
+                              <Select
+                                value={paymentForm.paypalEnvironment}
+                                onValueChange={(value: "sandbox" | "live") => setPaymentForm((current) => ({ ...current, paypalEnvironment: value }))}
+                              >
+                                <SelectTrigger className="bg-white/[0.08] border-white/20 text-white mt-2" data-testid="select-paypal-environment">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#222] border-white/20 text-white">
+                                  <SelectItem value="sandbox">PayPal Sandbox</SelectItem>
+                                  <SelectItem value="live">PayPal Live</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </>
+                          )}
+                        </div>
                      </div>
                       <div className="rounded-md border border-white/10 bg-black/20 p-4 space-y-3">
                         <div>
