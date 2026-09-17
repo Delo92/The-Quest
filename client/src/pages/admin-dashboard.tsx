@@ -4369,7 +4369,10 @@ export default function AdminDashboard({ user }: { user: any }) {
                       })()}
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        <div>
-                          <Label className="text-white/50 text-xs">Local fallback provider</Label>
+                          <Label className="text-white/50 text-xs">Buyer checkout provider</Label>
+                          <p className="mt-1 text-[10px] text-white/30">
+                            When OC is connected, Stripe or PayPal here selects the OC payment route. Authorize.Net remains the fallback.
+                          </p>
                          <Select
                            value={paymentForm.paymentProvider}
                            onValueChange={(value: "authorize" | "stripe" | "paypal") => setPaymentForm((current) => ({ ...current, paymentProvider: value }))}
@@ -4385,7 +4388,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                          </Select>
                        </div>
                        <div>
-                         <Label className="text-white/50 text-xs">PayPal environment</Label>
+                          <Label className="text-white/50 text-xs">Local PayPal fallback environment</Label>
                          <Select
                            value={paymentForm.paypalEnvironment}
                            onValueChange={(value: "sandbox" | "live") => setPaymentForm((current) => ({ ...current, paypalEnvironment: value }))}
