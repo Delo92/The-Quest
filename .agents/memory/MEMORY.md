@@ -26,6 +26,7 @@
 - [Category artwork references](category-artwork-references.md) — category cards use shipped local artwork that matches the approved reference screenshots, not unstable Firebase Storage URLs
 - [Hero gallery competition media](hero-gallery-competition-media.md) — thumbnail always renders as base layer; video overlays on top so privacy-blocked iframes never black out a card
 - [Hero gallery routing](hero-gallery-routing.md) — homepage category cards open the selected competition, not a contestant profile
+- [Fallback image resilience](fallback-image-resilience.md) — public talent cards need a local final placeholder and async-source reset
 - [Cross-browser gallery media](cross-browser-gallery-media.md) — use Vimeo API posters instead of vumbnail placeholders and PNG category artwork for older browser support
 - [Service worker dev guard](service-worker-dev-guard.md) — SW must actively unregister on localhost/.replit.dev or clients.claim() drops Vite HMR; skipping register() alone is not enough
 - [Vimeo embed privacy](vimeo-embed-privacy.md) — unlisted Vimeo hashes are not enough when the video's embed privacy blocks playback
