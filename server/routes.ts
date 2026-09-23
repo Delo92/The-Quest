@@ -3390,6 +3390,78 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/admin/users/:uid/profile", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { uid } = req.params;
+      const profile = await storage.getTalentProfileByUserId(uid);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const { displayName, stageName, bio, category, location, email } = req.body;
+      if (displayName !== undefined && !String(displayName).trim()) {
+        return res.status(400).json({ message: "Display name is required" });
+      }
+      if (email !== undefined && !String(email).trim()) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const firebaseUpdate: Record<string, string> = {};
+      if (displayName !== undefined) firebaseUpdate.displayName = String(displayName).trim();
+      if (email !== undefined) firebaseUpdate.email = String(email).trim().toLowerCase();
+      if (Object.keys(firebaseUpdate).length > 0) {
+        await getFirebaseAuth().updateUser(uid, firebaseUpdate);
+      }
+
+      const firestoreUpdate: Record<string, any> = {};
+      if (displayName !== undefined) firestoreUpdate.displayName = String(displayName).trim();
+      if (email !== undefined) firestoreUpdate.email = String(email).trim().toLowerCase();
+      if (stageName !== undefined) firestoreUpdate.stageName = stageName ? String(stageName).trim() : null;
+      if (Object.keys(firestoreUpdate).length > 0) {
+        await updateFirestoreUser(uid, firestoreUpdate);
+      }
+
+      const profileUpdate: Record<string, any> = {};
+      if (displayName !== undefined) profileUpdate.displayName = String(displayName).trim();
+      if (stageName !== undefined) profileUpdate.stageName = stageName ? String(stageName).trim() : null;
+      if (bio !== undefined) profileUpdate.bio = bio ? String(bio).trim() : null;
+      if (category !== undefined) profileUpdate.category = category ? String(category).trim() : null;
+      if (location !== undefined) profileUpdate.location = location ? String(location).trim() : null;
+      if (Object.keys(profileUpdate).length > 0) {
+        await storage.updateTalentProfile(uid, profileUpdate);
+      }
+
+      const updatedProfile = await storage.getTalentProfileByUserId(uid);
+      const updatedUser = await getFirestoreUser(uid);
+      res.json({
+        ...updatedProfile,
+        email: updatedUser?.email || null,
+        profileImageUrl: updatedUser?.profileImageUrl || updatedProfile?.imageUrls?.[0] || null,
+      });
+    } catch (error: any) {
+      console.error("Admin host profile update error:", error);
+      res.status(500).json({ message: error.message || "Failed to update profile" });
+    }
+  });
+
+  app.post("/api/admin/users/:uid/reset-password", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { uid } = req.params;
+      const targetUser = await getFirestoreUser(uid);
+      if (!targetUser) return res.status(404).json({ message: "User not found" });
+
+      const temporaryPassword = `CBP-${crypto.randomBytes(9).toString("base64url")}`;
+      await getFirebaseAuth().updateUser(uid, { password: temporaryPassword });
+      await getFirebaseAuth().revokeRefreshTokens(uid);
+
+      res.json({
+        email: targetUser.email || null,
+        temporaryPassword,
+      });
+    } catch (error: any) {
+      console.error("Admin password reset error:", error);
+      res.status(500).json({ message: error.message || "Failed to reset password" });
+    }
+  });
+
   app.post("/api/admin/users/create", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const { email, password, displayName, level, stageName, socialLinks } = req.body;

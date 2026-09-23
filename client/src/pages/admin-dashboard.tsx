@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Trophy, Type,  BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Play, Calendar, Award, UserCheck, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2 } from "lucide-react";
+import { Trophy, Type,  BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Play, Calendar, Award, UserCheck, UserCircle, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2, Pencil } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS, getVimeoId, buildVimeoSrc } from "@/lib/media-utils";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
@@ -121,6 +121,7 @@ interface HostProfile {
   stageName: string | null;
   bio: string | null;
   category: string | null;
+  location?: string | null;
   imageUrls: string[];
   email?: string | null;
   profileImageUrl?: string | null;
@@ -877,6 +878,322 @@ function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: s
   );
 }
 
+function HostDetailModal({ host, competitions }: { host: HostProfile; competitions: Competition[] | undefined }) {
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState({
+    displayName: host.displayName || "",
+    stageName: host.stageName || "",
+    email: host.email || "",
+    bio: host.bio || "",
+    category: host.category || "",
+    location: host.location || "",
+  });
+
+  const { data: hostCompetitions = [], isLoading: competitionsLoading, refetch } = useQuery<HostCompetitionDetail[]>({
+    queryKey: ["/api/admin/hosts", host.userId, "competitions"],
+  });
+
+  useEffect(() => {
+    setProfileForm({
+      displayName: host.displayName || "",
+      stageName: host.stageName || "",
+      email: host.email || "",
+      bio: host.bio || "",
+      category: host.category || "",
+      location: host.location || "",
+    });
+  }, [host]);
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", `/api/admin/users/${host.userId}/profile`, {
+        displayName: profileForm.displayName.trim(),
+        stageName: profileForm.stageName.trim() || null,
+        email: profileForm.email.trim(),
+        bio: profileForm.bio.trim() || null,
+        category: profileForm.category.trim() || null,
+        location: profileForm.location.trim() || null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/hosts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setEditing(false);
+      toast({ title: "Host profile updated" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not update host profile", description: error.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/users/${host.userId}/reset-password`);
+      return res.json() as Promise<{ temporaryPassword: string; email: string | null }>;
+    },
+    onSuccess: (result) => {
+      setTemporaryPassword(result.temporaryPassword);
+      toast({ title: "Password reset", description: "Copy the temporary password and send it securely to the host." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not reset password", description: error.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const deleteContestantMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/admin/contestants/${id}`);
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: "Contestant removed" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Could not remove contestant", description: error.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const shareUrl = host.referralCode ? `${window.location.origin}/?ref=${host.referralCode}` : null;
+  const updateField = (field: keyof typeof profileForm, value: string) => {
+    setProfileForm((current) => ({ ...current, [field]: value }));
+  };
+
+  return (
+    <div className="space-y-4 max-h-[calc(100dvh-9rem)] overflow-y-auto pr-1" data-testid={`host-detail-modal-${host.userId}`}>
+      <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <Avatar className="h-16 w-16 ring-2 ring-orange-500/30">
+            <AvatarImage src={host.profileImageUrl || host.imageUrls?.[0] || ""} />
+            <AvatarFallback className="bg-orange-500/20 text-orange-300 text-lg font-bold">
+              {host.displayName?.charAt(0) || "?"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-white">{host.displayName}</h3>
+                {host.stageName && <p className="text-sm text-white/50">{host.stageName}</p>}
+                {host.email && <p className="mt-1 text-xs text-white/35">{host.email}</p>}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-white/15 text-white/70"
+                onClick={() => setEditing((current) => !current)}
+                data-testid="button-edit-host-profile"
+              >
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> {editing ? "Cancel edit" : "Edit profile"}
+              </Button>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge className="border-0 bg-purple-500/20 text-purple-300">Host</Badge>
+              <span className="text-xs text-white/45">{hostCompetitions.length} competition{hostCompetitions.length === 1 ? "" : "s"}</span>
+              {host.activeCompetitions > 0 && <span className="text-xs text-green-400">{host.activeCompetitions} active</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {editing ? (
+        <div className="rounded-lg border border-orange-500/20 bg-white/[0.04] p-4" data-testid="host-profile-edit-form">
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-orange-400">Edit host profile</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-white/60">Display name</Label>
+              <Input value={profileForm.displayName} onChange={(e) => updateField("displayName", e.target.value)} className="mt-1 bg-white/5 border-white/10 text-white" data-testid="input-admin-host-display-name" />
+            </div>
+            <div>
+              <Label className="text-white/60">Public/stage name</Label>
+              <Input value={profileForm.stageName} onChange={(e) => updateField("stageName", e.target.value)} className="mt-1 bg-white/5 border-white/10 text-white" data-testid="input-admin-host-stage-name" />
+            </div>
+            <div>
+              <Label className="text-white/60">Email</Label>
+              <Input type="email" value={profileForm.email} onChange={(e) => updateField("email", e.target.value)} className="mt-1 bg-white/5 border-white/10 text-white" data-testid="input-admin-host-email" />
+            </div>
+            <div>
+              <Label className="text-white/60">Category</Label>
+              <Input value={profileForm.category} onChange={(e) => updateField("category", e.target.value)} className="mt-1 bg-white/5 border-white/10 text-white" data-testid="input-admin-host-category" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label className="text-white/60">Location</Label>
+              <Input value={profileForm.location} onChange={(e) => updateField("location", e.target.value)} className="mt-1 bg-white/5 border-white/10 text-white" data-testid="input-admin-host-location" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label className="text-white/60">Bio</Label>
+              <Textarea value={profileForm.bio} onChange={(e) => updateField("bio", e.target.value)} className="mt-1 min-h-24 bg-white/5 border-white/10 text-white" data-testid="input-admin-host-bio" />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              onClick={() => updateProfileMutation.mutate()}
+              disabled={updateProfileMutation.isPending || !profileForm.displayName.trim() || !profileForm.email.trim()}
+              className="bg-orange-500 hover:bg-orange-400 text-white"
+              data-testid="button-save-admin-host-profile"
+            >
+              {updateProfileMutation.isPending ? "Saving..." : "Save profile"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4" data-testid="host-profile-info">
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-orange-400">Profile information</h3>
+          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div><p className="text-[10px] uppercase tracking-wider text-white/30">Category</p><p className="mt-1 text-white/75">{host.category || "Not set"}</p></div>
+            <div><p className="text-[10px] uppercase tracking-wider text-white/30">Location</p><p className="mt-1 text-white/75">{host.location || "Not set"}</p></div>
+            <div className="sm:col-span-2"><p className="text-[10px] uppercase tracking-wider text-white/30">Bio</p><p className="mt-1 whitespace-pre-wrap text-white/65">{host.bio || "No bio yet."}</p></div>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-orange-400/20 bg-orange-400/[0.06] p-4" data-testid="host-security-panel">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-orange-300">Account access</h3>
+        <p className="mt-2 text-xs leading-relaxed text-white/50">
+          Existing passwords are never stored or viewable, so the original password cannot be recovered. Resetting creates a new temporary password for this host.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-orange-400/30 text-orange-200 hover:bg-orange-400/10"
+            onClick={() => {
+              if (confirm(`Reset the password for ${host.email || host.displayName}? The current password will stop working.`)) {
+                setTemporaryPassword(null);
+                resetPasswordMutation.mutate();
+              }
+            }}
+            disabled={resetPasswordMutation.isPending}
+            data-testid="button-reset-host-password"
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> {resetPasswordMutation.isPending ? "Resetting..." : "Reset password"}
+          </Button>
+        </div>
+        {temporaryPassword && (
+          <div className="mt-3 rounded-md border border-green-400/25 bg-green-400/[0.08] p-3" data-testid="temporary-host-password">
+            <p className="text-[10px] uppercase tracking-wider text-green-300/80">New temporary password — copy it now</p>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="min-w-0 flex-1 break-all rounded bg-black/30 px-2 py-1.5 font-mono text-sm text-green-100">{temporaryPassword}</code>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-none text-green-300"
+                onClick={() => {
+                  navigator.clipboard.writeText(temporaryPassword);
+                  toast({ title: "Temporary password copied" });
+                }}
+                aria-label="Copy temporary password"
+                data-testid="button-copy-temporary-host-password"
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <p className="mt-2 text-[11px] text-white/40">Send this securely to the host. It will not be shown again after the modal is closed.</p>
+          </div>
+        )}
+      </div>
+
+      {shareUrl && (
+        <div className="rounded-lg border border-orange-400/20 bg-orange-400/[0.06] p-4" data-testid="host-modal-share-link">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-orange-300/70">Platform share link</p>
+              <code className="mt-1 block truncate text-xs text-white/70">{shareUrl}</code>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 flex-none text-orange-300"
+              onClick={() => {
+                navigator.clipboard.writeText(shareUrl);
+                toast({ title: "Host share link copied" });
+              }}
+              aria-label="Copy host platform share link"
+              data-testid="button-copy-modal-host-share"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-white/10 bg-white/[0.04] p-4" data-testid="host-modal-competitions">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-orange-400">Hosted competitions</h3>
+          <span className="text-xs text-white/35">{hostCompetitions.length} total</span>
+        </div>
+        {competitionsLoading ? (
+          <p className="py-4 text-center text-sm text-white/35">Loading competitions...</p>
+        ) : hostCompetitions.length === 0 ? (
+          <p className="py-4 text-center text-sm text-white/35">No competitions assigned to this host.</p>
+        ) : (
+          <div className="space-y-3">
+            {hostCompetitions.map((competition) => (
+              <div key={competition.id} className="rounded-md border border-white/10 bg-white/[0.03] p-3" data-testid={`host-modal-competition-${competition.id}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-semibold text-white">{competition.title}</h4>
+                    <p className="text-xs text-white/40">{competition.category} · {competition.contestants.length} contestant{competition.contestants.length === 1 ? "" : "s"}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={`border-0 ${competition.status === "active" || competition.status === "voting" ? "bg-green-500/20 text-green-400" : competition.status === "completed" ? "bg-white/10 text-white/60" : "bg-yellow-500/20 text-yellow-400"}`}>
+                      {competition.status === "voting" ? "Active" : competition.status}
+                    </Badge>
+                    <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-white/40" data-testid={`link-modal-host-comp-${competition.id}`}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+                {competition.contestants.length > 0 && (
+                  <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                    {competition.contestants.map((contestant) => (
+                      <div key={contestant.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/[0.03] px-3 py-2" data-testid={`host-modal-contestant-${contestant.id}`}>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={contestant.imageUrls?.[0] || ""} />
+                            <AvatarFallback className="bg-orange-500/20 text-orange-300 text-[10px]">{contestant.displayName?.charAt(0) || "?"}</AvatarFallback>
+                          </Avatar>
+                          <Link href={`/talent/${contestant.talentProfileId}`}>
+                            <span className="truncate text-xs text-orange-300 underline underline-offset-2">{contestant.displayName}</span>
+                          </Link>
+                          <span className="hidden text-[11px] text-white/35 sm:inline">{contestant.stageName || ""}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`border-0 text-[10px] ${contestant.applicationStatus === "approved" ? "bg-green-500/20 text-green-400" : contestant.applicationStatus === "rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                            {contestant.applicationStatus}
+                          </Badge>
+                          <span className="text-[11px] text-white/40">{contestant.voteCount} votes</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-red-400/60 hover:bg-red-500/10 hover:text-red-400"
+                            onClick={() => {
+                              if (confirm(`Remove ${contestant.displayName} from this competition? This will also delete their votes.`)) {
+                                deleteContestantMutation.mutate(contestant.id);
+                              }
+                            }}
+                            aria-label={`Remove ${contestant.displayName}`}
+                            data-testid={`button-modal-remove-contestant-${contestant.id}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Gmail OAuth Status Panel ──────────────────────────────────────── */
 function GmailStatusPanel() {
   const { toast } = useToast();
@@ -1023,7 +1340,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   const USERS_PER_PAGE = 10;
   const [hostSearch, setHostSearch] = useState("");
   const [hostPage, setHostPage] = useState(1);
-  const [expandedHostId, setExpandedHostId] = useState<string | null>(null);
+  const [hostDetailUid, setHostDetailUid] = useState<string | null>(null);
   const [hostSettingsOpen, setHostSettingsOpen] = useState(false);
   const [assignHostDialogOpen, setAssignHostDialogOpen] = useState(false);
   const [assignHostUid, setAssignHostUid] = useState<string | null>(null);
@@ -1132,6 +1449,10 @@ export default function AdminDashboard({ user }: { user: any }) {
   const { data: hostSettings } = useQuery<JoinHostSettings>({ queryKey: ["/api/host/settings"] });
   const { data: hostSubmissions } = useQuery<HostSubmission[]>({ queryKey: ["/api/admin/host/submissions"] });
   const { data: hostUsers } = useQuery<HostProfile[]>({ queryKey: ["/api/admin/hosts"] });
+  const selectedHost = useMemo(
+    () => hostUsers?.find((host) => host.userId === hostDetailUid) || null,
+    [hostUsers, hostDetailUid],
+  );
 
   const filteredHosts = useMemo(() => {
     if (!hostUsers) return [];
@@ -3630,7 +3951,20 @@ export default function AdminDashboard({ user }: { user: any }) {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {paginatedHosts.map((host) => (
-                    <div key={host.userId} className="rounded-md bg-white/5 border border-white/5 overflow-visible" data-testid={`host-card-${host.userId}`}>
+                    <div
+                      key={host.userId}
+                      className="rounded-md bg-white/5 border border-white/5 overflow-visible cursor-pointer transition-colors hover:border-orange-500/30 hover:bg-white/[0.07]"
+                      onClick={() => setHostDetailUid(host.userId)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setHostDetailUid(host.userId);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      data-testid={`host-card-${host.userId}`}
+                    >
                       <div className="relative h-[200px] rounded-t-md flex flex-col justify-end bg-gradient-to-b from-purple-900/40 to-black overflow-hidden">
                         {(host.profileImageUrl || host.imageUrls?.[0]) ? (
                           <img src={host.profileImageUrl || host.imageUrls?.[0]} alt={`${host.displayName} profile`} className="absolute inset-0 w-full h-full object-cover opacity-75" />
@@ -3667,7 +4001,8 @@ export default function AdminDashboard({ user }: { user: any }) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 flex-none text-orange-300"
-                              onClick={() => {
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 navigator.clipboard.writeText(`${window.location.origin}/?ref=${host.referralCode}`);
                                 toast({ title: "Host share link copied" });
                               }}
@@ -3683,24 +4018,29 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setExpandedHostId(expandedHostId === host.userId ? null : host.userId)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setHostDetailUid(host.userId);
+                          }}
                           className="text-orange-400"
-                          data-testid={`button-expand-host-${host.userId}`}
+                          data-testid={`button-open-host-profile-${host.userId}`}
                         >
-                          {expandedHostId === host.userId ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
-                          {expandedHostId === host.userId ? "Hide Competitions" : "View Competitions"}
+                          <UserCircle className="h-4 w-4 mr-1" /> View Profile
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => { setAssignHostUid(host.userId); setAssignHostDialogOpen(true); }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setAssignHostUid(host.userId);
+                            setAssignHostDialogOpen(true);
+                          }}
                           className="text-white/40"
                           data-testid={`button-assign-comp-${host.userId}`}
                         >
                           <Plus className="h-4 w-4 mr-1" /> Assign Competition
                         </Button>
                       </div>
-                      {expandedHostId === host.userId && <ExpandedHostComps hostUid={host.userId} hostName={host.displayName} />}
                     </div>
                   ))}
                 </div>
@@ -4831,6 +5171,15 @@ export default function AdminDashboard({ user }: { user: any }) {
             <DialogTitle className="font-serif text-xl">User Profile</DialogTitle>
           </DialogHeader>
           {userDetailId !== null && <TalentDetailModal profileId={userDetailId} competitions={competitions} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={hostDetailUid !== null} onOpenChange={(open) => { if (!open) setHostDetailUid(null); }}>
+        <DialogContent className="bg-zinc-900 border-white/10 text-white w-full max-w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-xl p-0 sm:p-6 flex flex-col overflow-hidden" data-testid="host-detail-dialog">
+          <DialogHeader className="px-4 py-4 sm:p-0 border-b sm:border-0 border-white/10">
+            <DialogTitle className="font-serif text-xl">Host Profile</DialogTitle>
+          </DialogHeader>
+          {selectedHost && <HostDetailModal host={selectedHost} competitions={competitions} />}
         </DialogContent>
       </Dialog>
     </Tabs>
