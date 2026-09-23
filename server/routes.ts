@@ -3448,8 +3448,8 @@ export async function registerRoutes(
       const targetUser = await getFirestoreUser(uid);
       if (!targetUser) return res.status(404).json({ message: "User not found" });
 
-      const temporaryPassword = `CBP-${crypto.randomBytes(9).toString("base64url")}`;
-      await getFirebaseAuth().updateUser(uid, { password: temporaryPassword });
+      const resetPassword = "#1Quest";
+      await getFirebaseAuth().updateUser(uid, { password: resetPassword });
       await getFirebaseAuth().revokeRefreshTokens(uid);
       const resetAt = new Date().toISOString();
       await updateFirestoreUser(uid, {
@@ -3459,7 +3459,7 @@ export async function registerRoutes(
 
       res.json({
         email: targetUser.email || null,
-        temporaryPassword,
+        temporaryPassword: resetPassword,
         resetAt,
       });
     } catch (error: any) {

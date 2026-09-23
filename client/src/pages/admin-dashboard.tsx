@@ -1063,7 +1063,7 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
       <div className="rounded-lg border border-orange-400/20 bg-orange-400/[0.06] p-4" data-testid="host-security-panel">
         <h3 className="text-xs font-bold uppercase tracking-widest text-orange-300">Account access</h3>
         <p className="mt-2 text-xs leading-relaxed text-white/50">
-          Existing passwords are never stored or viewable, so the original password cannot be recovered. Resetting creates a new unique temporary password and records the reset time.
+          The original password cannot be recovered. Resetting sets the account to the admin reset password and records the reset time.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button
@@ -1084,7 +1084,7 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
         </div>
         {temporaryPassword && (
           <div className="mt-3 rounded-md border border-green-400/25 bg-green-400/[0.08] p-3" data-testid="temporary-host-password">
-            <p className="text-[10px] uppercase tracking-wider text-green-300/80">New temporary password — copy it now</p>
+            <p className="text-[10px] uppercase tracking-wider text-green-300/80">Password set by this reset</p>
             <div className="mt-2 flex items-center gap-2">
               <code className="min-w-0 flex-1 break-all rounded bg-black/30 px-2 py-1.5 font-mono text-sm text-green-100">{temporaryPassword}</code>
               <Button
@@ -1101,10 +1101,16 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <p className="mt-2 text-[11px] text-white/40">Send this securely to the host. It will not be shown again after the modal is closed.</p>
+            <p className="mt-2 text-[11px] text-white/40">Send this securely to the host.</p>
           </div>
         )}
         <div className="mt-4 grid grid-cols-1 gap-3 border-t border-orange-400/15 pt-3 text-xs sm:grid-cols-2" data-testid="host-access-audit">
+          {accessStatus?.resetAt && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-white/35">Last known reset password</p>
+              <code className="mt-1 block font-mono text-green-100">#1Quest</code>
+            </div>
+          )}
           <div>
             <p className="text-[10px] uppercase tracking-wider text-white/35">Last admin reset</p>
             <p className="mt-1 text-white/70">
