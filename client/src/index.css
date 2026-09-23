@@ -9,7 +9,7 @@
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
-  --background: 0 0% 4%;
+  --background: 0 0% 6.7%;
   --foreground: 0 0% 95%;
   --border: 0 0% 16%;
   --card: 0 0% 8%;
@@ -93,7 +93,7 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
-  --background: 0 0% 4%;
+  --background: 0 0% 6.7%;
   --foreground: 0 0% 95%;
   --border: 0 0% 16%;
   --card: 0 0% 8%;
@@ -225,6 +225,15 @@
     font-family: "Bebas Neue", Poppins, sans-serif;
     font-weight: 400;
     letter-spacing: 0.12em;
+  }
+}
+
+/* Shared Quest surface: keep solid page areas aligned with the footer's
+ * charcoal background instead of using pure black. Translucent black
+ * overlays such as bg-black/65 remain unchanged. */
+@layer utilities {
+  .bg-black {
+    background-color: #111111 !important;
   }
 }
 
