@@ -905,6 +905,7 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
+  const [expandedCompetitionId, setExpandedCompetitionId] = useState<number | null>(null);
 
   useEffect(() => {
     setProfileForm({
@@ -916,6 +917,16 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
       location: host.location || "",
     });
   }, [host]);
+
+  useEffect(() => {
+    setExpandedCompetitionId((current) => {
+      if (hostCompetitions.length === 0) return null;
+      if (current !== null && hostCompetitions.some((competition) => competition.id === current)) {
+        return current;
+      }
+      return hostCompetitions[0].id;
+    });
+  }, [hostCompetitions]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async () => {
@@ -1175,58 +1186,77 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
           <div className="space-y-3">
             {hostCompetitions.map((competition) => (
               <div key={competition.id} className="rounded-md border border-white/10 bg-white/[0.03] p-3" data-testid={`host-modal-competition-${competition.id}`}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h4 className="font-semibold text-white">{competition.title}</h4>
-                    <p className="text-xs text-white/40">{competition.category} · {competition.contestants.length} contestant{competition.contestants.length === 1 ? "" : "s"}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={`border-0 ${competition.status === "active" || competition.status === "voting" ? "bg-green-500/20 text-green-400" : competition.status === "completed" ? "bg-white/10 text-white/60" : "bg-yellow-500/20 text-yellow-400"}`}>
-                      {competition.status === "voting" ? "Active" : competition.status}
-                    </Badge>
-                    <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-white/40" data-testid={`link-modal-host-comp-${competition.id}`}>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                    </Link>
-                  </div>
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-start justify-between gap-3 rounded-sm text-left outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-orange-400/70"
+                    onClick={() => setExpandedCompetitionId((current) => current === competition.id ? null : competition.id)}
+                    aria-expanded={expandedCompetitionId === competition.id}
+                    aria-controls={`host-modal-competition-panel-${competition.id}`}
+                    data-testid={`button-toggle-host-competition-${competition.id}`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-white">{competition.title}</span>
+                      <span className="block text-xs text-white/40">{competition.category} · {competition.contestants.length} contestant{competition.contestants.length === 1 ? "" : "s"}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <Badge className={`border-0 ${competition.status === "active" || competition.status === "voting" ? "bg-green-500/20 text-green-400" : competition.status === "completed" ? "bg-white/10 text-white/60" : "bg-yellow-500/20 text-yellow-400"}`}>
+                        {competition.status === "voting" ? "Active" : competition.status}
+                      </Badge>
+                      {expandedCompetitionId === competition.id
+                        ? <ChevronUp className="h-4 w-4 text-orange-300" aria-hidden="true" />
+                        : <ChevronDown className="h-4 w-4 text-white/45" aria-hidden="true" />}
+                    </span>
+                  </button>
+                  <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-white/40" data-testid={`link-modal-host-comp-${competition.id}`} aria-label={`Open ${competition.title}`}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
                 </div>
-                {competition.contestants.length > 0 && (
-                  <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
-                    {competition.contestants.map((contestant) => (
-                      <div key={contestant.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/[0.03] px-3 py-2" data-testid={`host-modal-contestant-${contestant.id}`}>
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Avatar className="h-7 w-7">
-                            <AvatarImage src={contestant.imageUrls?.[0] || ""} />
-                            <AvatarFallback className="bg-orange-500/20 text-orange-300 text-[10px]">{contestant.displayName?.charAt(0) || "?"}</AvatarFallback>
-                          </Avatar>
-                          <Link href={`/talent/${contestant.talentProfileId}`}>
-                            <span className="truncate text-xs text-orange-300 underline underline-offset-2">{contestant.displayName}</span>
-                          </Link>
-                          <span className="hidden text-[11px] text-white/35 sm:inline">{contestant.stageName || ""}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={`border-0 text-[10px] ${contestant.applicationStatus === "approved" ? "bg-green-500/20 text-green-400" : contestant.applicationStatus === "rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>
-                            {contestant.applicationStatus}
-                          </Badge>
-                          <span className="text-[11px] text-white/40">{contestant.voteCount} votes</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-red-400/60 hover:bg-red-500/10 hover:text-red-400"
-                            onClick={() => {
-                              if (confirm(`Remove ${contestant.displayName} from this competition? This will also delete their votes.`)) {
-                                deleteContestantMutation.mutate(contestant.id);
-                              }
-                            }}
-                            aria-label={`Remove ${contestant.displayName}`}
-                            data-testid={`button-modal-remove-contestant-${contestant.id}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
+                {expandedCompetitionId === competition.id && (
+                  <div id={`host-modal-competition-panel-${competition.id}`}>
+                    {competition.contestants.length > 0 && (
+                      <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                        {competition.contestants.map((contestant) => (
+                          <div key={contestant.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/[0.03] px-3 py-2" data-testid={`host-modal-contestant-${contestant.id}`}>
+                            <div className="flex min-w-0 items-center gap-2">
+                              <Avatar className="h-7 w-7">
+                                <AvatarImage src={contestant.imageUrls?.[0] || ""} />
+                                <AvatarFallback className="bg-orange-500/20 text-orange-300 text-[10px]">{contestant.displayName?.charAt(0) || "?"}</AvatarFallback>
+                              </Avatar>
+                              <Link href={`/talent/${contestant.talentProfileId}`}>
+                                <span className="truncate text-xs text-orange-300 underline underline-offset-2">{contestant.displayName}</span>
+                              </Link>
+                              <span className="hidden text-[11px] text-white/35 sm:inline">{contestant.stageName || ""}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className={`border-0 text-[10px] ${contestant.applicationStatus === "approved" ? "bg-green-500/20 text-green-400" : contestant.applicationStatus === "rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                                {contestant.applicationStatus}
+                              </Badge>
+                              <span className="text-[11px] text-white/40">{contestant.voteCount} votes</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-red-400/60 hover:bg-red-500/10 hover:text-red-400"
+                                onClick={() => {
+                                  if (confirm(`Remove ${contestant.displayName} from this competition? This will also delete their votes.`)) {
+                                    deleteContestantMutation.mutate(contestant.id);
+                                  }
+                                }}
+                                aria-label={`Remove ${contestant.displayName}`}
+                                data-testid={`button-modal-remove-contestant-${contestant.id}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+                    {competition.contestants.length === 0 && (
+                      <p className="mt-3 border-t border-white/10 pt-3 text-xs text-white/35">No contestants yet.</p>
+                    )}
                   </div>
                 )}
               </div>
