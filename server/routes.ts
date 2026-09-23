@@ -3451,14 +3451,48 @@ export async function registerRoutes(
       const temporaryPassword = `CBP-${crypto.randomBytes(9).toString("base64url")}`;
       await getFirebaseAuth().updateUser(uid, { password: temporaryPassword });
       await getFirebaseAuth().revokeRefreshTokens(uid);
+      const resetAt = new Date().toISOString();
+      await updateFirestoreUser(uid, {
+        adminPasswordResetAt: resetAt,
+        adminPasswordResetBy: req.firebaseUser!.uid,
+      });
 
       res.json({
         email: targetUser.email || null,
         temporaryPassword,
+        resetAt,
       });
     } catch (error: any) {
       console.error("Admin password reset error:", error);
       res.status(500).json({ message: error.message || "Failed to reset password" });
+    }
+  });
+
+  app.get("/api/admin/users/:uid/access-status", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const { uid } = req.params;
+      const [firestoreUser, firebaseUser] = await Promise.all([
+        getFirestoreUser(uid),
+        getFirebaseAuth().getUser(uid),
+      ]);
+      if (!firestoreUser) return res.status(404).json({ message: "User not found" });
+
+      const resetAt = firestoreUser.adminPasswordResetAt || null;
+      const lastSignInAt = firebaseUser.metadata.lastSignInTime || null;
+      const signedInSinceReset = !!(
+        resetAt
+        && lastSignInAt
+        && Date.parse(lastSignInAt) >= Date.parse(resetAt)
+      );
+
+      res.json({
+        resetAt,
+        lastSignInAt,
+        signedInSinceReset,
+      });
+    } catch (error: any) {
+      console.error("Admin access status error:", error);
+      res.status(500).json({ message: error.message || "Failed to get account access status" });
     }
   });
 

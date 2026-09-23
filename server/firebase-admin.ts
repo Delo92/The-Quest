@@ -91,6 +91,8 @@ export interface FirestoreUser {
     verifiedAt: string | null;
     updatedAt: string | null;
   } | null;
+  adminPasswordResetAt?: string;
+  adminPasswordResetBy?: string;
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }

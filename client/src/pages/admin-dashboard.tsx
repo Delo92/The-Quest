@@ -152,6 +152,12 @@ interface HostCompetitionDetail {
   }[];
 }
 
+interface HostAccessStatus {
+  resetAt: string | null;
+  lastSignInAt: string | null;
+  signedInSinceReset: boolean;
+}
+
 
 interface CalendarReportResponse {
   competition: Competition;
@@ -894,6 +900,11 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
   const { data: hostCompetitions = [], isLoading: competitionsLoading, refetch } = useQuery<HostCompetitionDetail[]>({
     queryKey: ["/api/admin/hosts", host.userId, "competitions"],
   });
+  const { data: accessStatus } = useQuery<HostAccessStatus>({
+    queryKey: ["/api/admin/users", host.userId, "access-status"],
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
 
   useEffect(() => {
     setProfileForm({
@@ -932,10 +943,11 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
   const resetPasswordMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/admin/users/${host.userId}/reset-password`);
-      return res.json() as Promise<{ temporaryPassword: string; email: string | null }>;
+      return res.json() as Promise<{ temporaryPassword: string; email: string | null; resetAt: string }>;
     },
     onSuccess: (result) => {
       setTemporaryPassword(result.temporaryPassword);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", host.userId, "access-status"] });
       toast({ title: "Password reset", description: "Copy the temporary password and send it securely to the host." });
     },
     onError: (error: Error) => {
@@ -1051,7 +1063,7 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
       <div className="rounded-lg border border-orange-400/20 bg-orange-400/[0.06] p-4" data-testid="host-security-panel">
         <h3 className="text-xs font-bold uppercase tracking-widest text-orange-300">Account access</h3>
         <p className="mt-2 text-xs leading-relaxed text-white/50">
-          Existing passwords are never stored or viewable, so the original password cannot be recovered. Resetting creates a new temporary password for this host.
+          Existing passwords are never stored or viewable, so the original password cannot be recovered. Resetting creates a new unique temporary password and records the reset time.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button
@@ -1092,6 +1104,32 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
             <p className="mt-2 text-[11px] text-white/40">Send this securely to the host. It will not be shown again after the modal is closed.</p>
           </div>
         )}
+        <div className="mt-4 grid grid-cols-1 gap-3 border-t border-orange-400/15 pt-3 text-xs sm:grid-cols-2" data-testid="host-access-audit">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">Last admin reset</p>
+            <p className="mt-1 text-white/70">
+              {accessStatus?.resetAt ? new Date(accessStatus.resetAt).toLocaleString() : "No reset recorded"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">Last successful sign-in</p>
+            <p className="mt-1 text-white/70">
+              {accessStatus?.lastSignInAt ? new Date(accessStatus.lastSignInAt).toLocaleString() : "None recorded"}
+            </p>
+          </div>
+          <div className="sm:col-span-2">
+            <Badge className={`border-0 ${accessStatus?.signedInSinceReset ? "bg-green-500/20 text-green-300" : accessStatus?.resetAt ? "bg-yellow-500/20 text-yellow-300" : "bg-white/10 text-white/45"}`}>
+              {accessStatus?.signedInSinceReset
+                ? "Host has signed in since the last reset"
+                : accessStatus?.resetAt
+                  ? "No sign-in recorded since the last reset"
+                  : "Reset status not available yet"}
+            </Badge>
+            <p className="mt-2 text-[11px] text-white/35">
+              This confirms access activity after a reset; it does not reveal the host&apos;s current password.
+            </p>
+          </div>
+        </div>
       </div>
 
       {shareUrl && (
