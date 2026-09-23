@@ -45,10 +45,9 @@ export function useLivery() {
   }, [items]);
 
   const getImage = (imageKey: string, fallback?: string): string => {
-    if (!items) return fallback || "";
+    if (!items) return "";
     const item = items.find((i) => i.imageKey === imageKey);
-    if (!item) return fallback || "";
-    return item.imageUrl || item.defaultUrl;
+    return item?.imageUrl || "";
   };
 
   const getMediaType = (imageKey: string): "image" | "video" => {
@@ -58,11 +57,11 @@ export function useLivery() {
   };
 
   const getMedia = (imageKey: string, fallback?: string): { url: string; type: "image" | "video" } => {
-    if (!items) return { url: fallback || "", type: "image" };
+    if (!items) return { url: "", type: "image" };
     const item = items.find((i) => i.imageKey === imageKey);
-    if (!item) return { url: fallback || "", type: "image" };
+    if (!item) return { url: "", type: "image" };
     return {
-      url: item.imageUrl || item.defaultUrl,
+      url: item.imageUrl || "",
       type: item?.mediaType || "image",
     };
   };
