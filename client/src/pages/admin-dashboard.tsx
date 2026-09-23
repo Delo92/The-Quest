@@ -924,7 +924,7 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
       if (current !== null && hostCompetitions.some((competition) => competition.id === current)) {
         return current;
       }
-      return hostCompetitions[0].id;
+      return null;
     });
   }, [hostCompetitions]);
 
