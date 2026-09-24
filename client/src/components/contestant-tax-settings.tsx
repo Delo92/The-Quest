@@ -182,10 +182,7 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
     <section className="space-y-5" aria-labelledby="tax-settings-heading" data-testid="contestant-tax-settings">
       <Dialog
         open={taxPromptOpen}
-        onOpenChange={(open) => {
-          setTaxPromptOpen(open);
-          if (!open && needsTaxProfile) acknowledgmentMutation.mutate("dismiss");
-        }}
+        onOpenChange={setTaxPromptOpen}
       >
         <DialogContent className="max-w-lg border-white/10 bg-[#111] text-white" data-testid="dialog-tax-profile-reminder">
           <DialogHeader>

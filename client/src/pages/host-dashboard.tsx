@@ -48,6 +48,7 @@ interface HostCompetition {
   maxImagesPerContestant: number | null;
   maxVideosPerContestant: number | null;
   chronicBrandsPromotionEnabled: boolean;
+  chronicBrandsPromotionUrl?: string | null;
   startDate: string | null;
   endDate: string | null;
   vimeoFolderUrl: string | null;
@@ -869,6 +870,7 @@ export default function HostDashboard({ user }: { user: any }) {
                                 maxImagesPerContestant: comp.maxImagesPerContestant,
                                 maxVideosPerContestant: comp.maxVideosPerContestant,
                                  chronicBrandsPromotionEnabled: comp.chronicBrandsPromotionEnabled !== false,
+                                  chronicBrandsPromotionUrl: comp.chronicBrandsPromotionUrl || "",
                                  vimeoFolderUrl: comp.vimeoFolderUrl || "",
                                 inPersonOnly: (comp as any).inPersonOnly || false,
                               });
@@ -1076,6 +1078,20 @@ export default function HostDashboard({ user }: { user: any }) {
                               />
                             </div>
                           </div>
+                        </div>
+                        <div>
+                          <Label className="text-white/50 text-xs">Contestant ticket-sales destination</Label>
+                          <Input
+                            type="url"
+                            value={editForm.chronicBrandsPromotionUrl || ""}
+                            onChange={(e) => setEditForm({ ...editForm, chronicBrandsPromotionUrl: e.target.value })}
+                            placeholder="https://chronicbrandsusa.com/raplahoma"
+                            className="bg-white/[0.08] border-white/20 text-white"
+                            data-testid={`edit-ticket-sales-url-${comp.id}`}
+                          />
+                          <p className="text-[10px] text-white/35 mt-1">
+                            Contestant referral links keep their promo code and competition tracking. Leave blank to use the platform default.
+                          </p>
                         </div>
                         <div>
                           <Label className="text-white/50 text-xs">Description</Label>

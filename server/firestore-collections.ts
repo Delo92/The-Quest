@@ -84,6 +84,7 @@ export interface FirestoreCompetition {
   inPersonOnly: boolean;
   vimeoFolderUrl: string | null;
   chronicBrandsPromotionEnabled: boolean;
+  chronicBrandsPromotionUrl?: string | null;
   themeColor?: string | null;
   stages?: CompetitionStage[];
   payrollRules?: {
@@ -433,6 +434,7 @@ function normalizeCompetition(data: any): FirestoreCompetition {
     inPersonOnly: data.inPersonOnly ?? false,
     vimeoFolderUrl: data.vimeoFolderUrl ?? null,
     chronicBrandsPromotionEnabled: data.chronicBrandsPromotionEnabled ?? true,
+    chronicBrandsPromotionUrl: data.chronicBrandsPromotionUrl ?? null,
     themeColor: data.themeColor ?? null,
     stages: Array.isArray(data.stages) ? data.stages : [],
   } as FirestoreCompetition;

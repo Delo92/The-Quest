@@ -1810,6 +1810,14 @@ export async function registerRoutes(
     onlineVoteWeight: z.number().int().min(1).max(100).optional().default(100),
     inPersonOnly: z.boolean().optional().default(false),
     chronicBrandsPromotionEnabled: z.boolean().optional().default(true),
+    chronicBrandsPromotionUrl: z.string().trim().url("Ticket sales link must be a valid URL").refine((value) => {
+      try {
+        const url = new URL(value);
+        return (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password;
+      } catch {
+        return false;
+      }
+    }, "Ticket sales link must use HTTP or HTTPS").optional().nullable(),
     vimeoFolderUrl: z.string().trim().refine((value) => {
       try {
         parseVimeoFolderUri(value);
@@ -1939,6 +1947,30 @@ export async function registerRoutes(
           updateData.vimeoFolderUrl = String(updateData.vimeoFolderUrl).trim();
         } catch (error: any) {
           return res.status(400).json({ message: error.message || "Invalid Vimeo folder link" });
+        }
+      }
+    }
+
+    if ("chronicBrandsPromotionUrl" in updateData) {
+      const rawTicketUrl = updateData.chronicBrandsPromotionUrl;
+      if (rawTicketUrl === "" || rawTicketUrl === null) {
+        updateData.chronicBrandsPromotionUrl = null;
+      } else if (typeof rawTicketUrl !== "string") {
+        return res.status(400).json({ message: "Ticket sales link must be a valid HTTP or HTTPS URL" });
+      } else {
+        const ticketUrl = rawTicketUrl.trim();
+        try {
+          const parsedTicketUrl = new URL(ticketUrl);
+          if (
+            (parsedTicketUrl.protocol !== "https:" && parsedTicketUrl.protocol !== "http:") ||
+            parsedTicketUrl.username ||
+            parsedTicketUrl.password
+          ) {
+            throw new Error("Invalid ticket sales URL");
+          }
+          updateData.chronicBrandsPromotionUrl = ticketUrl;
+        } catch {
+          return res.status(400).json({ message: "Ticket sales link must be a valid HTTP or HTTPS URL" });
         }
       }
     }
@@ -2382,7 +2414,8 @@ export async function registerRoutes(
         chronicBrandsPromotionEnabled: comp?.chronicBrandsPromotionEnabled ?? true,
         chronicBrandsTicketGoal: 4,
         chronicBrandsTicketCount: ticketPurchases.reduce((total, purchase) => total + Math.max(1, purchase.ticketCount || 1), 0),
-        chronicBrandsPromotionUrl: process.env.CHRONIC_BRANDS_TICKET_URL || "https://chronicbrandsusa.com/",
+        chronicBrandsPromotionUrl:
+          comp?.chronicBrandsPromotionUrl || process.env.CHRONIC_BRANDS_TICKET_URL || "https://chronicbrandsusa.com/",
       };
     }));
     res.json(enriched);
@@ -2594,6 +2627,29 @@ export async function registerRoutes(
           updateData.vimeoFolderUrl = String(updateData.vimeoFolderUrl).trim();
         } catch (error: any) {
           return res.status(400).json({ message: error.message || "Invalid Vimeo folder link" });
+        }
+      }
+    }
+    if ("chronicBrandsPromotionUrl" in updateData) {
+      const rawTicketUrl = updateData.chronicBrandsPromotionUrl;
+      if (rawTicketUrl === "" || rawTicketUrl === null) {
+        updateData.chronicBrandsPromotionUrl = null;
+      } else if (typeof rawTicketUrl !== "string") {
+        return res.status(400).json({ message: "Ticket sales link must be a valid HTTP or HTTPS URL" });
+      } else {
+        const ticketUrl = rawTicketUrl.trim();
+        try {
+          const parsedTicketUrl = new URL(ticketUrl);
+          if (
+            (parsedTicketUrl.protocol !== "https:" && parsedTicketUrl.protocol !== "http:") ||
+            parsedTicketUrl.username ||
+            parsedTicketUrl.password
+          ) {
+            throw new Error("Invalid ticket sales URL");
+          }
+          updateData.chronicBrandsPromotionUrl = ticketUrl;
+        } catch {
+          return res.status(400).json({ message: "Ticket sales link must be a valid HTTP or HTTPS URL" });
         }
       }
     }

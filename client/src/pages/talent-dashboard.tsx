@@ -1520,8 +1520,8 @@ export default function TalentDashboard({ user, profile }: Props) {
             </div>
           </TabsContent>
 
-           <TabsContent value="tax">
-             <ContestantTaxSettings />
+            <TabsContent value="tax" forceMount>
+              <ContestantTaxSettings onOpenTaxDetails={() => setActiveSection("tax")} />
            </TabsContent>
 
           <TabsContent value="media">
