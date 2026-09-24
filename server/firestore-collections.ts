@@ -291,6 +291,11 @@ export interface FirestoreJoinSettings {
   isActive: boolean;
   charityName: string;
   charityPercentage: number;
+  nonprofitContributionRates: {
+    contestant: number | null;
+    host: number | null;
+    platform: number | null;
+  };
   nominationFee: number;
   nominationEnabled: boolean;
   nonprofitRequired: boolean;
@@ -1232,9 +1237,14 @@ const JOIN_SETTINGS_DEFAULTS: Omit<FirestoreJoinSettings, "updatedAt"> = {
   isActive: true,
   charityName: "",
   charityPercentage: 0,
+  nonprofitContributionRates: {
+    contestant: null,
+    host: null,
+    platform: null,
+  },
   nominationFee: 0,
   nominationEnabled: true,
-  nonprofitRequired: false,
+  nonprofitRequired: true,
   freeNominationPromoCode: "",
 };
 
@@ -1246,16 +1256,59 @@ export const firestoreJoinSettings = {
       await db().collection(COLLECTIONS.JOIN_SETTINGS).doc("global").set(settings);
       return settings;
     }
-    return { ...JOIN_SETTINGS_DEFAULTS, ...doc.data() } as FirestoreJoinSettings;
+    const stored = doc.data() || {};
+    const storedRates = stored.nonprofitContributionRates || {};
+    const hasPlatformRate = Object.prototype.hasOwnProperty.call(storedRates, "platform");
+    const legacyPlatformRate = Number(stored.charityPercentage);
+    const platformRate = hasPlatformRate
+      ? storedRates.platform
+      : Number.isFinite(legacyPlatformRate) && legacyPlatformRate > 0 && legacyPlatformRate <= 10
+        ? legacyPlatformRate
+        : null;
+    return {
+      ...JOIN_SETTINGS_DEFAULTS,
+      ...stored,
+      nonprofitRequired: true,
+      nonprofitContributionRates: {
+        ...JOIN_SETTINGS_DEFAULTS.nonprofitContributionRates,
+        ...storedRates,
+        platform: platformRate,
+      },
+    } as FirestoreJoinSettings;
   },
 
   async update(data: Partial<Omit<FirestoreJoinSettings, "updatedAt">>): Promise<FirestoreJoinSettings> {
     const ref = db().collection(COLLECTIONS.JOIN_SETTINGS).doc("global");
     const doc = await ref.get();
+    const current = doc.exists ? await this.get() : JOIN_SETTINGS_DEFAULTS;
+    const incomingRates = data.nonprofitContributionRates;
+    const nonprofitContributionRates = { ...current.nonprofitContributionRates };
+    if (incomingRates) {
+      for (const level of ["contestant", "host", "platform"] as const) {
+        if (Object.prototype.hasOwnProperty.call(incomingRates, level)) {
+          const rawRate = incomingRates[level];
+          if (rawRate === null || rawRate === undefined || rawRate === "") {
+            nonprofitContributionRates[level] = null;
+          } else {
+            const rate = Number(rawRate);
+            if (!Number.isFinite(rate) || rate <= 0 || rate > 10) {
+              throw new Error("Each required nonprofit share must be greater than 0% and no more than 10%.");
+            }
+            nonprofitContributionRates[level] = Math.round(rate * 100) / 100;
+          }
+        }
+      }
+    }
+    const update = {
+      ...data,
+      nonprofitRequired: true,
+      nonprofitContributionRates,
+      updatedAt: now(),
+    };
     if (doc.exists) {
-      await ref.update({ ...data, updatedAt: now() });
+      await ref.update(update);
     } else {
-      await ref.set({ ...JOIN_SETTINGS_DEFAULTS, ...data, updatedAt: now() });
+      await ref.set({ ...JOIN_SETTINGS_DEFAULTS, ...update });
     }
     const updated = await ref.get();
     return updated.data() as FirestoreJoinSettings;
