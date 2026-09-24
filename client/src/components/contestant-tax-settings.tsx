@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Download, FileText, LockKeyhole, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -67,12 +68,13 @@ const dateLabel = (value?: string | null) => value
   ? new Date(value).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
   : "Date unavailable";
 
-export default function ContestantTaxSettings() {
+export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxDetails?: () => void } = {}) {
   const { toast } = useToast();
   const currentYear = new Date().getUTCFullYear();
   const [taxYear, setTaxYear] = useState(currentYear);
   const [form, setForm] = useState<TaxForm>(emptyForm);
   const [showReminder, setShowReminder] = useState(true);
+  const [taxPromptOpen, setTaxPromptOpen] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState("");
 
   const yearsQuery = useQuery<number[]>({ queryKey: ["/api/tax/my-years"] });
@@ -163,9 +165,69 @@ export default function ContestantTaxSettings() {
   const update = (key: keyof TaxForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const inputClass = "border-white/15 bg-white/[0.06] text-white placeholder:text-white/25";
   const currentHasTin = Boolean(profile?.current?.taxIdLast4);
+  const needsTaxProfile = Boolean(
+    profileQuery.isSuccess
+    && deadlinesQuery.isSuccess
+    && profile?.encryptionReady
+    && !profile.currentVersionId
+    && !profile.dismissedAt
+    && (deadlines.length > 0 || Number(profile.paidGrossCents) > 0),
+  );
+
+  useEffect(() => {
+    if (needsTaxProfile) setTaxPromptOpen(true);
+  }, [needsTaxProfile]);
 
   return (
     <section className="space-y-5" aria-labelledby="tax-settings-heading" data-testid="contestant-tax-settings">
+      <Dialog
+        open={taxPromptOpen}
+        onOpenChange={(open) => {
+          setTaxPromptOpen(open);
+          if (!open && needsTaxProfile) acknowledgmentMutation.mutate("dismiss");
+        }}
+      >
+        <DialogContent className="max-w-lg border-white/10 bg-[#111] text-white" data-testid="dialog-tax-profile-reminder">
+          <DialogHeader>
+            <DialogTitle>Complete your 1099 tax details</DialogTitle>
+            <DialogDescription className="text-white/60">
+              Enter your legal name, SSN or EIN, and mailing address so The Quest can prepare recipient 1099-NEC forms when applicable. Your tax ID is encrypted before it is saved.
+            </DialogDescription>
+          </DialogHeader>
+          {deadlines.length > 0 && (
+            <p className="text-sm leading-relaxed text-white/55">
+              Save your details by your competition&apos;s final-voting cutoff to help protect your eligibility for prize earnings. You can review the deadlines in Tax Details.
+            </p>
+          )}
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                acknowledgmentMutation.mutate("dismiss");
+                setTaxPromptOpen(false);
+              }}
+              disabled={acknowledgmentMutation.isPending}
+              className="min-h-11 border-white/20 text-white hover:bg-white/10"
+              data-testid="button-tax-prompt-later"
+            >
+              Remind me later
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setTaxPromptOpen(false);
+                onOpenTaxDetails?.();
+              }}
+              className="min-h-11 bg-orange-500 text-white hover:bg-orange-400"
+              data-testid="button-open-tax-details"
+            >
+              Enter tax details
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
