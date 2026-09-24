@@ -10,6 +10,7 @@
 - [Competition Vimeo routing](competition-vimeo-routing.md) — optional per-competition Vimeo folder is preferred; standard Quest/CB destinations remain backups and folder failures must block unfiled uploads
 - [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing
 - [Host account credentials](host-account-credentials.md) — old passwords are never recoverable; admin resets generate a one-time temporary password instead
+- [Host voting POS scope](host-voting-pos-scope.md) — describe The Quest as an on-site voting POS; don't imply general event sales without verified flows
 - [Public page performance](public-performance.md) — public listings must render from Firestore first and load Vimeo media separately
 - [Contestant video storage](contestant-video-storage.md) — videoUrls on TalentProfile must be kept in sync with Vimeo; read from Firestore, never walk folder tree at page load
 - [Featured countdown rendering](featured-countdown-rendering.md) — render the featured state immediately; delayed motion can hide it during preview capture

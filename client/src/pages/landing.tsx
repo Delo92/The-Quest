@@ -248,6 +248,17 @@ export default function Landing() {
             </div>
           </motion.div>
 
+          <p className="mt-5 text-center text-sm text-white/60">
+            Organizing a competition?{" "}
+            <Link
+              href="/host"
+              className="font-semibold text-[var(--quest-brand)] underline underline-offset-4 transition-colors hover:text-white"
+              data-testid="link-hero-host"
+            >
+              Apply to host an event
+            </Link>
+          </p>
+
           {getText("hero_summary") && (
             <motion.p
               initial={{ opacity: 0, y: 20 }}

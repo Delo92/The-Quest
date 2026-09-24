@@ -92,6 +92,7 @@ export default function SiteNavbar() {
   const dashboardHref = isViewerLoggedIn ? "/viewer" : "/dashboard";
   const isQuestSection = window.location.pathname === "/thequest" || window.location.pathname.startsWith("/thequest/");
   const homeHref = isQuestSection ? "/thequest" : "/";
+  const hostHref = isQuestSection ? "/host" : "/thequest/host";
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -118,19 +119,28 @@ export default function SiteNavbar() {
           <CBLogo size="md" />
         </a>
 
-        <button
-          className="lg:hidden text-white"
-          onClick={() => setMenuOpen(!menuOpen)}
-          data-testid="button-mobile-menu"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {menuOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
+        <div className="flex items-center gap-3 lg:hidden">
+          <Link
+            href={hostHref}
+            className="inline-flex min-h-10 items-center justify-center border border-[var(--quest-brand)]/70 px-3 text-[var(--quest-brand)] text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-[var(--quest-brand)] hover:text-white"
+            data-testid="link-mobile-host"
+          >
+            Host an Event
+          </Link>
+          <button
+            className="text-white"
+            onClick={() => setMenuOpen(!menuOpen)}
+            data-testid="button-mobile-menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {menuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
 
         <div className="hidden lg:flex items-center gap-8">
           <a
@@ -171,6 +181,13 @@ export default function SiteNavbar() {
         </div>
 
         <div className="hidden lg:flex items-center gap-6">
+          <Link
+            href={hostHref}
+            className="inline-flex items-center justify-center min-h-10 border border-[var(--quest-brand)]/70 px-3 text-[var(--quest-brand)] font-bold text-[11px] uppercase tracking-wider transition-colors hover:bg-[var(--quest-brand)] hover:text-white"
+            data-testid="link-nav-host"
+          >
+            Host an Event
+          </Link>
           <Link
             href="/competitions"
             className="inline-flex items-center gap-1 bg-[var(--quest-brand)] text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-full transition-all duration-300 hover:bg-[var(--quest-brand-dark)]"

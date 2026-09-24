@@ -432,6 +432,18 @@ export default function LoginPage() {
               Back to Login
             </button>
           )}
+          <div className="mt-6 border-t border-white/10 pt-5" data-testid="login-host-prompt">
+            <p className="text-sm text-white/55">
+              Organizing a competition? You can apply to host without creating a contestant account.
+            </p>
+            <Link
+              href="/host"
+              className="mt-2 inline-flex min-h-10 items-center gap-1 text-sm font-semibold uppercase tracking-wider text-[#FF5A09] transition-colors hover:text-orange-300"
+              data-testid="link-login-host"
+            >
+              Learn about hosting <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       </div>
 

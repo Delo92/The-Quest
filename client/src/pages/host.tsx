@@ -11,7 +11,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { CheckCircle, Send, CreditCard, Trophy, Mail } from "lucide-react";
+import { CheckCircle, Send, CreditCard, Trophy, Mail, QrCode, BarChart3, Users } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import type { Competition } from "@shared/schema";
 
@@ -75,7 +75,7 @@ export default function HostPage() {
   const paymentIdempotencyKey = useRef(crypto.randomUUID());
   useSEO({
     title: "Host Your Event",
-    description: "Want to run your own talent competition? Host your event on The Quest with built-in voting, contestant management, and analytics. Get started today.",
+    description: "Host an online, in-person, or hybrid talent competition on The Quest. Manage contestants, use QR-code live voting, and track event results and voting revenue.",
     canonical: "https://thequest-2dc77.firebaseapp.com/host",
   });
   const { toast } = useToast();
@@ -427,9 +427,36 @@ export default function HostPage() {
       </section>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-        <p className="text-white/40 text-sm mb-10 max-w-xl" data-testid="text-page-description">
+        <p className="text-white/65 text-sm sm:text-base leading-relaxed mb-8 max-w-2xl" data-testid="text-page-description">
           {settings.pageDescription}
         </p>
+
+        <section className="mb-10 border border-white/10 bg-white/[0.03] p-5 sm:p-7" aria-labelledby="host-how-title" data-testid="host-how-it-works">
+          <p className="text-[#FF5A09] text-xs uppercase font-bold tracking-[0.2em]">Online, live, or hybrid</p>
+          <h3 id="host-how-title" className="mt-2 text-xl sm:text-2xl font-bold uppercase tracking-wider text-white">
+            Your event, managed in one place
+          </h3>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/60">
+            The Quest helps event organizers publish a competition, manage contestants and voting, and follow results from a host dashboard. Use it for an online competition, a live venue event, or a combination of both.
+          </p>
+          <div className="mt-6 grid gap-5 sm:grid-cols-3">
+            <div>
+              <Users className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />
+              <h4 className="mt-2 text-xs font-bold uppercase tracking-wider text-white">Manage your competition</h4>
+              <p className="mt-1 text-xs leading-relaxed text-white/50">Organize contestants, event details, and voting from your host tools.</p>
+            </div>
+            <div>
+              <QrCode className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />
+              <h4 className="mt-2 text-xs font-bold uppercase tracking-wider text-white">Use The Quest as your voting POS</h4>
+              <p className="mt-1 text-xs leading-relaxed text-white/50">Display your event QR code at the venue. Attendees scan it to vote on their phones; paid vote packages use The Quest checkout.</p>
+            </div>
+            <div>
+              <BarChart3 className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />
+              <h4 className="mt-2 text-xs font-bold uppercase tracking-wider text-white">Track online and venue votes</h4>
+              <p className="mt-1 text-xs leading-relaxed text-white/50">Run hybrid or in-person-only voting and review each vote source separately in your dashboard.</p>
+            </div>
+          </div>
+        </section>
 
         {inviteDetails && (
           <div className="border border-purple-500/40 bg-purple-500/5 p-4 mb-8 flex flex-wrap items-start gap-3" data-testid="invite-banner">

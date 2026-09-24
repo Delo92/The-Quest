@@ -2,6 +2,9 @@ import { Link } from "wouter";
 import CBLogo from "@/components/cb-logo";
 
 export default function SiteFooter() {
+  const isQuestSection = window.location.pathname === "/thequest" || window.location.pathname.startsWith("/thequest/");
+  const hostHref = isQuestSection ? "/host" : "/thequest/host";
+
   return (
     <footer className="bg-[#111111] py-8" data-testid="site-footer">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4">
@@ -29,6 +32,13 @@ export default function SiteFooter() {
             data-testid="link-footer-join"
           >
             Nominate
+          </Link>
+          <Link
+            href={hostHref}
+            className="text-white/60 text-sm uppercase tracking-widest transition-colors duration-300 hover:text-white"
+            data-testid="link-footer-host"
+          >
+            Host an Event
           </Link>
           <Link
             href="/about"

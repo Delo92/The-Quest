@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, ChevronDown, Calendar, Users, MapPin, Mail, Phone, ExternalLink, HeartHandshake } from "lucide-react";
+import { ChevronRight, ChevronDown, Calendar, Users, MapPin, Mail, Phone, ExternalLink, HeartHandshake, QrCode, BarChart3, Trophy } from "lucide-react";
 import { SiFacebook, SiInstagram, SiYoutube, SiTiktok } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
 import SiteNavbar from "@/components/site-navbar";
@@ -48,7 +48,7 @@ export default function AboutPage() {
 
   useSEO({
     title: "About The Quest",
-    description: "Learn about The Quest, our talent competitions, nonprofit giving, rules, upcoming events, and how to participate as a competitor or host.",
+    description: "Learn about The Quest, host online and in-person competitions with QR-code voting, nonprofit giving, rules, upcoming events, and how to participate.",
     canonical: "https://thequest-2dc77.firebaseapp.com/about",
   });
 
@@ -114,6 +114,61 @@ export default function AboutPage() {
       </section>
 
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <section
+          id="hosting-on-the-quest"
+          className="mb-12 border border-white/10 bg-white/[0.03] p-6 sm:p-8"
+          aria-labelledby="hosting-heading"
+          data-testid="about-hosting-section"
+        >
+          <p className="text-[#FF5A09] text-xs uppercase font-bold mb-3 tracking-[0.2em]">
+            For Event Organizers
+          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-2xl">
+              <h2 id="hosting-heading" className="text-2xl sm:text-3xl font-bold uppercase text-white">
+                Run your competition on The Quest
+              </h2>
+              <p className="mt-3 text-sm sm:text-[15px] leading-relaxed text-white/65">
+                Bring an online talent competition, a live venue event, or both onto one platform. Hosts can organize contestants, publish their competition, manage voting, and review event activity and results from a host dashboard.
+              </p>
+            </div>
+            <Link
+              href="/host"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 bg-[#FF5A09] px-5 text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-orange-600"
+              data-testid="link-about-host"
+            >
+              Become a Host <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            <div>
+              <Trophy className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />
+              <h3 className="mt-3 text-sm font-bold uppercase tracking-wider text-white">Run it your way</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/55">
+                Set up your event and contestant roster, share a public competition page, and manage the competition through its lifecycle.
+              </p>
+            </div>
+            <div>
+              <QrCode className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />
+              <h3 className="mt-3 text-sm font-bold uppercase tracking-wider text-white">Bring voting to the venue</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/55">
+                Display your event QR code so attendees can open the voting page on their phones. Run online and in-person voting together, or make a competition in-person only.
+              </p>
+            </div>
+            <div>
+              <BarChart3 className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />
+              <h3 className="mt-3 text-sm font-bold uppercase tracking-wider text-white">See how it performs</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/55">
+                Review online and in-person vote totals separately, follow event activity, and see voting revenue in your host tools.
+              </p>
+            </div>
+          </div>
+          <p className="mt-6 border-t border-white/10 pt-4 text-xs leading-relaxed text-white/40">
+            For live events, The Quest works as an on-site point of sale for audience voting: attendees scan the event QR code to vote, and available paid vote packages use the platform checkout.
+          </p>
+        </section>
+
         <h3
           className="text-[#FF5A09] text-xs uppercase mb-4 font-bold"
           style={{ letterSpacing: "6px" }}
@@ -183,6 +238,7 @@ export default function AboutPage() {
             </div>
           </div>
         )}
+
       </section>
 
       <section className="bg-[#0a0a0a] py-16">
