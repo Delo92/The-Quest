@@ -4007,8 +4007,9 @@ export async function registerRoutes(
       const totalVotes = weightedContestants.reduce((sum, contestant) => sum + contestant.voteCount, 0);
 
       let creatorRole: string | null = null;
+      let creatorProfile: any = null;
       if (comp.createdBy) {
-        const creatorProfile = await storage.getTalentProfileByUserId(comp.createdBy);
+        creatorProfile = await storage.getTalentProfileByUserId(comp.createdBy);
         creatorRole = creatorProfile?.role || null;
       }
 
@@ -4017,6 +4018,45 @@ export async function registerRoutes(
         h.eventName?.toLowerCase().includes(comp.title.toLowerCase()) ||
         comp.title.toLowerCase().includes(h.eventName?.toLowerCase() || "")
       );
+      type CompetitionHostRow = {
+        id: string | number;
+        fullName: string;
+        email: string;
+        organization?: string | null;
+        eventName?: string;
+        status: string;
+        amountPaid?: number;
+        isCompetitionOwner?: boolean;
+      };
+      const competitionHosts: CompetitionHostRow[] = matchingHosts.map((host) => ({
+        id: host.id,
+        fullName: host.fullName,
+        email: host.email,
+        organization: host.organization,
+        eventName: host.eventName,
+        status: host.status,
+        amountPaid: host.amountPaid,
+        isCompetitionOwner: false,
+      }));
+      if (creatorProfile?.role === "host") {
+        const ownerEmail = String(creatorProfile.email || "").trim().toLowerCase();
+        const existingOwnerIndex = ownerEmail
+          ? competitionHosts.findIndex((host) => host.email.trim().toLowerCase() === ownerEmail)
+          : -1;
+        const ownerRow: CompetitionHostRow = {
+          id: `owner-${String(creatorProfile.id)}`,
+          fullName: String(creatorProfile.displayName || creatorProfile.stageName || "Competition host"),
+          email: String(creatorProfile.email || ""),
+          eventName: comp.title,
+          status: "approved",
+          isCompetitionOwner: true,
+        };
+        if (existingOwnerIndex >= 0) {
+          competitionHosts[existingOwnerIndex] = { ...competitionHosts[existingOwnerIndex], ...ownerRow };
+        } else {
+          competitionHosts.unshift(ownerRow);
+        }
+      }
 
       const contestantDetails = [];
       for (const c of compContestants) {
@@ -4046,15 +4086,7 @@ export async function registerRoutes(
         totalVotes,
         totalRawVotes,
         createdByAdmin: creatorRole === "admin",
-        hosts: matchingHosts.map(h => ({
-          id: h.id,
-          fullName: h.fullName,
-          email: h.email,
-          organization: h.organization,
-          eventName: h.eventName,
-          status: h.status,
-          amountPaid: h.amountPaid,
-        })),
+        hosts: competitionHosts,
         contestants: contestantDetails,
       });
     } catch (error: any) {

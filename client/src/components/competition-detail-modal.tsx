@@ -35,11 +35,12 @@ interface CompDetailResponse {
   totalVotes: number;
   createdByAdmin?: boolean;
   hosts: {
-    id: number;
+    id: string | number;
     fullName: string;
     email: string;
     organization?: string;
     status: string;
+    isCompetitionOwner?: boolean;
   }[];
   contestants: {
     id: number;
@@ -797,7 +798,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
 
                   <div className="pt-4 border-t border-white/5" data-testid="comp-detail-hosts">
                     <h4 className="text-xs uppercase tracking-widest text-white/40 font-bold mb-3">Hosts</h4>
-                    {createdByAdmin ? (
+                    {createdByAdmin && (
                       <div className="flex items-center gap-3 rounded-lg bg-white/5 border border-white/10 p-3" data-testid="comp-hosted-by-admin">
                         <div className="h-8 w-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-xs">
                           AD
@@ -807,26 +808,27 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                           <p className="text-[10px] text-orange-400">Owner</p>
                         </div>
                       </div>
-                    ) : hosts.length > 0 ? (
+                    )}
+                    {hosts.length > 0 ? (
                       <div className="space-y-2">
                         {hosts.map((host) => (
                           <div key={host.id} className="flex flex-col gap-2 rounded-lg bg-white/5 border border-white/10 p-3" data-testid={`comp-host-${host.id}`}>
                             <div className="flex items-start justify-between">
                               <div>
                                 <p className="font-medium text-sm text-white/90">{host.fullName}</p>
-                                <p className="text-xs text-white/40 truncate mt-0.5">{host.email}</p>
+                                {host.email && <p className="text-xs text-white/40 truncate mt-0.5">{host.email}</p>}
                               </div>
-                              <Badge className={`border-0 shrink-0 capitalize ${host.status === "approved" ? "bg-green-500/10 text-green-400" : host.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
-                                {host.status}
+                              <Badge className={`border-0 shrink-0 capitalize ${host.isCompetitionOwner ? "bg-orange-500/15 text-orange-300" : host.status === "approved" ? "bg-green-500/10 text-green-400" : host.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                                {host.isCompetitionOwner ? "Owner" : host.status}
                               </Badge>
                             </div>
                             {host.organization && <p className="text-[10px] text-white/30 uppercase tracking-widest">{host.organization}</p>}
                           </div>
                         ))}
                       </div>
-                    ) : (
+                    ) : !createdByAdmin ? (
                       <p className="text-xs text-white/30 italic">No host assigned</p>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="pt-4 border-t border-white/5">

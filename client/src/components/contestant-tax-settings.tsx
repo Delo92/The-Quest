@@ -193,7 +193,7 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
           </DialogHeader>
           {deadlines.length > 0 && (
             <p className="text-sm leading-relaxed text-white/55">
-              Save your details by your competition&apos;s final-voting cutoff to help protect your eligibility for prize earnings. You can review the deadlines in Tax Details.
+              Save your details by your competition&apos;s final-voting cutoff to help protect your payout eligibility. You can review the deadlines in Tax Details.
             </p>
           )}
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
@@ -253,9 +253,9 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 flex-none text-amber-300" />
             <div className="min-w-0 flex-1">
-              <h3 className="font-medium text-white">Tax details may be required for prize earnings</h3>
+              <h3 className="font-medium text-white">Tax details may be required for payouts</h3>
               <p className="mt-1 text-sm leading-relaxed text-white/60">
-                Acknowledge the deadline and save complete tax details by the final-voting cutoff for your competition. Missing details may affect or forfeit earnings under the competition payout terms.
+                Acknowledge the deadline and save complete tax details by the final-voting cutoff for your competition. Missing details may affect payout eligibility under the competition terms.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {!profile?.acknowledgedAt && (

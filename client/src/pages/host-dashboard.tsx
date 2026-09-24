@@ -25,6 +25,7 @@ import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import CompetitionShareLinks from "@/components/competition-share-links";
 import OwnerAnalyticsPanel from "@/components/owner-analytics-panel";
+import ContestantTaxSettings from "@/components/contestant-tax-settings";
 import type { CompetitionStage } from "@shared/schema";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 
@@ -1375,7 +1376,7 @@ export default function HostDashboard({ user }: { user: any }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="financials">
+          <TabsContent value="financials" forceMount className="data-[state=inactive]:hidden">
             <div className="space-y-5">
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80">Host financials</p>
@@ -1398,6 +1399,9 @@ export default function HostDashboard({ user }: { user: any }) {
                   </div>
                 ))}
                 {(!financialOverview?.competitions || financialOverview.competitions.length === 0) && <p className="rounded-xl border border-white/10 p-5 text-sm text-white/40">No financial activity has been recorded for your competitions.</p>}
+              </div>
+              <div className="border-t border-white/10 pt-6">
+                <ContestantTaxSettings onOpenTaxDetails={() => setActiveTab("financials")} />
               </div>
             </div>
           </TabsContent>

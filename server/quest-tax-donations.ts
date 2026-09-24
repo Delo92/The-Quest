@@ -127,7 +127,7 @@ function formatTin(taxId: string, type: "ssn" | "ein") {
 
 async function getTaxpayerProfile(uid: string) {
   const profile = await storage.getTalentProfileByUserId(uid);
-  if (!profile || profile.role !== "talent") return null;
+  if (!profile || (profile.role !== "talent" && profile.role !== "host")) return null;
   return profile;
 }
 
@@ -359,7 +359,7 @@ export function registerQuestTaxAndDonations(app: Express) {
     try {
       const uid = String(req.firebaseUser?.uid || "");
       const profile = await getTaxpayerProfile(uid);
-      if (!profile) return res.status(403).json({ message: "A contestant profile is required." });
+      if (!profile) return res.status(403).json({ message: "A talent or host profile is required." });
       const firestore = getFirestore();
       const profileDocs = await firestore.collection(TAX_PROFILES).where("userId", "==", uid).get();
       const years = new Set<number>([new Date().getUTCFullYear()]);
@@ -389,20 +389,26 @@ export function registerQuestTaxAndDonations(app: Express) {
     try {
       const uid = String(req.firebaseUser?.uid || "");
       const profile = await getTaxpayerProfile(uid);
-      if (!profile) return res.status(403).json({ message: "A contestant profile is required." });
+      if (!profile) return res.status(403).json({ message: "A talent or host profile is required." });
       const [competitions, contestants] = await Promise.all([
         storage.getCompetitions(),
         storage.getAllContestants(),
       ]);
-      const competitionById = new Map(competitions.map((competition) => [Number(competition.id), competition]));
-      const deadlines = contestants
+      const eligibleCompetitionIds = new Set<number>([
+        ...competitions
+          .filter((competition) => competition.createdBy === uid)
+          .map((competition) => Number(competition.id)),
+        ...contestants
         .filter((contestant: any) => Number(contestant.talentProfileId) === Number(profile.id))
-        .map((contestant: any) => {
-          const competition = competitionById.get(Number(contestant.competitionId));
+         .map((contestant: any) => Number(contestant.competitionId)),
+      ]);
+      const deadlines = competitions
+        .filter((competition) => eligibleCompetitionIds.has(Number(competition.id)))
+        .map((competition) => {
           const deadline = finalVotingDeadline(competition);
           return deadline ? {
-            competitionId: Number(contestant.competitionId),
-            competitionTitle: clean(competition?.title || contestant.competitionTitle || "Competition", 180),
+            competitionId: Number(competition.id),
+            competitionTitle: clean(competition.title || "Competition", 180),
             deadline,
             taxYear: new Date(deadline).getUTCFullYear(),
           } : null;
@@ -420,7 +426,7 @@ export function registerQuestTaxAndDonations(app: Express) {
     try {
       const uid = String(req.firebaseUser?.uid || "");
       const profile = await getTaxpayerProfile(uid);
-      if (!profile) return res.status(403).json({ message: "A contestant profile is required." });
+      if (!profile) return res.status(403).json({ message: "A talent or host profile is required." });
       const year = parseTaxYear(req.params.taxYear);
       if (!year) return res.status(400).json({ message: "Choose a valid tax year." });
       const firestore = getFirestore();
@@ -487,7 +493,7 @@ export function registerQuestTaxAndDonations(app: Express) {
     try {
       const uid = String(req.firebaseUser?.uid || "");
       const profile = await getTaxpayerProfile(uid);
-      if (!profile) return res.status(403).json({ message: "A contestant profile is required." });
+      if (!profile) return res.status(403).json({ message: "A talent or host profile is required." });
       const year = parseTaxYear(req.params.taxYear);
       if (!year) return res.status(400).json({ message: "Choose a valid tax year." });
       const action = req.body?.action === "acknowledge" ? "acknowledge" : req.body?.action === "dismiss" ? "dismiss" : null;
@@ -507,7 +513,7 @@ export function registerQuestTaxAndDonations(app: Express) {
     try {
       const uid = String(req.firebaseUser?.uid || "");
       const profile = await getTaxpayerProfile(uid);
-      if (!profile) return res.status(403).json({ message: "A contestant profile is required." });
+      if (!profile) return res.status(403).json({ message: "A talent or host profile is required." });
       const year = parseTaxYear(req.params.taxYear);
       if (!year) return res.status(400).json({ message: "Choose a valid tax year." });
       if (!isEncryptionKeySet()) return res.status(503).json({ message: "Secure tax storage is not configured." });
@@ -564,7 +570,7 @@ export function registerQuestTaxAndDonations(app: Express) {
         updatedAt: createdAt,
       }, { merge: true });
       await firestore.collection(AUDIT).add({
-        action: "contestant_tax_profile_saved",
+        action: "recipient_tax_profile_saved",
         userId: uid,
         profileId: Number(profile.id),
         taxYear: year,
@@ -581,7 +587,7 @@ export function registerQuestTaxAndDonations(app: Express) {
     try {
       const uid = String(req.firebaseUser?.uid || "");
       const profile = await getTaxpayerProfile(uid);
-      if (!profile) return res.status(403).json({ message: "A contestant profile is required." });
+      if (!profile) return res.status(403).json({ message: "A talent or host profile is required." });
       const year = parseTaxYear(req.params.taxYear);
       if (!year) return res.status(400).json({ message: "Choose a valid tax year." });
       if (!isEncryptionKeySet()) return res.status(503).json({ message: "Secure tax storage is not configured." });
