@@ -131,6 +131,7 @@ export interface FirestoreTalentProfile {
   imageUrls: string[];
   imageBackupUrls?: string[];
   videoUrls: string[];
+  competitionVideoUris?: Record<string, string>;
   socialLinks: string | null;
   profileColor?: string | null;
   profileBgImage?: string | null;
@@ -331,6 +332,8 @@ export interface FirestoreJoinSubmission {
   chosenNonprofit: string | null;
   nonprofitPolicyAcknowledged?: boolean;
   nonprofitPolicyAcknowledgedAt?: string | null;
+  nonprofitContributionRatesAtAcknowledgment?: { contestant: number; host: number; platform: number } | null;
+  nonprofitPlatformRecipientAtAcknowledgment?: string | null;
   referralCode?: string | null;
 }
 
@@ -1291,10 +1294,11 @@ export const firestoreJoinSettings = {
       for (const level of ["contestant", "host", "platform"] as const) {
         if (Object.prototype.hasOwnProperty.call(incomingRates, level)) {
           const rawRate = incomingRates[level];
-          if (rawRate === null || rawRate === undefined || rawRate === "") {
+          const rawValue: unknown = rawRate;
+          if (rawValue === null || rawValue === undefined || rawValue === "") {
             nonprofitContributionRates[level] = null;
           } else {
-            const rate = Number(rawRate);
+            const rate = Number(rawValue);
             if (!Number.isFinite(rate) || rate <= 0 || rate > 10) {
               throw new Error("Each required nonprofit share must be greater than 0% and no more than 10%.");
             }

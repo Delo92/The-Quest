@@ -13,7 +13,8 @@
 - [Host account credentials](host-account-credentials.md) — old passwords are never recoverable; admin resets generate a one-time temporary password instead
 - [Host voting POS scope](host-voting-pos-scope.md) — describe The Quest as an on-site voting POS; don't imply general event sales without verified flows
 - [Public page performance](public-performance.md) — public listings must render from Firestore first and load Vimeo media separately
-- [Contestant video storage](contestant-video-storage.md) — videoUrls on TalentProfile must be kept in sync with Vimeo; read from Firestore, never walk folder tree at page load
+- [Competition-scoped contestant videos](contestant-video-storage.md) — competitionVideoUris is authoritative; never apply flat videoUrls to every competition
+- [Mandatory nonprofit contributions](nonprofit-contributions.md) — keep role-specific rates capped at 10%; require new acknowledgment and block payout until declarations are complete
 - [Featured countdown rendering](featured-countdown-rendering.md) — render the featured state immediately; delayed motion can hide it during preview capture
 - [Competition tracking](competition-tracking.md) — public standings use a no-store read endpoint with short client polling, not the protected admin breakdown route
 - [Express route params](express-route-params.md) — this project’s Express 5 typings require auth middleware to use ParamsFlatDictionary for string route parameters

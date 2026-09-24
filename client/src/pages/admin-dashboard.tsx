@@ -101,6 +101,10 @@ interface JoinSubmission {
   zip?: string | null;
   socialLinks?: string | null;
   chosenNonprofit?: string | null;
+  nonprofitPolicyAcknowledged?: boolean;
+  nonprofitPolicyAcknowledgedAt?: string | null;
+  nonprofitContributionRatesAtAcknowledgment?: { contestant: number; host: number; platform: number } | null;
+  nonprofitPlatformRecipientAtAcknowledgment?: string | null;
 }
 
 interface HostSubmission {
@@ -3850,6 +3854,32 @@ export default function AdminDashboard({ user }: { user: any }) {
                                     <p className="text-[10px] text-white/30 uppercase tracking-wider">Choice of Non-Profit</p>
                                     <p className="text-sm text-[#FF5A09]">{sub.chosenNonprofit}</p>
                                   </div>
+                                )}
+                              </div>
+
+                              <div className="rounded-md border border-orange-400/15 bg-orange-400/[0.04] p-4" data-testid={`nonprofit-policy-audit-${sub.id}`}>
+                                <p className="text-xs uppercase tracking-wider text-orange-200/75 font-semibold">Nonprofit policy acknowledgment</p>
+                                {sub.nonprofitPolicyAcknowledged ? (
+                                  <>
+                                    <p className="mt-2 text-sm text-white">Acknowledged before submission</p>
+                                    <p className="mt-1 text-xs text-white/40">
+                                      {sub.nonprofitPolicyAcknowledgedAt
+                                        ? new Date(sub.nonprofitPolicyAcknowledgedAt).toLocaleString()
+                                        : "Acknowledgment timestamp not recorded"}
+                                    </p>
+                                    {sub.nonprofitContributionRatesAtAcknowledgment ? (
+                                      <p className="mt-2 text-xs leading-relaxed text-white/60">
+                                        Rates shown: contestant {sub.nonprofitContributionRatesAtAcknowledgment.contestant}% · host {sub.nonprofitContributionRatesAtAcknowledgment.host}% · The Quest {sub.nonprofitContributionRatesAtAcknowledgment.platform}%. Each role contributes from its own share; each rate is capped at 10%.
+                                      </p>
+                                    ) : (
+                                      <p className="mt-2 text-xs text-amber-200/70">Rate snapshot is unavailable for this submission.</p>
+                                    )}
+                                    {sub.nonprofitPlatformRecipientAtAcknowledgment && (
+                                      <p className="mt-1 text-xs text-white/45">The Quest recipient: {sub.nonprofitPlatformRecipientAtAcknowledgment}</p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="mt-2 text-sm text-amber-200/75">No acknowledgment recorded</p>
                                 )}
                               </div>
 

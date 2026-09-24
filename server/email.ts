@@ -252,11 +252,24 @@ export async function sendNominationCongrats(opts: {
   siteUrl: string;
   defaultPassword?: string;
   accountCreated?: boolean;
+  nonprofitContributionRates?: { contestant: number; host: number; platform: number };
+  nonprofitRecipientName?: string;
 }): Promise<boolean> {
   try {
     const transporter = await getTransporter();
     const loginUrl = `${opts.siteUrl}/login`;
     const compUrl = `${opts.siteUrl}/thequest/competitions`;
+    const safeRecipient = String(opts.nonprofitRecipientName || "the configured platform recipient")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    const nonprofitDisclosure = opts.nonprofitContributionRates
+      ? `<div class="highlight-box">
+          <p class="label">Required nonprofit contributions</p>
+          <p class="value">Contestant share: ${opts.nonprofitContributionRates.contestant}% of prize earnings</p>
+          <p style="font-size:13px;color:#bbb;">Hosts contribute ${opts.nonprofitContributionRates.host}% of their own share. The Quest contributes ${opts.nonprofitContributionRates.platform}% of its own share to ${safeRecipient}. Each rate is capped at 10%.</p>
+          <p style="font-size:13px;color:#bbb;">Before prize earnings can be paid, name a nonprofit in your account and affirm this policy. You can save your declaration in stages.</p>
+        </div>`
+      : `<p style="font-size:13px;color:#bbb;">The Quest requires a named nonprofit and affirmative policy acknowledgment before prize earnings can be paid. Check your account for the configured rates.</p>`;
 
     let credentialBlock = "";
     if (opts.accountCreated && opts.defaultPassword) {
@@ -282,6 +295,7 @@ export async function sendNominationCongrats(opts: {
         <p class="value">${opts.competitionName}</p>
       </div>
       <p>You're officially in the running! The public will vote for their favorite — share your profile link with friends, family, and fans to drive votes your way.</p>
+      ${nonprofitDisclosure}
       ${credentialBlock}
       <div class="btn-wrap">
         <a href="${loginUrl}" class="btn">Log In &amp; Update Your Profile</a>
@@ -318,6 +332,8 @@ export async function sendNominationReceipt(opts: {
   amount: string;
   transactionId?: string;
   isFree?: boolean;
+  nonprofitContributionRates?: { contestant: number; host: number; platform: number };
+  nonprofitRecipientName?: string;
 }): Promise<boolean> {
   try {
     const transporter = await getTransporter();
@@ -325,6 +341,16 @@ export async function sendNominationReceipt(opts: {
     const amountDisplay = opts.isFree ? "Free" : opts.amount;
     const txLine = opts.transactionId
       ? `<p style="font-size:13px; color:#555; margin-top:16px;">Transaction ID: ${opts.transactionId}</p>`
+      : "";
+    const safeRecipient = String(opts.nonprofitRecipientName || "the configured platform recipient")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    const nonprofitDisclosure = opts.nonprofitContributionRates
+      ? `<div class="highlight-box">
+          <p class="label">Nonprofit policy acknowledged</p>
+          <p class="value">Contestant: ${opts.nonprofitContributionRates.contestant}% · Host: ${opts.nonprofitContributionRates.host}% · The Quest: ${opts.nonprofitContributionRates.platform}%</p>
+          <p style="font-size:13px;color:#bbb;">Each role contributes from its own share, with each rate capped at 10%. The Quest recipient is ${safeRecipient}. The nominee must complete their declaration before prize payouts.</p>
+        </div>`
       : "";
 
     const html = wrapInTemplate(`
@@ -342,6 +368,7 @@ export async function sendNominationReceipt(opts: {
         <p class="label">Competition</p>
         <p class="value">${opts.competitionName}</p>
       </div>
+      ${nonprofitDisclosure}
 
       <table class="receipt">
         <tr>

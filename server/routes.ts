@@ -150,6 +150,28 @@ async function getVimeoCoverThumbnail(coverVideo: string | null | undefined): Pr
   return `https://vumbnail.com/${videoId}.jpg`;
 }
 
+async function getCompetitionScopedTalentVideos(profile: any, competition: any, talentName: string): Promise<any[]> {
+  const hiddenUris = new Set<string>(Array.isArray(profile?.hiddenVideoUris) ? profile.hiddenVideoUris : []);
+  const selectedUri = profile?.competitionVideoUris?.[String(competition.id)];
+  if (typeof selectedUri === "string" && selectedUri && !hiddenUris.has(selectedUri)) {
+    const videoId = extractVimeoVideoId(selectedUri);
+    if (videoId) {
+      try {
+        const selectedVideo = await getVideoById(videoId);
+        if (selectedVideo?.uri) return [selectedVideo];
+      } catch {
+        // A just-uploaded video may not be indexed yet; try the competition folder below.
+      }
+    }
+  }
+
+  const folderVideos = await listTalentVideos(competition.title, talentName, competition.vimeoFolderUrl);
+  return folderVideos
+    .filter((video) => video.uri && !hiddenUris.has(video.uri))
+    .sort((a, b) => Date.parse(b.created_time || "") - Date.parse(a.created_time || ""))
+    .slice(0, 1);
+}
+
 function normalizeCategoryArtworkUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   // WebP is not supported by older Explorer/Edge builds. The shipped PNG
@@ -4691,6 +4713,11 @@ export async function registerRoutes(
       if (!isNonprofitPolicyConfigured(settings)) {
         return res.status(503).json({ message: "The nonprofit contribution rates and platform recipient are not configured yet. Please try again later." });
       }
+      const nonprofitContributionRates = {
+        contestant: Number(settings.nonprofitContributionRates.contestant),
+        host: Number(settings.nonprofitContributionRates.host),
+        platform: Number(settings.nonprofitContributionRates.platform),
+      };
       if (nonprofitPolicyAcknowledged !== true) {
         return res.status(400).json({ message: "Please acknowledge the required nonprofit contribution policy." });
       }
@@ -4741,6 +4768,8 @@ export async function registerRoutes(
         chosenNonprofit: chosenNonprofit?.trim() || null,
         nonprofitPolicyAcknowledged: true,
         nonprofitPolicyAcknowledgedAt: new Date().toISOString(),
+        nonprofitContributionRatesAtAcknowledgment: { ...nonprofitContributionRates },
+        nonprofitPlatformRecipientAtAcknowledgment: settings.charityName.trim(),
         nominatorName: null,
         nominatorEmail: null,
         nominatorPhone: null,
@@ -4849,6 +4878,11 @@ export async function registerRoutes(
       if (!isNonprofitPolicyConfigured(settings)) {
         return res.status(503).json({ message: "The nonprofit contribution rates and platform recipient are not configured yet. Please try again later." });
       }
+      const nonprofitContributionRates = {
+        contestant: Number(settings.nonprofitContributionRates.contestant),
+        host: Number(settings.nonprofitContributionRates.host),
+        platform: Number(settings.nonprofitContributionRates.platform),
+      };
       if (nonprofitPolicyAcknowledged !== true) {
         return res.status(400).json({ message: "Please acknowledge the required nonprofit contribution policy." });
       }
@@ -4946,24 +4980,23 @@ export async function registerRoutes(
             }
           }
 
-          if (!existingUser) {
-            let competitionName = "a competition on The Quest";
-            if (competitionId) {
-              const comp = await storage.getCompetition(Number(competitionId));
-              if (comp) competitionName = comp.title;
-            }
-            const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get("host")}`;
-            // Send the specific nomination-congrats email (has credentials + call-to-action)
-            emailSent = await sendNominationCongrats({
-              to: nomineeEmail,
-              nomineeName,
-              nominatorName: nominatorName.trim(),
-              competitionName,
-              siteUrl,
-              defaultPassword: DEFAULT_PASSWORD,
-              accountCreated: true,
-            });
+          let competitionName = "a competition on The Quest";
+          if (competitionId) {
+            const comp = await storage.getCompetition(Number(competitionId));
+            if (comp) competitionName = comp.title;
           }
+          const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get("host")}`;
+          emailSent = await sendNominationCongrats({
+            to: nomineeEmail,
+            nomineeName,
+            nominatorName: nominatorName.trim(),
+            competitionName,
+            siteUrl,
+            ...(existingUser ? {} : { defaultPassword: DEFAULT_PASSWORD }),
+            accountCreated: !existingUser,
+            nonprofitContributionRates,
+            nonprofitRecipientName: settings.charityName,
+          });
         }
       } catch (autoCreateErr: any) {
         console.error("Auto-create nominee account error (non-fatal):", autoCreateErr.message);
@@ -4988,6 +5021,8 @@ export async function registerRoutes(
         chosenNonprofit: chosenNonprofit?.trim() || null,
         nonprofitPolicyAcknowledged: true,
         nonprofitPolicyAcknowledgedAt: new Date().toISOString(),
+        nonprofitContributionRatesAtAcknowledgment: { ...nonprofitContributionRates },
+        nonprofitPlatformRecipientAtAcknowledgment: settings.charityName.trim(),
         nominatorName: nominatorName.trim(),
         nominatorEmail: nominatorEmail.toLowerCase().trim(),
         nominatorPhone: nominatorPhone || null,
@@ -5010,6 +5045,8 @@ export async function registerRoutes(
           amount: amountPaid ? `$${(amountPaid / 100).toFixed(2)}` : "$0.00",
           transactionId: transactionId || undefined,
           isFree: !amountPaid || amountPaid === 0,
+          nonprofitContributionRates,
+          nonprofitRecipientName: settings.charityName,
         }).catch((e: any) => console.error("Nomination receipt email error (non-blocking):", e.message));
       }
 
@@ -6556,7 +6593,11 @@ export async function registerRoutes(
       if (competitionId) {
         const comp = await storage.getCompetition(competitionId);
         if (!comp) return res.json([]);
-         const videos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
+        const contestant = await storage.getContestant(comp.id, profile.id);
+        if (!contestant || contestant.applicationStatus !== "approved") {
+          return res.status(403).json({ message: "Only approved contestants can view videos for this competition." });
+        }
+        const videos = await getCompetitionScopedTalentVideos(profile, comp, talentName);
         res.json(videos
           .filter(v => !hiddenUris.includes(v.uri))
           .map(v => ({
@@ -6613,11 +6654,11 @@ export async function registerRoutes(
       if (!comp) return res.status(404).json({ message: "Competition not found" });
       const stageId = typeof req.body.stageId === "string" ? req.body.stageId : null;
       const stage = getCompetitionStage(comp, stageId);
+      const contestant = await storage.getContestant(comp.id, profile.id);
+      if (!contestant || contestant.applicationStatus !== "approved") {
+        return res.status(403).json({ message: "You must be an approved contestant to upload media for this competition." });
+      }
       if (stageId) {
-        const contestant = await storage.getContestant(comp.id, profile.id);
-        if (!contestant || contestant.applicationStatus !== "approved") {
-          return res.status(403).json({ message: "You must be an approved contestant to submit stage content." });
-        }
         if (!stage) return res.status(404).json({ message: "Stage not found" });
         const [submissionStart, submissionEnd] = getStageWindow(stage, "submission");
         if (!isStageWindowOpen(submissionStart, submissionEnd)) {
@@ -6625,21 +6666,14 @@ export async function registerRoutes(
         }
       }
 
-      const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
-      const globalMaxVideos = settingsDoc.exists ? (settingsDoc.data()?.maxVideosPerContestant ?? 3) : 3;
-      const compMaxVideos = comp.maxVideosPerContestant;
-      const maxVideos = compMaxVideos != null ? Math.min(compMaxVideos, globalMaxVideos) : globalMaxVideos;
-
-       const talentName = (profile.stageName || profile.displayName).trim();
-
-      try {
-        const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
-         const existingVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
-        const visibleVideos = existingVideos.filter(v => !hiddenUris.includes(v.uri));
-        if (!stageId && visibleVideos.length >= maxVideos) {
-          return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
+      const talentName = (profile.stageName || profile.displayName).trim();
+      if (!stageId) {
+        const existingForCompetition = await getCompetitionScopedTalentVideos(profile, comp, talentName);
+        const currentUri = profile.competitionVideoUris?.[String(comp.id)];
+        if ((currentUri || existingForCompetition.length > 0) && req.body?.replace !== true) {
+          return res.status(409).json({ message: "This competition already has a video. Choose replace to upload a new one for this competition." });
         }
-      } catch {}
+      }
 
        const chronicTVTicket = await createChronicTVUploadTicket(
          comp.title,
@@ -6685,10 +6719,11 @@ export async function registerRoutes(
       const stage = getCompetitionStage(comp, typeof stageId === "string" ? stageId : null);
       const profile = await storage.getTalentProfileByUserId(uid);
       const contestant = profile ? await storage.getContestant(comp.id, profile.id) : null;
+      if (!profile) return res.status(400).json({ message: "Create a talent profile first." });
+      if (!contestant || contestant.applicationStatus !== "approved") {
+        return res.status(403).json({ message: "You must be an approved contestant to save media for this competition." });
+      }
       if (stageId) {
-        if (!contestant || contestant.applicationStatus !== "approved") {
-          return res.status(403).json({ message: "You must be an approved contestant to submit stage content." });
-        }
         if (!stage) return res.status(404).json({ message: "Stage not found" });
         const [submissionStart, submissionEnd] = getStageWindow(stage, "submission");
         if (!isStageWindowOpen(submissionStart, submissionEnd)) {
@@ -6713,33 +6748,67 @@ export async function registerRoutes(
 
       await callCompleteUri(completeUri);
 
-      // Write the Vimeo URI back to Firestore so future page loads can read it
-      // directly instead of walking the Vimeo folder tree.
-      try {
-        if (profile) {
-          const existing: string[] = profile.videoUrls || [];
-          if (!existing.includes(videoUri)) {
-            await storage.updateTalentProfile(uid, {
-              videoUrls: [...existing, videoUri],
-            });
-          }
-          if (stageId && stage && contestant) {
-            await firestoreStageSubmissions.upsert({
-              competitionId: comp.id,
-              stageId,
-              contestantId: contestant.id,
-              talentProfileId: profile.id,
-              mediaType: "video",
-              mediaUrl: videoUri,
-              thumbnailUrl: null,
-              title: stage.name,
-              description: null,
-            });
+      const existingUris: string[] = profile.videoUrls || [];
+      const oldCompetitionUris = new Set<string>();
+      if (!stageId) {
+        const currentUri = profile.competitionVideoUris?.[String(comp.id)];
+        if (currentUri && currentUri !== videoUri) {
+          oldCompetitionUris.add(currentUri);
+        } else if (!currentUri) {
+          try {
+            const legacyVideos = await listTalentVideos(
+              comp.title,
+              (profile.stageName || profile.displayName).trim(),
+              comp.vimeoFolderUrl,
+            );
+            for (const oldVideo of legacyVideos) {
+              if (oldVideo.uri && oldVideo.uri !== videoUri) oldCompetitionUris.add(oldVideo.uri);
+            }
+          } catch (legacyListError: any) {
+            console.warn("Could not list legacy competition videos during replacement:", legacyListError.message);
           }
         }
-      } catch (saveErr: any) {
-        // Non-fatal — video is on Vimeo; we just won't have the fast path yet
-        console.warn("Could not save videoUri to profile:", saveErr.message);
+      }
+      const updatedCompetitionUris = { ...(profile.competitionVideoUris || {}) };
+      if (!stageId) updatedCompetitionUris[String(comp.id)] = videoUri;
+      await storage.updateTalentProfile(uid, {
+        videoUrls: Array.from(new Set([...existingUris, videoUri])),
+        ...(stageId ? {} : { competitionVideoUris: updatedCompetitionUris }),
+      });
+
+      if (stageId && stage && contestant) {
+        await firestoreStageSubmissions.upsert({
+          competitionId: comp.id,
+          stageId,
+          contestantId: contestant.id,
+          talentProfileId: profile.id,
+          mediaType: "video",
+          mediaUrl: videoUri,
+          thumbnailUrl: null,
+          title: stage.name,
+          description: null,
+        });
+      }
+
+      if (oldCompetitionUris.size > 0) {
+        const hiddenUris = new Set<string>((profile as any).hiddenVideoUris || []);
+        try {
+          for (const oldUri of oldCompetitionUris) {
+            try {
+              await deleteVideo(oldUri);
+              invalidateVideoPlayCache(extractVimeoVideoId(oldUri) || oldUri.split("/").pop() || "");
+            } catch (replaceCleanupError: any) {
+              console.warn("Could not delete replaced Vimeo video; hiding old URI:", replaceCleanupError.message);
+              hiddenUris.add(oldUri);
+            }
+          }
+          await storage.updateTalentProfile(uid, {
+            videoUrls: existingUris.filter((uri) => !oldCompetitionUris.has(uri)).concat(videoUri),
+            hiddenVideoUris: Array.from(hiddenUris),
+          });
+        } catch (cleanupSaveError: any) {
+          console.warn("Could not update replaced video cleanup metadata:", cleanupSaveError.message);
+        }
       }
 
       // Pre-warm play URL cache for the newly uploaded video — first playback will be instant
@@ -6759,30 +6828,45 @@ export async function registerRoutes(
 
       const { videoId } = req.params;
       const videoUri = `/videos/${videoId}`;
+      const competitionId = Number(req.query.competitionId);
+      if (!Number.isInteger(competitionId) || competitionId <= 0) {
+        return res.status(400).json({ message: "competitionId is required to remove a competition video." });
+      }
+      const competition = await storage.getCompetition(competitionId);
+      const contestant = await storage.getContestant(competitionId, profile.id);
+      if (!competition || !contestant || contestant.applicationStatus !== "approved") {
+        return res.status(403).json({ message: "You must be an approved contestant to edit this competition video." });
+      }
+      const talentName = (profile.stageName || profile.displayName).trim();
+      const currentUri = profile.competitionVideoUris?.[String(competitionId)];
+      const legacyVisibleVideos = currentUri ? [] : await getCompetitionScopedTalentVideos(profile, competition, talentName);
+      if (currentUri ? currentUri !== videoUri : !legacyVisibleVideos.some((video) => video.uri === videoUri)) {
+        return res.status(404).json({ message: "That video is not assigned to this competition." });
+      }
 
       // Evict from play URL cache immediately so the deleted video can't be served
       invalidateVideoPlayCache(videoId);
 
+      const updatedCompetitionUris = { ...(profile.competitionVideoUris || {}) };
+      delete updatedCompetitionUris[String(competitionId)];
       try {
         await deleteVideo(videoUri);
-        // Remove from stored videoUrls so the fast-path stays clean
         const storedUrls: string[] = (profile as any).videoUrls || [];
-        if (storedUrls.includes(videoUri)) {
-          await storage.updateTalentProfile(uid, {
-            videoUrls: storedUrls.filter((u: string) => u !== videoUri),
-          } as any);
-        }
+        await storage.updateTalentProfile(uid, {
+          videoUrls: storedUrls.filter((uri: string) => uri !== videoUri),
+          competitionVideoUris: updatedCompetitionUris,
+        });
       } catch (vimeoErr: any) {
         console.warn("Vimeo delete failed, hiding locally instead:", vimeoErr.message);
         const current = (profile as any).hiddenVideoUris || [];
-        if (!current.includes(videoUri)) {
-          await storage.updateTalentProfile(uid, {
-            hiddenVideoUris: [...current, videoUri],
-          } as any);
-        }
+        await storage.updateTalentProfile(uid, {
+          videoUrls: ((profile as any).videoUrls || []).filter((uri: string) => uri !== videoUri),
+          competitionVideoUris: updatedCompetitionUris,
+          hiddenVideoUris: Array.from(new Set([...current, videoUri])),
+        });
       }
 
-      res.json({ message: "Video deleted" });
+      res.json({ message: "Video removed from this competition." });
     } catch (error: any) {
       console.error("Vimeo delete error:", error);
       res.status(500).json({ message: "Failed to delete video" });
@@ -6796,7 +6880,26 @@ export async function registerRoutes(
       if (!name || typeof name !== "string") {
         return res.status(400).json({ message: "Name is required" });
       }
-      const updated = await renameVideo(`/videos/${videoId}`, name.trim());
+      const uid = req.firebaseUser!.uid;
+      const profile = await storage.getTalentProfileByUserId(uid);
+      const competitionId = Number(req.body?.competitionId);
+      if (!profile || !Number.isInteger(competitionId) || competitionId <= 0) {
+        return res.status(400).json({ message: "A contestant profile and competitionId are required." });
+      }
+      const competition = await storage.getCompetition(competitionId);
+      const contestant = await storage.getContestant(competitionId, profile.id);
+      if (!competition || !contestant || contestant.applicationStatus !== "approved") {
+        return res.status(403).json({ message: "You must be an approved contestant to edit this competition video." });
+      }
+      const videoUri = `/videos/${videoId}`;
+      const currentUri = profile.competitionVideoUris?.[String(competitionId)];
+      const legacyVisibleVideos = currentUri
+        ? []
+        : await getCompetitionScopedTalentVideos(profile, competition, (profile.stageName || profile.displayName).trim());
+      if (currentUri ? currentUri !== videoUri : !legacyVisibleVideos.some((video) => video.uri === videoUri)) {
+        return res.status(404).json({ message: "That video is not assigned to this competition." });
+      }
+      const updated = await renameVideo(videoUri, name.trim());
       res.json({
         uri: updated.uri,
         name: updated.name,
@@ -6978,40 +7081,7 @@ export async function registerRoutes(
            const contestants = await storage.getContestantsByCompetition(comp.id);
             return Promise.all(contestants.map(async contestant => {
             const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).trim();
-             const storedVideoUris = Array.isArray((contestant.talentProfile as any).videoUrls)
-               ? (contestant.talentProfile as any).videoUrls.filter((uri: unknown): uri is string => typeof uri === "string" && uri.length > 0)
-               : [];
-             let talentVideos = (await Promise.all(
-               storedVideoUris.map(async (uri: string) => {
-                 const match = uri.match(/\/videos\/(\d+)/);
-                 const videoId = match?.[1] || uri.split("/").filter(Boolean).pop();
-                 if (!videoId) return null;
-                 try {
-                   return await getVideoById(videoId);
-                 } catch {
-                   return null;
-                 }
-               }),
-             )).filter((video): video is NonNullable<typeof video> => Boolean(video));
-             // Older uploads can exist in Vimeo without having been written to
-             // TalentProfile.videoUrls. Recover those records once from the
-             // competition folder, then persist the URI for future fast loads.
-             if (storedVideoUris.length === 0) {
-               const legacyVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
-               if (legacyVideos.length > 0) {
-                 talentVideos = legacyVideos;
-                 const discoveredUris = legacyVideos
-                   .map(video => video.uri)
-                   .filter((uri): uri is string => typeof uri === "string" && uri.length > 0);
-                 const userId = (contestant.talentProfile as any).userId;
-                 if (userId && discoveredUris.length > 0) {
-                   const mergedUris = Array.from(new Set([...storedVideoUris, ...discoveredUris]));
-                   void storage.updateTalentProfile(userId, { videoUrls: mergedUris }).catch((error: any) => {
-                     console.warn("Could not backfill contestant video URI:", error.message);
-                   });
-                 }
-               }
-             }
+            const talentVideos = await getCompetitionScopedTalentVideos(contestant.talentProfile, comp, talentName);
             const videos = talentVideos.map(v => ({
               uri: v.uri,
                name: formatVimeoDisplayName(v.name, comp.title, talentName) || `${talentName} performance`,
@@ -7160,7 +7230,7 @@ export async function registerRoutes(
       const { categorySlug, compSlug, talentSlug } = req.params;
       const media = await getCachedPublicResponse(
         `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
-        10 * 60_000,
+        60_000,
         async () => {
           const competitions = await storage.getCompetitions();
           const comp = competitions.find(c =>
@@ -7179,22 +7249,7 @@ export async function registerRoutes(
           if (!contestant) return null;
 
           const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).trim();
-          // Fast path: URIs stored on the profile — no Vimeo API walk needed.
-          const storedUris: string[] = (contestant.talentProfile as any).videoUrls || [];
-          const hiddenUris: string[] = (contestant.talentProfile as any).hiddenVideoUris || [];
-          const visibleUris = storedUris.filter(u => !hiddenUris.includes(u));
-
-          let talentVideos: any[];
-          if (visibleUris.length > 0) {
-            talentVideos = await Promise.all(visibleUris.map(uri => {
-              const videoId = uri.replace("/videos/", "");
-              return getVideoById(videoId).catch(() => null);
-            }));
-            talentVideos = talentVideos.filter(Boolean);
-          } else {
-            // Fallback: walk the Vimeo folder tree (slow, but only when no URIs stored yet)
-             talentVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
-          }
+           const talentVideos = await getCompetitionScopedTalentVideos(contestant.talentProfile, comp, talentName);
 
           const videos = talentVideos.map((v: any) => ({
             uri: v.uri,
@@ -7250,23 +7305,10 @@ export async function registerRoutes(
         storage.getTotalVotesByCompetition(comp.id),
         getCachedPublicResponse(
           `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
-          10 * 60_000,
+          60_000,
           async () => {
             const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).trim();
-            const storedUris: string[] = (contestant.talentProfile as any).videoUrls || [];
-            const hiddenUris: string[] = (contestant.talentProfile as any).hiddenVideoUris || [];
-            const visibleUris = storedUris.filter(u => !hiddenUris.includes(u));
-
-            let talentVideos: any[];
-            if (visibleUris.length > 0) {
-              talentVideos = await Promise.all(visibleUris.map(uri => {
-                const videoId = uri.replace("/videos/", "");
-                return getVideoById(videoId).catch(() => null);
-              }));
-              talentVideos = talentVideos.filter(Boolean);
-            } else {
-              talentVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
-            }
+            const talentVideos = await getCompetitionScopedTalentVideos(contestant.talentProfile, comp, talentName);
 
             // Use resolveVideoThumbnail to hit the /pictures API when the embedded
             // thumbnail is missing or inactive — gets the best available still frame.

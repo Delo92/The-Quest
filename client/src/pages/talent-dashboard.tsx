@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -107,6 +107,8 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [videoUploadFileSize, setVideoUploadFileSize] = useState("");
   const [videoUploadComplete, setVideoUploadComplete] = useState(false);
   const [videoTitle, setVideoTitle] = useState("");
+  const [videoTargetCompId, setVideoTargetCompId] = useState("");
+  const [videoUploadDialogOpen, setVideoUploadDialogOpen] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadError, setUploadError] = useState<{ type: "image" | "video"; message: string } | null>(null);
   const uploadStartTimeRef = useRef<number>(0);
@@ -131,6 +133,43 @@ export default function TalentDashboard({ user, profile }: Props) {
     enabled: !!profile,
   });
 
+  const activeCompetitions = competitions?.filter(
+    (c) => c.status === "active" || c.status === "voting"
+  ) || [];
+  const appliedIds = new Set(myContests?.map((c: any) => c.competitionId) || []);
+  const appliedContests = myContests?.filter((c: any) => c.applicationStatus === "approved" || c.applicationStatus === "pending") || [];
+  const approvedContests = myContests?.filter((c: any) => c.applicationStatus === "approved") || [];
+  const hasActiveEntry = appliedContests.length > 0;
+  const hasChronicBrandsPromotion = appliedContests.some((c: any) => c.chronicBrandsPromotionEnabled !== false);
+
+  const competitionVideoQueries = useQueries({
+    queries: approvedContests.map((contest: any) => ({
+      queryKey: ["/api/vimeo/videos", String(contest.competitionId)],
+      queryFn: async () => {
+        const token = getAuthToken();
+        const res = await fetch(`/api/vimeo/videos?competitionId=${contest.competitionId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error("Failed to load videos for this competition");
+        return res.json();
+      },
+      enabled: !!profile,
+    })),
+  });
+
+  const selectedVideoQueryIndex = approvedContests.findIndex(
+    (contest: any) => String(contest.competitionId) === selectedCompId,
+  );
+  const selectedVideoQuery = selectedVideoQueryIndex >= 0 ? competitionVideoQueries[selectedVideoQueryIndex] : undefined;
+  const vimeoVideos = selectedVideoQuery?.data as any[] | undefined;
+  const videosLoading = Boolean(selectedVideoQuery?.isLoading);
+  const videoTargetIndex = approvedContests.findIndex(
+    (contest: any) => String(contest.competitionId) === videoTargetCompId,
+  );
+  const videoTargetQuery = videoTargetIndex >= 0 ? competitionVideoQueries[videoTargetIndex] : undefined;
+  const videoTargetVideos = (videoTargetQuery?.data as any[] | undefined) || [];
+  const videoTargetHasVideo = videoTargetVideos.length > 0;
+
   const { data: financialOverview } = useQuery<any>({
     queryKey: ["/api/payroll/my-overview"],
     enabled: !!profile,
@@ -152,19 +191,6 @@ export default function TalentDashboard({ user, profile }: Props) {
       return res.json();
     },
     enabled: !!profile,
-  });
-
-  const { data: vimeoVideos, isLoading: videosLoading } = useQuery<any[]>({
-    queryKey: ["/api/vimeo/videos", selectedCompId],
-    queryFn: async () => {
-      const token = getAuthToken();
-      const res = await fetch(`/api/vimeo/videos?competitionId=${selectedCompId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error("Failed to load videos");
-      return res.json();
-    },
-    enabled: !!profile && !!selectedCompId,
   });
 
   const handlePayoutReauth = async () => {
@@ -308,13 +334,13 @@ export default function TalentDashboard({ user, profile }: Props) {
   });
 
   const deleteVideoMutation = useMutation({
-    mutationFn: async (videoUri: string) => {
+    mutationFn: async ({ videoUri, competitionId }: { videoUri: string; competitionId: number }) => {
       const videoId = videoUri.split("/").pop();
-      await apiRequest("DELETE", `/api/vimeo/videos/${videoId}`);
+      await apiRequest("DELETE", `/api/vimeo/videos/${videoId}?competitionId=${competitionId}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", selectedCompId] });
-      toast({ title: "Video removed", description: "The video has been removed from your profile." });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", String(variables.competitionId)] });
+      toast({ title: "Video removed", description: "The video has been removed from this competition." });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
@@ -322,14 +348,14 @@ export default function TalentDashboard({ user, profile }: Props) {
   });
 
   const renameVideoMutation = useMutation({
-    mutationFn: async ({ videoUri, name }: { videoUri: string; name: string }) => {
+    mutationFn: async ({ videoUri, name, competitionId }: { videoUri: string; name: string; competitionId: number }) => {
       const videoId = videoUri.split("/").pop();
-      await apiRequest("PATCH", `/api/vimeo/videos/${videoId}`, { name });
+      await apiRequest("PATCH", `/api/vimeo/videos/${videoId}`, { name, competitionId });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setEditingVideoUri(null);
       setEditingVideoName("");
-      queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", selectedCompId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", String(variables.competitionId)] });
       toast({ title: "Renamed", description: "Video name updated." });
     },
     onError: (err: Error) => {
@@ -377,9 +403,10 @@ export default function TalentDashboard({ user, profile }: Props) {
 
   const handleVideoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedCompId) return;
+    if (!file || !videoTargetCompId) return;
 
     const fileSizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    setVideoUploadDialogOpen(false);
     setVideoUploading(true);
     setVideoUploadProgress(0);
     setVideoUploadStep("preparing");
@@ -404,8 +431,9 @@ export default function TalentDashboard({ user, profile }: Props) {
         },
         body: JSON.stringify({
           fileSize: file.size,
-          competitionId: selectedCompId,
+          competitionId: videoTargetCompId,
           videoTitle: videoTitle.trim(),
+          replace: videoTargetHasVideo,
         }),
       });
 
@@ -469,21 +497,23 @@ export default function TalentDashboard({ user, profile }: Props) {
       setVideoUploadSpeed("");
       setVideoUploadEta("");
 
-      try {
-        const token = getAuthToken();
-        await fetch("/api/vimeo/finalize-upload", {
+      const finalizeToken = getAuthToken();
+      const finalizeRes = await fetch("/api/vimeo/finalize-upload", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(finalizeToken ? { Authorization: `Bearer ${finalizeToken}` } : {}),
           },
           body: JSON.stringify({
             videoUri: ticket.videoUri,
-            competitionId: selectedCompId,
+            competitionId: videoTargetCompId,
             completeUri: ticket.completeUri || null,
           }),
-        });
-      } catch {}
+      });
+      if (!finalizeRes.ok) {
+        const result = await finalizeRes.json().catch(() => ({}));
+        throw new Error(result.message || "The video uploaded but could not be attached to this competition.");
+      }
 
       setVideoUploadStep("done");
       setVideoUploadComplete(true);
@@ -491,12 +521,12 @@ export default function TalentDashboard({ user, profile }: Props) {
       setVideoTitle("");
       toast({ title: "Video uploaded!", description: "Your video has been saved. It may take a moment for the thumbnail to appear." });
 
-      queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", selectedCompId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", videoTargetCompId] });
 
       let pollCount = 0;
       const pollInterval = setInterval(() => {
         pollCount++;
-        queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", selectedCompId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", videoTargetCompId] });
         if (pollCount >= 6) clearInterval(pollInterval);
       }, 5000);
 
@@ -514,22 +544,31 @@ export default function TalentDashboard({ user, profile }: Props) {
     } finally {
       if (videoInputRef.current) videoInputRef.current.value = "";
     }
-  }, [selectedCompId, toast, videoTitle]);
-
-  const activeCompetitions = competitions?.filter(
-    (c) => c.status === "active" || c.status === "voting"
-  ) || [];
-  const appliedIds = new Set(myContests?.map((c: any) => c.competitionId) || []);
-  const appliedContests = myContests?.filter((c: any) => c.applicationStatus === "approved" || c.applicationStatus === "pending") || [];
-  const approvedContests = myContests?.filter((c: any) => c.applicationStatus === "approved") || [];
-  const hasActiveEntry = appliedContests.length > 0;
-  const hasChronicBrandsPromotion = appliedContests.some((c: any) => c.chronicBrandsPromotionEnabled !== false);
+  }, [toast, videoTargetCompId, videoTargetHasVideo, videoTitle]);
 
   useEffect(() => {
     if (!selectedCompId && appliedContests.length > 0) {
       setSelectedCompId(String(appliedContests[0].competitionId));
     }
   }, [appliedContests, selectedCompId]);
+
+  useEffect(() => {
+    const approvedIds = new Set(approvedContests.map((contest: any) => String(contest.competitionId)));
+    if (approvedContests.length > 0 && !approvedIds.has(videoTargetCompId)) {
+      setVideoTargetCompId(String(approvedContests[0].competitionId));
+    }
+  }, [approvedContests, videoTargetCompId]);
+
+  const openVideoUploadDialog = (competitionId?: number) => {
+    const targetId = competitionId ? String(competitionId) : videoTargetCompId;
+    if (targetId) {
+      setVideoTargetCompId(targetId);
+      setSelectedCompId(targetId);
+    }
+    setVideoTitle("");
+    setUploadError(null);
+    setVideoUploadDialogOpen(true);
+  };
 
   const handleSavePromoCode = async () => {
     if (!customPromoCode.trim()) return;
@@ -1526,6 +1565,184 @@ export default function TalentDashboard({ user, profile }: Props) {
                   </div>
                 ) : null}
 
+                <section className="rounded-md border border-white/12 bg-white/[0.06] p-5 space-y-4" data-testid="competition-video-library">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="flex items-center gap-2 text-base font-semibold text-white">
+                        <Video className="h-5 w-5 text-orange-400" /> Videos by competition
+                      </h3>
+                      <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/45">
+                        Each approved competition has one video slot. Uploading a replacement changes only that competition&apos;s video.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => openVideoUploadDialog()}
+                      disabled={!approvedContests.length || videoUploading}
+                      className="shrink-0 bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                      data-testid="button-upload-competition-video"
+                    >
+                      <Upload className="h-4 w-4 mr-2" /> Upload to a competition
+                    </Button>
+                  </div>
+
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleVideoUpload}
+                    data-testid="input-video-file"
+                  />
+
+                  {approvedContests.length === 0 ? (
+                    <div className="rounded-md border border-dashed border-white/15 bg-black/15 px-4 py-6 text-center">
+                      <p className="text-sm text-white/65">No approved competition entries yet.</p>
+                      <p className="mt-1 text-xs text-white/40">One video slot becomes available for each competition you enter.</p>
+                      <Button variant="outline" onClick={() => setActiveSection("competitions")} className="mt-4 border-white/15 text-white/75">
+                        Browse competitions
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {approvedContests.map((contest: any, index: number) => {
+                        const query = competitionVideoQueries[index];
+                        const videos = (query?.data as any[] | undefined) || [];
+                        const video = videos[0];
+                        const competitionId = Number(contest.competitionId);
+                        return (
+                          <article key={competitionId} className="overflow-hidden rounded-md border border-white/10 bg-black/20" data-testid={`competition-video-${competitionId}`}>
+                            <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-3 p-3 sm:grid-cols-[144px_minmax(0,1fr)]">
+                              <div className="aspect-video overflow-hidden rounded bg-black/40">
+                                {query?.isLoading ? (
+                                  <div className="flex h-full items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-orange-400" /></div>
+                                ) : video?.thumbnail ? (
+                                  <img src={video.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center"><Video className="h-7 w-7 text-white/20" /></div>
+                                )}
+                              </div>
+                              <div className="min-w-0 py-0.5">
+                                <p className="truncate text-sm font-semibold text-white">
+                                  {contest.competitionTitle || `Competition #${competitionId}`}
+                                </p>
+                                {query?.isError ? (
+                                  <p className="mt-1 text-xs text-red-300">Could not load this competition&apos;s video.</p>
+                                ) : video ? (
+                                  <>
+                                    <p className="mt-1 truncate text-xs text-white/60">{video.name || "Competition video"}</p>
+                                    <Badge className={`mt-2 border-0 text-[10px] ${video.status === "available" ? "bg-green-500/20 text-green-300" : "bg-amber-500/20 text-amber-200"}`}>
+                                      {video.status === "available" ? "Ready" : "Processing"}
+                                    </Badge>
+                                  </>
+                                ) : !query?.isLoading ? (
+                                  <p className="mt-1 text-xs text-white/40">No video added for this competition yet.</p>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 px-3 py-2.5">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setSelectedCompId(String(competitionId))}
+                                className="text-white/70"
+                                data-testid={`button-view-competition-video-${competitionId}`}
+                              >
+                                View details
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => openVideoUploadDialog(competitionId)}
+                                disabled={videoUploading || query?.isLoading || query?.isError}
+                                className="bg-orange-500 text-white hover:bg-orange-400"
+                                data-testid={`button-replace-competition-video-${competitionId}`}
+                              >
+                                <Upload className="mr-2 h-3.5 w-3.5" /> {video ? "Replace video" : "Add video"}
+                              </Button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {approvedContests.length > 0 && (
+                    <div className="flex flex-col gap-2 border-t border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs text-white/45">Need another video slot? Enter another competition to add another competition-specific video.</p>
+                      <Button variant="outline" size="sm" onClick={() => setActiveSection("competitions")} className="w-fit border-white/15 text-white/75">
+                        Browse competitions
+                      </Button>
+                    </div>
+                  )}
+                </section>
+
+                <Dialog open={videoUploadDialogOpen} onOpenChange={setVideoUploadDialogOpen}>
+                  <DialogContent className="max-w-lg border-white/10 bg-[#111] text-white">
+                    <DialogHeader>
+                      <DialogTitle>Choose where this video belongs</DialogTitle>
+                      <DialogDescription className="text-white/55">
+                        Each approved competition has one video slot. A replacement affects only the competition selected here.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="video-target-competition">Competition</Label>
+                        <Select value={videoTargetCompId} onValueChange={(value) => {
+                          setVideoTargetCompId(value);
+                          setSelectedCompId(value);
+                        }}>
+                          <SelectTrigger id="video-target-competition" className="border-white/15 bg-white/[0.06] text-white" data-testid="select-video-target-competition">
+                            <SelectValue placeholder="Choose a competition" />
+                          </SelectTrigger>
+                          <SelectContent className="border-white/10 bg-zinc-900">
+                            {approvedContests.map((contest: any) => (
+                              <SelectItem key={contest.competitionId} value={String(contest.competitionId)} className="text-white">
+                                {contest.competitionTitle || `Competition #${contest.competitionId}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {videoTargetCompId && (
+                        <div className={`rounded-md border p-3 text-sm ${videoTargetHasVideo ? "border-amber-400/25 bg-amber-400/[0.06] text-amber-100" : "border-white/10 bg-white/[0.03] text-white/65"}`}>
+                          {videoTargetQuery?.isLoading ? (
+                            "Checking the current competition video…"
+                          ) : videoTargetQuery?.isError ? (
+                            "The current video could not be checked. Try again before uploading."
+                          ) : videoTargetHasVideo ? (
+                            <>This will replace the current video for <strong>{approvedContests[videoTargetIndex]?.competitionTitle}</strong>. Videos for your other competitions will not change.</>
+                          ) : (
+                            <>This video will be added only to <strong>{approvedContests[videoTargetIndex]?.competitionTitle}</strong>.</>
+                          )}
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="input-video-title">Video title (optional)</Label>
+                        <Input
+                          id="input-video-title"
+                          value={videoTitle}
+                          onChange={(event) => setVideoTitle(event.target.value)}
+                          disabled={videoUploading}
+                          maxLength={120}
+                          placeholder="Leave blank to use your contestant name"
+                          className="border-white/15 bg-black/20 text-white placeholder:text-white/30"
+                          data-testid="input-video-title"
+                        />
+                        <p className="text-xs text-white/40">Your contestant name stays first. The selected file name and extension are never used.</p>
+                      </div>
+                    </div>
+                    <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+                      <Button variant="ghost" onClick={() => setVideoUploadDialogOpen(false)} className="text-white/65">Cancel</Button>
+                      <Button
+                        onClick={() => videoInputRef.current?.click()}
+                        disabled={!videoTargetCompId || videoTargetIndex < 0 || videoTargetQuery?.isLoading || videoTargetQuery?.isError || videoUploading}
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                        data-testid="button-confirm-video-upload"
+                      >
+                        <Upload className="mr-2 h-4 w-4" /> {videoTargetHasVideo ? "Choose replacement video" : "Choose video file"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
                 {selectedCompId && (
                   <ContestantStagePanel competitionId={Number(selectedCompId)} />
                 )}
@@ -1627,49 +1844,21 @@ export default function TalentDashboard({ user, profile }: Props) {
                         <Label className="flex items-center gap-2 text-white/80 text-base font-semibold">
                           <Video className="h-5 w-5 text-orange-400" /> Videos
                         </Label>
-                        <div>
-                          <input
-                            ref={videoInputRef}
-                            type="file"
-                            accept="video/*"
-                            className="hidden"
-                            onChange={handleVideoUpload}
-                            data-testid="input-video-file"
-                          />
-                          <Button
-                            onClick={() => videoInputRef.current?.click()}
-                            disabled={videoUploading}
-                            data-testid="button-upload-video"
-                            className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
-                          >
-                            {videoUploading ? (
-                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...</>
-                            ) : (
-                              <><Upload className="h-4 w-4 mr-2" /> Upload Video</>
-                            )}
-                          </Button>
-                        </div>
+                        <Button
+                          onClick={() => openVideoUploadDialog(Number(selectedCompId))}
+                          disabled={videoUploading || !approvedContests.some((contest: any) => String(contest.competitionId) === selectedCompId)}
+                          data-testid="button-upload-video"
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                        >
+                          {videoUploading ? (
+                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...</>
+                          ) : (
+                            <><Upload className="h-4 w-4 mr-2" /> Add or replace</>
+                          )}
+                        </Button>
                       </div>
-                      <div className="max-w-2xl space-y-1.5">
-                        <Label htmlFor="input-video-title" className="text-sm text-white/75">
-                          Video title (optional)
-                        </Label>
-                        <Input
-                          id="input-video-title"
-                          value={videoTitle}
-                          onChange={(event) => setVideoTitle(event.target.value)}
-                          disabled={videoUploading}
-                          maxLength={120}
-                          placeholder="Leave blank to use your contestant name"
-                          className="bg-black/20 text-white placeholder:text-white/30"
-                          data-testid="input-video-title"
-                        />
-                        <p className="text-xs text-white/40">
-                          Your contestant name stays first. The selected file name and extension are never used.
-                        </p>
-                      </div>
-                       {!videoUploading && (
-                         <p className="text-xs text-white/30">Videos are uploaded to Vimeo in the Quest folder and the competition&apos;s configured backup destinations.</p>
+                      {!videoUploading && (
+                        <p className="text-xs text-white/30">One active video per competition. Replacing it will not change the video on your other entries.</p>
                       )}
 
                       {videoUploading && (
@@ -1777,9 +1966,18 @@ export default function TalentDashboard({ user, profile }: Props) {
                         </div>
                       )}
 
-                      {videosLoading ? (
+                      {!approvedContests.some((contest: any) => String(contest.competitionId) === selectedCompId) ? (
+                        <div className="rounded-md border border-dashed border-white/10 bg-black/15 py-8 text-center">
+                          <Lock className="mx-auto mb-2 h-6 w-6 text-white/20" />
+                          <p className="text-sm text-white/55">Video uploads unlock after your competition entry is approved.</p>
+                        </div>
+                      ) : videosLoading ? (
                         <div className="flex items-center justify-center py-8">
                           <Loader2 className="h-6 w-6 animate-spin text-orange-400" />
+                        </div>
+                      ) : selectedVideoQuery?.isError ? (
+                        <div className="rounded-md border border-red-400/20 bg-red-400/5 px-4 py-6 text-center text-sm text-red-200">
+                          Could not load this competition&apos;s video. Try again in a moment.
                         </div>
                       ) : vimeoVideos && vimeoVideos.length > 0 ? (
                         <div className="space-y-4">
@@ -1813,7 +2011,7 @@ export default function TalentDashboard({ user, profile }: Props) {
                                           className="h-8 text-sm bg-black/40 border-orange-500/50"
                                           onKeyDown={(e) => {
                                             if (e.key === "Enter" && editingVideoName.trim()) {
-                                              renameVideoMutation.mutate({ videoUri: vid.uri, name: editingVideoName.trim() });
+                                               renameVideoMutation.mutate({ videoUri: vid.uri, name: editingVideoName.trim(), competitionId: Number(selectedCompId) });
                                             } else if (e.key === "Escape") {
                                               setEditingVideoUri(null);
                                             }
@@ -1827,7 +2025,7 @@ export default function TalentDashboard({ user, profile }: Props) {
                                           className="text-green-400 flex-shrink-0"
                                           onClick={() => {
                                             if (editingVideoName.trim()) {
-                                              renameVideoMutation.mutate({ videoUri: vid.uri, name: editingVideoName.trim() });
+                                               renameVideoMutation.mutate({ videoUri: vid.uri, name: editingVideoName.trim(), competitionId: Number(selectedCompId) });
                                             }
                                           }}
                                           disabled={renameVideoMutation.isPending || !editingVideoName.trim()}
@@ -1873,7 +2071,7 @@ export default function TalentDashboard({ user, profile }: Props) {
                                     size="icon"
                                     variant="ghost"
                                     className="text-red-400 flex-shrink-0"
-                                    onClick={() => deleteVideoMutation.mutate(vid.uri)}
+                                    onClick={() => deleteVideoMutation.mutate({ videoUri: vid.uri, competitionId: Number(selectedCompId) })}
                                     disabled={deleteVideoMutation.isPending}
                                     data-testid={`button-delete-video-${vid.uri}`}
                                   >

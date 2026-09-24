@@ -4,17 +4,13 @@ description: How Vimeo video URIs are stored and retrieved for contestant profil
 ---
 
 ## Rule
-Read contestant videos from `TalentProfile.videoUrls` (Firestore). Never walk the Vimeo folder tree (ChronicTV → Originals → Quest → Competition → Artist) at page-load time — that is 5 sequential API calls (~1s each).
+Contestant video ownership is competition-scoped: `competitionVideoUris[competitionId]` is authoritative. Never treat the flat `videoUrls` list as applying to every competition. Legacy fallback may inspect only that competition's folder.
 
-**Why:** The folder walk was the original implementation, causing 4–5s delays on every contestant profile page load. Firestore already had a `videoUrls: string[]` field on TalentProfile that was never being populated.
+**Why:** A profile-global video list makes the same clip appear in every competition and cannot support one independent video slot per entry. A direct competition-keyed Vimeo URI is fast and avoids cross-competition leakage.
 
 ## How to apply
-- **Upload finalization** (`POST /api/vimeo/finalize-upload`): after Vimeo confirms the upload, append the `videoUri` to `TalentProfile.videoUrls` in Firestore.
-- **Delete** (`DELETE /api/vimeo/videos/:videoId`): remove the URI from `videoUrls` (and add to `hiddenVideoUris` if Vimeo delete fails).
-- **Video endpoint** (`GET /api/resolve/:categorySlug/:compSlug/:talentSlug/videos`): read `talentProfile.videoUrls`, filter hidden, fetch each by `getVideoById(id)` in parallel. Only fall back to `listTalentVideos` (folder walk) if `videoUrls` is empty.
-- **Backfill**: if contestants already have Vimeo videos but empty `videoUrls`, run a Firestore update script using the competition video cache as the source of URIs.
+- Uploads, replacements, deletes, and renames must validate approved contestant membership for the target competition.
+- A replacement updates only that competition's map entry; remove or hide its former video without touching other entries.
+- Public resolvers use the mapped URI first, then only the matching competition folder for legacy records; never backfill or reuse the flat list across competitions.
+- Stage submissions remain separate from the one active contestant-library video slot; photo behavior is unchanged.
 
-## Timing after fix
-- Cold first load per contestant: ~0.5s (one direct Vimeo GET by video ID)
-- Server-cached subsequent loads: ~0.001s
-- Previously: 4–5s (folder tree walk)
