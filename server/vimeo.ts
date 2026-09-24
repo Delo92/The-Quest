@@ -33,6 +33,28 @@ export interface VimeoVideo {
   created_time: string;
 }
 
+export interface VimeoAnalyticsVideo {
+  id: string;
+  name: string;
+  link: string | null;
+  createdTime: string | null;
+  duration: number;
+  plays: number | null;
+}
+
+export interface VimeoAnalyticsReport {
+  fetchedAt: string;
+  videoCount: number;
+  scannedVideoCount: number;
+  videosWithPlayData: number;
+  totalPlays: number;
+  isPartial: boolean;
+  topVideos: VimeoAnalyticsVideo[];
+}
+
+let vimeoAnalyticsCache: { expiresAt: number; report: VimeoAnalyticsReport } | null = null;
+let vimeoAnalyticsInFlight: Promise<VimeoAnalyticsReport> | null = null;
+
 export function formatVimeoDisplayName(
   rawName: string | null | undefined,
   competitionName?: string | null,
@@ -270,6 +292,71 @@ export async function listCompetitionVideos(competitionName: string): Promise<Vi
     } catch {
       return [];
     }
+  }
+}
+
+export async function getVimeoAccountAnalytics(): Promise<VimeoAnalyticsReport> {
+  if (vimeoAnalyticsCache && vimeoAnalyticsCache.expiresAt > Date.now()) {
+    return vimeoAnalyticsCache.report;
+  }
+  if (vimeoAnalyticsInFlight) return vimeoAnalyticsInFlight;
+
+  vimeoAnalyticsInFlight = (async () => {
+    const videos: VimeoAnalyticsVideo[] = [];
+    const maxPages = 20;
+    let next: string | null =
+      "/me/videos?per_page=100&page=1&sort=date&direction=desc&fields=uri,name,link,created_time,duration,stats";
+    let videoCount = 0;
+
+    for (let page = 0; next && page < maxPages; page++) {
+      const response = await vimeoRequest(next);
+      if (page === 0) videoCount = Number(response.total) || 0;
+
+      for (const video of response.data || []) {
+        const rawPlays = video.stats?.plays;
+        const plays = rawPlays === null || rawPlays === undefined
+          ? null
+          : Number.isFinite(Number(rawPlays))
+            ? Math.max(0, Number(rawPlays))
+            : null;
+        const id = String(video.uri || "").match(/\/videos\/(\d+)/)?.[1];
+        if (!id) continue;
+
+        videos.push({
+          id,
+          name: String(video.name || "Untitled video"),
+          link: typeof video.link === "string" ? video.link : null,
+          createdTime: typeof video.created_time === "string" ? video.created_time : null,
+          duration: Math.max(0, Number(video.duration) || 0),
+          plays,
+        });
+      }
+
+      next = typeof response.paging?.next === "string" ? response.paging.next : null;
+    }
+
+    const withPlayData = videos.filter((video) => video.plays !== null);
+    const topVideos = [...withPlayData]
+      .sort((a, b) => (b.plays || 0) - (a.plays || 0))
+      .slice(0, 20);
+    const report: VimeoAnalyticsReport = {
+      fetchedAt: new Date().toISOString(),
+      videoCount: videoCount || videos.length,
+      scannedVideoCount: videos.length,
+      videosWithPlayData: withPlayData.length,
+      totalPlays: withPlayData.reduce((total, video) => total + (video.plays || 0), 0),
+      isPartial: Boolean(next) || (videoCount > 0 && videos.length < videoCount),
+      topVideos,
+    };
+
+    vimeoAnalyticsCache = { report, expiresAt: Date.now() + 5 * 60 * 1000 };
+    return report;
+  })();
+
+  try {
+    return await vimeoAnalyticsInFlight;
+  } finally {
+    vimeoAnalyticsInFlight = null;
   }
 }
 

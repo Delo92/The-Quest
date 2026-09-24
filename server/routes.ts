@@ -103,6 +103,7 @@ import {
   getChronicTVEventVimeoFolder,
   getChronicTVContestantVimeoFolder,
   listCompetitionVideos,
+  getVimeoAccountAnalytics,
   formatVimeoDisplayName,
   resolveDirectVideoUrl,
   invalidateVideoPlayCache,
@@ -8269,6 +8270,16 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error('GA4 analytics error:', error.message);
       res.status(500).json({ success: false, message: error.message || 'Failed to fetch analytics data' });
+    }
+  });
+
+  app.get("/api/admin/vimeo-analytics", firebaseAuth, requireAdmin, async (_req, res) => {
+    try {
+      const data = await getVimeoAccountAnalytics();
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Vimeo analytics error:", error.message);
+      res.status(502).json({ success: false, message: error.message || "Failed to fetch Vimeo analytics" });
     }
   });
 

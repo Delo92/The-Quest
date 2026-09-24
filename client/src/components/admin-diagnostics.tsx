@@ -50,6 +50,23 @@ interface GA4Data {
   trafficSources: Array<{ source: string; sessions: number }>;
 }
 
+interface VimeoAnalyticsData {
+  fetchedAt: string;
+  videoCount: number;
+  scannedVideoCount: number;
+  videosWithPlayData: number;
+  totalPlays: number;
+  isPartial: boolean;
+  topVideos: Array<{
+    id: string;
+    name: string;
+    link: string | null;
+    createdTime: string | null;
+    duration: number;
+    plays: number | null;
+  }>;
+}
+
 const severityColors: Record<string, string> = {
   critical: "bg-red-950/40 text-red-300 border-red-800/40",
   error: "bg-orange-950/40 text-orange-300 border-orange-800/40",
@@ -69,6 +86,12 @@ function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+}
+
+function formatVideoDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
 function MiniBarChart({ data, dataKey, maxHeight = 80 }: {
@@ -110,7 +133,7 @@ function StatCard({ label, value, icon: Icon, sub }: {
   );
 }
 
-function AnalyticsTab() {
+function GA4AnalyticsPanel() {
   const [dateRange, setDateRange] = useState("30d");
 
   const { data, isLoading, error, refetch } = useQuery<GA4Data>({
@@ -159,7 +182,7 @@ function AnalyticsTab() {
         </p>
         <p className="text-sm text-white/50 max-w-md mx-auto">
           {isNotConfigured
-            ? "Add your numeric GA4 Property ID as the GA4_PROPERTY_ID secret to enable live traffic data."
+            ? "Add the numeric GA4 Property ID as the GA4_PROPERTY_ID environment variable. The Analytics Data API must be enabled, and the app's service account needs Viewer access to the property."
             : msg || "Could not connect to Google Analytics. Check that the service account has Viewer access and the Analytics Data API is enabled."}
         </p>
         <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-2 border-white/20 text-white hover:bg-white/10">
@@ -267,6 +290,156 @@ function AnalyticsTab() {
         </div>
       </div>
     </div>
+  );
+}
+
+function VimeoAnalyticsPanel() {
+  const { data, isLoading, error, refetch } = useQuery<VimeoAnalyticsData>({
+    queryKey: ["/api/admin/vimeo-analytics"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/vimeo-analytics");
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to fetch Vimeo analytics");
+      return json.data;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-sm text-white/50">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading Vimeo play counts...
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 bg-white/5" />)}
+        </div>
+        <Skeleton className="h-64 bg-white/5" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    const message = (error as Error)?.message || "Could not connect to Vimeo.";
+    return (
+      <div className="rounded-md bg-white/5 border border-white/10 p-8 text-center space-y-3">
+        <Tv2 className="h-10 w-10 mx-auto text-white/20" />
+        <p className="font-medium text-white">Vimeo analytics unavailable</p>
+        <p className="text-sm text-white/50 max-w-lg mx-auto">{message}</p>
+        <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-2 border-white/20 text-white hover:bg-white/10">
+          <RefreshCw className="h-3.5 w-3.5" /> Retry
+        </Button>
+      </div>
+    );
+  }
+
+  const averagePlays = data.videosWithPlayData > 0
+    ? Math.round(data.totalPlays / data.videosWithPlayData)
+    : 0;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-sm text-white/50">
+          Lifetime play counts · Updated {new Date(data.fetchedAt).toLocaleString()}
+        </p>
+        <Button size="sm" variant="ghost" onClick={() => refetch()} className="gap-2 text-white/60 hover:text-white hover:bg-white/10">
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Lifetime Plays" value={data.totalPlays.toLocaleString()} icon={Activity} />
+        <StatCard label="Videos in Library" value={data.videoCount.toLocaleString()} icon={Tv2} />
+        <StatCard label="With Play Counts" value={data.videosWithPlayData.toLocaleString()} icon={Eye} />
+        <StatCard label="Average Plays" value={averagePlays.toLocaleString()} icon={TrendingUp} sub="per video with play data" />
+      </div>
+
+      {data.isPartial && (
+        <div className="rounded-md border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-100/80">
+          Totals cover the {data.scannedVideoCount.toLocaleString()} most recent videos scanned so far, out of {data.videoCount.toLocaleString()} in the account.
+        </div>
+      )}
+
+      <div className="rounded-md bg-white/5 border border-white/10 overflow-hidden">
+        <div className="px-4 py-3 border-b border-white/10">
+          <h4 className="text-sm font-medium text-white/80">Top Videos by Lifetime Plays</h4>
+        </div>
+        {data.topVideos.length === 0 ? (
+          <p className="p-5 text-sm text-white/40">No video play counts are available from Vimeo yet.</p>
+        ) : (
+          <div className="divide-y divide-white/[0.06]">
+            {data.topVideos.map((video, index) => {
+              const content = (
+                <>
+                  <span className="w-7 shrink-0 text-xs tabular-nums text-white/30">{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-white/80">{video.name}</p>
+                    <p className="mt-1 text-xs text-white/35">
+                      {video.createdTime ? new Date(video.createdTime).toLocaleDateString() : "Upload date unavailable"}
+                      {video.duration > 0 ? ` · ${formatVideoDuration(video.duration)}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-medium tabular-nums text-white">
+                    {(video.plays ?? 0).toLocaleString()} <span className="text-xs font-normal text-white/40">plays</span>
+                  </span>
+                </>
+              );
+
+              return video.link ? (
+                <a
+                  key={video.id}
+                  href={video.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                >
+                  {content}
+                </a>
+              ) : (
+                <div key={video.id} className="flex items-center gap-3 px-4 py-3">
+                  {content}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <p className="text-xs leading-relaxed text-white/35">
+        These are cumulative plays reported by Vimeo, not unique viewers or a selected date range. Vimeo’s detailed analytics API includes engagement and audience breakdowns and requires Enterprise access.
+      </p>
+    </div>
+  );
+}
+
+function AnalyticsTab() {
+  return (
+    <Tabs defaultValue="ga4" className="space-y-4">
+      <TabsList className="bg-white/[0.06] border border-white/10">
+        <TabsTrigger
+          value="ga4"
+          className="text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
+          data-testid="tab-ga4-analytics"
+        >
+          <BarChart3 className="h-4 w-4 mr-2" /> GA4
+        </TabsTrigger>
+        <TabsTrigger
+          value="vimeo"
+          className="text-white/60 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white"
+          data-testid="tab-vimeo-analytics"
+        >
+          <Tv2 className="h-4 w-4 mr-2" /> Vimeo
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="ga4">
+        <GA4AnalyticsPanel />
+      </TabsContent>
+      <TabsContent value="vimeo">
+        <VimeoAnalyticsPanel />
+      </TabsContent>
+    </Tabs>
   );
 }
 
