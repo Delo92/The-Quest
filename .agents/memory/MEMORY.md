@@ -5,7 +5,8 @@
 - [Quest payroll ledger](payroll-ledger-architecture.md) — freelance winner entitlements are audited and manually recorded until an outbound payout provider is deliberately selected
 - [Financial operations aggregation](financial-operations-aggregation.md) — charity totals need one authoritative allocation source to avoid ledger/transaction double counting
 - [Dashboard visual verification](dashboard-visual-verification.md) — protected pages need authenticated browser passes plus element-bound checks for clipping
-- [Quest admin navigation](admin-navigation.md) — Payroll & Agreements is a top-level System destination, not a nested Settings tab
+- [Owner dashboard analytics](owner-dashboard-analytics.md) — generic role labels, last-30-day scoped visitors, and lifetime plays from distinct entry videos
+- [Quest admin navigation](admin-navigation.md) — keep Payroll & Agreements top-level and distinguish Voting Stats from the separate Diagnostics → Analytics view
 - [Dashboard readability](dashboard-readability.md) — authenticated dashboards use elevated charcoal surfaces and stronger secondary contrast without changing the public site
 - [Competition Vimeo routing](competition-vimeo-routing.md) — optional per-competition Vimeo folder is preferred; standard Quest/CB destinations remain backups and folder failures must block unfiled uploads
 - [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing

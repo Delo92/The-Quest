@@ -1,6 +1,12 @@
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
 let _client: BetaAnalyticsDataClient | null = null;
+type PageVisitorsReport = {
+  websiteVisitors: number;
+  byPath: Record<string, number>;
+};
+const pageVisitorsCache = new Map<string, { expiresAt: number; report: PageVisitorsReport }>();
+const pageVisitorsInFlight = new Map<string, Promise<PageVisitorsReport>>();
 
 function getClient(): BetaAnalyticsDataClient {
   if (_client) return _client;
@@ -19,6 +25,71 @@ function getPropertyId(): string {
   const id = process.env.GA4_PROPERTY_ID;
   if (!id) throw new Error('GA4_PROPERTY_ID environment variable not set');
   return id;
+}
+
+export async function getPageVisitorsForPaths(paths: string[]): Promise<PageVisitorsReport> {
+  const uniquePaths = [...new Set(paths.map((path) => path.trim()).filter((path) => path.startsWith('/')))].sort();
+  if (uniquePaths.length === 0) return { websiteVisitors: 0, byPath: {} };
+
+  const cacheKey = uniquePaths.join('\n');
+  const cached = pageVisitorsCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.report;
+  const existingRequest = pageVisitorsInFlight.get(cacheKey);
+  if (existingRequest) return existingRequest;
+
+  const request = (async () => {
+    const client = getClient();
+    const propertyId = getPropertyId();
+    const pathPattern = `^(?:${uniquePaths.map((path) => path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`;
+    const dimensionFilter = {
+      filter: {
+        fieldName: 'pagePath',
+        stringFilter: {
+          matchType: 'FULL_REGEXP' as const,
+          value: pathPattern,
+          caseSensitive: true,
+        },
+      },
+    };
+    const baseRequest = {
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      dimensionFilter,
+    };
+
+    const [[summaryResponse], [pathResponse]] = await Promise.all([
+      client.runReport({
+        ...baseRequest,
+        metrics: [{ name: 'activeUsers' }],
+      }),
+      client.runReport({
+        ...baseRequest,
+        dimensions: [{ name: 'pagePath' }],
+        metrics: [{ name: 'activeUsers' }],
+        limit: 10000,
+      }),
+    ]);
+
+    const byPath: Record<string, number> = {};
+    for (const row of pathResponse.rows || []) {
+      const path = row.dimensionValues?.[0]?.value;
+      if (path) byPath[path] = Math.max(0, Number(row.metricValues?.[0]?.value) || 0);
+    }
+
+    const report = {
+      websiteVisitors: Math.max(0, Number(summaryResponse.rows?.[0]?.metricValues?.[0]?.value) || 0),
+      byPath,
+    };
+    pageVisitorsCache.set(cacheKey, { report, expiresAt: Date.now() + 5 * 60 * 1000 });
+    return report;
+  })();
+
+  pageVisitorsInFlight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    pageVisitorsInFlight.delete(cacheKey);
+  }
 }
 
 export async function getGA4Report(dateRange: string = '30d') {

@@ -2205,7 +2205,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               <HardDrive className="h-4 w-4 mr-3 shrink-0" /> Storage
             </TabsTrigger>
             <TabsTrigger value="analytics" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-analytics">
-              <BarChart3 className="h-4 w-4 mr-3 shrink-0" /> Analytics
+              <BarChart3 className="h-4 w-4 mr-3 shrink-0" /> Voting Stats
             </TabsTrigger>
             <TabsTrigger value="settings" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-settings">
               <Settings className="h-4 w-4 mr-3 shrink-0" /> Settings
@@ -2246,7 +2246,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                 Storage
               </TabsTrigger>
               <TabsTrigger value="analytics" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-analytics-mobile">
-                Analytics
+                Voting Stats
               </TabsTrigger>
               <TabsTrigger value="settings" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-settings-mobile">
                 Settings

@@ -399,8 +399,8 @@ export default function AdminAnalyticsTab() {
   return (
     <Tabs defaultValue="voting">
       <TabsList className="bg-white/5 border border-white/5 mb-6">
-        <TabsTrigger value="voting" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="analytics-tab-voting">
-          <BarChart3 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Voting Analytics</span>
+        <TabsTrigger value="voting" aria-label="Voting Stats" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="analytics-tab-voting">
+          <BarChart3 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Voting Stats</span>
         </TabsTrigger>
         <TabsTrigger value="referrals" className="text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-amber-500 data-[state=active]:text-white" data-testid="analytics-tab-referrals">
           <Link2 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Referral System</span>
@@ -410,10 +410,10 @@ export default function AdminAnalyticsTab() {
         </TabsTrigger>
       </TabsList>
 
-      {/* ── Voting Analytics Sub-Tab ──────────────────── */}
+      {/* ── Voting Stats Sub-Tab ─────────────────────── */}
       <TabsContent value="voting">
         {analyticsLoading ? (
-          <div className="text-center py-20 text-white/40">Loading analytics...</div>
+          <div className="text-center py-20 text-white/40">Loading voting stats...</div>
         ) : analytics ? (
           <div className="space-y-8">
             {/* Vote stats */}
@@ -672,7 +672,7 @@ export default function AdminAnalyticsTab() {
             </div>
           </div>
         ) : (
-          <div className="text-center py-20 text-white/40">Failed to load analytics</div>
+          <div className="text-center py-20 text-white/40">Failed to load referral stats</div>
         )}
       </TabsContent>
 

@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet, Lock, ShieldCheck, Eye, EyeOff, BarChart3 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
 import { slugify } from "@shared/slugify";
 import { InviteDialog } from "@/components/invite-dialog";
 import ContestantStagePanel from "@/components/contestant-stage-panel";
+import OwnerAnalyticsPanel from "@/components/owner-analytics-panel";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -631,7 +632,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     await handleCopyShareLink(contest);
   };
 
-  const [activeSection, setActiveSection] = useState<"profile" | "media" | "competitions" | "earnings">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "media" | "competitions" | "analytics" | "earnings">("profile");
 
   const totalVotes = myContests?.reduce((acc: number, c: any) => acc + (c.voteCount || 0), 0) || 0;
   const approvedCount = approvedContests.length;
@@ -641,6 +642,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     { id: "profile" as const, label: "My Profile", sublabel: "Info, bio & customization", icon: User },
     { id: "media" as const, label: "Media Library", sublabel: "Photos & videos", icon: FolderOpen },
     { id: "competitions" as const, label: "Competitions", sublabel: "Applications & sharing", icon: Trophy },
+    { id: "analytics" as const, label: "Analytics", sublabel: "Visitors & plays", icon: BarChart3 },
     { id: "earnings" as const, label: "Earnings", sublabel: "Payouts & nonprofit", icon: Wallet },
   ];
 
@@ -689,13 +691,13 @@ export default function TalentDashboard({ user, profile }: Props) {
           <InviteDialog senderLevel={2} />
         </div>
         {/* Tab strip */}
-        <div className="flex gap-1.5 px-4 pb-2.5">
+        <div className="flex gap-1.5 overflow-x-auto px-4 pb-2.5">
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveSection(id)}
               data-testid={`sticky-tab-${id}`}
-              className={`flex-1 rounded-xl py-2 px-1 flex flex-col items-center gap-1 transition-all border ${
+               className={`min-w-[68px] flex-1 rounded-xl py-2 px-1 flex flex-col items-center gap-1 transition-all border ${
                 activeSection === id
                   ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/20"
                   : "bg-white/[0.05] border-white/10 text-white/45 active:bg-white/[0.09]"
@@ -1107,7 +1109,11 @@ export default function TalentDashboard({ user, profile }: Props) {
             </div>
           </TabsContent>
 
-          <TabsContent value="earnings">
+           <TabsContent value="analytics">
+             <OwnerAnalyticsPanel />
+           </TabsContent>
+
+           <TabsContent value="earnings">
             <div className="space-y-5">
 
               {/* How earnings work — always visible banner */}

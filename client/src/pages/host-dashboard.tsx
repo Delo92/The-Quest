@@ -24,6 +24,7 @@ import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import CompetitionShareLinks from "@/components/competition-share-links";
+import OwnerAnalyticsPanel from "@/components/owner-analytics-panel";
 import type { CompetitionStage } from "@shared/schema";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 
@@ -1311,38 +1312,42 @@ export default function HostDashboard({ user }: { user: any }) {
 
           <TabsContent value="analytics">
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="rounded-md bg-white/5 border border-white/5 p-4">
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Total Events</p>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">{stats?.totalCompetitions ?? 0}</p>
-                </div>
-                <div className="rounded-md bg-white/5 border border-white/5 p-4">
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Total Contestants</p>
-                  <p className="text-2xl font-bold">{stats?.totalContestants ?? 0}</p>
-                </div>
-                <div className="rounded-md bg-white/5 border border-white/5 p-4">
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Tournament points</p>
-                  <p className="text-2xl font-bold text-orange-400">{stats?.totalVotes ?? 0}</p>
-                </div>
-                <div className="rounded-md bg-white/5 border border-white/5 p-4">
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Pending Apps</p>
-                  <p className="text-2xl font-bold text-yellow-400">{stats?.pendingApplications ?? 0}</p>
-                </div>
-              </div>
+              <OwnerAnalyticsPanel />
 
-              <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Per-Event Analytics</h3>
-              {competitions.length === 0 ? (
-                <div className="text-center py-12 text-white/30">
-                  <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p>No events to show analytics for</p>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <div className="rounded-md border border-white/5 bg-white/5 p-4">
+                    <p className="mb-1 text-xs uppercase tracking-wider text-white/40">Total Events</p>
+                    <p className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-2xl font-bold text-transparent">{stats?.totalCompetitions ?? 0}</p>
+                  </div>
+                  <div className="rounded-md border border-white/5 bg-white/5 p-4">
+                    <p className="mb-1 text-xs uppercase tracking-wider text-white/40">Total Contestants</p>
+                    <p className="text-2xl font-bold">{stats?.totalContestants ?? 0}</p>
+                  </div>
+                  <div className="rounded-md border border-white/5 bg-white/5 p-4">
+                    <p className="mb-1 text-xs uppercase tracking-wider text-white/40">Tournament points</p>
+                    <p className="text-2xl font-bold text-orange-400">{stats?.totalVotes ?? 0}</p>
+                  </div>
+                  <div className="rounded-md border border-white/5 bg-white/5 p-4">
+                    <p className="mb-1 text-xs uppercase tracking-wider text-white/40">Pending Apps</p>
+                    <p className="text-2xl font-bold text-yellow-400">{stats?.pendingApplications ?? 0}</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {competitions.map(comp => (
-                    <EventAnalyticsCard key={comp.id} comp={comp} />
-                  ))}
-                </div>
-              )}
+
+                <h3 className="text-xs font-bold uppercase tracking-widest text-orange-400">Per-Event Analytics</h3>
+                {competitions.length === 0 ? (
+                  <div className="py-12 text-center text-white/30">
+                    <BarChart3 className="mx-auto mb-3 h-10 w-10 opacity-30" />
+                    <p>No events to show analytics for</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {competitions.map((comp) => (
+                      <EventAnalyticsCard key={comp.id} comp={comp} />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </TabsContent>
 

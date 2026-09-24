@@ -64,6 +64,7 @@ import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchas
 import { registerQuestPayrollAdmin } from "./quest-payroll-admin";
 import { registerPaymentProviderWebhooks } from "./payment-provider-webhooks";
 import { registerQuestForms } from "./quest-forms";
+import { getOwnerAnalytics } from "./services/ownerAnalytics";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
   uploadImageToDrive,
@@ -2387,6 +2388,21 @@ export async function registerRoutes(
     const { uid } = req.firebaseUser!;
     const competitions = await storage.getCompetitionsByCreator(uid);
     res.json(competitions);
+  });
+
+  app.get("/api/analytics/my-dashboard", firebaseAuth, async (req, res) => {
+    const { uid, level } = req.firebaseUser!;
+    if (level !== 2 && level !== 3) {
+      return res.status(403).json({ message: "Analytics are not available for this account" });
+    }
+
+    try {
+      const analytics = await getOwnerAnalytics(uid, level === 3 ? "host" : "talent");
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("[OwnerAnalytics] Failed to load dashboard data:", error);
+      res.status(500).json({ message: "Unable to load analytics right now" });
+    }
   });
 
   app.get("/api/host/stats", firebaseAuth, requireHost, async (req, res) => {
