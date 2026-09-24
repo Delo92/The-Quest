@@ -53,10 +53,10 @@ interface GA4Data {
 interface VimeoAnalyticsData {
   fetchedAt: string;
   videoCount: number;
-  scannedVideoCount: number;
+  availableVideoCount: number;
+  missingVideoCount: number;
   videosWithPlayData: number;
   totalPlays: number;
-  isPartial: boolean;
   topVideos: Array<{
     id: string;
     name: string;
@@ -310,10 +310,10 @@ function VimeoAnalyticsPanel() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-white/50">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading Vimeo play counts...
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading Quest video play counts...
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 bg-white/5" />)}
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 bg-white/5" />)}
         </div>
         <Skeleton className="h-64 bg-white/5" />
       </div>
@@ -342,7 +342,7 @@ function VimeoAnalyticsPanel() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-white/50">
-          Lifetime play counts · Updated {new Date(data.fetchedAt).toLocaleString()}
+          Quest video lifetime plays · Updated {new Date(data.fetchedAt).toLocaleString()}
         </p>
         <Button size="sm" variant="ghost" onClick={() => refetch()} className="gap-2 text-white/60 hover:text-white hover:bg-white/10">
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
@@ -351,14 +351,15 @@ function VimeoAnalyticsPanel() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Lifetime Plays" value={data.totalPlays.toLocaleString()} icon={Activity} />
-        <StatCard label="Videos in Library" value={data.videoCount.toLocaleString()} icon={Tv2} />
+        <StatCard label="Quest Videos" value={data.videoCount.toLocaleString()} icon={Tv2} />
+        <StatCard label="Available on Vimeo" value={data.availableVideoCount.toLocaleString()} icon={CheckCircle2} />
         <StatCard label="With Play Counts" value={data.videosWithPlayData.toLocaleString()} icon={Eye} />
         <StatCard label="Average Plays" value={averagePlays.toLocaleString()} icon={TrendingUp} sub="per video with play data" />
       </div>
 
-      {data.isPartial && (
+      {data.missingVideoCount > 0 && (
         <div className="rounded-md border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-100/80">
-          Totals cover the {data.scannedVideoCount.toLocaleString()} most recent videos scanned so far, out of {data.videoCount.toLocaleString()} in the account.
+          {data.missingVideoCount.toLocaleString()} Quest video reference{data.missingVideoCount === 1 ? " is" : "s are"} no longer available on Vimeo.
         </div>
       )}
 
@@ -367,7 +368,11 @@ function VimeoAnalyticsPanel() {
           <h4 className="text-sm font-medium text-white/80">Top Videos by Lifetime Plays</h4>
         </div>
         {data.topVideos.length === 0 ? (
-          <p className="p-5 text-sm text-white/40">No video play counts are available from Vimeo yet.</p>
+          <p className="p-5 text-sm text-white/40">
+            {data.videoCount === 0
+              ? "No Vimeo videos are currently referenced by The Quest."
+              : "No video play counts are available from Vimeo yet."}
+          </p>
         ) : (
           <div className="divide-y divide-white/[0.06]">
             {data.topVideos.map((video, index) => {
@@ -408,7 +413,7 @@ function VimeoAnalyticsPanel() {
       </div>
 
       <p className="text-xs leading-relaxed text-white/35">
-        These are cumulative plays reported by Vimeo, not unique viewers or a selected date range. Vimeo’s detailed analytics API includes engagement and audience breakdowns and requires Enterprise access.
+        This list includes only Vimeo links referenced by Quest talent profiles, competitions, categories, stage entries, and site media—not other videos in the Vimeo account. Counts are cumulative plays, not unique viewers or a selected date range. Vimeo’s detailed analytics API includes engagement and audience breakdowns and requires Enterprise access.
       </p>
     </div>
   );

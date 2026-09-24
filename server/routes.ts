@@ -103,7 +103,7 @@ import {
   getChronicTVEventVimeoFolder,
   getChronicTVContestantVimeoFolder,
   listCompetitionVideos,
-  getVimeoAccountAnalytics,
+  getQuestVimeoAnalytics,
   formatVimeoDisplayName,
   resolveDirectVideoUrl,
   invalidateVideoPlayCache,
@@ -8275,7 +8275,38 @@ export async function registerRoutes(
 
   app.get("/api/admin/vimeo-analytics", firebaseAuth, requireAdmin, async (_req, res) => {
     try {
-      const data = await getVimeoAccountAnalytics();
+      const [talentProfiles, competitions, categories, livery] = await Promise.all([
+        storage.getAllTalentProfiles(),
+        storage.getCompetitions(),
+        firestoreCategories.getAll(),
+        storage.getAllLivery(),
+      ]);
+      const stageSubmissionGroups = await Promise.all(
+        competitions.map((competition) => firestoreStageSubmissions.getByCompetition(competition.id)),
+      );
+      const videoUris = new Set<string>();
+      const addQuestVideoUri = (value: unknown) => {
+        if (typeof value === "string" && extractVimeoVideoId(value)) videoUris.add(value);
+      };
+
+      for (const profile of talentProfiles) {
+        const hiddenIds = new Set((profile.hiddenVideoUris || [])
+          .map((uri) => extractVimeoVideoId(uri))
+          .filter((id): id is string => Boolean(id)));
+        for (const uri of profile.videoUrls || []) {
+          const id = extractVimeoVideoId(uri);
+          if (id && !hiddenIds.has(id)) addQuestVideoUri(uri);
+        }
+      }
+
+      competitions.forEach((competition) => addQuestVideoUri(competition.coverVideo));
+      categories.forEach((category) => addQuestVideoUri(category.videoUrl));
+      livery.forEach((item) => addQuestVideoUri(item.imageUrl));
+      stageSubmissionGroups.flat()
+        .filter((submission) => submission.mediaType === "video")
+        .forEach((submission) => addQuestVideoUri(submission.mediaUrl));
+
+      const data = await getQuestVimeoAnalytics([...videoUris]);
       res.json({ success: true, data });
     } catch (error: any) {
       console.error("Vimeo analytics error:", error.message);
