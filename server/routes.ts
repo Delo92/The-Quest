@@ -447,6 +447,14 @@ function isVideoFile(filename: string): boolean {
   return /\.(mp4|webm|mov)$/i.test(filename);
 }
 
+function readOptionalVideoTitle(value: unknown): { title: string; error?: string } {
+  if (value === undefined || value === null) return { title: "" };
+  if (typeof value !== "string") return { title: "", error: "Video title must be text" };
+  const title = value.trim();
+  if (title.length > 120) return { title: "", error: "Video title must be 120 characters or fewer" };
+  return { title };
+}
+
 async function getVideoDurationFromBuffer(buffer: Buffer): Promise<number> {
   const { execSync } = await import("child_process");
   const os = await import("os");
@@ -2309,7 +2317,7 @@ export async function registerRoutes(
 
     try {
       const videos = await getCachedPublicResponse(`talent-videos:${id}`, 60_000, async () => {
-        const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+        const talentName = (profile.stageName || profile.displayName).trim();
         const rawVideos = await listAllTalentVideos(talentName);
         return rawVideos.map(v => ({
           uri: v.uri,
@@ -3977,7 +3985,7 @@ export async function registerRoutes(
       const profile = await storage.getTalentProfile(profileId);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
 
-      const talentName = ((profile as any).stageName || (profile as any).displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = String((profile as any).stageName || (profile as any).displayName || "").trim();
 
       // Run DB + Firestore in parallel — Vimeo is on its own separate endpoint
       const [firestoreUser, contestantEntries] = await Promise.all([
@@ -4177,7 +4185,7 @@ export async function registerRoutes(
       ]);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
 
-      const talentName = ((profile as any).stageName || (profile as any).displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = String((profile as any).stageName || (profile as any).displayName || "").trim();
 
       const competitions = await Promise.all(
         knownCompetitions.map(comp => Promise.resolve(comp))
@@ -4224,10 +4232,12 @@ export async function registerRoutes(
       const profileId = parseInt(req.params.profileId);
       if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
 
-      const { fileName, fileSize, competitionId } = req.body;
-      if (!fileName || !fileSize || !competitionId) {
-        return res.status(400).json({ message: "fileName, fileSize, and competitionId are required" });
+       const { fileSize, competitionId } = req.body;
+       if (!fileSize || !competitionId) {
+         return res.status(400).json({ message: "fileSize and competitionId are required" });
       }
+       const titleInput = readOptionalVideoTitle(req.body?.videoTitle);
+       if (titleInput.error) return res.status(400).json({ message: titleInput.error });
 
       const [profile, comp] = await Promise.all([
         storage.getTalentProfile(profileId),
@@ -4240,7 +4250,7 @@ export async function registerRoutes(
       const globalMaxVideos = settingsDoc.exists ? (settingsDoc.data()?.maxVideosPerContestant ?? 3) : 3;
       const compMaxVideos = comp.maxVideosPerContestant;
       const maxVideos = compMaxVideos != null ? Math.min(compMaxVideos, globalMaxVideos) : globalMaxVideos;
-      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+       const talentName = (profile.stageName || profile.displayName).trim();
 
        const existingVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
       const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
@@ -4252,7 +4262,7 @@ export async function registerRoutes(
          comp.title,
          talentName,
          talentName,
-         fileName,
+          titleInput.title,
          fileSize,
          comp.vimeoFolderUrl,
        );
@@ -6383,7 +6393,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Upload limit reached. Maximum ${maxImages} images allowed per contestant.` });
       }
 
-      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = (profile.stageName || profile.displayName).trim();
       const uniqueName = generateUniqueFilename(req.file.originalname);
       const storagePath = `talent-images/${comp.title}/${talentName}/${uniqueName}`;
 
@@ -6523,7 +6533,7 @@ export async function registerRoutes(
       if (!profile) return res.json([]);
 
       const competitionId = req.query.competitionId ? parseInt(req.query.competitionId as string) : null;
-      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+      const talentName = (profile.stageName || profile.displayName).trim();
       const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
 
       if (competitionId) {
@@ -6572,13 +6582,15 @@ export async function registerRoutes(
       const profile = await storage.getTalentProfileByUserId(uid);
       if (!profile) return res.status(400).json({ message: "Create a talent profile first" });
 
-      const { fileName, fileSize, competitionId } = req.body;
-      if (!fileName || !fileSize) {
-        return res.status(400).json({ message: "fileName and fileSize are required" });
+       const { fileSize, competitionId } = req.body;
+       if (!fileSize) {
+         return res.status(400).json({ message: "fileSize is required" });
       }
       if (!competitionId) {
         return res.status(400).json({ message: "competitionId is required" });
       }
+       const titleInput = readOptionalVideoTitle(req.body?.videoTitle);
+       if (titleInput.error) return res.status(400).json({ message: titleInput.error });
 
       const comp = await storage.getCompetition(parseInt(competitionId));
       if (!comp) return res.status(404).json({ message: "Competition not found" });
@@ -6601,7 +6613,7 @@ export async function registerRoutes(
       const compMaxVideos = comp.maxVideosPerContestant;
       const maxVideos = compMaxVideos != null ? Math.min(compMaxVideos, globalMaxVideos) : globalMaxVideos;
 
-      const talentName = (profile.stageName || profile.displayName).replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
+       const talentName = (profile.stageName || profile.displayName).trim();
 
       try {
         const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
@@ -6616,7 +6628,7 @@ export async function registerRoutes(
          comp.title,
          talentName,
          talentName,
-         fileName,
+          titleInput.title,
          fileSize,
          comp.vimeoFolderUrl,
        );
@@ -6948,9 +6960,7 @@ export async function registerRoutes(
 
            const contestants = await storage.getContestantsByCompetition(comp.id);
             return Promise.all(contestants.map(async contestant => {
-            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
-              .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
-              .trim();
+            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).trim();
              const storedVideoUris = Array.isArray((contestant.talentProfile as any).videoUrls)
                ? (contestant.talentProfile as any).videoUrls.filter((uri: unknown): uri is string => typeof uri === "string" && uri.length > 0)
                : [];
@@ -7151,9 +7161,7 @@ export async function registerRoutes(
               );
           if (!contestant) return null;
 
-          const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
-            .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
-            .trim();
+          const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).trim();
           // Fast path: URIs stored on the profile — no Vimeo API walk needed.
           const storedUris: string[] = (contestant.talentProfile as any).videoUrls || [];
           const hiddenUris: string[] = (contestant.talentProfile as any).hiddenVideoUris || [];
@@ -7227,9 +7235,7 @@ export async function registerRoutes(
           `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
           10 * 60_000,
           async () => {
-            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName)
-              .replace(/[^a-zA-Z0-9_\-\s]/g, "_")
-              .trim();
+            const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).trim();
             const storedUris: string[] = (contestant.talentProfile as any).videoUrls || [];
             const hiddenUris: string[] = (contestant.talentProfile as any).hiddenVideoUris || [];
             const visibleUris = storedUris.filter(u => !hiddenUris.includes(u));

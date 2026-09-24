@@ -87,6 +87,7 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [videoUploadFileName, setVideoUploadFileName] = useState("");
   const [videoUploadFileSize, setVideoUploadFileSize] = useState("");
   const [videoUploadComplete, setVideoUploadComplete] = useState(false);
+  const [videoTitle, setVideoTitle] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadError, setUploadError] = useState<{ type: "image" | "video"; message: string } | null>(null);
   const uploadStartTimeRef = useRef<number>(0);
@@ -383,9 +384,9 @@ export default function TalentDashboard({ user, profile }: Props) {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          fileName: file.name,
           fileSize: file.size,
           competitionId: selectedCompId,
+          videoTitle: videoTitle.trim(),
         }),
       });
 
@@ -468,6 +469,7 @@ export default function TalentDashboard({ user, profile }: Props) {
       setVideoUploadStep("done");
       setVideoUploadComplete(true);
       setUploadStatus("Upload complete!");
+      setVideoTitle("");
       toast({ title: "Video uploaded!", description: "Your video has been saved. It may take a moment for the thumbnail to appear." });
 
       queryClient.invalidateQueries({ queryKey: ["/api/vimeo/videos", selectedCompId] });
@@ -493,7 +495,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     } finally {
       if (videoInputRef.current) videoInputRef.current.value = "";
     }
-  }, [selectedCompId, toast]);
+  }, [selectedCompId, toast, videoTitle]);
 
   const activeCompetitions = competitions?.filter(
     (c) => c.status === "active" || c.status === "voting"
@@ -1617,6 +1619,24 @@ export default function TalentDashboard({ user, profile }: Props) {
                             )}
                           </Button>
                         </div>
+                      </div>
+                      <div className="max-w-2xl space-y-1.5">
+                        <Label htmlFor="input-video-title" className="text-sm text-white/75">
+                          Video title (optional)
+                        </Label>
+                        <Input
+                          id="input-video-title"
+                          value={videoTitle}
+                          onChange={(event) => setVideoTitle(event.target.value)}
+                          disabled={videoUploading}
+                          maxLength={120}
+                          placeholder="Leave blank to use your contestant name"
+                          className="bg-black/20 text-white placeholder:text-white/30"
+                          data-testid="input-video-title"
+                        />
+                        <p className="text-xs text-white/40">
+                          Your contestant name stays first. The selected file name and extension are never used.
+                        </p>
                       </div>
                        {!videoUploading && (
                          <p className="text-xs text-white/30">Videos are uploaded to Vimeo in the Quest folder and the competition&apos;s configured backup destinations.</p>

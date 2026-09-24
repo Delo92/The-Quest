@@ -60,7 +60,8 @@ async function run() {
     }
 
     // Quest folder uses stageName first (matches upload ticket logic)
-    const questName = safeName((profile as any).stageName || (profile as any).displayName || `talent-${contestant.talentProfileId}`);
+    const questDisplayName = String((profile as any).stageName || (profile as any).displayName || `talent-${contestant.talentProfileId}`).trim();
+    const questName = safeName(questDisplayName);
     // ChronicTV catalog uses displayName (real name for broadcast, matches contestant approval logic)
     const chronicTVName = safeName((profile as any).displayName || (profile as any).stageName || `talent-${contestant.talentProfileId}`);
 
@@ -82,7 +83,7 @@ async function run() {
 
     try {
       // List videos from the Quest platform folder (uses questName / stageName)
-      const videos = await listTalentVideos(comp.title, questName);
+      const videos = await listTalentVideos(comp.title, questDisplayName);
       if (videos.length === 0) {
         console.log(`  — no videos found in Quest folder for "${questName}", skipping video sync`);
       }

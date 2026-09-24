@@ -8,7 +8,7 @@
 - [Owner dashboard analytics](owner-dashboard-analytics.md) — generic role labels, last-30-day scoped visitors, and lifetime plays from distinct entry videos
 - [Quest admin navigation](admin-navigation.md) — keep Payroll & Agreements top-level and distinguish Voting Stats from the separate Diagnostics → Analytics view
 - [Dashboard readability](dashboard-readability.md) — authenticated dashboards use elevated charcoal surfaces and stronger secondary contrast without changing the public site
-- [Competition Vimeo routing](competition-vimeo-routing.md) — optional per-competition Vimeo folder is preferred; standard Quest/CB destinations remain backups and folder failures must block unfiled uploads
+- [Competition Vimeo routing](competition-vimeo-routing.md) — folders carry source/competition; clean titles preserve contestant punctuation and omit path, filename, and extension
 - [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing
 - [Host account credentials](host-account-credentials.md) — old passwords are never recoverable; admin resets generate a one-time temporary password instead
 - [Host voting POS scope](host-voting-pos-scope.md) — describe The Quest as an on-site voting POS; don't imply general event sales without verified flows

@@ -44,17 +44,16 @@ export function buildVimeoSrc(url: string, params: string): string | null {
 }
 
 /**
- * Vimeo names retain a private competition/contestant prefix for folder
- * matching. Public cards should show only the uploaded filename as a readable
- * title.
+ * New Quest titles contain the contestant name and optional title only.
+ * Legacy competition/contestant prefixes are removed by the server before
+ * public video data reaches these cards.
  */
 export function formatVideoTitle(name: string | null | undefined): string {
   let title = String(name || "").trim();
-  const parts = title.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
-  if (parts.length >= 3) title = parts[parts.length - 1];
+  const isQuestTitle = title.includes(" — ");
+  if (!isQuestTitle) title = title.replace(/[_]+/g, " ");
   title = title
     .replace(/\.[a-z0-9]{2,5}$/i, "")
-    .replace(/[_]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return title || "Performance video";

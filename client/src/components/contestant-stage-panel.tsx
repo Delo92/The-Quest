@@ -66,6 +66,7 @@ export default function ContestantStagePanel({ competitionId }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [uploadingStage, setUploadingStage] = useState<string | null>(null);
   const [description, setDescription] = useState<Record<string, string>>({});
+  const [videoTitles, setVideoTitles] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -124,7 +125,12 @@ export default function ContestantStagePanel({ competitionId }: Props) {
         const ticketResponse = await fetch("/api/vimeo/upload-ticket", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ fileName: file.name, fileSize: file.size, competitionId, stageId: stage.id }),
+          body: JSON.stringify({
+            fileSize: file.size,
+            competitionId,
+            stageId: stage.id,
+            videoTitle: videoTitles[stage.id] || "",
+          }),
         });
         if (!ticketResponse.ok) throw new Error((await ticketResponse.json().catch(() => ({}))).message || "Could not start video upload");
         const ticket = await ticketResponse.json();
@@ -151,6 +157,9 @@ export default function ContestantStagePanel({ competitionId }: Props) {
         throw new Error("Choose an image or video file");
       }
       queryClient.invalidateQueries({ queryKey: ["/api/contestants/me/stage-submissions", competitionId] });
+      if (file.type.startsWith("video/")) {
+        setVideoTitles((current) => ({ ...current, [stage.id]: "" }));
+      }
       toast({ title: `${stage.name} submission saved` });
     } catch (error: any) {
       toast({ title: "Submission failed", description: error.message || "Could not upload your challenge content.", variant: "destructive" });
@@ -239,6 +248,21 @@ export default function ContestantStagePanel({ competitionId }: Props) {
                       {submissionOpen && (
                         <div className="mt-3 space-y-3">
                           <Textarea value={description[stage.id] || ""} onChange={(event) => setDescription((current) => ({ ...current, [stage.id]: event.target.value }))} placeholder="Optional note about this entry" className="min-h-[70px] bg-black/20 text-white placeholder:text-white/25" />
+                          <label className="block space-y-1.5">
+                            <span className="text-xs font-medium text-white/65">Video title (optional)</span>
+                            <Input
+                              value={videoTitles[stage.id] || ""}
+                              onChange={(event) => setVideoTitles((current) => ({ ...current, [stage.id]: event.target.value }))}
+                              placeholder="Leave blank to use your contestant name"
+                              maxLength={120}
+                              disabled={busy}
+                              className="bg-black/20 text-white placeholder:text-white/25"
+                              aria-label={`Optional video title for ${stage.name}`}
+                            />
+                            <span className="block text-xs text-white/35">
+                              The file name and extension are not used in the Vimeo title.
+                            </span>
+                          </label>
                           <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md bg-gradient-to-r from-orange-500 to-amber-500 px-4 text-sm font-medium text-white hover:opacity-90">
                             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                             {busy ? "Uploading…" : "Upload photo or video"}

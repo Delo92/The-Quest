@@ -233,6 +233,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
   const [mediaCompetitionId, setMediaCompetitionId] = useState("none");
   const [mediaUploadType, setMediaUploadType] = useState<"image" | "video" | null>(null);
   const [mediaUploadProgress, setMediaUploadProgress] = useState(0);
+  const [adminVideoTitle, setAdminVideoTitle] = useState("");
   const [playingVideoUri, setPlayingVideoUri] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -373,9 +374,9 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          fileName: file.name,
           fileSize: file.size,
           competitionId: uploadCompetitionId,
+          videoTitle: adminVideoTitle.trim(),
         }),
       });
       if (!ticketResponse.ok) {
@@ -428,6 +429,7 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
         if (videoVisible || attempt === 7) break;
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
+      setAdminVideoTitle("");
       toast({
         title: videoVisible ? "Video uploaded" : "Video upload processing",
         description: videoVisible
@@ -588,6 +590,24 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
             Uploading {mediaUploadType}... {mediaUploadProgress}%
           </div>
         )}
+        <div className="mb-3 max-w-2xl space-y-1.5">
+          <Label htmlFor="admin-video-title" className="text-xs text-white/65">
+            Video title (optional)
+          </Label>
+          <Input
+            id="admin-video-title"
+            value={adminVideoTitle}
+            onChange={(event) => setAdminVideoTitle(event.target.value)}
+            disabled={mediaUploadType !== null}
+            maxLength={120}
+            placeholder="Leave blank to use the contestant name"
+            className="h-9 bg-white/5 border-white/10 text-sm text-white placeholder:text-white/30"
+            data-testid="input-admin-video-title"
+          />
+          <p className="text-[11px] text-white/35">
+            The contestant name stays first. The file name and extension are not included in the Vimeo title.
+          </p>
+        </div>
         <p className="text-[11px] text-white/30 mb-3">
           Select a competition before adding a video. Photos can be added without one; the selected competition also chooses the Drive/Vimeo destination.
         </p>

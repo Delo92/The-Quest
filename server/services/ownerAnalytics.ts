@@ -73,6 +73,7 @@ function videoIdsForEntry(
     `${entry.competition.title} -`,
     `${safeCompetitionName} -`,
   ]);
+  const contestantName = (entry.talentProfile.stageName || entry.talentProfile.displayName).trim();
   const hasSingleEntry = allowUnscopedFallback
     && entriesPerTalentProfile.get(entry.talentProfile.id) === 1;
 
@@ -81,7 +82,10 @@ function videoIdsForEntry(
     const matchesCompetition = video
       ? [...competitionPrefixes].some((prefix) => video.name.startsWith(prefix))
       : false;
-    if (matchesCompetition || hasSingleEntry) ids.add(id);
+    const matchesContestantName = video
+      ? video.name === contestantName || video.name.startsWith(`${contestantName} —`)
+      : false;
+    if (matchesCompetition || matchesContestantName || hasSingleEntry) ids.add(id);
   }
   return ids;
 }
