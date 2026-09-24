@@ -62,6 +62,7 @@ import {
 import { completePayment, enforcePaymentVelocity, failPayment, getPaymentAttempts, markPaymentCharged, recordAuthorizeNetWebhook, reservePayment, verifyAuthorizeNetWebhook } from "./payment-security";
 import { mirrorAuthorizeNetWebhook, queueOCPurchase } from "./services/ocPurchaseFeed";
 import { registerQuestPayrollAdmin } from "./quest-payroll-admin";
+import { registerQuestTaxAndDonations } from "./quest-tax-donations";
 import { registerPaymentProviderWebhooks } from "./payment-provider-webhooks";
 import { registerQuestForms } from "./quest-forms";
 import { getOwnerAnalytics } from "./services/ownerAnalytics";
@@ -760,6 +761,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   registerQuestPayrollAdmin(app);
+  registerQuestTaxAndDonations(app);
   registerQuestForms(app);
 
   const clientErrorTypes = new Set<ErrorType>([
