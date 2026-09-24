@@ -70,6 +70,11 @@ interface JoinHostSettings {
   nominationFee?: number;
   nominationEnabled?: boolean;
   nonprofitRequired?: boolean;
+  nonprofitContributionRates?: {
+    contestant: number | null;
+    host: number | null;
+    platform: number | null;
+  };
   freeNominationPromoCode?: string;
 }
 
@@ -2027,6 +2032,7 @@ export default function AdminDashboard({ user }: { user: any }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/join/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/join/settings"] });
       toast({ title: "Nomination settings updated!" });
     },
     onError: (err: Error) => {
@@ -3642,28 +3648,55 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Award className="h-4 w-4 text-orange-400" />
                         <Label className="text-white/80 font-semibold">Non-Profit / Charity</Label>
                       </div>
-                      <p className="text-xs text-white/30 mb-3">Specify a non-profit to receive a portion of voting proceeds.</p>
-                      <div className="flex items-center justify-between mb-4 p-3 rounded bg-white/[0.03] border border-white/5">
-                        <div>
-                          <Label className="text-white/80 text-sm">Require Choice of Non-Profit</Label>
-                          <p className="text-xs text-white/30 mt-0.5">When enabled, applicants and nominees must select or enter a non-profit organization.</p>
-                        </div>
-                        <Switch
-                          checked={joinSettings.nonprofitRequired === true}
-                          onCheckedChange={(val) => updateJoinSettingsMutation.mutate({ nonprofitRequired: val })}
-                          data-testid="switch-nonprofit-required"
-                        />
+                      <p className="text-xs leading-relaxed text-white/55 mb-4">
+                        Nonprofit contributions are mandatory for contestants, hosts, and The Quest. Set a separate rate for each level; every rate must be greater than 0% and no more than 10%. Nominations and prize payouts stay blocked until all three rates are configured.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        {([
+                          ["contestant", "Contestant rate"],
+                          ["host", "Host rate"],
+                          ["platform", "The Quest rate"],
+                        ] as const).map(([level, label]) => (
+                          <div key={level} className="space-y-1.5">
+                            <Label htmlFor={`nonprofit-rate-${level}`} className="text-white/60">{label} (%)</Label>
+                            <Input
+                              id={`nonprofit-rate-${level}`}
+                              key={`nonprofit-rate-${level}-${joinSettings.nonprofitContributionRates?.[level] ?? "unset"}`}
+                              type="number"
+                              min="0.01"
+                              max="10"
+                              step="0.01"
+                              defaultValue={joinSettings.nonprofitContributionRates?.[level] ?? ""}
+                              placeholder="Set 0–10%"
+                              onBlur={(event) => {
+                                const raw = event.target.value.trim();
+                                const rate = raw ? Number(raw) : null;
+                                updateJoinSettingsMutation.mutate({
+                                  nonprofitContributionRates: {
+                                    contestant: joinSettings.nonprofitContributionRates?.contestant ?? null,
+                                    host: joinSettings.nonprofitContributionRates?.host ?? null,
+                                    platform: joinSettings.nonprofitContributionRates?.platform ?? null,
+                                    [level]: rate,
+                                  },
+                                });
+                              }}
+                              className="bg-white/5 border-white/10 text-white"
+                              data-testid={`input-nonprofit-rate-${level}`}
+                            />
+                          </div>
+                        ))}
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-white/60">Charity Name</Label>
+                        <Label className="text-white/60">The Quest's nonprofit recipient</Label>
                         <Input
                           key={`charity-name-${joinSettings.charityName}`}
                           defaultValue={joinSettings.charityName || ""}
-                          placeholder="e.g. Hawaii Food Bank"
+                          placeholder="Name of the platform's nonprofit recipient"
                           onBlur={(e) => updateJoinSettingsMutation.mutate({ charityName: e.target.value.trim() })}
                           className="bg-white/5 border-white/10 text-white"
                           data-testid="input-charity-name"
                         />
+                        <p className="text-xs text-white/35">Required before the platform rate can be applied to its share of proceeds.</p>
                       </div>
                     </div>
                     <div className="mt-4 rounded-md bg-white/5 border border-white/10 p-4">

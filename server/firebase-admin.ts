@@ -86,6 +86,8 @@ export interface FirestoreUser {
     donationContactEmail: string;
     donationContactPhone: string | null;
     designation: string | null;
+    programAcknowledged?: boolean;
+    programAcknowledgedAt?: string | null;
     consentToDonate: boolean;
     verificationStatus: "unverified" | "pending" | "verified" | "rejected";
     verifiedAt: string | null;

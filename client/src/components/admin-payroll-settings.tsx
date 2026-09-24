@@ -47,6 +47,8 @@ interface ContestantProfileOption {
   email: string;
 }
 
+interface HostProfileOption extends ContestantProfileOption {}
+
 interface Agreement {
   id: string;
   title: string;
@@ -129,6 +131,7 @@ export default function AdminPayrollSettings() {
   const summaryQuery = useQuery<PayrollSummary>({ queryKey: ["/api/admin/payroll/summary"] });
   const payeesQuery = useQuery<Payee[]>({ queryKey: ["/api/admin/payroll/payees"] });
   const contestantProfilesQuery = useQuery<ContestantProfileOption[]>({ queryKey: ["/api/admin/payroll/contestant-profiles"] });
+  const hostProfilesQuery = useQuery<HostProfileOption[]>({ queryKey: ["/api/admin/payroll/host-profiles"] });
   const agreementsQuery = useQuery<Agreement[]>({ queryKey: ["/api/admin/payroll/agreements"] });
   const batchesQuery = useQuery<PayrollBatch[]>({ queryKey: ["/api/admin/payroll/batches"] });
   const transactionsQuery = useQuery<PayrollTransaction[]>({ queryKey: ["/api/admin/payroll/transactions"] });
@@ -368,13 +371,14 @@ export default function AdminPayrollSettings() {
                   <option value="contestant">Contestant</option><option value="host">Host</option><option value="referrer">Referrer</option><option value="nonprofit">Nonprofit</option>
                 </select>
               </div>
-              {payeeForm.type === "contestant" && (
+              {(payeeForm.type === "contestant" || payeeForm.type === "host") && (
                 <div className="sm:col-span-2 lg:col-span-3">
-                  <Label className="text-xs text-white/50">Link to a contestant account (required)</Label>
+                  <Label className="text-xs text-white/50">Link to a {payeeForm.type} account (required)</Label>
                   <select
                     value={payeeForm.talentProfileId}
                     onChange={(event) => {
-                      const selected = (contestantProfilesQuery.data || []).find((item) => item.id === Number(event.target.value));
+                      const profiles = payeeForm.type === "host" ? hostProfilesQuery.data || [] : contestantProfilesQuery.data || [];
+                      const selected = profiles.find((item) => item.id === Number(event.target.value));
                       setPayeeForm((current) => ({
                         ...current,
                         talentProfileId: selected ? String(selected.id) : "",
@@ -385,8 +389,8 @@ export default function AdminPayrollSettings() {
                     }}
                     className="mt-1 h-10 w-full rounded-md border border-white/20 bg-white/[0.08] px-3 text-sm text-white"
                   >
-                    <option value="">Choose a contestant profile</option>
-                    {(contestantProfilesQuery.data || []).map((candidate) => (
+                    <option value="">Choose a {payeeForm.type} profile</option>
+                    {(payeeForm.type === "host" ? hostProfilesQuery.data || [] : contestantProfilesQuery.data || []).map((candidate) => (
                       <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.email}</option>
                     ))}
                   </select>
@@ -394,15 +398,15 @@ export default function AdminPayrollSettings() {
               )}
               <div>
                 <Label className="text-xs text-white/50">Name</Label>
-                <Input value={payeeForm.name} onChange={(event) => setPayeeForm({ ...payeeForm, name: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="Recipient name" readOnly={payeeForm.type === "contestant"} />
+                <Input value={payeeForm.name} onChange={(event) => setPayeeForm({ ...payeeForm, name: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="Recipient name" readOnly={payeeForm.type === "contestant" || payeeForm.type === "host"} />
               </div>
               <div>
                 <Label className="text-xs text-white/50">Email</Label>
-                <Input type="email" value={payeeForm.email} onChange={(event) => setPayeeForm({ ...payeeForm, email: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="recipient@example.com" readOnly={payeeForm.type === "contestant"} />
+                <Input type="email" value={payeeForm.email} onChange={(event) => setPayeeForm({ ...payeeForm, email: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="recipient@example.com" readOnly={payeeForm.type === "contestant" || payeeForm.type === "host"} />
               </div>
               <Button
                 onClick={() => createPayeeMutation.mutate()}
-                disabled={createPayeeMutation.isPending || !payeeForm.name || !payeeForm.email || (payeeForm.type === "contestant" && !payeeForm.talentProfileId)}
+                disabled={createPayeeMutation.isPending || !payeeForm.name || !payeeForm.email || (["contestant", "host"].includes(payeeForm.type) && !payeeForm.talentProfileId)}
                 className="mt-5 bg-orange-500 text-white"
               >
                 <Plus className="mr-1 h-4 w-4" /> Add
@@ -415,16 +419,16 @@ export default function AdminPayrollSettings() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-white">{payee.name}</span><Badge variant="outline" className="border-white/15 text-white/55">{payee.type}</Badge>{payee.status === "inactive" && <Badge variant="secondary">Inactive</Badge>}</div>
                   <div className="mt-1 text-xs text-white/45">{payee.email} · {payee.paymentMethodType ? methodLabels[payee.paymentMethodType] : "Payment method not selected"} · Agreement: {payee.agreementStatus || "pending"}</div>
-                  {payee.type === "contestant" && (
+                   {(payee.type === "contestant" || payee.type === "host") && (
                     <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                       <select
                         value={payeeLinkSelections[payee.id] ?? String(payee.talentProfileId || "")}
                         onChange={(event) => setPayeeLinkSelections((current) => ({ ...current, [payee.id]: event.target.value }))}
-                        aria-label={`Link ${payee.name} to a contestant account`}
+                         aria-label={`Link ${payee.name} to a ${payee.type} account`}
                         className="h-10 min-w-0 rounded-md border border-white/15 bg-[#171717] px-3 text-sm text-white"
                       >
-                        <option value="">Choose a contestant profile</option>
-                        {(contestantProfilesQuery.data || []).map((candidate) => (
+                         <option value="">Choose a {payee.type} profile</option>
+                         {(payee.type === "host" ? hostProfilesQuery.data || [] : contestantProfilesQuery.data || []).map((candidate) => (
                           <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.email}</option>
                         ))}
                       </select>
@@ -434,7 +438,8 @@ export default function AdminPayrollSettings() {
                         variant="outline"
                         disabled={updatePayeeMutation.isPending || !payeeLinkSelections[payee.id] || Number(payeeLinkSelections[payee.id]) === Number(payee.talentProfileId)}
                         onClick={() => {
-                          const selected = (contestantProfilesQuery.data || []).find((item) => item.id === Number(payeeLinkSelections[payee.id]));
+                           const profiles = payee.type === "host" ? hostProfilesQuery.data || [] : contestantProfilesQuery.data || [];
+                           const selected = profiles.find((item) => item.id === Number(payeeLinkSelections[payee.id]));
                           if (selected) updatePayeeMutation.mutate({ id: payee.id, userId: selected.userId, talentProfileId: selected.id });
                         }}
                         className="min-h-10 border-white/15 text-white/75"
@@ -445,7 +450,7 @@ export default function AdminPayrollSettings() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  {payee.type === "contestant" && (
+                   {(payee.type === "contestant" || payee.type === "host") && (
                     <Badge className={payee.talentProfileId ? "border-green-400/30 bg-green-400/10 text-green-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}>
                       {payee.talentProfileId ? "Profile linked" : "Profile not linked"}
                     </Badge>

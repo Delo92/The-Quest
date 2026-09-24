@@ -337,6 +337,24 @@ export function registerQuestTaxAndDonations(app: Express) {
     }
   });
 
+  app.get("/api/admin/payroll/host-profiles", firebaseAuth, requireAdmin, async (_req: any, res: any) => {
+    try {
+      const snapshot = await getFirestore().collection("talentProfiles").get();
+      res.json(snapshot.docs
+        .map((doc) => ({ id: Number(doc.id), ...doc.data() }))
+        .filter((profile: any) => Number.isFinite(profile.id) && profile.userId && profile.role === "host")
+        .map((profile: any) => ({
+          id: profile.id,
+          userId: profile.userId,
+          name: clean(profile.stageName || profile.displayName || "Host", 160),
+          email: clean(profile.email, 320).toLowerCase(),
+        }))
+        .sort((a: any, b: any) => a.name.localeCompare(b.name)));
+    } catch {
+      res.status(500).json({ message: "Could not load host profiles." });
+    }
+  });
+
   app.get("/api/tax/my-years", firebaseAuth, async (req: any, res: any) => {
     try {
       const uid = String(req.firebaseUser?.uid || "");

@@ -26,6 +26,14 @@ export function areNonprofitContributionRatesConfigured(value: unknown): value i
     && isValidNonprofitContributionRate(rates.platform);
 }
 
+export function isNonprofitPolicyConfigured(settings: any): boolean {
+  return Boolean(
+    areNonprofitContributionRatesConfigured(settings?.nonprofitContributionRates)
+    && typeof settings?.charityName === "string"
+    && settings.charityName.trim(),
+  );
+}
+
 export function nonprofitAllocationCents(grossCents: number, percentage: number): number {
   if (!Number.isFinite(grossCents) || grossCents <= 0 || !isValidNonprofitContributionRate(percentage)) return 0;
   return Math.round(grossCents * percentage / 100);
@@ -36,7 +44,7 @@ export function declaredNonprofitName(declaration: any): string {
 }
 
 export function hasAcknowledgedNonprofitDeclaration(declaration: any): boolean {
-  return declaration?.programAcknowledged === true || declaration?.consentToDonate === true;
+  return declaration?.programAcknowledged === true;
 }
 
 export function hasPrizeReadyNonprofitDeclaration(declaration: any): boolean {

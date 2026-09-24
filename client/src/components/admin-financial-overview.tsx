@@ -13,6 +13,8 @@ type FinancialOverview = {
     hostShareCents: number;
     contestantShareCents: number;
     charityShareCents: number;
+    platformShareCents: number;
+    platformNonprofitDueCents: number | null;
     pendingPayoutCents: number;
     paidPayoutCents: number;
     forfeitedCents: number;
@@ -31,6 +33,9 @@ type FinancialOverview = {
     hostSharePercentage: number;
     charityShareCents: number;
     contestantShareCents: number;
+    platformShareCents: number;
+    platformNonprofitPercentage: number | null;
+    platformNonprofitDueCents: number | null;
     votes: { freeVoteCount: number; paidVoteCount: number; totalVoteCount: number };
     paidVoting: { revenueCents: number; purchaseCount: number; purchasedVoteCount: number };
     paidVoteDetails: Array<{
@@ -82,9 +87,9 @@ type FinancialOverview = {
     nonprofitCents: number;
     nextPayoutCents: number;
     nextPayoutDate?: string | null;
-    charitySource: string;
-    charitySourceType: "declared" | "platform_default";
-    charityPercentage: number;
+    charitySource: string | null;
+    charitySourceType: "declared" | "missing_declaration";
+    charityPercentage: number | null;
   }>;
   pendingPayouts: Array<{
     id: string;
@@ -112,8 +117,10 @@ type FinancialOverview = {
       designation?: string | null;
       verificationStatus: string;
     };
+    payoutReady: boolean;
   }>;
-  platformDefaultCharity: { name: string; percentage: number };
+  platformDefaultCharity: { name: string; percentage: number; dueCents: number | null };
+  nonprofitContributionRates: { contestant: number | null; host: number | null; platform: number | null };
 };
 
 const money = (cents: number | undefined) =>
@@ -178,6 +185,30 @@ export default function AdminFinancialOverview({
         <Badge variant="outline" className="w-fit border-amber-400/25 bg-amber-400/5 text-amber-200">Manual payout recording</Badge>
       </div>
 
+      <div className="grid gap-3 rounded-xl border border-orange-400/20 bg-orange-400/[0.04] p-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="platform-nonprofit-summary">
+        <div>
+          <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform share estimate</span>
+          <strong className="mt-1 block text-sm tabular-nums text-white">{money(data.summary.platformShareCents)}</strong>
+          <span className="text-[10px] text-white/35">Paid voting proceeds less host and contestant gross shares</span>
+        </div>
+        <div>
+          <span className="block text-[10px] uppercase tracking-wider text-white/40">Required platform nonprofit contribution</span>
+          <strong className="mt-1 block text-sm tabular-nums text-orange-200">
+            {data.summary.platformNonprofitDueCents === null ? "Rate not configured" : money(data.summary.platformNonprofitDueCents)}
+          </strong>
+          <span className="text-[10px] text-white/35">
+            {data.nonprofitContributionRates.platform === null
+              ? "Set the platform rate in nomination settings"
+              : `${data.nonprofitContributionRates.platform}% · manual payout recording`}
+          </span>
+        </div>
+        <div>
+          <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform recipient</span>
+          <strong className="mt-1 block text-sm text-white">{data.platformDefaultCharity.name}</strong>
+          <span className="text-[10px] text-white/35">Contribution due is tracked separately from completed disbursements</span>
+        </div>
+      </div>
+
       {!activeView && <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-sm text-white/45">Select one of the dashboard cards above to open its financial breakdown.</div>}
 
       {activeView === "competitions" && <Section title="Competitions and host earnings" subtitle="One competition at a time: paid voting, host share, charity allocation, and contestant details." icon={Landmark} open onToggle={() => onViewChange(null)} testId="financial-section-competitions">
@@ -205,8 +236,9 @@ export default function AdminFinancialOverview({
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Host share</span><strong className="mt-1 block text-white">{money(competition.hostShareCents)} <span className="text-[10px] text-white/35">({competition.hostSharePercentage}%)</span></strong></div>
-                        <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Charity share</span><strong className="mt-1 block text-white">{money(competition.charityShareCents)}</strong></div>
+                        <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Recorded nonprofit allocations</span><strong className="mt-1 block text-white">{money(competition.charityShareCents)}</strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Contestant share</span><strong className="mt-1 block text-white">{money(competition.contestantShareCents)}</strong></div>
+                        <div className="rounded-md bg-orange-400/[0.07] p-3"><span className="text-white/50">Platform nonprofit due</span><strong className="mt-1 block text-orange-200">{competition.platformNonprofitDueCents === null ? "Rate not set" : money(competition.platformNonprofitDueCents)}</strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Purchases</span><strong className="mt-1 block text-white">{competition.paidVoting.purchaseCount.toLocaleString()}</strong></div>
                       </div>
                       <div className="rounded-md border border-white/10 p-3 text-xs text-white/55">
@@ -261,9 +293,15 @@ export default function AdminFinancialOverview({
               <div><span className="block text-[10px] uppercase tracking-wider text-white/35">Next payout</span><b className="mt-1 block text-sm tabular-nums text-orange-200">{money(earning.nextPayoutCents)}</b></div>
               <div><span className="block text-[10px] uppercase tracking-wider text-white/35">Paid to date</span><b className="mt-1 block text-sm tabular-nums text-white">{money(earning.paidCents)}</b></div>
               <div className="rounded-md border border-white/10 bg-white/[0.035] p-3">
-                <span className="block text-[10px] uppercase tracking-wider text-white/35">Charity allocation</span>
-                <b className="mt-1 block text-sm text-white">{earning.charityPercentage}% · {earning.charitySource}</b>
-                <span className="mt-1 block text-[10px] text-white/35">{earning.charitySourceType === "platform_default" ? "Platform default" : "Profile declaration"} · {money(earning.nonprofitCents)} allocated</span>
+                <span className="block text-[10px] uppercase tracking-wider text-white/35">Required nonprofit contribution</span>
+                <b className="mt-1 block text-sm text-white">
+                  {earning.charityPercentage === null ? "Rate not configured" : `${earning.charityPercentage}%`}
+                  {earning.charitySource ? ` · ${earning.charitySource}` : " · Declaration required"}
+                </b>
+                <span className="mt-1 block text-[10px] text-white/35">
+                  {earning.charitySourceType === "missing_declaration" ? "Payout blocked until name and acknowledgment are saved" : "Profile declaration"}
+                  {" · "}{money(earning.nonprofitCents)} allocated
+                </span>
               </div>
             </div>
           ))}

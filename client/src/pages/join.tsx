@@ -16,6 +16,11 @@ import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Heart, Upload, X, Lo
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
+import {
+  isNonprofitPolicyConfigured,
+  MAX_NONPROFIT_CONTRIBUTION_PERCENT,
+  type NonprofitContributionRates,
+} from "@shared/nonprofit-policy";
 
 interface JoinSettings {
   mode: "request" | "purchase";
@@ -28,6 +33,7 @@ interface JoinSettings {
   nominationEnabled?: boolean;
   nonprofitRequired?: boolean;
   charityName?: string;
+  nonprofitContributionRates?: NonprofitContributionRates;
   hasPromoCode?: boolean;
 }
 
@@ -88,6 +94,7 @@ export default function JoinPage() {
   const [promoCode, setPromoCode] = useState("");
   const [promoValidated, setPromoValidated] = useState(false);
   const [promoChecking, setPromoChecking] = useState(false);
+  const [nonprofitPolicyAcknowledged, setNonprofitPolicyAcknowledged] = useState(false);
   const nominationImageRef = useRef<HTMLInputElement>(null);
   const competitionSectionRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +123,7 @@ export default function JoinPage() {
     queryKey: ["/api/join/settings"],
     staleTime: 0,
   });
+  const nonprofitRatesReady = isNonprofitPolicyConfigured(settings);
 
   const { data: paymentConfig } = useQuery<PaymentConfig>({
     queryKey: ["/api/payment-config"],
@@ -227,6 +235,14 @@ export default function JoinPage() {
 
   const validateForm = useCallback(() => {
     if (!settings) return false;
+    if (!nonprofitRatesReady) {
+      toast({ title: "Nominations are temporarily unavailable", description: "The Quest has not configured all required nonprofit contribution rates yet.", variant: "destructive" });
+      return false;
+    }
+    if (!nonprofitPolicyAcknowledged) {
+      toast({ title: "Please acknowledge the nonprofit policy", variant: "destructive" });
+      return false;
+    }
     if (!selectedCompetitionId) {
       toast({ title: "Please select a competition", variant: "destructive" });
       return false;
@@ -267,7 +283,7 @@ export default function JoinPage() {
       }
     }
     return true;
-  }, [settings, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
+  }, [settings, nonprofitRatesReady, nonprofitPolicyAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -296,6 +312,7 @@ export default function JoinPage() {
           paypalOrderId,
           ocPaymentId,
           billingAddress,
+          nonprofitPolicyAcknowledged: true,
         });
         setSuccess(true);
         toast({ title: "Nomination submitted!", description: "Thank you for your nomination!" });
@@ -338,6 +355,7 @@ export default function JoinPage() {
         bio: form.bio || "",
         category: form.category || "",
         chosenNonprofit: form.chosenNonprofit || null,
+        nonprofitPolicyAcknowledged: true,
         competitionId: selectedCompetitionId,
         nominatorName: nominatorForm.name,
         nominatorEmail: nominatorForm.email,
@@ -899,33 +917,58 @@ export default function JoinPage() {
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-3">
             <Heart className="h-4 w-4 text-[#FF5A09]" />
-            <p className="text-[#5f5f5f] text-sm">Support a Cause</p>
+            <p className="text-[#5f5f5f] text-sm">Required Program Policy</p>
           </div>
           <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
-            CHOICE OF NON-PROFIT
+            NONPROFIT CONTRIBUTION
           </h3>
-          <p className="text-white/40 text-xs mb-4">We encourage all nominees to support a non-profit organization. This is optional, but every little bit helps make a difference in our community.</p>
+          <div className="mb-4 space-y-2 border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 text-xs leading-relaxed text-white/75">
+            <p>
+              Contestants, hosts, and The Quest each make a required nonprofit contribution at a separate level-specific rate. No rate may exceed {MAX_NONPROFIT_CONTRIBUTION_PERCENT}%. A contestant must name a nonprofit and acknowledge the policy before prize earnings can be paid; the nominee can save remaining organization details later.
+            </p>
+            {nonprofitRatesReady ? (
+              <p className="tabular-nums text-white/90">
+                Current rates — Contestant: {settings!.nonprofitContributionRates!.contestant}%; Host: {settings!.nonprofitContributionRates!.host}%; The Quest: {settings!.nonprofitContributionRates!.platform}%.
+              </p>
+            ) : (
+              <p className="text-amber-200">
+                The nonprofit policy is not fully configured. Nominations cannot be submitted until all three rates and the platform recipient are set.
+              </p>
+            )}
+          </div>
           {settings.charityName && (
             <div className="border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 mb-4">
-              <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Suggested Non-Profit</p>
+              <p className="text-white/60 text-xs uppercase tracking-wider mb-1">The Quest's nonprofit recipient</p>
               <p className="text-[#FF5A09] font-bold text-sm">{settings.charityName}</p>
-              <p className="text-white/40 text-xs mt-1">Feel free to suggest a different organization below, or leave blank.</p>
+              <p className="text-white/50 text-xs mt-1">This platform recipient is separate from the nominee's own required declaration.</p>
             </div>
           )}
           <div>
             <Label htmlFor="chosenNonprofit" className="text-white/60 uppercase text-xs tracking-wider">
-              Non-Profit Organization <span className="text-white/25 normal-case">(optional)</span>
+              Nominee's nonprofit choice <span className="text-white/25 normal-case">(if already known)</span>
             </Label>
             <Input
               id="chosenNonprofit"
               type="text"
-              value={form.chosenNonprofit ?? settings.charityName ?? ""}
+              value={form.chosenNonprofit ?? ""}
               onChange={(e) => updateField("chosenNonprofit", e.target.value)}
               className="bg-white/[0.08] border-white/20 text-white mt-2"
-              placeholder="Suggest a non-profit organization"
+              placeholder="Nominee's intended nonprofit"
               data-testid="input-chosen-nonprofit"
             />
           </div>
+          <label className="mt-4 flex items-start gap-3 border border-[#FF5A09]/30 bg-white/[0.04] p-4 text-xs leading-relaxed text-white/75">
+            <input
+              type="checkbox"
+              checked={nonprofitPolicyAcknowledged}
+              onChange={(event) => setNonprofitPolicyAcknowledged(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
+              aria-label="Acknowledge the required nonprofit contribution policy"
+            />
+            <span>
+              I understand and acknowledge that the nominee must declare a nonprofit and meet the required contestant contribution rate to qualify for prize earnings, and that the program also requires contributions from hosts and The Quest.
+            </span>
+          </label>
         </div>
 
         {needsPayment && (

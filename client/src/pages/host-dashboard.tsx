@@ -266,6 +266,14 @@ export default function HostDashboard({ user }: { user: any }) {
   };
 
   const openAccountEditor = () => {
+    const savedDeclaration = myProfile?.nonprofitDeclaration || {};
+    const acknowledged = savedDeclaration.programAcknowledged === true;
+    const normalizedDeclaration = {
+      ...emptyNonprofitDeclaration,
+      ...savedDeclaration,
+      programAcknowledged: acknowledged,
+      consentToDonate: acknowledged,
+    };
     setAccountForm({
       email: user?.email || "",
       displayName: user?.displayName || "",
@@ -274,9 +282,9 @@ export default function HostDashboard({ user }: { user: any }) {
       category: myProfile?.category || "",
       location: myProfile?.location || "",
       profileImageUrl: user?.profileImageUrl || myProfile?.imageUrls?.[0] || "",
-      nonprofitDeclaration: { ...emptyNonprofitDeclaration, ...(myProfile?.nonprofitDeclaration || {}) },
+      nonprofitDeclaration: normalizedDeclaration,
     });
-    setNonprofitDeclaration({ ...emptyNonprofitDeclaration, ...(myProfile?.nonprofitDeclaration || {}) });
+    setNonprofitDeclaration(normalizedDeclaration);
     setAccountPassword("");
     setAccountOpen(true);
   };
@@ -593,7 +601,7 @@ export default function HostDashboard({ user }: { user: any }) {
               <Label>Bio</Label>
               <Textarea value={accountForm.bio || ""} onChange={(e) => setAccountForm({ ...accountForm, bio: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2 min-h-28" placeholder="Tell contestants and viewers about you." data-testid="input-host-account-bio" />
             </div>
-            <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} />
+            <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} level="host" />
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 border-t border-white/10 pt-4">
               <Button variant="ghost" onClick={() => setAccountOpen(false)} className="text-white/55">Cancel</Button>
               <Button

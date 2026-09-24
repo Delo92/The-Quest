@@ -63,7 +63,25 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [nonprofitDeclaration, setNonprofitDeclaration] = useState<NonprofitDeclaration>({
     ...emptyNonprofitDeclaration,
     ...((profile as any)?.nonprofitDeclaration || {}),
+    programAcknowledged: (profile as any)?.nonprofitDeclaration?.programAcknowledged === true,
+    consentToDonate: (profile as any)?.nonprofitDeclaration?.consentToDonate === true,
   });
+  useEffect(() => {
+    const saved = (profile as any)?.nonprofitDeclaration;
+    if (!saved) return;
+    const acknowledged = saved.programAcknowledged === true;
+    setNonprofitDeclaration({
+      ...emptyNonprofitDeclaration,
+      ...saved,
+      programAcknowledged: acknowledged,
+      consentToDonate: saved.consentToDonate === true,
+    });
+  }, [profile?.id, (profile as any)?.nonprofitDeclaration]);
+  const savedNonprofitDeclaration = (profile as any)?.nonprofitDeclaration || {};
+  const hasSavedNonprofitDeclaration = Boolean(
+    (savedNonprofitDeclaration.publicName || savedNonprofitDeclaration.legalName)
+    && savedNonprofitDeclaration.programAcknowledged === true,
+  );
 
   const savedPayoutInfo = (profile as any)?.payoutInfo || {};
   const hasSavedPayout = !!savedPayoutInfo.routingNumber;
@@ -742,7 +760,11 @@ export default function TalentDashboard({ user, profile }: Props) {
         {/* Setup checklist — action items the user still needs to complete */}
         {(() => {
           const hasPhoto = !!(user.profileImageUrl || (profile?.imageUrls && profile.imageUrls.length > 0));
-          const hasNonprofitDecision = nonprofitDeclaration?.consentToDonate !== undefined && nonprofitDeclaration.consentToDonate !== null && (nonprofitDeclaration as any)._saved;
+          const savedDeclaration = (profile as any)?.nonprofitDeclaration || {};
+          const hasNonprofitDecision = Boolean(
+            (savedDeclaration.publicName || savedDeclaration.legalName)
+            && savedDeclaration.programAcknowledged === true,
+          );
           const hasEmail = !!(profile?.email || user.email);
           const items = [
             !hasPhoto && {
@@ -759,12 +781,12 @@ export default function TalentDashboard({ user, profile }: Props) {
               action: () => setActiveSection("profile"),
               cta: "Update Profile",
             },
-            !(profile?.nonprofitDeclaration as any)?.organizationName && {
-              icon: "💚",
-              title: "Nonprofit preference not set",
-              desc: "Tell us if you want part of your winnings donated to a charity — or skip it to keep everything.",
+            !hasNonprofitDecision && {
+              icon: "!",
+              title: "Required nonprofit declaration",
+              desc: "Name a nonprofit and acknowledge the required contribution policy before prize earnings can be paid.",
               action: () => setActiveSection("earnings"),
-              cta: "Set Preference",
+              cta: "Complete declaration",
             },
           ].filter(Boolean) as { icon: string; title: string; desc: string; action: () => void; cta: string }[];
 
@@ -1426,16 +1448,16 @@ export default function TalentDashboard({ user, profile }: Props) {
                 </div>
               </div>
 
-              {/* Nonprofit declaration — relabelled for clarity */}
+              {/* Required nonprofit declaration */}
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
                 <div className="px-5 pt-5 pb-3">
-                  <p className="text-sm font-semibold text-white">Want your prize share to go to a charity?</p>
+                  <p className="text-sm font-semibold text-white">Required nonprofit declaration</p>
                   <p className="mt-1 text-xs text-white/45 leading-relaxed">
-                    If you represent a nonprofit organization, you can register it here. A portion of your competition earnings will then be directed to that organization instead of paid to you personally. This is entirely optional.
+                    To qualify for prize earnings, name a nonprofit and acknowledge the required contestant contribution. You may save incomplete organization details and finish them later; payouts remain blocked until the name and acknowledgment are saved.
                   </p>
                 </div>
                 <div className="px-5 pb-5 space-y-4">
-                  <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} />
+                  <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} level="contestant" />
                   <div className="flex items-center gap-3 pt-1">
                     <Button
                       onClick={() => saveProfileMutation.mutate()}
@@ -1445,11 +1467,11 @@ export default function TalentDashboard({ user, profile }: Props) {
                     >
                       {saveProfileMutation.isPending
                         ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</>
-                        : <><Check className="h-4 w-4 mr-2" />Save nonprofit info</>}
+                        : <><Check className="h-4 w-4 mr-2" />Save nonprofit declaration</>}
                     </Button>
-                    {(profile as any)?.nonprofitDeclaration?.legalName && (
+                    {hasSavedNonprofitDeclaration && (
                       <span className="text-xs text-green-400 flex items-center gap-1">
-                        <Check className="h-3 w-3" /> Info on file
+                        <Check className="h-3 w-3" /> Ready for prize eligibility
                       </span>
                     )}
                   </div>

@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
+import { isNonprofitPolicyConfigured } from "@shared/nonprofit-policy";
 import { storage } from "./storage";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
@@ -737,6 +738,7 @@ function normalizeNonprofitDeclaration(value: any) {
   const clean = (input: unknown, max: number) => typeof input === "string" ? input.trim().slice(0, max) : "";
   const legalStatus = ["501c3", "other", "pending", "not_verified"].includes(value.legalStatus) ? value.legalStatus : "pending";
   const taxIdStatus = ["not_provided", "on_file_external", "verified"].includes(value.taxIdStatus) ? value.taxIdStatus : "not_provided";
+  const programAcknowledged = value.programAcknowledged === true;
   return {
     publicName: clean(value.publicName, 180),
     legalName: clean(value.legalName, 240),
@@ -749,6 +751,10 @@ function normalizeNonprofitDeclaration(value: any) {
     donationContactEmail: clean(value.donationContactEmail, 320).toLowerCase(),
     donationContactPhone: clean(value.donationContactPhone, 50) || null,
     designation: clean(value.designation, 500) || null,
+    programAcknowledged,
+    programAcknowledgedAt: programAcknowledged
+      ? clean(value.programAcknowledgedAt, 64) || new Date().toISOString()
+      : null,
     consentToDonate: value.consentToDonate === true,
     verificationStatus: "unverified",
     verifiedAt: null,
@@ -4632,7 +4638,7 @@ export async function registerRoutes(
     try {
       const settings = await firestoreJoinSettings.get();
       const { freeNominationPromoCode, ...publicSettings } = settings;
-      res.json({ ...publicSettings, hasPromoCode: !!freeNominationPromoCode });
+      res.json({ ...publicSettings, nonprofitRequired: true, hasPromoCode: !!freeNominationPromoCode });
     } catch (error: any) {
       console.error("Get join settings error:", error);
       res.status(500).json({ message: "Failed to get join settings" });
@@ -4666,7 +4672,8 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error: any) {
       console.error("Update join settings error:", error);
-      res.status(500).json({ message: "Failed to update join settings" });
+      const invalidRate = String(error?.message || "").includes("nonprofit share");
+      res.status(invalidRate ? 400 : 500).json({ message: error.message || "Failed to update join settings" });
     }
   });
 
@@ -4677,9 +4684,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Join applications are currently closed" });
       }
 
-      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId, chosenNonprofit } = req.body;
+      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId, chosenNonprofit, nonprofitPolicyAcknowledged } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Name and email are required" });
+      }
+      if (!isNonprofitPolicyConfigured(settings)) {
+        return res.status(503).json({ message: "The nonprofit contribution rates and platform recipient are not configured yet. Please try again later." });
+      }
+      if (nonprofitPolicyAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge the required nonprofit contribution policy." });
       }
       if (!competitionId) {
         return res.status(400).json({ message: "Please select a competition to apply for" });
@@ -4688,10 +4701,6 @@ export async function registerRoutes(
       if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
         return res.status(400).json({ message: "This competition is not accepting applications" });
       }
-      if (settings.nonprofitRequired && !chosenNonprofit?.trim()) {
-        return res.status(400).json({ message: "Choice of Non-Profit is required" });
-      }
-
       let transactionId: string | null = null;
       let amountPaid = 0;
       let paymentId: string | null = null;
@@ -4730,6 +4739,8 @@ export async function registerRoutes(
         amountPaid,
         type: "application",
         chosenNonprofit: chosenNonprofit?.trim() || null,
+        nonprofitPolicyAcknowledged: true,
+        nonprofitPolicyAcknowledgedAt: new Date().toISOString(),
         nominatorName: null,
         nominatorEmail: null,
         nominatorPhone: null,
@@ -4828,12 +4839,18 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Nominations are not currently accepted" });
       }
 
-      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress } = req.body;
+      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress, nonprofitPolicyAcknowledged } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Nominee name and email are required" });
       }
       if (!nominatorName || !nominatorEmail) {
         return res.status(400).json({ message: "Your name and email are required" });
+      }
+      if (!isNonprofitPolicyConfigured(settings)) {
+        return res.status(503).json({ message: "The nonprofit contribution rates and platform recipient are not configured yet. Please try again later." });
+      }
+      if (nonprofitPolicyAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge the required nonprofit contribution policy." });
       }
       if (!competitionId) {
         return res.status(400).json({ message: "Please select a competition" });
@@ -4842,10 +4859,6 @@ export async function registerRoutes(
       if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
         return res.status(400).json({ message: "This competition is not accepting nominations" });
       }
-      if (settings.nonprofitRequired && !chosenNonprofit?.trim()) {
-        return res.status(400).json({ message: "Choice of Non-Profit is required" });
-      }
-
       const promoValid = !!(promoCode && settings.freeNominationPromoCode && promoCode.trim().toUpperCase() === settings.freeNominationPromoCode.trim().toUpperCase());
 
       let transactionId: string | null = null;
@@ -4973,6 +4986,8 @@ export async function registerRoutes(
         amountPaid,
         type: "nomination",
         chosenNonprofit: chosenNonprofit?.trim() || null,
+        nonprofitPolicyAcknowledged: true,
+        nonprofitPolicyAcknowledgedAt: new Date().toISOString(),
         nominatorName: nominatorName.trim(),
         nominatorEmail: nominatorEmail.toLowerCase().trim(),
         nominatorPhone: nominatorPhone || null,

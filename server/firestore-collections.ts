@@ -110,6 +110,8 @@ export interface FirestoreNonprofitDeclaration {
   donationContactEmail: string;
   donationContactPhone: string | null;
   designation: string | null;
+  programAcknowledged?: boolean;
+  programAcknowledgedAt?: string | null;
   consentToDonate: boolean;
   verificationStatus: "unverified" | "pending" | "verified" | "rejected";
   verifiedAt: string | null;
@@ -327,6 +329,8 @@ export interface FirestoreJoinSubmission {
   nominatorPhone: string | null;
   nominationStatus: "pending" | "joined" | "unsure" | "not_interested" | null;
   chosenNonprofit: string | null;
+  nonprofitPolicyAcknowledged?: boolean;
+  nonprofitPolicyAcknowledgedAt?: string | null;
   referralCode?: string | null;
 }
 
