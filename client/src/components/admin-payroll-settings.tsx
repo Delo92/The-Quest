@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, FileCheck2, Landmark, Plus, Save, ShieldCheck, Users, Wallet } from "lucide-react";
+import AdminTaxNonprofit from "@/components/admin-tax-nonprofit";
 
 type PaymentMethod = "manual" | "ach" | "paypal" | "check" | "other";
 
@@ -35,6 +36,15 @@ interface Payee {
   paymentMethodLabel?: string | null;
   paymentInfoProvided?: boolean;
   agreementStatus?: "pending" | "partial" | "signed";
+  userId?: string;
+  talentProfileId?: number;
+}
+
+interface ContestantProfileOption {
+  id: number;
+  userId: string;
+  name: string;
+  email: string;
 }
 
 interface Agreement {
@@ -111,12 +121,14 @@ const methodLabels: Record<PaymentMethod, string> = {
 export default function AdminPayrollSettings() {
   const { toast } = useToast();
   const [settings, setSettings] = useState<PayrollSettings>(defaultSettings);
-  const [payeeForm, setPayeeForm] = useState({ name: "", email: "", type: "contestant" });
+  const [payeeForm, setPayeeForm] = useState({ name: "", email: "", type: "contestant", userId: "", talentProfileId: "" });
+  const [payeeLinkSelections, setPayeeLinkSelections] = useState<Record<string, string>>({});
   const [agreementForm, setAgreementForm] = useState({ title: "", type: "winner_payout_terms", version: "1.0", content: "" });
 
   const settingsQuery = useQuery<PayrollSettings>({ queryKey: ["/api/admin/payroll/settings"] });
   const summaryQuery = useQuery<PayrollSummary>({ queryKey: ["/api/admin/payroll/summary"] });
   const payeesQuery = useQuery<Payee[]>({ queryKey: ["/api/admin/payroll/payees"] });
+  const contestantProfilesQuery = useQuery<ContestantProfileOption[]>({ queryKey: ["/api/admin/payroll/contestant-profiles"] });
   const agreementsQuery = useQuery<Agreement[]>({ queryKey: ["/api/admin/payroll/agreements"] });
   const batchesQuery = useQuery<PayrollBatch[]>({ queryKey: ["/api/admin/payroll/batches"] });
   const transactionsQuery = useQuery<PayrollTransaction[]>({ queryKey: ["/api/admin/payroll/transactions"] });
@@ -144,7 +156,7 @@ export default function AdminPayrollSettings() {
       return response.json();
     },
     onSuccess: () => {
-      setPayeeForm({ name: "", email: "", type: "contestant" });
+      setPayeeForm({ name: "", email: "", type: "contestant", userId: "", talentProfileId: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payroll/payees"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payroll/summary"] });
       toast({ title: "Freelance payee added" });
@@ -153,7 +165,7 @@ export default function AdminPayrollSettings() {
   });
 
   const updatePayeeMutation = useMutation({
-    mutationFn: async ({ id, ...payload }: { id: string; paymentInfoProvided: boolean }) => {
+    mutationFn: async ({ id, ...payload }: { id: string; paymentInfoProvided?: boolean; userId?: string; talentProfileId?: number }) => {
       const response = await apiRequest("PATCH", `/api/admin/payroll/payees/${id}`, payload);
       return response.json();
     },
@@ -238,11 +250,12 @@ export default function AdminPayrollSettings() {
       </div>
 
       <Tabs defaultValue="policy">
-        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-white/[0.06] p-1 sm:grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-white/[0.06] p-1 sm:grid-cols-3 lg:grid-cols-5">
           <TabsTrigger value="policy">Policy & methods</TabsTrigger>
           <TabsTrigger value="payees">Freelance payees</TabsTrigger>
           <TabsTrigger value="agreements">Agreements</TabsTrigger>
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
+          <TabsTrigger value="tax-nonprofit">Tax & nonprofit</TabsTrigger>
         </TabsList>
 
         <TabsContent value="policy" className="mt-5 space-y-5">
@@ -344,22 +357,106 @@ export default function AdminPayrollSettings() {
         <TabsContent value="payees" className="mt-5 space-y-5">
           <section className="rounded-lg border border-white/10 bg-white/[0.03] p-5">
             <h4 className="font-medium text-white">Add a freelance payee</h4>
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_180px_auto]">
-              <div><Label className="text-xs text-white/50">Name</Label><Input value={payeeForm.name} onChange={(event) => setPayeeForm({ ...payeeForm, name: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="Winner or recipient name" /></div>
-              <div><Label className="text-xs text-white/50">Email</Label><Input type="email" value={payeeForm.email} onChange={(event) => setPayeeForm({ ...payeeForm, email: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="recipient@example.com" /></div>
-              <div><Label className="text-xs text-white/50">Role</Label><select value={payeeForm.type} onChange={(event) => setPayeeForm({ ...payeeForm, type: event.target.value })} className="mt-1 h-10 w-full rounded-md border border-white/20 bg-white/[0.08] px-3 text-sm text-white"><option value="contestant">Contestant</option><option value="host">Host</option><option value="referrer">Referrer</option><option value="nonprofit">Nonprofit</option></select></div>
-              <Button onClick={() => createPayeeMutation.mutate()} disabled={createPayeeMutation.isPending || !payeeForm.name || !payeeForm.email} className="mt-5 bg-orange-500 text-white"><Plus className="mr-1 h-4 w-4" /> Add</Button>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <Label className="text-xs text-white/50">Role</Label>
+                <select
+                  value={payeeForm.type}
+                  onChange={(event) => setPayeeForm({ name: "", email: "", type: event.target.value, userId: "", talentProfileId: "" })}
+                  className="mt-1 h-10 w-full rounded-md border border-white/20 bg-white/[0.08] px-3 text-sm text-white"
+                >
+                  <option value="contestant">Contestant</option><option value="host">Host</option><option value="referrer">Referrer</option><option value="nonprofit">Nonprofit</option>
+                </select>
+              </div>
+              {payeeForm.type === "contestant" && (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <Label className="text-xs text-white/50">Link to a contestant account (required)</Label>
+                  <select
+                    value={payeeForm.talentProfileId}
+                    onChange={(event) => {
+                      const selected = (contestantProfilesQuery.data || []).find((item) => item.id === Number(event.target.value));
+                      setPayeeForm((current) => ({
+                        ...current,
+                        talentProfileId: selected ? String(selected.id) : "",
+                        userId: selected?.userId || "",
+                        name: selected?.name || "",
+                        email: selected?.email || "",
+                      }));
+                    }}
+                    className="mt-1 h-10 w-full rounded-md border border-white/20 bg-white/[0.08] px-3 text-sm text-white"
+                  >
+                    <option value="">Choose a contestant profile</option>
+                    {(contestantProfilesQuery.data || []).map((candidate) => (
+                      <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.email}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <Label className="text-xs text-white/50">Name</Label>
+                <Input value={payeeForm.name} onChange={(event) => setPayeeForm({ ...payeeForm, name: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="Recipient name" readOnly={payeeForm.type === "contestant"} />
+              </div>
+              <div>
+                <Label className="text-xs text-white/50">Email</Label>
+                <Input type="email" value={payeeForm.email} onChange={(event) => setPayeeForm({ ...payeeForm, email: event.target.value })} className="mt-1 border-white/15 bg-white/[0.06] text-white" placeholder="recipient@example.com" readOnly={payeeForm.type === "contestant"} />
+              </div>
+              <Button
+                onClick={() => createPayeeMutation.mutate()}
+                disabled={createPayeeMutation.isPending || !payeeForm.name || !payeeForm.email || (payeeForm.type === "contestant" && !payeeForm.talentProfileId)}
+                className="mt-5 bg-orange-500 text-white"
+              >
+                <Plus className="mr-1 h-4 w-4" /> Add
+              </Button>
             </div>
           </section>
           <div className="space-y-2">
             {(payeesQuery.data || []).map((payee) => (
-              <div key={payee.id} className="grid gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+              <div key={payee.id} className="grid gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                 <div>
                   <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-white">{payee.name}</span><Badge variant="outline" className="border-white/15 text-white/55">{payee.type}</Badge>{payee.status === "inactive" && <Badge variant="secondary">Inactive</Badge>}</div>
                   <div className="mt-1 text-xs text-white/45">{payee.email} · {payee.paymentMethodType ? methodLabels[payee.paymentMethodType] : "Payment method not selected"} · Agreement: {payee.agreementStatus || "pending"}</div>
+                  {payee.type === "contestant" && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <select
+                        value={payeeLinkSelections[payee.id] ?? String(payee.talentProfileId || "")}
+                        onChange={(event) => setPayeeLinkSelections((current) => ({ ...current, [payee.id]: event.target.value }))}
+                        aria-label={`Link ${payee.name} to a contestant account`}
+                        className="h-10 min-w-0 rounded-md border border-white/15 bg-[#171717] px-3 text-sm text-white"
+                      >
+                        <option value="">Choose a contestant profile</option>
+                        {(contestantProfilesQuery.data || []).map((candidate) => (
+                          <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.email}</option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={updatePayeeMutation.isPending || !payeeLinkSelections[payee.id] || Number(payeeLinkSelections[payee.id]) === Number(payee.talentProfileId)}
+                        onClick={() => {
+                          const selected = (contestantProfilesQuery.data || []).find((item) => item.id === Number(payeeLinkSelections[payee.id]));
+                          if (selected) updatePayeeMutation.mutate({ id: payee.id, userId: selected.userId, talentProfileId: selected.id });
+                        }}
+                        className="min-h-10 border-white/15 text-white/75"
+                      >
+                        Link profile
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <Badge className={payee.paymentInfoProvided ? "border-green-400/30 bg-green-400/10 text-green-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}>{payee.paymentInfoProvided ? "Details received" : "Details missing"}</Badge>
-                <Button variant="outline" size="sm" onClick={() => updatePayeeMutation.mutate({ id: payee.id, paymentInfoProvided: !payee.paymentInfoProvided })} className="border-white/15 text-white/75">{payee.paymentInfoProvided ? "Mark missing" : "Mark received"}</Button>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  {payee.type === "contestant" && (
+                    <Badge className={payee.talentProfileId ? "border-green-400/30 bg-green-400/10 text-green-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}>
+                      {payee.talentProfileId ? "Profile linked" : "Profile not linked"}
+                    </Badge>
+                  )}
+                  {payee.type !== "contestant" && (
+                    <>
+                      <Badge className={payee.paymentInfoProvided ? "border-green-400/30 bg-green-400/10 text-green-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}>{payee.paymentInfoProvided ? "Details received" : "Details missing"}</Badge>
+                      <Button variant="outline" size="sm" onClick={() => updatePayeeMutation.mutate({ id: payee.id, paymentInfoProvided: !payee.paymentInfoProvided })} className="border-white/15 text-white/75">{payee.paymentInfoProvided ? "Mark missing" : "Mark received"}</Button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
             {!payeesQuery.isLoading && !(payeesQuery.data || []).length && <div className="rounded-lg border border-dashed border-white/15 p-8 text-center text-sm text-white/40">No freelance payees have been added yet.</div>}
@@ -411,6 +508,10 @@ export default function AdminPayrollSettings() {
               {!transactionsQuery.isLoading && !(transactionsQuery.data || []).length && <div className="rounded-lg border border-dashed border-white/15 p-8 text-center text-sm text-white/40">Transactions will appear when an entitlement or payout is recorded.</div>}
             </div>
           </section>
+        </TabsContent>
+
+        <TabsContent value="tax-nonprofit" className="mt-5">
+          <AdminTaxNonprofit />
         </TabsContent>
       </Tabs>
     </div>

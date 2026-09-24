@@ -5,6 +5,7 @@ import { firebaseAuth, requireAdmin, requireHost } from "./auth-middleware";
 import { storage } from "./storage";
 import { firestoreJoinSettings } from "./firestore-collections";
 import { runMonthlyPayouts } from "./quest-payout-job";
+import { finalVotingDeadline, hasTaxInfoBeforeDeadline } from "./quest-tax-donations";
 
 const SETTINGS = "questPayrollSettings";
 const PAYEES = "questPayrollPayees";
@@ -130,7 +131,11 @@ function normalizeDeductions(value: unknown) {
 }
 
 function nextMonthFirst(dateValue?: string | null) {
-  const date = dateValue ? new Date(`${dateValue}T12:00:00Z`) : new Date();
+  const date = dateValue
+    ? /^\d{4}-\d{2}-\d{2}$/.test(dateValue)
+      ? new Date(`${dateValue}T12:00:00Z`)
+      : new Date(dateValue)
+    : new Date();
   if (Number.isNaN(date.getTime())) return null;
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
 }
@@ -181,6 +186,29 @@ function dollarsToCents(value: unknown): number {
   return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0;
 }
 
+function transactionHasLedgerSource(transaction: any, ledger: any[]) {
+  const sourceId = String(transaction.sourceLedgerId || transaction.ledgerId || "");
+  if (sourceId && ledger.some((entry) => String(entry.id) === sourceId)) return true;
+  if (!transaction.batchId || !transaction.payeeId) return false;
+  const amount = numericCents(transaction.amountCents);
+  const candidates = ledger.filter((entry) =>
+    String(entry.batchId) === String(transaction.batchId)
+    && String(entry.payeeId) === String(transaction.payeeId)
+    && (
+      numericCents(entry.nonprofitCents) === amount
+      || (entry.status === "forfeited" && numericCents(entry.grossCents) === amount)
+    ),
+  );
+  return candidates.length > 0;
+}
+
+function charityAllocationCents(transactions: any[], ledger: any[]) {
+  const standaloneAllocations = transactions
+    .filter((item) => item.type === "nonprofit_allocation" && !transactionHasLedgerSource(item, ledger));
+  return ledger.reduce((sum, entry) => sum + numericCents(entry.nonprofitCents), 0)
+    + standaloneAllocations.reduce((sum, item) => sum + numericCents(item.amountCents), 0);
+}
+
 function displayName(profile: any, fallback = "Unknown") {
   return profile?.stageName || profile?.displayName || fallback;
 }
@@ -222,14 +250,8 @@ async function buildFinancialOverview() {
   const contestantById = new Map(allContestants.map((contestant) => [contestant.id, contestant]));
 
   const payeeMatchesProfile = (payee: any, profile: any) => {
-    const payeeEmail = String(payee.email || "").toLowerCase();
-    const profileEmail = String(profile.email || "").toLowerCase();
-    const payeeName = String(payee.name || "").trim().toLowerCase();
-    const profileNames = [profile.displayName, profile.stageName].filter(Boolean).map((value) => String(value).trim().toLowerCase());
     return payee.userId === profile.userId
-      || Number(payee.talentProfileId) === Number(profile.id)
-      || (payeeEmail && profileEmail && payeeEmail === profileEmail)
-      || (payeeName && profileNames.includes(payeeName));
+      || Number(payee.talentProfileId) === Number(profile.id);
   };
 
   const entriesForProfile = (profile: any, competitionId?: number) => {
@@ -301,10 +323,7 @@ async function buildFinancialOverview() {
     const paidVoteRevenueCents = purchases.reduce((sum, purchase: any) => sum + dollarsToCents(purchase.amount), 0);
     const hostShareCents = hostEntries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
     const contestantShareCents = contestantRows.reduce((sum, row) => sum + row.earningsCents, 0);
-    const charityShareCents = compTransactions
-      .filter((item: any) => item.type === "nonprofit_allocation")
-      .reduce((sum, item: any) => sum + numericCents(item.amountCents), 0)
-      + compLedger.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
+    const charityShareCents = charityAllocationCents(compTransactions, compLedger);
     const paidVoteCount = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
     const totalVoteCount = compFreeVotes + paidVoteCount;
     return {
@@ -503,7 +522,10 @@ export function registerQuestPayrollAdmin(app: Express) {
         pendingCents: ledger.filter((entry) => ["pending_approval", "approved", "blocked"].includes(entry.status)).reduce((sum, entry) => sum + Number(entry.netCents || 0), 0),
         paidCents: ledger.filter((entry) => entry.status === "paid").reduce((sum, entry) => sum + Number(entry.netCents || 0), 0),
         forfeitedCents: ledger.filter((entry) => entry.status === "forfeited").reduce((sum, entry) => sum + Number(entry.grossCents || 0), 0),
-        nonprofitCents: transactions.filter((item) => item.type === "nonprofit_allocation").reduce((sum, item) => sum + Number(item.amountCents || 0), 0),
+        nonprofitCents: charityAllocationCents(
+          transactionsSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) })),
+          ledgerSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) })),
+        ),
         batches: batches.length,
         transactions: transactions.length,
       });
@@ -572,10 +594,22 @@ export function registerQuestPayrollAdmin(app: Express) {
       const type: PayeeType = PAYEE_TYPES.includes(req.body?.type) ? req.body.type : "contestant";
       if (!name || !email) return res.status(400).json({ message: "Name and email are required." });
       const ref = db().collection(PAYEES).doc();
+      const userId = clean(req.body?.userId, 160);
+      const talentProfileId = Number(req.body?.talentProfileId);
+      if (type === "contestant") {
+        if (!userId || !Number.isInteger(talentProfileId) || talentProfileId <= 0) {
+          return res.status(400).json({ message: "Link a contestant payee to a verified contestant profile." });
+        }
+        const linkedProfile = await storage.getTalentProfile(talentProfileId);
+        if (!linkedProfile || linkedProfile.role !== "talent" || linkedProfile.userId !== userId) {
+          return res.status(400).json({ message: "The selected contestant profile does not match this account." });
+        }
+      }
       const record = {
         name,
         email,
         type,
+        ...(type === "contestant" ? { userId, talentProfileId } : {}),
         status: "active",
         paymentMethodType: null,
         paymentMethodLabel: null,
@@ -603,6 +637,19 @@ export function registerQuestPayrollAdmin(app: Express) {
       }
       if (req.body?.email !== undefined) update.email = update.email.toLowerCase();
       if (req.body?.type && PAYEE_TYPES.includes(req.body.type)) update.type = req.body.type;
+      if (req.body?.userId !== undefined || req.body?.talentProfileId !== undefined) {
+        const userId = clean(req.body?.userId, 160);
+        const talentProfileId = Number(req.body?.talentProfileId);
+        if (!userId || !Number.isInteger(talentProfileId) || talentProfileId <= 0) {
+          return res.status(400).json({ message: "Choose a contestant profile to link this payee." });
+        }
+        const linkedProfile = await storage.getTalentProfile(talentProfileId);
+        if (!linkedProfile || linkedProfile.role !== "talent" || linkedProfile.userId !== userId) {
+          return res.status(400).json({ message: "The selected contestant profile does not match this account." });
+        }
+        update.userId = userId;
+        update.talentProfileId = talentProfileId;
+      }
       if (req.body?.status === "active" || req.body?.status === "inactive") update.status = req.body.status;
       if (req.body?.paymentMethodType && PAYMENT_METHODS.includes(req.body.paymentMethodType)) {
         update.paymentMethodType = req.body.paymentMethodType;
@@ -760,9 +807,16 @@ export function registerQuestPayrollAdmin(app: Express) {
       const { data: settings } = await getSettingDoc();
       const competitionId = Number.isFinite(Number(req.body?.competitionId)) ? Number(req.body.competitionId) : null;
       const competition = competitionId ? await storage.getCompetition(competitionId) : null;
-      const competitionEndDate = clean(req.body?.competitionEndDate, 20) || competition?.endDate || null;
+       const competitionEndDate = clean(req.body?.competitionEndDate, 40) || competition?.endDate || null;
       const dueDate = nextMonthFirst(competitionEndDate);
       if (!dueDate) return res.status(400).json({ message: "A valid competition end date is required." });
+       const taxDeadline = finalVotingDeadline(competition);
+       const taxDeadlineTime = taxDeadline
+         ? (/^\d{4}-\d{2}-\d{2}$/.test(taxDeadline)
+           ? new Date(`${taxDeadline}T23:59:59.999Z`).getTime()
+           : new Date(taxDeadline).getTime())
+         : Number.NaN;
+       const taxDeadlinePassed = Number.isFinite(taxDeadlineTime) && Date.now() > taxDeadlineTime;
       const batchRef = db().collection(BATCHES).doc();
       const batch = db().batch();
       let grossTotal = 0;
@@ -780,11 +834,40 @@ export function registerQuestPayrollAdmin(app: Express) {
         const deductions = normalizeDeductions(raw?.deductions);
         const deductionsCents = deductions.reduce((sum, item) => sum + item.amountCents, 0);
         const nonprofitCents = cents(raw?.nonprofitAmount);
-        const paymentInfoProvided = Boolean(raw?.paymentInfoProvided || payee.data.paymentInfoProvided);
-        const eligible = paymentInfoProvided;
-        const forfeited = !eligible && settings.missingPaymentPolicy === "forfeit";
+         let paymentInfoProvided = Boolean(raw?.paymentInfoProvided || payee.data.paymentInfoProvided);
+         let taxInfoSatisfied: boolean | null = null;
+         let taxYear: number | null = null;
+         if (payee.data.type === "contestant") {
+           const userId = clean(payee.data.userId, 160);
+           const talentProfileId = Number(payee.data.talentProfileId);
+           const linkedProfile = Number.isInteger(talentProfileId) && talentProfileId > 0
+             ? await storage.getTalentProfile(talentProfileId)
+             : null;
+           const stableLink = Boolean(
+             userId
+             && linkedProfile
+             && linkedProfile.role === "talent"
+             && linkedProfile.userId === userId,
+           );
+           taxYear = taxDeadline && Number.isFinite(new Date(taxDeadline).getTime())
+             ? new Date(taxDeadline).getUTCFullYear()
+             : null;
+           taxInfoSatisfied = Boolean(
+             stableLink
+             && taxDeadline
+             && taxYear
+             && await hasTaxInfoBeforeDeadline(userId, talentProfileId, taxYear, taxDeadline),
+           );
+           paymentInfoProvided = taxInfoSatisfied;
+         }
+         const eligible = paymentInfoProvided;
+         const forfeited = !eligible
+           && settings.missingPaymentPolicy === "forfeit"
+           && taxDeadlinePassed;
+         const blocked = !eligible && !forfeited;
         const netCents = forfeited ? 0 : Math.max(0, grossCents - deductionsCents - nonprofitCents);
         const ledgerRef = db().collection(LEDGER).doc();
+         const nonprofitTransactionRef = nonprofitCents > 0 ? db().collection(TRANSACTIONS).doc() : null;
         const ledgerRecord = {
           batchId: batchRef.id,
           competitionId,
@@ -796,12 +879,21 @@ export function registerQuestPayrollAdmin(app: Express) {
           nonprofitSelection: clean(raw?.nonprofitSelection, 180) || null,
           nonprofitCents,
           netCents,
-          paymentInfoDeadline: competitionEndDate,
-          paymentInfoProvided,
-          eligible,
-          status: forfeited ? "forfeited" : "pending_approval",
-          blockedReason: forfeited ? "Payment information was not provided by the competition final day." : null,
+           paymentInfoDeadline: taxDeadline,
+           taxYear,
+           taxInfoSatisfied,
+           paymentInfoProvided,
+           eligible,
+           status: forfeited ? "forfeited" : blocked ? "blocked" : "pending_approval",
+           blockedReason: forfeited
+             ? "Required information was not provided by the final-voting deadline."
+             : blocked
+               ? payee.data.type === "contestant"
+                 ? "Tax details were not acknowledged and saved before the final-voting deadline."
+                 : "Payment information is missing."
+               : null,
           payoutReference: null,
+           nonprofitAllocationTransactionId: nonprofitTransactionRef?.id || null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -818,7 +910,17 @@ export function registerQuestPayrollAdmin(app: Express) {
           batch.set(db().collection(TRANSACTIONS).doc(), { type: "deduction", amountCents: deduction.amountCents, payeeId, competitionId, batchId: batchRef.id, memo: deduction.label, createdBy: req.firebaseUser?.uid || null, createdAt: now() });
         }
         if (nonprofitCents > 0) {
-          batch.set(db().collection(TRANSACTIONS).doc(), { type: "nonprofit_allocation", amountCents: nonprofitCents, payeeId, competitionId, batchId: batchRef.id, nonprofitSelection: clean(raw?.nonprofitSelection, 180) || null, createdBy: req.firebaseUser?.uid || null, createdAt: now() });
+           batch.set(nonprofitTransactionRef!, {
+             type: "nonprofit_allocation",
+             amountCents: nonprofitCents,
+             payeeId,
+             competitionId,
+             batchId: batchRef.id,
+             sourceLedgerId: ledgerRef.id,
+             nonprofitSelection: clean(raw?.nonprofitSelection, 180) || null,
+             createdBy: req.firebaseUser?.uid || null,
+             createdAt: now(),
+           });
         }
       }
       if (!normalizedEntries.length) return res.status(400).json({ message: "Winner entitlements must have positive amounts." });

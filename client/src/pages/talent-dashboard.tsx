@@ -28,6 +28,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
+import ContestantTaxSettings from "@/components/contestant-tax-settings";
 
 interface Props {
   user: any;
@@ -634,7 +635,9 @@ export default function TalentDashboard({ user, profile }: Props) {
     await handleCopyShareLink(contest);
   };
 
-  const [activeSection, setActiveSection] = useState<"profile" | "media" | "competitions" | "analytics" | "earnings">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "media" | "competitions" | "analytics" | "earnings" | "tax">(() =>
+    new URLSearchParams(window.location.search).get("section") === "tax" ? "tax" : "profile",
+  );
 
   const totalVotes = myContests?.reduce((acc: number, c: any) => acc + (c.voteCount || 0), 0) || 0;
   const approvedCount = approvedContests.length;
@@ -646,6 +649,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     { id: "competitions" as const, label: "Competitions", sublabel: "Applications & sharing", icon: Trophy },
     { id: "analytics" as const, label: "Analytics", sublabel: "Visitors & plays", icon: BarChart3 },
     { id: "earnings" as const, label: "Earnings", sublabel: "Payouts & nonprofit", icon: Wallet },
+    { id: "tax" as const, label: "Tax details", sublabel: "Forms & secure information", icon: ShieldCheck },
   ];
 
   return (
@@ -1454,6 +1458,10 @@ export default function TalentDashboard({ user, profile }: Props) {
 
             </div>
           </TabsContent>
+
+           <TabsContent value="tax">
+             <ContestantTaxSettings />
+           </TabsContent>
 
           <TabsContent value="media">
             {!profile ? (

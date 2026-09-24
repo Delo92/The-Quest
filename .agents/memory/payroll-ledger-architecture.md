@@ -1,10 +1,10 @@
 ---
-name: Quest payroll ledger architecture
-description: The Quest payroll records freelance winner entitlements, agreements, deductions, nonprofit allocations, and payout references without executing external transfers by default.
+name: Quest payroll and tax ledger architecture
+description: The Quest payroll and tax records preserve winner entitlements, tax compliance, recipient forms, and nonprofit allocations without executing external transfers by default.
 ---
 
-The Quest treats recipients as independent contractors, not employees. The payroll layer is an auditable ledger: only host-defined competition placements can earn winnings; payment information must be complete by the competition final day; payouts are due on the first day of the following month; missing information may forfeit or block an entitlement according to saved policy.
+The Quest treats recipients as independent contractors, not employees. Only host-defined competition placements can earn winnings. Tax compliance uses the finale voting cutoff when configured, then competition voting end, then competition end; both acknowledgment and a complete tax-profile version must predate that cutoff. Match contestant payees by stable profile/user IDs, never name or email. Recipient 1099-NEC gross amounts come from ledger entries paid during the selected calendar year. Preserve profile versions and encrypt full tax IDs. Payer legal name, address, and EIN must be entered by an administrator, not inferred. Nonprofit transfers remain manual records linked to source allocations and ledger entries.
 
-**Why:** The source system's generic payroll and provider execution models do not match The Quest's winner-only business rules or its current Authorize.Net money-in architecture.
+**Why:** Voting cutoffs and payment dates can fall in different calendar years, so eligibility and annual reporting need separate dates; stable IDs and linked source allocations prevent identity mismatches and duplicate totals. The current payment architecture does not authorize automatic outbound transfers or guessed legal payer details.
 
-**How to apply:** Keep payout creation, approval, deductions, nonprofit allocations, agreement status, and payout references server-side. Never store bank account numbers, CVV, processor secrets, or raw payment credentials in Firestore. Add external payout execution only after a provider and compliance boundary are explicitly chosen.
+**How to apply:** Keep payout creation, approval, deductions, agreements, and payout references server-side. For annual forms, use paid-at year and a saved profile version; if the paid year differs from the competition cutoff year, let the contestant repopulate that year from the latest known profile. Never store bank account numbers, CVV, processor secrets, raw payment credentials, or unencrypted tax IDs in Firestore. Add external payout execution only after a provider and compliance boundary are explicitly chosen.

@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, MapPin, Tag, ChevronRight, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Trophy, MapPin, Tag, ChevronRight, ExternalLink, X, LockKeyhole } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import type { TalentProfile } from "@shared/schema";
@@ -10,11 +12,21 @@ import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { formatVideoTitle } from "@/lib/media-utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function TalentProfilePublic() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const { getImage } = useLivery();
+  const { isAuthenticated } = useAuth();
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  useEffect(() => {
+    if (!id || isAuthenticated) {
+      setShowSignInPrompt(false);
+      return;
+    }
+    setShowSignInPrompt(window.localStorage.getItem(`quest-tax-signin-dismissed-${id}`) !== "1");
+  }, [id, isAuthenticated]);
 
   const { data: profile, isLoading } = useQuery<TalentProfile & { videos?: any[] }>({
     queryKey: ["/api/talent-profiles", id],
@@ -88,6 +100,32 @@ export default function TalentProfilePublic() {
       </section>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {profile.role === "talent" && !isAuthenticated && showSignInPrompt && (
+          <aside className="mb-8 flex flex-col gap-3 rounded-xl border border-orange-400/20 bg-orange-400/[0.06] p-4 sm:flex-row sm:items-center" aria-label="Contestant sign-in prompt">
+            <LockKeyhole className="h-5 w-5 flex-none text-orange-300" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-white">Are you this contestant?</p>
+              <p className="mt-1 text-sm text-white/55">Sign in to manage your earnings and enter tax details before your competition’s final-voting cutoff.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/login?section=tax">
+                <Button className="min-h-10 bg-orange-500 text-white hover:bg-orange-400">Sign in</Button>
+              </Link>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-10 text-white/55 hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  window.localStorage.setItem(`quest-tax-signin-dismissed-${id}`, "1");
+                  setShowSignInPrompt(false);
+                }}
+                aria-label="Dismiss sign-in prompt"
+              >
+                <X className="mr-1 h-4 w-4" /> Dismiss
+              </Button>
+            </div>
+          </aside>
+        )}
         <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40 mb-10">
           {profile.category && (
             <span className="flex items-center gap-1.5" data-testid="text-category">

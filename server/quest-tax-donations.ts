@@ -34,13 +34,49 @@ const now = () => new Date().toISOString();
 const clean = (value: unknown, max = 240) => String(value ?? "").trim().slice(0, max);
 const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
 const taxProfileDocId = (profileId: number, year: number) => `${profileId}_${year}`;
+const stateCodes: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO",
+  connecticut: "CT", delaware: "DE", florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID",
+  illinois: "IL", indiana: "IN", iowa: "IA", kansas: "KS", kentucky: "KY", louisiana: "LA",
+  maine: "ME", maryland: "MD", massachusetts: "MA", michigan: "MI", minnesota: "MN",
+  mississippi: "MS", missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV",
+  "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY",
+  "north carolina": "NC", "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR",
+  pennsylvania: "PA", "rhode island": "RI", "south carolina": "SC", "south dakota": "SD",
+  tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT", virginia: "VA", washington: "WA",
+  "west virginia": "WV", wisconsin: "WI", wyoming: "WY", "district of columbia": "DC",
+  "puerto rico": "PR", guam: "GU", "u.s. virgin islands": "VI", "virgin islands": "VI",
+};
+const countryCodes: Record<string, string> = {
+  "united states": "US", "united states of america": "US", usa: "US", canada: "CA",
+  "united kingdom": "GB", uk: "GB", mexico: "MX", australia: "AU", germany: "DE",
+  france: "FR", india: "IN", japan: "JP", ireland: "IE", italy: "IT", spain: "ES",
+  netherlands: "NL", brazil: "BR", china: "CN", "new zealand": "NZ",
+};
+const stateCode = (value: unknown) => {
+  const text = clean(value, 80).toLowerCase();
+  if (/^[a-z]{2}$/.test(text)) return text.toUpperCase();
+  return stateCodes[text] || "";
+};
+const countryCode = (value: unknown) => {
+  const text = clean(value, 80).toLowerCase();
+  if (/^[a-z]{2}$/.test(text)) return text.toUpperCase();
+  return countryCodes[text] || "";
+};
 const cents = (value: unknown) => Math.max(0, Math.round(Number(value) || 0));
-const moneyToCents = (value: unknown) => Math.round((Number(value) || 0) * 100);
+const moneyToCents = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0;
+};
 const parseTaxYear = (value: unknown) => {
   const year = Number(value);
   return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : null;
 };
 const parseDate = (value: unknown) => {
+  if (value && typeof (value as any).toDate === "function") {
+    const date = (value as any).toDate();
+    return Number.isFinite(date.getTime()) ? date : null;
+  }
   const text = clean(value, 40);
   const date = new Date(text);
   return Number.isFinite(date.getTime()) ? date : null;
@@ -54,7 +90,7 @@ const endOfDay = (value: unknown) => {
 function validTaxData(body: any, retainedTaxId = ""): TaxData | null {
   const taxIdType = body?.taxIdType === "ein" ? "ein" : body?.taxIdType === "ssn" ? "ssn" : null;
   const taxId = digits(body?.taxId) || retainedTaxId;
-  const country = clean(body?.country || "United States", 80);
+  const country = countryCode(body?.country || "US");
   const data: TaxData = {
     legalName: clean(body?.legalName, 160),
     businessName: clean(body?.businessName, 160),
@@ -63,7 +99,7 @@ function validTaxData(body: any, retainedTaxId = ""): TaxData | null {
     address1: clean(body?.address1, 180),
     address2: clean(body?.address2, 100),
     city: clean(body?.city, 100),
-    state: clean(body?.state, 80),
+    state: stateCode(body?.state),
     postalCode: clean(body?.postalCode, 24),
     country,
   };
@@ -72,9 +108,9 @@ function validTaxData(body: any, retainedTaxId = ""): TaxData | null {
     || !data.legalName
     || !data.address1
     || !data.city
-    || !data.state
+    || data.state.length !== 2
     || !data.postalCode
-    || !data.country
+    || data.country.length !== 2
     || data.taxId.length !== 9
   ) return null;
   return data;
@@ -101,8 +137,9 @@ function isPayerReady(payer: any) {
     && payer?.payerTinEncrypted
     && payer?.address1
     && payer?.city
-    && payer?.state
-    && payer?.postalCode,
+    && stateCode(payer?.state)
+    && payer?.postalCode
+    && countryCode(payer?.country || "US"),
   );
 }
 
@@ -140,9 +177,9 @@ function safePayer(payer: any) {
     address1: clean(payer?.address1, 180),
     address2: clean(payer?.address2, 100),
     city: clean(payer?.city, 100),
-    state: clean(payer?.state, 80),
+    state: stateCode(payer?.state),
     postalCode: clean(payer?.postalCode, 24),
-    country: clean(payer?.country || "United States", 80),
+    country: countryCode(payer?.country || "US"),
     phone: clean(payer?.phone, 40),
     payerTinLast4: clean(payer?.payerTinLast4, 4),
     configured: isPayerReady(payer),
@@ -242,8 +279,43 @@ export async function hasTaxInfoBeforeDeadline(
   return versionsSnapshot.docs.some((doc) => {
     const version = doc.data();
     const savedAt = parseDate(version.createdAt);
-    return Boolean(version.complete && savedAt && savedAt <= cutoff && savedAt <= cutoff);
+    const versionAcknowledgement = parseDate(version.acknowledgedAt);
+    return Boolean(
+      version.complete
+      && savedAt
+      && savedAt <= cutoff
+      && versionAcknowledgement
+      && versionAcknowledgement <= cutoff,
+    );
   });
+}
+
+export function finalVotingDeadline(competition: any): string | null {
+  if (!competition) return null;
+  const finale = Array.isArray(competition.stages)
+    ? competition.stages.find((stage: any) => stage?.isFinale === true)
+    : null;
+  for (const value of [finale?.votingEndDate, competition.votingEndDate, competition.endDate]) {
+    const candidate = clean(value, 40);
+    if (candidate && endOfDay(candidate)) return candidate;
+  }
+  return null;
+}
+
+async function latestTaxVersionForProfile(userId: string, profileId: number) {
+  const firestore = getFirestore();
+  const profileDocs = await firestore.collection(TAX_PROFILES).where("userId", "==", userId).get();
+  const matchingParents = profileDocs.docs.filter((doc) => Number(doc.data().profileId) === Number(profileId));
+  const versionSets = await Promise.all(matchingParents.map(async (parent) => {
+    const versions = await parent.ref.collection("versions").get();
+    return versions.docs.map((doc) => ({
+      id: doc.id,
+      taxYear: Number(parent.data().taxYear),
+      data: doc.data(),
+    }));
+  }));
+  return versionSets.flat()
+    .sort((a, b) => String(b.data.createdAt || "").localeCompare(String(a.data.createdAt || "")))[0] || null;
 }
 
 export function registerQuestTaxAndDonations(app: Express) {
@@ -295,6 +367,37 @@ export function registerQuestTaxAndDonations(app: Express) {
     }
   });
 
+  app.get("/api/tax/my-deadlines", firebaseAuth, async (req: any, res: any) => {
+    try {
+      const uid = String(req.firebaseUser?.uid || "");
+      const profile = await getTaxpayerProfile(uid);
+      if (!profile) return res.status(403).json({ message: "A contestant profile is required." });
+      const [competitions, contestants] = await Promise.all([
+        storage.getCompetitions(),
+        storage.getAllContestants(),
+      ]);
+      const competitionById = new Map(competitions.map((competition) => [Number(competition.id), competition]));
+      const deadlines = contestants
+        .filter((contestant: any) => Number(contestant.talentProfileId) === Number(profile.id))
+        .map((contestant: any) => {
+          const competition = competitionById.get(Number(contestant.competitionId));
+          const deadline = finalVotingDeadline(competition);
+          return deadline ? {
+            competitionId: Number(contestant.competitionId),
+            competitionTitle: clean(competition?.title || contestant.competitionTitle || "Competition", 180),
+            deadline,
+            taxYear: new Date(deadline).getUTCFullYear(),
+          } : null;
+        })
+        .filter(Boolean)
+        .sort((a: any, b: any) => String(a.deadline).localeCompare(String(b.deadline)));
+      res.setHeader("Cache-Control", "private, no-store");
+      res.json(deadlines);
+    } catch {
+      res.status(500).json({ message: "Could not load your tax-information deadlines." });
+    }
+  });
+
   app.get("/api/tax/my-profile/:taxYear", firebaseAuth, async (req: any, res: any) => {
     try {
       const uid = String(req.firebaseUser?.uid || "");
@@ -316,7 +419,12 @@ export function registerQuestTaxAndDonations(app: Express) {
       );
       const currentId = String(parent.currentVersionId || "");
       const currentDoc = sorted.find((doc) => doc.id === currentId) || sorted[0] || null;
-      const currentData = currentDoc ? await decryptTaxVersion(currentDoc.data()) : null;
+      const fallbackVersion = currentDoc ? null : await latestTaxVersionForProfile(uid, Number(profile.id));
+      const currentData = currentDoc
+        ? await decryptTaxVersion(currentDoc.data())
+        : fallbackVersion
+          ? await decryptTaxVersion(fallbackVersion.data)
+          : null;
       const versions = await Promise.all(sorted.map(async (doc) => {
         const version = doc.data();
         const data = await decryptTaxVersion(version);
@@ -345,9 +453,9 @@ export function registerQuestTaxAndDonations(app: Express) {
           address1: currentData.address1,
           address2: currentData.address2,
           city: currentData.city,
-          state: currentData.state,
+          state: stateCode(currentData.state),
           postalCode: currentData.postalCode,
-          country: currentData.country,
+          country: countryCode(currentData.country),
         } : null,
         versions,
         paidGrossCents,
@@ -404,10 +512,20 @@ export function registerQuestTaxAndDonations(app: Express) {
         } catch {
           return res.status(503).json({ message: "The saved tax ID cannot be opened with the current encryption key. Contact an administrator before changing it." });
         }
+      } else if (!digits(req.body?.taxId)) {
+        const previousVersion = await latestTaxVersionForProfile(uid, Number(profile.id));
+        if (previousVersion) {
+          try {
+            const previous = await decryptTaxVersion(previousVersion.data);
+            retainedTaxId = previous.taxId;
+          } catch {
+            return res.status(503).json({ message: "The saved tax ID cannot be opened with the current encryption key. Contact an administrator before changing it." });
+          }
+        }
       }
       const data = validTaxData(req.body, retainedTaxId);
       if (!data) {
-        return res.status(400).json({ message: "Enter a legal name, address, tax ID type, and a valid 9-digit tax ID." });
+        return res.status(400).json({ message: "Enter a legal name, complete mailing address with two-letter state/country codes, and a valid 9-digit tax ID." });
       }
       const versionRef = ref.collection("versions").doc();
       const createdAt = now();
@@ -464,6 +582,11 @@ export function registerQuestTaxAndDonations(app: Express) {
       if (!versionSnapshot.exists) return res.status(404).json({ message: "Tax-profile version not found." });
       if (!isPayerReady(payer)) return res.status(409).json({ message: "The Original Concepts payer details are not complete. Contact an administrator." });
       const taxData = await decryptTaxVersion(versionSnapshot.data());
+      const recipientState = stateCode(taxData.state);
+      const recipientCountry = countryCode(taxData.country);
+      if (!recipientState || !recipientCountry) {
+        return res.status(409).json({ message: "Update your mailing address using two-letter state/region and country codes before exporting." });
+      }
       const payerEin = decrypt(String(payer.payerTinEncrypted));
       const amountCents = await paidGrossCentsForProfile(uid, Number(profile.id), year);
       const templatePaths = [
@@ -491,8 +614,8 @@ export function registerQuestTaxAndDonations(app: Express) {
       set("LeftCol[0].f2_4[0]", clean(payer.address2, 100));
       set("LeftCol[0].f2_5[0]", clean(payer.city, 100));
       set("LeftCol[0].f2_6[0]", clean(payer.phone, 40));
-      set("LeftCol[0].f2_7[0]", clean(payer.state, 80));
-      set("LeftCol[0].f2_8[0]", clean(payer.country || "United States", 80));
+      set("LeftCol[0].f2_7[0]", stateCode(payer.state));
+      set("LeftCol[0].f2_8[0]", countryCode(payer.country || "US"));
       set("LeftCol[0].f2_9[0]", clean(payer.postalCode, 24));
       set("LeftCol[0].f2_10[0]", formatTin(payerEin, "ein"));
       set("LeftCol[0].f2_11[0]", formatTin(taxData.taxId, taxData.taxIdType));
@@ -502,8 +625,8 @@ export function registerQuestTaxAndDonations(app: Express) {
       set("LeftCol[0].f2_13[0]", taxData.address1);
       set("LeftCol[0].f2_14[0]", taxData.address2);
       set("LeftCol[0].f2_15[0]", taxData.city);
-      set("LeftCol[0].f2_16[0]", taxData.state);
-      set("LeftCol[0].f2_17[0]", taxData.country);
+      set("LeftCol[0].f2_16[0]", recipientState);
+      set("LeftCol[0].f2_17[0]", recipientCountry);
       set("LeftCol[0].f2_18[0]", taxData.postalCode);
       set("RightCol[0].f2_20[0]", (amountCents / 100).toFixed(2));
       form.flatten();
@@ -550,14 +673,17 @@ export function registerQuestTaxAndDonations(app: Express) {
       const payerTin = digits(req.body?.payerEin);
       if (payerTin && payerTin.length !== 9) return res.status(400).json({ message: "Enter a valid 9-digit payer EIN." });
       if (!existing.payerTinEncrypted && !payerTin) return res.status(400).json({ message: "Enter the payer EIN before saving." });
+      const payerState = stateCode(req.body?.state);
+      const payerCountry = countryCode(req.body?.country || "US");
+      if (!payerState || !payerCountry) return res.status(400).json({ message: "Enter the payer state/region and country as two-letter codes." });
       const record: any = {
         payerName: clean(req.body?.payerName, 180),
         address1: clean(req.body?.address1, 180),
         address2: clean(req.body?.address2, 100),
         city: clean(req.body?.city, 100),
-        state: clean(req.body?.state, 80),
+        state: payerState,
         postalCode: clean(req.body?.postalCode, 24),
-        country: clean(req.body?.country || "United States", 80),
+        country: payerCountry,
         phone: clean(req.body?.phone, 40),
         updatedAt: now(),
         updatedBy: req.firebaseUser?.uid || null,
@@ -569,7 +695,7 @@ export function registerQuestTaxAndDonations(app: Express) {
         record.payerTinEncrypted = existing.payerTinEncrypted;
         record.payerTinLast4 = existing.payerTinLast4;
       }
-      if (!record.payerName || !record.address1 || !record.city || !record.state || !record.postalCode) {
+      if (!record.payerName || !record.address1 || !record.city || !record.postalCode) {
         return res.status(400).json({ message: "Complete the payer legal name and mailing address." });
       }
       await ref.set(record, { merge: true });

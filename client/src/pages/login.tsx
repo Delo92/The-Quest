@@ -89,7 +89,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      setLocation("/dashboard");
+      setLocation(new URLSearchParams(window.location.search).get("section") === "tax"
+        ? "/dashboard?section=tax"
+        : "/dashboard");
     }
   }, [isAuthenticated, setLocation]);
 
@@ -106,6 +108,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const destination = new URLSearchParams(window.location.search).get("section") === "tax"
+      ? "/dashboard?section=tax"
+      : "/dashboard";
 
     try {
       if (isGuestViewerMode) {
@@ -128,7 +133,7 @@ export default function LoginPage() {
       if (mode === "login") {
         await login(email, password, inviteToken || undefined);
         toast({ title: "Welcome back!", description: "You have been logged in." });
-        setLocation("/dashboard");
+        setLocation(destination);
       } else if (mode === "register") {
         if (password !== confirmPassword) {
           toast({ title: "Passwords don't match", variant: "destructive" });
@@ -143,7 +148,7 @@ export default function LoginPage() {
         const registerLevel = inviteToken ? undefined : selectedLevel;
         await register(email, password, displayName, inviteToken || undefined, registerLevel);
         toast({ title: "Account created!", description: "Welcome to the platform." });
-        setLocation("/dashboard");
+        setLocation(destination);
       } else if (mode === "reset") {
         await resetPassword(email);
         toast({ title: "Reset email sent", description: "Check your inbox for a password reset link." });
