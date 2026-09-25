@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 interface VoteAuthDialogProps {
   open: boolean;
@@ -20,7 +20,8 @@ export function isVoteAuthenticationError(error: unknown): boolean {
 }
 
 export function VoteAuthDialog({ open, onOpenChange }: VoteAuthDialogProps) {
-  const returnTo = `${window.location.pathname}${window.location.search}`;
+  const [location] = useLocation();
+  const returnTo = `${location}${window.location.search}`;
   const authQuery = new URLSearchParams({
     level: "1",
     requireAccount: "1",

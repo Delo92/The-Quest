@@ -51,7 +51,7 @@ function getAuthDestination(search: string): string {
 export default function LoginPage() {
   const { login, register, resetPassword, isAuthenticated, error } = useAuth();
   const { loginViewer, isViewerLoggedIn } = useViewerSession();
-  const [, setLocation] = useLocation();
+  const [currentLocation, setLocation] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
   const { getMedia } = useLivery();
@@ -59,7 +59,7 @@ export default function LoginPage() {
   const params = new URLSearchParams(search);
   const inviteToken = params.get("invite") || "";
   const requiresAccount = params.get("requireAccount") === "1";
-  const isRegisterPath = window.location.pathname === "/register";
+  const isRegisterPath = currentLocation === "/register";
 
   const [mode, setMode] = useState<Mode>(inviteToken ? "login" : isRegisterPath ? "register" : "login");
   const [email, setEmail] = useState("");
