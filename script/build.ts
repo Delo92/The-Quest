@@ -41,7 +41,7 @@ async function buildAll() {
   console.log("copying recipient 1099-NEC template...");
   await mkdir("dist/attached_assets", { recursive: true });
   await copyFile(
-    "attached_assets/1099_form_1790278740415.pdf",
+    "server/assets/1099_form_1790278740415.pdf",
     "dist/attached_assets/1099_form_1790278740415.pdf",
   );
 

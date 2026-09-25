@@ -14,3 +14,9 @@ Host accounts use the same encrypted, versioned tax-record contract as talent ac
 **Why:** Hosts may be payees without having contestant rows, so contestant-only eligibility leaves their tax profile inaccessible even though payout compliance still depends on competition cutoffs.
 
 **How to apply:** Permit host-role profiles in personal tax routes and use owned competition IDs to supply deadlines. Continue matching gross by stable profile/user IDs and reporting it by the ledger paid year.
+
+Keep the recipient 1099 template in a Git-tracked source-assets directory, not `attached_assets/`, which this project ignores. The production build copies the tracked template into `dist/attached_assets/` for PDF generation.
+
+**Why:** Local builds can succeed using ignored uploaded assets while a clean Render checkout omits them and fails during the copy step.
+
+**How to apply:** When updating the IRS form template, replace the tracked source copy and confirm the build output contains the same file.
