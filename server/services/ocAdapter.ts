@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 /**
  * ocAdapter.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -17,6 +19,19 @@ const OC_TOKEN = process.env.QUEST_OC_API_TOKEN;
 
 export function isOCAdapterConfigured(): boolean {
   return Boolean(OC_TOKEN);
+}
+
+export function hasOCIntegrationToken(): boolean {
+  return Boolean(OC_TOKEN);
+}
+
+export function isValidOCIntegrationAuthorization(authorization: string | undefined): boolean {
+  if (!OC_TOKEN || !authorization) return false;
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) return false;
+  const provided = Buffer.from(match[1].trim());
+  const expected = Buffer.from(OC_TOKEN);
+  return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
 
 /**
@@ -182,4 +197,45 @@ export async function approveOCBatch(batchId: string): Promise<any> {
  */
 export async function releaseOCBatch(batchId: string): Promise<any> {
   return portalFetch(`/batches/${encodeURIComponent(batchId)}/release`, { method: "POST", body: "{}" });
+}
+
+export interface OCSocialProfileSyncRecord {
+  operation: "upsert" | "delete";
+  questProfileId: string;
+  questUserId: string;
+  fullName: string;
+  email: string;
+  roleTypes: Array<"host" | "contestant">;
+  competitionIds: number[];
+  socialLinks: Record<string, string>;
+  updatedAt: string;
+}
+
+function getSocialScanResultsCallbackUrl(): string {
+  const configured = process.env.SITE_URL?.trim() || "https://cbpublishing.live";
+  const withProtocol = /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
+  return `${new URL(withProtocol).origin}/api/oc/social-profiles/results`;
+}
+
+/**
+ * Upsert or remove Quest host/contestant profiles in OC's social scanning index.
+ * OC deduplicates records by sourceSystem + questProfileId.
+ */
+export async function syncOCSocialProfiles(
+  records: OCSocialProfileSyncRecord[],
+  syncType: "change" | "backfill" = "change",
+): Promise<any> {
+  if (records.length === 0) return { acceptedCount: 0, rejected: [] };
+  return questFetch("/social-profiles/sync", {
+    method: "POST",
+    signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify({
+      sourceSystem: "the-quest",
+      schemaVersion: 1,
+      syncType,
+      sentAt: new Date().toISOString(),
+      callbackUrl: getSocialScanResultsCallbackUrl(),
+      records,
+    }),
+  });
 }
