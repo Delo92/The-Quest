@@ -205,6 +205,7 @@ export interface OCSocialProfileSyncRecord {
   questUserId: string;
   fullName: string;
   email: string;
+  phone: string | null;
   roleTypes: Array<"host" | "contestant">;
   competitionIds: number[];
   socialLinks: Record<string, string>;

@@ -54,18 +54,21 @@ async function buildRecord(
   competitionIds: number[],
 ): Promise<BuiltRecord> {
   const account = await getFirestoreUser(profile.userId).catch(() => null);
-  let authAccount: { email?: string; displayName?: string } | null = null;
-  if (!account?.email || !account.displayName) {
-    try {
-      const firebaseUser = await getFirebaseAuth().getUser(profile.userId);
-      authAccount = { email: firebaseUser.email, displayName: firebaseUser.displayName };
-    } catch {
-      authAccount = null;
-    }
+  let authAccount: { email?: string; displayName?: string; phoneNumber?: string } | null = null;
+  try {
+    const firebaseUser = await getFirebaseAuth().getUser(profile.userId);
+    authAccount = {
+      email: firebaseUser.email,
+      displayName: firebaseUser.displayName,
+      phoneNumber: firebaseUser.phoneNumber,
+    };
+  } catch {
+    authAccount = null;
   }
 
   const fullName = String(account?.displayName || authAccount?.displayName || profile.displayName || "").trim();
   const email = String(account?.email || (profile as any).email || authAccount?.email || "").trim().toLowerCase();
+  const phone = String(authAccount?.phoneNumber || (profile as any).phone || (account as any)?.phone || "").trim() || null;
   const socialLinks = {
     ...parsePublicLinks(account?.socialLinks),
     ...parsePublicLinks(profile.socialLinks),
@@ -84,6 +87,7 @@ async function buildRecord(
       questUserId: profile.userId,
       fullName,
       email,
+      phone,
       roleTypes,
       competitionIds,
       socialLinks,
