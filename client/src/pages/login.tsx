@@ -13,7 +13,6 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { getIdToken } from "@/lib/firebase";
 import { Mail } from "lucide-react";
 
 type Mode = "login" | "register" | "reset";
@@ -50,7 +49,7 @@ function getAuthDestination(search: string): string {
 }
 
 export default function LoginPage() {
-  const { login, register, resetPassword, logout, isAuthenticated, error } = useAuth();
+  const { login, register, resetPassword, isAuthenticated, error } = useAuth();
   const [currentLocation, setLocation] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
@@ -60,7 +59,11 @@ export default function LoginPage() {
   const inviteToken = params.get("invite") || "";
   const isRegisterPath = currentLocation === "/register";
   const requestedLevel = Number(params.get("level"));
-  const initialLevel = [1, 2, 3].includes(requestedLevel) ? requestedLevel : 1;
+  const initialLevel = [1, 2, 3].includes(requestedLevel)
+    ? requestedLevel
+    : !isRegisterPath && requestedLevel === 4
+      ? 3
+      : 1;
   const hasVoteTarget = Boolean(params.get("competitionId") && params.get("contestantId"));
   const returnToHasReferral = (() => {
     const returnTo = params.get("returnTo");
@@ -216,40 +219,7 @@ export default function LoginPage() {
           return;
         }
 
-        await login(email, password, inviteToken || undefined);
-
-        const token = await getIdToken();
-        if (!token) {
-          await logout();
-          throw new Error("Could not verify your account type. Please sign in again.");
-        }
-
-        const accountResponse = await fetch("/api/auth/user", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!accountResponse.ok) {
-          await logout();
-          throw new Error("Could not verify your account type. Please sign in again.");
-        }
-
-        const authenticatedAccount = await accountResponse.json();
-        const actualLevel = Number(authenticatedAccount.level);
-        const accountTypeMatches = inviteToken
-          ? actualLevel === accountLevel
-          : selectedLevel === 3
-            ? actualLevel >= 3
-            : actualLevel === selectedLevel;
-
-        if (!Number.isFinite(actualLevel) || !accountTypeMatches) {
-          await logout();
-          const actualType = actualLevel >= 4 ? "Admin" : LEVEL_LABELS[actualLevel] || "unknown";
-          const selectedType = inviteToken
-            ? LEVEL_LABELS[accountLevel] || "invited"
-            : selectedLevel === 3
-              ? "Host/Admin"
-              : LEVEL_LABELS[selectedLevel] || "selected";
-          throw new Error(`This is a ${actualType} account. Select ${selectedType} and try again.`);
-        }
+        await login(email, password, inviteToken || undefined, accountLevel);
 
         toast({ title: "Welcome back!", description: "You have been logged in." });
         setLocation(destination);
@@ -388,7 +358,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {((mode === "login" && !inviteToken) || mode === "register") && (
+          {(mode === "login" || mode === "register") && (
             <div>
               <Label htmlFor="select-account-type" className="text-white/60 uppercase text-xs tracking-wider">
                 Account Type
@@ -426,13 +396,17 @@ export default function LoginPage() {
                       Artist / Competitor
                     </SelectItem>
                     <SelectItem value="3" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-host">
-                      {mode === "login" ? "Host / Admin" : "Host"}
+                      {mode === "login" ? "Host/Admin" : "Host"}
                     </SelectItem>
                   </SelectContent>
                 </Select>
               )}
               <p className="mt-1.5 text-xs text-white/45">
-                {inviteToken
+                {mode === "login" && !inviteToken
+                  ? accountLevel === 3
+                    ? "Use this option for either Host or Admin accounts."
+                    : "Choose the account type associated with your sign-in."
+                  : inviteToken
                   ? "Your invitation sets this account type."
                   : accountLevel === 1
                     ? "Browse and vote on your favorite contestants."

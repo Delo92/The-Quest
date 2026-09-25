@@ -90,6 +90,8 @@ export function useAuth() {
     let tokenRefreshInterval: ReturnType<typeof setInterval> | null = null;
     let hasSynced = false;
     let loadingResolved = false;
+    let authStateGeneration = 0;
+    let observedUid: string | null | undefined;
 
     const authTimeout = setTimeout(() => {
       if (!loadingResolved && !cancelled) {
@@ -108,16 +110,31 @@ export function useAuth() {
 
       const unsub = onFirebaseIdTokenChanged(async (firebaseUser) => {
         if (cancelled) return;
+        const firebaseUid = firebaseUser?.uid ?? null;
+        if (firebaseUid !== observedUid) {
+          observedUid = firebaseUid;
+          authStateGeneration += 1;
+        }
+        const eventGeneration = authStateGeneration;
 
         if (firebaseUser) {
           try {
             const token = await firebaseUser.getIdToken(!hasSynced);
+            if (
+              cancelled
+              || eventGeneration !== authStateGeneration
+              || getFirebaseAuth()?.currentUser?.uid !== firebaseUser.uid
+            ) return;
             globalToken = token;
 
             if (!hasSynced) {
               hasSynced = true;
               const userData = await syncUserWithBackend(token);
-              if (!cancelled) {
+              if (
+                !cancelled
+                && eventGeneration === authStateGeneration
+                && getFirebaseAuth()?.currentUser?.uid === firebaseUser.uid
+              ) {
                 if (userData) {
                   setUser(userData);
                   setCachedUser(userData);
@@ -136,7 +153,11 @@ export function useAuth() {
                 }
               }
             } else {
-              if (!cancelled) {
+              if (
+                !cancelled
+                && eventGeneration === authStateGeneration
+                && getFirebaseAuth()?.currentUser?.uid === firebaseUser.uid
+              ) {
                 loadingResolved = true;
                 clearTimeout(authTimeout);
                 setIsLoading(false);
@@ -144,7 +165,11 @@ export function useAuth() {
             }
           } catch (err) {
             console.warn("Token refresh failed, clearing session:", err);
-            if (!cancelled) {
+            if (
+              !cancelled
+              && eventGeneration === authStateGeneration
+              && getFirebaseAuth()?.currentUser?.uid === firebaseUser.uid
+            ) {
               await firebaseLogout().catch(() => {});
               setUser(null);
               setCachedUser(null);
@@ -217,6 +242,7 @@ export function useAuth() {
         };
 
         let actualLevel: number;
+        let isAdminAccount = false;
         try {
           const token = await getIdToken();
           if (!token) throw new Error("Missing authentication token");
@@ -227,6 +253,7 @@ export function useAuth() {
           const account = await response.json();
           actualLevel = Number(account.level);
           if (!Number.isFinite(actualLevel)) throw new Error("Invalid account level");
+          isAdminAccount = account.profileRole === "admin" || actualLevel >= 4;
         } catch {
           await clearUnverifiedSession();
           throw Object.assign(
@@ -235,15 +262,20 @@ export function useAuth() {
           );
         }
 
+        const isHostAdminAccount = isAdminAccount || actualLevel >= 3;
         const accountTypeMatches = inviteToken
-          ? actualLevel === expectedAccountLevel
+          ? expectedAccountLevel >= 4
+            ? isAdminAccount
+            : expectedAccountLevel === 3
+              ? actualLevel === 3 && !isAdminAccount
+              : actualLevel === expectedAccountLevel && !isAdminAccount
           : expectedAccountLevel === 3
-            ? actualLevel >= 3
-            : actualLevel === expectedAccountLevel;
+            ? isHostAdminAccount
+            : !isAdminAccount && actualLevel === expectedAccountLevel;
 
         if (!accountTypeMatches) {
           await clearUnverifiedSession();
-          const actualType = actualLevel >= 4
+          const actualType = isAdminAccount
             ? "Admin"
             : actualLevel === 3
               ? "Host"
@@ -253,14 +285,23 @@ export function useAuth() {
                   ? "Viewer"
                   : "unknown";
           const selectedType = inviteToken
-            ? actualLevel >= 4 ? "Admin" : expectedAccountLevel === 3 ? "Host" : "Artist / Competitor"
+            ? expectedAccountLevel >= 4
+              ? "Admin"
+              : expectedAccountLevel === 3
+                ? "Host"
+                : expectedAccountLevel === 2
+                  ? "Artist / Competitor"
+                  : "Viewer"
             : expectedAccountLevel === 3
               ? "Host/Admin"
               : expectedAccountLevel === 2
                 ? "Artist / Competitor"
                 : "Viewer";
+          const mismatchMessage = inviteToken
+            ? `This invitation requires the ${selectedType} account type. Your account is ${actualType}.`
+            : `This account is registered as ${actualType}. Select ${selectedType} and try again.`;
           throw Object.assign(
-            new Error(`This is a ${actualType} account. Select ${selectedType} and try again.`),
+            new Error(mismatchMessage),
             { code: "auth/account-type-mismatch" },
           );
         }
