@@ -235,6 +235,7 @@ export function useAuth() {
     acknowledgements?: {
       competitionEntryFeesAcknowledged?: boolean;
       hostEventFeesAcknowledged?: boolean;
+      referralCode?: string;
     },
   ) => {
     setError(null);

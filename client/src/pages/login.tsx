@@ -14,8 +14,6 @@ import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { Mail } from "lucide-react";
-import { useViewerSession } from "@/hooks/use-viewer-session";
-import { apiRequest } from "@/lib/queryClient";
 
 type Mode = "login" | "register" | "reset";
 
@@ -52,7 +50,6 @@ function getAuthDestination(search: string): string {
 
 export default function LoginPage() {
   const { login, register, resetPassword, isAuthenticated, error } = useAuth();
-  const { loginViewer, isViewerLoggedIn } = useViewerSession();
   const [currentLocation, setLocation] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
@@ -60,25 +57,28 @@ export default function LoginPage() {
 
   const params = new URLSearchParams(search);
   const inviteToken = params.get("invite") || "";
-  const requiresAccount = params.get("requireAccount") === "1";
   const isRegisterPath = currentLocation === "/register";
   const requestedLevel = Number(params.get("level"));
-  const initialLevel = requiresAccount
-    ? 1
-    : [1, 2, 3].includes(requestedLevel)
-      ? requestedLevel
-      : isRegisterPath ? 1 : 2;
+  const initialLevel = [1, 2, 3].includes(requestedLevel) ? requestedLevel : 1;
 
   const [mode, setMode] = useState<Mode>(inviteToken ? "login" : isRegisterPath ? "register" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [viewerName, setViewerName] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<number>(initialLevel);
   const [competitionEntryFeesAcknowledged, setCompetitionEntryFeesAcknowledged] = useState(false);
   const [hostEventFeesAcknowledged, setHostEventFeesAcknowledged] = useState(false);
-  const [viewerLoginType, setViewerLoginType] = useState<"registered" | "guest">("registered");
+  const [referralCode, setReferralCode] = useState(() => {
+    const urlCode = params.get("referralCode") || params.get("ref");
+    if (urlCode) return urlCode.trim().toUpperCase();
+    try {
+      return localStorage.getItem("hfc_ref")?.trim().toUpperCase() || "";
+    } catch {
+      return "";
+    }
+  });
+  const [referralCodeTouched, setReferralCodeTouched] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { data: inviteInfo } = useQuery<InviteInfo>({
@@ -86,11 +86,24 @@ export default function LoginPage() {
     enabled: !!inviteToken,
   });
 
-  const accountLevel = requiresAccount ? 1 : inviteInfo?.targetLevel ?? selectedLevel;
-  const accountTypeLocked = requiresAccount || Boolean(inviteToken);
+  const competitionIdForReferral = params.get("competitionId");
+  const contestantIdForReferral = params.get("contestantId");
+  const { data: targetReferralData } = useQuery<{ code: string | null }>({
+    queryKey: ["/api/competitions", competitionIdForReferral, "contestants", contestantIdForReferral, "referral-code"],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/competitions/${encodeURIComponent(competitionIdForReferral!)}/contestants/${encodeURIComponent(contestantIdForReferral!)}/referral-code`,
+      );
+      if (!response.ok) throw new Error("Could not load the contestant referral code");
+      return response.json();
+    },
+    enabled: !!competitionIdForReferral && !!contestantIdForReferral && !referralCode,
+    staleTime: 60 * 60_000,
+  });
+
+  const accountLevel = inviteInfo?.targetLevel ?? selectedLevel;
+  const accountTypeLocked = Boolean(inviteToken);
   const isViewerMode = accountLevel === 1;
-  // Guest voter = no password, just name+email lookup. Registered = Firebase Auth level-1.
-  const isGuestViewerMode = isViewerMode && mode === "login" && viewerLoginType === "guest" && !requiresAccount;
 
   useSEO({
     title: inviteInfo?.competition?.title
@@ -111,18 +124,33 @@ export default function LoginPage() {
   }, [inviteInfo]);
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(search);
+    const incomingCode = searchParams.get("referralCode")
+      || searchParams.get("ref");
+    if (incomingCode) {
+      try {
+        localStorage.setItem("hfc_ref", incomingCode.trim().toUpperCase());
+      } catch {}
+    }
+  }, [search]);
+
+  useEffect(() => {
+    const code = targetReferralData?.code?.trim().toUpperCase();
+    if (code && !referralCodeTouched && !referralCode) {
+      setReferralCode(code);
+      try {
+        localStorage.setItem("hfc_ref", code);
+      } catch {}
+    }
+  }, [targetReferralData?.code, referralCode, referralCodeTouched]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       setLocation(getAuthDestination(search));
     }
   }, [isAuthenticated, search, setLocation]);
 
-  useEffect(() => {
-    if (isViewerLoggedIn && !requiresAccount) {
-      setLocation("/viewer");
-    }
-  }, [isViewerLoggedIn, requiresAccount, setLocation]);
-
-  if (isAuthenticated || (isViewerLoggedIn && !requiresAccount)) {
+  if (isAuthenticated) {
     return null;
   }
 
@@ -155,23 +183,6 @@ export default function LoginPage() {
         }
       }
 
-      if (isGuestViewerMode) {
-        if (!viewerName.trim()) {
-          toast({ title: "Please enter your full name", variant: "destructive" });
-          setLoading(false);
-          return;
-        }
-        const res = await apiRequest("POST", "/api/guest/lookup", {
-          name: viewerName.trim(),
-          email: email.trim(),
-        });
-        const data = await res.json();
-        loginViewer(data.viewer);
-        toast({ title: "Welcome back!", description: `Signed in as ${data.viewer.displayName}` });
-        setLocation("/viewer");
-        return;
-      }
-
       if (mode === "login") {
         await login(email, password, inviteToken || undefined);
         toast({ title: "Welcome back!", description: "You have been logged in." });
@@ -188,9 +199,15 @@ export default function LoginPage() {
           return;
         }
         const registerLevel = inviteToken ? undefined : accountLevel;
+        const normalizedReferralCode = referralCode.trim().toUpperCase();
+        try {
+          if (normalizedReferralCode) localStorage.setItem("hfc_ref", normalizedReferralCode);
+          else localStorage.removeItem("hfc_ref");
+        } catch {}
         await register(email, password, displayName.trim(), inviteToken || undefined, registerLevel, {
           competitionEntryFeesAcknowledged,
           hostEventFeesAcknowledged,
+          referralCode: normalizedReferralCode || undefined,
         });
         toast({ title: "Account created!", description: "Welcome to the platform." });
         setLocation(destination);
@@ -319,17 +336,15 @@ export default function LoginPage() {
                 </Select>
               )}
               <p className="mt-1.5 text-xs text-white/45">
-                {requiresAccount
-                  ? "Voting requires a Viewer account."
-                  : inviteToken
-                    ? "Your invitation sets this account type."
-                    : accountLevel === 1
-                      ? "Browse and vote on your favorite contestants."
-                      : accountLevel === 2
-                        ? "Create an artist profile and enter competitions."
-                        : accountLevel === 3
-                          ? "Create a Host account to submit event proposals."
-                          : ""}
+                {inviteToken
+                  ? "Your invitation sets this account type."
+                  : accountLevel === 1
+                    ? "Browse and vote on your favorite contestants."
+                    : accountLevel === 2
+                      ? "Create an artist profile and enter competitions."
+                      : accountLevel === 3
+                        ? "Create a Host account to submit event proposals."
+                        : ""}
               </p>
             </div>
           )}
@@ -370,49 +385,32 @@ export default function LoginPage() {
             />
           </div>
 
-          {mode !== "reset" && mode === "login" && isViewerMode && !requiresAccount && (
-            <div className="space-y-3">
-              {/* Registered vs Guest toggle */}
-              <div className="flex rounded-lg overflow-hidden border border-white/15">
-                <button
-                  type="button"
-                  onClick={() => setViewerLoginType("registered")}
-                  className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${viewerLoginType === "registered" ? "bg-orange-500 text-white" : "bg-white/[0.05] text-white/40 hover:text-white/70"}`}
-                >
-                  I have an account
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewerLoginType("guest")}
-                  className={`flex-1 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${viewerLoginType === "guest" ? "bg-orange-500 text-white" : "bg-white/[0.05] text-white/40 hover:text-white/70"}`}
-                >
-                  I voted as a guest
-                </button>
-              </div>
-              {isGuestViewerMode && (
-                <div>
-                  <Label htmlFor="viewerName" className="text-white/60 uppercase text-xs tracking-wider">
-                    Full Name
-                  </Label>
-                  <Input
-                    id="viewerName"
-                    type="text"
-                    value={viewerName}
-                    onChange={(e) => setViewerName(e.target.value)}
-                    className="bg-white/[0.08] border-white/20 text-white mt-2"
-                    placeholder="Name you used at checkout"
-                    required
-                    data-testid="input-viewer-name"
-                  />
-                  <p className="text-white/30 text-xs mt-1.5">
-                    Enter the name and email you used when purchasing votes
-                  </p>
-                </div>
-              )}
+          {mode === "register" && (
+            <div>
+              <Label htmlFor="referral-code" className="text-white/60 uppercase text-xs tracking-wider">
+                Promo / Referral Key (Optional)
+              </Label>
+              <Input
+                id="referral-code"
+                type="text"
+                value={referralCode}
+                onChange={(event) => {
+                  setReferralCodeTouched(true);
+                  setReferralCode(event.target.value.toUpperCase());
+                }}
+                className="mt-2 bg-white/[0.08] text-white"
+                placeholder="Enter a promo or referral key"
+                autoComplete="off"
+                maxLength={20}
+                data-testid="input-registration-referral-code"
+              />
+              <p className="mt-1.5 text-xs text-white/45">
+                Referral links and the contestant you’re voting for can fill this in automatically.
+              </p>
             </div>
           )}
 
-          {mode !== "reset" && !(isGuestViewerMode) && (
+          {mode !== "reset" && (
             <div>
               <Label htmlFor="password" className="text-white/60 uppercase text-xs tracking-wider">
                 Password
@@ -465,7 +463,7 @@ export default function LoginPage() {
                 htmlFor="competition-entry-fees-acknowledged"
                 className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
               >
-                I understand that entering some competitions may require an entry fee.
+                I understand that being nominated or entering competitions may require a nomination or registration fee.
               </Label>
             </div>
           )}
@@ -528,14 +526,6 @@ export default function LoginPage() {
                 Forgot your password?
               </button>
 
-              {isViewerMode && !requiresAccount && (
-                <div className="pt-6 border-t border-white/10 mt-6">
-                  <p className="text-white/30 text-xs uppercase tracking-wider mb-2">Voter?</p>
-                  <p className="text-white/40 text-sm">
-                    Select "Viewer" above and sign in with the name and email you used at checkout
-                  </p>
-                </div>
-              )}
             </>
           )}
           {mode === "register" && (

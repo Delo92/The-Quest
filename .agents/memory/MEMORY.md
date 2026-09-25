@@ -23,7 +23,7 @@
 - [Chronic Brands promotion rules](chronic-brands-promotion.md) — per-event ticket URLs override the global fallback; preserve contestant tracking and separate host referrals
 - [Firebase Storage access](firebase-storage-access.md) — restore project storage access before changing UI media rendering; disabled billing makes stored media URLs fail
 - [Stage voting isolation](stage-voting-isolation.md) — stage vote records and legacy cumulative totals use separate count keys and query paths
-- [Competition share links](competition-share-links.md) — public page and root-domain referral URLs both need to stay available to hosts
+- [Competition share links](competition-share-links.md) — preserve inbound `?ref`; keep host, contestant vote-referral, and ticket promo codes distinct
 - [Host platform referral codes](host-platform-referral-codes.md) — every host should have a global `?ref=CODE` link separate from competition-specific codes
 - [Centralized error logging](chronicdocs-error-logging.md) — ChronicDocs logging behavior is ported onto The Quest's own Firestore helper and identity model
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic

@@ -784,7 +784,12 @@ export default function ContestantSharePage() {
         </div>
 
         <SiteFooter />
-        <VoteAuthDialog open={voteAuthOpen} onOpenChange={setVoteAuthOpen} />
+        <VoteAuthDialog
+          open={voteAuthOpen}
+          onOpenChange={setVoteAuthOpen}
+          competitionId={data?.competition?.id ?? null}
+          contestantId={data?.contestant?.id ?? null}
+        />
       </div>
     </div>
   );

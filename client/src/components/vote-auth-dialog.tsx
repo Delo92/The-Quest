@@ -11,6 +11,8 @@ import { Link, useLocation } from "wouter";
 interface VoteAuthDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  competitionId?: number | null;
+  contestantId?: number | null;
 }
 
 export function isVoteAuthenticationError(error: unknown): boolean {
@@ -19,14 +21,27 @@ export function isVoteAuthenticationError(error: unknown): boolean {
     || /\b(?:unauthenticated|authentication required|login required)\b/i.test(message);
 }
 
-export function VoteAuthDialog({ open, onOpenChange }: VoteAuthDialogProps) {
+export function VoteAuthDialog({ open, onOpenChange, competitionId, contestantId }: VoteAuthDialogProps) {
   const [location] = useLocation();
   const returnTo = `${location}${window.location.search}`;
-  const authQuery = new URLSearchParams({
-    level: "1",
-    requireAccount: "1",
-    returnTo,
-  }).toString();
+  const authParams = new URLSearchParams({ returnTo });
+  if (competitionId) authParams.set("competitionId", String(competitionId));
+  if (contestantId) authParams.set("contestantId", String(contestantId));
+
+  const currentParams = new URLSearchParams(window.location.search);
+  let existingReferralCode =
+    currentParams.get("referralCode")
+    || currentParams.get("ref");
+  if (!existingReferralCode) {
+    try {
+      existingReferralCode = localStorage.getItem("hfc_ref");
+    } catch {
+      existingReferralCode = null;
+    }
+  }
+  if (existingReferralCode) authParams.set("referralCode", existingReferralCode);
+
+  const authQuery = authParams.toString();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,7 +51,7 @@ export function VoteAuthDialog({ open, onOpenChange }: VoteAuthDialogProps) {
             Log in or create an account to vote
           </DialogTitle>
           <DialogDescription className="text-white/60">
-            Sign in to cast your vote. You’ll return to this competition afterward.
+            An account is required to cast a vote. You’ll return to this competition afterward.
           </DialogDescription>
         </DialogHeader>
 

@@ -192,6 +192,7 @@ export default function CompetitionDetailPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);
+  const [voteAuthContestantId, setVoteAuthContestantId] = useState<number | null>(null);
 
   const voteSource = useMemo(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -258,8 +259,9 @@ export default function CompetitionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/competitions", id, "stages", activeStageId, "leaderboard"] });
       toast({ title: "Vote cast!", description: "Your vote has been recorded." });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables: { contestantId: number; stageId?: string }) => {
       if (isVoteAuthenticationError(error)) {
+        setVoteAuthContestantId(variables.contestantId);
         setVoteAuthOpen(true);
         return;
       }
@@ -823,6 +825,7 @@ export default function CompetitionDetailPage() {
                               e.preventDefault();
                               e.stopPropagation();
                               if (!user) {
+                                setVoteAuthContestantId(contestant.id);
                                 setVoteAuthOpen(true);
                                 return;
                               }
@@ -880,7 +883,12 @@ export default function CompetitionDetailPage() {
       </div>
 
       <SiteFooter />
-      <VoteAuthDialog open={voteAuthOpen} onOpenChange={setVoteAuthOpen} />
+      <VoteAuthDialog
+        open={voteAuthOpen}
+        onOpenChange={setVoteAuthOpen}
+        competitionId={competition?.id ?? null}
+        contestantId={voteAuthContestantId}
+      />
     </div>
   );
 }

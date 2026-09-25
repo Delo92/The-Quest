@@ -1224,7 +1224,7 @@ export async function registerRoutes(
       }
 
       if (level === 2 && competitionEntryFeesAcknowledged !== true) {
-        return res.status(400).json({ message: "Please confirm that some competitions may require an entry fee" });
+        return res.status(400).json({ message: "Please acknowledge that being nominated or entering competitions may require a nomination or registration fee" });
       }
       if (level === 3 && hostEventFeesAcknowledged !== true) {
         return res.status(400).json({ message: "Please confirm that hosting an event may require a fee" });
@@ -1766,6 +1766,51 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Competition share link error:", error);
       res.status(500).json({ message: "Failed to create competition share link" });
+    }
+  });
+
+  app.get("/api/competitions/:competitionId/contestants/:contestantId/referral-code", async (req, res) => {
+    try {
+      const competitionId = parseInt(req.params.competitionId);
+      const contestantId = parseInt(req.params.contestantId);
+      if (isNaN(competitionId) || isNaN(contestantId)) {
+        return res.status(400).json({ message: "Invalid competition or contestant ID" });
+      }
+
+      const contestant = await firestoreContestants.getById(contestantId);
+      if (
+        !contestant
+        || contestant.competitionId !== competitionId
+        || contestant.applicationStatus !== "approved"
+      ) {
+        return res.status(404).json({ code: null });
+      }
+
+      const existingCodes = await firestoreReferrals.getCodesByContestant(contestantId);
+      const activeCodes = existingCodes.filter((code) => !code.aliasFor);
+      const matchingCode = activeCodes.find((code) => code.competitionId === competitionId)
+        || activeCodes.find((code) => code.competitionIds?.includes(competitionId));
+      if (matchingCode) return res.json({ code: matchingCode.code });
+
+      const talentProfile = await storage.getTalentProfile(contestant.talentProfileId);
+      if (!talentProfile?.userId) return res.json({ code: null });
+
+      const referral = await firestoreReferrals.generateCode(
+        talentProfile.userId,
+        "talent",
+        talentProfile.stageName || talentProfile.displayName,
+        talentProfile.id,
+        {
+          competitionId,
+          competitionIds: [competitionId],
+          contestantId,
+          skipDuplicateCheck: true,
+        },
+      );
+      res.json({ code: referral.code });
+    } catch (error: any) {
+      console.error("Contestant referral code lookup error:", error);
+      res.status(500).json({ message: "Failed to load contestant referral code" });
     }
   });
 

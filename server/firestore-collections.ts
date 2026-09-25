@@ -1603,6 +1603,11 @@ export const firestoreReferrals = {
     return snapshot.docs.map(d => d.data() as FirestoreReferralCode);
   },
 
+  async getCodesByContestant(contestantId: number): Promise<FirestoreReferralCode[]> {
+    const snapshot = await db().collection(COLLECTIONS.REFERRAL_CODES).where("contestantId", "==", contestantId).get();
+    return snapshot.docs.map(d => d.data() as FirestoreReferralCode);
+  },
+
   async resolveCode(code: string): Promise<FirestoreReferralCode | null> {
     const doc = await db().collection(COLLECTIONS.REFERRAL_CODES).doc(code).get();
     if (!doc.exists) return null;
