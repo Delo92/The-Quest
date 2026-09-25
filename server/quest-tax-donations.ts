@@ -1,10 +1,8 @@
 import type { Express } from "express";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { PDFDocument } from "pdf-lib";
 import { firebaseAuth, requireAdmin } from "./auth-middleware";
 import { decrypt, encrypt, isEncryptionKeySet } from "./encryption";
-import { getFirestore } from "./firebase-admin";
+import { getFirebaseStorage, getFirestore } from "./firebase-admin";
 import { storage } from "./storage";
 
 const TAX_PROFILES = "questTaxProfiles";
@@ -14,7 +12,8 @@ const LEDGER = "questPayoutLedger";
 const TRANSACTIONS = "questPayrollTransactions";
 const DISBURSEMENTS = "questNonprofitDisbursements";
 const AUDIT = "questTaxDonationAuditEvents";
-const IRS_FORM_FILE = "1099_form_1790278740415.pdf";
+const RECIPIENT_1099_TEMPLATE_DOC = "recipient1099Template";
+const RECIPIENT_1099_TEMPLATE_PREFIX = "questTaxTemplates/1099-NEC/";
 const RECIPIENT_COPY_PAGE_INDEX = 3;
 
 type TaxData = {
@@ -146,6 +145,33 @@ function isPayerReady(payer: any) {
 async function getPayerSettings() {
   const snapshot = await getFirestore().collection(TAX_SETTINGS).doc("payer").get();
   return snapshot.exists ? snapshot.data() || {} : {};
+}
+
+async function getRecipient1099TemplateBytes(): Promise<Buffer> {
+  const settings = await getFirestore()
+    .collection(TAX_SETTINGS)
+    .doc(RECIPIENT_1099_TEMPLATE_DOC)
+    .get();
+  const storagePath = clean(settings.data()?.storagePath, 500);
+  if (
+    !settings.exists
+    || !storagePath.startsWith(RECIPIENT_1099_TEMPLATE_PREFIX)
+    || storagePath.split("/").includes("..")
+  ) {
+    throw new Error("The recipient 1099-NEC template is not configured in Firebase.");
+  }
+
+  let bytes: Buffer;
+  try {
+    [bytes] = await getFirebaseStorage().bucket().file(storagePath).download();
+  } catch (error) {
+    console.error("Could not read the recipient 1099-NEC template from Firebase Storage:", error);
+    throw new Error("The recipient 1099-NEC template could not be loaded from Firebase Storage.");
+  }
+  if (bytes.length < 5 || bytes.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    throw new Error("The configured recipient 1099-NEC template in Firebase Storage is not a valid PDF.");
+  }
+  return bytes;
 }
 
 async function paidGrossCentsForProfile(userId: string, profileId: number, year: number) {
@@ -613,20 +639,14 @@ export function registerQuestTaxAndDonations(app: Express) {
       }
       const payerEin = decrypt(String(payer.payerTinEncrypted));
       const amountCents = await paidGrossCentsForProfile(uid, Number(profile.id), year);
-      const templatePaths = [
-        join(process.cwd(), "attached_assets", IRS_FORM_FILE),
-        join(process.cwd(), "dist", "attached_assets", IRS_FORM_FILE),
-      ];
-      let templateBytes: Buffer | null = null;
-      for (const templatePath of templatePaths) {
-        try {
-          templateBytes = await readFile(templatePath);
-          break;
-        } catch {
-          // Try the build-output copy of the same IRS template.
-        }
+      let templateBytes: Buffer;
+      try {
+        templateBytes = await getRecipient1099TemplateBytes();
+      } catch (error: any) {
+        return res.status(503).json({
+          message: error?.message || "The recipient 1099-NEC template could not be loaded from Firebase.",
+        });
       }
-      if (!templateBytes) return res.status(500).json({ message: "The recipient 1099-NEC template is unavailable." });
 
       const pdf = await PDFDocument.load(templateBytes);
       const form = pdf.getForm();

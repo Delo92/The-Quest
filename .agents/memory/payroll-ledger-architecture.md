@@ -15,8 +15,8 @@ Host accounts use the same encrypted, versioned tax-record contract as talent ac
 
 **How to apply:** Permit host-role profiles in personal tax routes and use owned competition IDs to supply deadlines. Continue matching gross by stable profile/user IDs and reporting it by the ledger paid year.
 
-Keep the recipient 1099 template in a Git-tracked source-assets directory, not `attached_assets/`, which this project ignores. The production build copies the tracked template into `dist/attached_assets/` for PDF generation.
+Keep the recipient 1099-NEC PDF in Firebase Storage and use Firestore metadata to select its active object and version. The server must load the template from Firebase for every export; do not bundle it or fall back to a local asset.
 
-**Why:** Local builds can succeed using ignored uploaded assets while a clean Render checkout omits them and fails during the copy step.
+**Why:** The user explicitly wants this template read from Firebase so it persists independently of local files and deployment packaging. Firebase Storage is the binary store; Firestore holds the active-template metadata.
 
-**How to apply:** When updating the IRS form template, replace the tracked source copy and confirm the build output contains the same file.
+**How to apply:** Upload the PDF privately to Firebase Storage, update the Firestore metadata when changing templates, and fail clearly if either the metadata or object is unavailable.

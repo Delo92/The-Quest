@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { copyFile, mkdir, rm, readFile } from "fs/promises";
+import { rm, readFile } from "fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -37,13 +37,6 @@ async function buildAll() {
 
   console.log("building client...");
   await viteBuild();
-
-  console.log("copying recipient 1099-NEC template...");
-  await mkdir("dist/attached_assets", { recursive: true });
-  await copyFile(
-    "server/assets/1099_form_1790278740415.pdf",
-    "dist/attached_assets/1099_form_1790278740415.pdf",
-  );
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
