@@ -1345,7 +1345,6 @@ export async function registerRoutes(
 
       const profile = await storage.getTalentProfileByUserId(uid);
 
-      const hostSocialLinks = (host as any).socialLinks || user?.socialLinks;
       res.json({
         uid,
         email: firestoreUser.email,
@@ -7426,6 +7425,7 @@ export async function registerRoutes(
           endDate: competition.endDate,
         }));
 
+      const hostSocialLinks = (host as any).socialLinks || user?.socialLinks;
       res.json({
         host: {
           id: host.id,

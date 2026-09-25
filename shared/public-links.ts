@@ -38,11 +38,11 @@ export function parseCustomPublicLinks(value: unknown): Array<{ label: string; u
   const customLinks = parseSocialLinksRecord(value).customLinks;
   if (!Array.isArray(customLinks)) return [];
 
-  return customLinks.slice(0, 5).flatMap((item) => {
+  return customLinks.flatMap((item) => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return [];
     const link = item as Record<string, unknown>;
     const label = typeof link.label === "string" ? link.label.trim().slice(0, 30) : "";
     const url = safeExternalHttpUrl(link.url);
     return label && url ? [{ label, url }] : [];
-  });
+  }).slice(0, 5);
 }

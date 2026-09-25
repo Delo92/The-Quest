@@ -126,8 +126,6 @@ export default function LoginPage() {
 
   const accountLevel = inviteInfo?.targetLevel ?? selectedLevel;
   const accountTypeLocked = Boolean(inviteToken);
-  const isViewerMode = accountLevel === 1;
-
   useSEO({
     title: inviteInfo?.competition?.title
       ? `Log in to ${inviteInfo.competition.title}`
@@ -341,7 +339,16 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {((mode === "login" && !inviteToken) || mode === "register") && (
+          {mode === "login" && !inviteToken && (
+            <div
+              className="rounded-md border border-orange-500/20 bg-orange-500/[0.06] px-4 py-3 text-sm text-white/70"
+              data-testid="login-account-routing-note"
+            >
+              Admins, hosts, artists, and viewers all sign in here with their account email and password. You’ll be sent to the dashboard for your account.
+            </div>
+          )}
+
+          {mode === "register" && (
             <div>
               <Label htmlFor="select-account-type" className="text-white/60 uppercase text-xs tracking-wider">
                 Account Type
@@ -547,7 +554,7 @@ export default function LoginPage() {
             style={{ borderRadius: 0 }}
             data-testid="button-auth-submit"
           >
-            {loading ? "Please wait..." : mode === "login" && isViewerMode ? "SIGN IN" : mode === "login" ? "LOGIN" : mode === "register" ? "CREATE ACCOUNT" : "SEND RESET EMAIL"}
+            {loading ? "Please wait..." : mode === "login" ? "SIGN IN" : mode === "register" ? "CREATE ACCOUNT" : "SEND RESET EMAIL"}
           </Button>
         </form>
 
