@@ -195,10 +195,77 @@ export function useAuth() {
     };
   }, [syncUserWithBackend]);
 
-  const login = useCallback(async (email: string, password: string, inviteToken?: string) => {
+  const login = useCallback(async (
+    email: string,
+    password: string,
+    inviteToken?: string,
+    expectedAccountLevel?: number,
+  ) => {
     setError(null);
     try {
       await firebaseLogin(email, password);
+
+      if (expectedAccountLevel !== undefined) {
+        const clearUnverifiedSession = async () => {
+          setUser(null);
+          setCachedUser(null);
+          globalToken = null;
+          await firebaseLogout().catch(() => {});
+          setUser(null);
+          setCachedUser(null);
+          globalToken = null;
+        };
+
+        let actualLevel: number;
+        try {
+          const token = await getIdToken();
+          if (!token) throw new Error("Missing authentication token");
+          const response = await fetch("/api/auth/user", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!response.ok) throw new Error("Account lookup failed");
+          const account = await response.json();
+          actualLevel = Number(account.level);
+          if (!Number.isFinite(actualLevel)) throw new Error("Invalid account level");
+        } catch {
+          await clearUnverifiedSession();
+          throw Object.assign(
+            new Error("Could not verify your account type. Please sign in again."),
+            { code: "auth/account-type-check-failed" },
+          );
+        }
+
+        const accountTypeMatches = inviteToken
+          ? actualLevel === expectedAccountLevel
+          : expectedAccountLevel === 3
+            ? actualLevel >= 3
+            : actualLevel === expectedAccountLevel;
+
+        if (!accountTypeMatches) {
+          await clearUnverifiedSession();
+          const actualType = actualLevel >= 4
+            ? "Admin"
+            : actualLevel === 3
+              ? "Host"
+              : actualLevel === 2
+                ? "Artist / Competitor"
+                : actualLevel === 1
+                  ? "Viewer"
+                  : "unknown";
+          const selectedType = inviteToken
+            ? actualLevel >= 4 ? "Admin" : expectedAccountLevel === 3 ? "Host" : "Artist / Competitor"
+            : expectedAccountLevel === 3
+              ? "Host/Admin"
+              : expectedAccountLevel === 2
+                ? "Artist / Competitor"
+                : "Viewer";
+          throw Object.assign(
+            new Error(`This is a ${actualType} account. Select ${selectedType} and try again.`),
+            { code: "auth/account-type-mismatch" },
+          );
+        }
+      }
+
       if (inviteToken) {
         const token = await getIdToken();
         if (token) {
@@ -216,7 +283,8 @@ export function useAuth() {
         }
       }
     } catch (err: any) {
-      const msg = err.code === "auth/user-not-found" ? "No account found with this email"
+      const msg = err.code === "auth/account-type-mismatch" || err.code === "auth/account-type-check-failed" ? err.message
+        : err.code === "auth/user-not-found" ? "No account found with this email"
         : err.code === "auth/wrong-password" ? "Incorrect password"
         : err.code === "auth/invalid-credential" ? "Invalid email or password"
         : err.code === "auth/too-many-requests" ? "Too many attempts. Try again later."

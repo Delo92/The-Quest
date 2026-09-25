@@ -13,6 +13,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
+import { getIdToken } from "@/lib/firebase";
 import { Mail } from "lucide-react";
 
 type Mode = "login" | "register" | "reset";
@@ -49,7 +50,7 @@ function getAuthDestination(search: string): string {
 }
 
 export default function LoginPage() {
-  const { login, register, resetPassword, isAuthenticated, error } = useAuth();
+  const { login, register, resetPassword, logout, isAuthenticated, error } = useAuth();
   const [currentLocation, setLocation] = useLocation();
   const search = useSearch();
   const { toast } = useToast();
@@ -171,12 +172,12 @@ export default function LoginPage() {
   }, [targetReferralData?.code, referralCode, referralCodeTouched, competitionIdForReferral, contestantIdForReferral]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !loading) {
       setLocation(getAuthDestination(search));
     }
-  }, [isAuthenticated, search, setLocation]);
+  }, [isAuthenticated, loading, search, setLocation]);
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !loading) {
     return null;
   }
 
@@ -210,7 +211,46 @@ export default function LoginPage() {
       }
 
       if (mode === "login") {
+        if (inviteToken && !inviteInfo) {
+          toast({ title: "Please wait for your invitation details to load", variant: "destructive" });
+          return;
+        }
+
         await login(email, password, inviteToken || undefined);
+
+        const token = await getIdToken();
+        if (!token) {
+          await logout();
+          throw new Error("Could not verify your account type. Please sign in again.");
+        }
+
+        const accountResponse = await fetch("/api/auth/user", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!accountResponse.ok) {
+          await logout();
+          throw new Error("Could not verify your account type. Please sign in again.");
+        }
+
+        const authenticatedAccount = await accountResponse.json();
+        const actualLevel = Number(authenticatedAccount.level);
+        const accountTypeMatches = inviteToken
+          ? actualLevel === accountLevel
+          : selectedLevel === 3
+            ? actualLevel >= 3
+            : actualLevel === selectedLevel;
+
+        if (!Number.isFinite(actualLevel) || !accountTypeMatches) {
+          await logout();
+          const actualType = actualLevel >= 4 ? "Admin" : LEVEL_LABELS[actualLevel] || "unknown";
+          const selectedType = inviteToken
+            ? LEVEL_LABELS[accountLevel] || "invited"
+            : selectedLevel === 3
+              ? "Host/Admin"
+              : LEVEL_LABELS[selectedLevel] || "selected";
+          throw new Error(`This is a ${actualType} account. Select ${selectedType} and try again.`);
+        }
+
         toast({ title: "Welcome back!", description: "You have been logged in." });
         setLocation(destination);
       } else if (mode === "register") {
@@ -344,11 +384,11 @@ export default function LoginPage() {
               className="rounded-md border border-orange-500/20 bg-orange-500/[0.06] px-4 py-3 text-sm text-white/70"
               data-testid="login-account-routing-note"
             >
-              Admins, hosts, artists, and viewers all sign in here with their account email and password. You’ll be sent to the dashboard for your account.
+              Select the account type that matches your sign-in. Choose Host/Admin for either a host or administrator account.
             </div>
           )}
 
-          {mode === "register" && (
+          {((mode === "login" && !inviteToken) || mode === "register") && (
             <div>
               <Label htmlFor="select-account-type" className="text-white/60 uppercase text-xs tracking-wider">
                 Account Type
@@ -386,7 +426,7 @@ export default function LoginPage() {
                       Artist / Competitor
                     </SelectItem>
                     <SelectItem value="3" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-host">
-                      Host
+                      {mode === "login" ? "Host / Admin" : "Host"}
                     </SelectItem>
                   </SelectContent>
                 </Select>
