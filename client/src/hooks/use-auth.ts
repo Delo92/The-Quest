@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   initFirebase,
   firebaseLogin,
-  firebaseRegister,
+  firebaseSignInWithCustomToken,
   firebaseLogout,
   firebaseResetPassword,
   onFirebaseIdTokenChanged,
@@ -226,30 +226,58 @@ export function useAuth() {
     }
   }, []);
 
-  const register = useCallback(async (email: string, password: string, displayName?: string, inviteToken?: string, level?: number) => {
+  const register = useCallback(async (
+    email: string,
+    password: string,
+    displayName?: string,
+    inviteToken?: string,
+    level?: number,
+    acknowledgements?: {
+      competitionEntryFeesAcknowledged?: boolean;
+      hostEventFeesAcknowledged?: boolean;
+    },
+  ) => {
     setError(null);
     try {
-      await firebaseRegister(email, password);
-      const token = await getIdToken();
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          displayName,
+          inviteToken,
+          level,
+          ...acknowledgements,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.message || "Registration failed");
+      }
+      if (typeof result.customToken !== "string" || !result.customToken) {
+        throw new Error("Registration completed without a sign-in token. Please log in.");
+      }
+
+      await firebaseSignInWithCustomToken(result.customToken);
+      const token = await getIdToken(true);
       if (token) {
-        await fetch("/api/auth/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ email, password, displayName, inviteToken, level }),
-        });
+        globalToken = token;
+        const userData = await syncUserWithBackend(token);
+        if (userData) {
+          setUser(userData);
+          setCachedUser(userData);
+        }
       }
     } catch (err: any) {
       const msg = err.code === "auth/email-already-in-use" ? "Email already in use"
         : err.code === "auth/weak-password" ? "Password must be at least 6 characters"
         : err.code === "auth/invalid-email" ? "Invalid email address"
-        : "Registration failed";
+        : err.message || "Registration failed";
       setError(msg);
       throw new Error(msg);
     }
-  }, []);
+  }, [syncUserWithBackend]);
 
   const logout = useCallback(async () => {
     setCachedUser(null);

@@ -4,6 +4,7 @@ import { useLocation, Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,8 +36,9 @@ interface InviteInfo {
 
 const LEVEL_LABELS: Record<number, string> = {
   1: "Viewer",
-  2: "Talent",
+  2: "Artist / Competitor",
   3: "Host",
+  4: "Admin",
 };
 
 function getAuthDestination(search: string): string {
@@ -60,6 +62,12 @@ export default function LoginPage() {
   const inviteToken = params.get("invite") || "";
   const requiresAccount = params.get("requireAccount") === "1";
   const isRegisterPath = currentLocation === "/register";
+  const requestedLevel = Number(params.get("level"));
+  const initialLevel = requiresAccount
+    ? 1
+    : [1, 2, 3].includes(requestedLevel)
+      ? requestedLevel
+      : isRegisterPath ? 1 : 2;
 
   const [mode, setMode] = useState<Mode>(inviteToken ? "login" : isRegisterPath ? "register" : "login");
   const [email, setEmail] = useState("");
@@ -67,18 +75,22 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [viewerName, setViewerName] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState<number>(() => Number(params.get("level")) === 1 ? 1 : 2);
+  const [selectedLevel, setSelectedLevel] = useState<number>(initialLevel);
+  const [competitionEntryFeesAcknowledged, setCompetitionEntryFeesAcknowledged] = useState(false);
+  const [hostEventFeesAcknowledged, setHostEventFeesAcknowledged] = useState(false);
   const [viewerLoginType, setViewerLoginType] = useState<"registered" | "guest">("registered");
   const [loading, setLoading] = useState(false);
-
-  const isViewerMode = selectedLevel === 1;
-  // Guest voter = no password, just name+email lookup. Registered = Firebase Auth level-1.
-  const isGuestViewerMode = isViewerMode && mode === "login" && viewerLoginType === "guest";
 
   const { data: inviteInfo } = useQuery<InviteInfo>({
     queryKey: ["/api/invitations/token", inviteToken],
     enabled: !!inviteToken,
   });
+
+  const accountLevel = requiresAccount ? 1 : inviteInfo?.targetLevel ?? selectedLevel;
+  const accountTypeLocked = requiresAccount || Boolean(inviteToken);
+  const isViewerMode = accountLevel === 1;
+  // Guest voter = no password, just name+email lookup. Registered = Firebase Auth level-1.
+  const isGuestViewerMode = isViewerMode && mode === "login" && viewerLoginType === "guest" && !requiresAccount;
 
   useSEO({
     title: inviteInfo?.competition?.title
@@ -94,6 +106,7 @@ export default function LoginPage() {
     if (inviteInfo) {
       setEmail(inviteInfo.invitedEmail);
       setDisplayName(inviteInfo.invitedName);
+      setSelectedLevel(inviteInfo.targetLevel);
     }
   }, [inviteInfo]);
 
@@ -119,6 +132,29 @@ export default function LoginPage() {
     const destination = getAuthDestination(search);
 
     try {
+      if (mode === "register") {
+        if (inviteToken && !inviteInfo) {
+          toast({ title: "Please wait for your invitation details to load", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        if (!displayName.trim()) {
+          toast({ title: accountLevel === 1 ? "Please enter your name" : "Please enter a display name", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        if (accountLevel === 2 && !competitionEntryFeesAcknowledged) {
+          toast({ title: "Please confirm you understand competition entry fees may apply", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        if (accountLevel === 3 && !hostEventFeesAcknowledged) {
+          toast({ title: "Please confirm you understand hosting fees may apply", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+      }
+
       if (isGuestViewerMode) {
         if (!viewerName.trim()) {
           toast({ title: "Please enter your full name", variant: "destructive" });
@@ -151,8 +187,11 @@ export default function LoginPage() {
           setLoading(false);
           return;
         }
-        const registerLevel = inviteToken ? undefined : selectedLevel;
-        await register(email, password, displayName, inviteToken || undefined, registerLevel);
+        const registerLevel = inviteToken ? undefined : accountLevel;
+        await register(email, password, displayName.trim(), inviteToken || undefined, registerLevel, {
+          competitionEntryFeesAcknowledged,
+          hostEventFeesAcknowledged,
+        });
         toast({ title: "Account created!", description: "Welcome to the platform." });
         setLocation(destination);
       } else if (mode === "reset") {
@@ -236,56 +275,81 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {((mode === "login" && !inviteToken) || mode === "register") && (
+            <div>
+              <Label htmlFor="select-account-type" className="text-white/60 uppercase text-xs tracking-wider">
+                Account Type
+              </Label>
+              {accountTypeLocked ? (
+                <Input
+                  id="select-account-type"
+                  value={LEVEL_LABELS[accountLevel] || "Invitation account"}
+                  readOnly
+                  aria-readonly="true"
+                  className="mt-2 min-h-11 cursor-not-allowed border-white/20 bg-white/[0.08] text-white/80"
+                  data-testid="select-account-type-locked"
+                />
+              ) : (
+                <Select
+                  value={String(accountLevel)}
+                  onValueChange={(value) => {
+                    setSelectedLevel(Number(value));
+                    setCompetitionEntryFeesAcknowledged(false);
+                    setHostEventFeesAcknowledged(false);
+                  }}
+                >
+                  <SelectTrigger
+                    id="select-account-type"
+                    className="mt-2 min-h-11 bg-white/[0.08] text-white"
+                    data-testid="select-account-type"
+                  >
+                    <SelectValue placeholder="Select account type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1a1a1a] border-white/20">
+                    <SelectItem value="1" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-viewer">
+                      Viewer
+                    </SelectItem>
+                    <SelectItem value="2" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-talent">
+                      Artist / Competitor
+                    </SelectItem>
+                    <SelectItem value="3" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-host">
+                      Host
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="mt-1.5 text-xs text-white/45">
+                {requiresAccount
+                  ? "Voting requires a Viewer account."
+                  : inviteToken
+                    ? "Your invitation sets this account type."
+                    : accountLevel === 1
+                      ? "Browse and vote on your favorite contestants."
+                      : accountLevel === 2
+                        ? "Create an artist profile and enter competitions."
+                        : accountLevel === 3
+                          ? "Create a Host account to submit event proposals."
+                          : ""}
+              </p>
+            </div>
+          )}
+
           {mode === "register" && (
             <div>
               <Label htmlFor="displayName" className="text-white/60 uppercase text-xs tracking-wider">
-                Display Name
+                {accountLevel === 1 ? "Name" : accountLevel === 3 ? "Host or Organization Name" : "Display Name"}
               </Label>
               <Input
                 id="displayName"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="bg-white/[0.08] border-white/20 text-white mt-2"
-                placeholder="Your stage name"
+                className="mt-2 bg-white/[0.08] text-white"
+                placeholder={accountLevel === 1 ? "Your full name" : accountLevel === 3 ? "Your name or organization" : "Your artist or stage name"}
+                autoComplete="name"
+                required
                 data-testid="input-display-name"
               />
-            </div>
-          )}
-
-          {((mode === "login" && !inviteToken) || (mode === "register" && !inviteToken)) && (
-            <div>
-              <Label className="text-white/60 uppercase text-xs tracking-wider">
-                Account Type
-              </Label>
-              <Select
-                value={String(selectedLevel)}
-                onValueChange={(val) => setSelectedLevel(Number(val))}
-              >
-                <SelectTrigger
-                  className="bg-white/[0.08] border-white/20 text-white mt-2"
-                  data-testid="select-account-type"
-                >
-                  <SelectValue placeholder="Select account type" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1a1a1a] border-white/20">
-                  <SelectItem value="1" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-viewer">
-                    Viewer
-                  </SelectItem>
-                  <SelectItem value="2" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-talent">
-                    Talent / Competitor
-                  </SelectItem>
-                  <SelectItem value="4" className="text-white focus:bg-white/10 focus:text-white" data-testid="select-item-admin">
-                    Admin
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {mode === "register" && (
-                <p className="text-white/30 text-xs mt-1.5">
-                  {selectedLevel === 1 && "Browse and vote on your favorite contestants"}
-                  {selectedLevel === 2 && "Create a talent profile and apply to competitions"}
-                </p>
-              )}
             </div>
           )}
 
@@ -300,6 +364,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="bg-white/[0.08] border-white/20 text-white mt-2"
               placeholder="your@email.com"
+              autoComplete="email"
               required
               data-testid="input-email"
             />
@@ -359,6 +424,8 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-white/[0.08] border-white/20 text-white mt-2"
                 placeholder="Min 6 characters"
+                autoComplete={mode === "register" ? "new-password" : "current-password"}
+                minLength={mode === "register" ? 6 : undefined}
                 required
                 data-testid="input-password"
               />
@@ -377,9 +444,48 @@ export default function LoginPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="bg-white/[0.08] border-white/20 text-white mt-2"
                 placeholder="Repeat password"
+                autoComplete="new-password"
                 required
                 data-testid="input-confirm-password"
               />
+            </div>
+          )}
+
+          {mode === "register" && accountLevel === 2 && (
+            <div className="flex min-h-12 items-start gap-3 rounded-md border border-white/15 bg-white/[0.03] px-3 py-3">
+              <Checkbox
+                id="competition-entry-fees-acknowledged"
+                checked={competitionEntryFeesAcknowledged}
+                onCheckedChange={(checked) => setCompetitionEntryFeesAcknowledged(checked === true)}
+                aria-required="true"
+                className="mt-0.5 border-white/40 data-[state=checked]:border-[#FF5A09] data-[state=checked]:bg-[#FF5A09]"
+                data-testid="checkbox-competition-entry-fees"
+              />
+              <Label
+                htmlFor="competition-entry-fees-acknowledged"
+                className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
+              >
+                I understand that entering some competitions may require an entry fee.
+              </Label>
+            </div>
+          )}
+
+          {mode === "register" && accountLevel === 3 && (
+            <div className="flex min-h-12 items-start gap-3 rounded-md border border-white/15 bg-white/[0.03] px-3 py-3">
+              <Checkbox
+                id="host-event-fees-acknowledged"
+                checked={hostEventFeesAcknowledged}
+                onCheckedChange={(checked) => setHostEventFeesAcknowledged(checked === true)}
+                aria-required="true"
+                className="mt-0.5 border-white/40 data-[state=checked]:border-[#FF5A09] data-[state=checked]:bg-[#FF5A09]"
+                data-testid="checkbox-host-event-fees"
+              />
+              <Label
+                htmlFor="host-event-fees-acknowledged"
+                className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
+              >
+                I understand that submitting an event to host may require a hosting fee.
+              </Label>
             </div>
           )}
 
@@ -402,7 +508,12 @@ export default function LoginPage() {
           {mode === "login" && (
             <>
               <button
-                onClick={() => setMode("register")}
+                onClick={() => {
+                  setMode("register");
+                  setCompetitionEntryFeesAcknowledged(false);
+                  setHostEventFeesAcknowledged(false);
+                  if (!inviteToken && !params.has("level")) setSelectedLevel(1);
+                }}
                 className="text-[#FF5A09] text-sm uppercase tracking-wider hover:text-[#FF5A09]/70 transition-colors"
                 data-testid="button-switch-register"
               >
@@ -417,12 +528,14 @@ export default function LoginPage() {
                 Forgot your password?
               </button>
 
-              <div className="pt-6 border-t border-white/10 mt-6">
-                <p className="text-white/30 text-xs uppercase tracking-wider mb-2">Voter?</p>
-                <p className="text-white/40 text-sm">
-                  Select "Viewer" above and sign in with the name and email you used at checkout
-                </p>
-              </div>
+              {isViewerMode && !requiresAccount && (
+                <div className="pt-6 border-t border-white/10 mt-6">
+                  <p className="text-white/30 text-xs uppercase tracking-wider mb-2">Voter?</p>
+                  <p className="text-white/40 text-sm">
+                    Select "Viewer" above and sign in with the name and email you used at checkout
+                  </p>
+                </div>
+              )}
             </>
           )}
           {mode === "register" && (
@@ -445,7 +558,7 @@ export default function LoginPage() {
           )}
           <div className="mt-6 border-t border-white/10 pt-5" data-testid="login-host-prompt">
             <p className="text-sm text-white/55">
-              Organizing a competition? You can apply to host without creating a contestant account.
+              Organizing a competition? Review hosting options and any applicable fees before submitting an event.
             </p>
             <Link
               href="/host"

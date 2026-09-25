@@ -4,6 +4,7 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithCustomToken,
   signOut,
   sendPasswordResetEmail,
   onIdTokenChanged,
@@ -82,6 +83,13 @@ export async function firebaseRegister(email: string, password: string) {
   const a = getFirebaseAuth();
   if (!a) throw new Error("Firebase not initialized");
   const credential = await createUserWithEmailAndPassword(a, email, password);
+  return credential.user;
+}
+
+export async function firebaseSignInWithCustomToken(customToken: string) {
+  const a = getFirebaseAuth();
+  if (!a) throw new Error("Firebase not initialized");
+  const credential = await signInWithCustomToken(a, customToken);
   return credential.user;
 }
 

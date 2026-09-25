@@ -1182,39 +1182,88 @@ export async function registerRoutes(
   });
 
   app.post("/api/auth/register", async (req, res) => {
+    let createdUid: string | null = null;
     try {
-      const { email, password, displayName, stageName, level: requestedLevel, socialLinks, billingAddress, inviteToken, referralCode } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
+      const {
+        email,
+        password,
+        displayName,
+        stageName,
+        level: requestedLevel,
+        socialLinks,
+        billingAddress,
+        inviteToken,
+        referralCode,
+        competitionEntryFeesAcknowledged,
+        hostEventFeesAcknowledged,
+      } = req.body || {};
+      const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+      const normalizedDisplayName = typeof displayName === "string" ? displayName.trim() : "";
+      if (!normalizedEmail || !normalizedDisplayName || typeof password !== "string" || password.length < 6) {
+        return res.status(400).json({ message: "Name, email, and a password of at least 6 characters are required" });
       }
 
-      let level = [1, 2, 3].includes(requestedLevel) ? requestedLevel : 1;
+      let level = requestedLevel === undefined || requestedLevel === null ? 1 : Number(requestedLevel);
+      if (![1, 2, 3].includes(level)) {
+        return res.status(400).json({ message: "Choose a valid account type" });
+      }
       let invitation = null;
 
       if (inviteToken) {
         invitation = await firestoreInvitations.getByToken(inviteToken);
-        if (invitation && invitation.status === "pending") {
-          if (invitation.invitedEmail.toLowerCase().trim() !== email.toLowerCase().trim()) {
-            return res.status(403).json({ message: "This invitation was sent to a different email address" });
-          }
-          level = invitation.targetLevel;
+        if (!invitation || invitation.status !== "pending") {
+          return res.status(400).json({ message: "This invitation is invalid or has already been used" });
+        }
+        if (invitation.invitedEmail.toLowerCase().trim() !== normalizedEmail) {
+          return res.status(403).json({ message: "This invitation was sent to a different email address" });
+        }
+        level = invitation.targetLevel;
+        if (![1, 2, 3, 4].includes(level)) {
+          return res.status(400).json({ message: "This invitation has an invalid account type" });
         }
       }
 
-      const firebaseUser = await createFirebaseUser(email, password, displayName);
+      if (level === 2 && competitionEntryFeesAcknowledged !== true) {
+        return res.status(400).json({ message: "Please confirm that some competitions may require an entry fee" });
+      }
+      if (level === 3 && hostEventFeesAcknowledged !== true) {
+        return res.status(400).json({ message: "Please confirm that hosting an event may require a fee" });
+      }
+
+      const firebaseUser = await createFirebaseUser(normalizedEmail, password, normalizedDisplayName);
+      createdUid = firebaseUser.uid;
       await setUserLevel(firebaseUser.uid, level);
 
       await createFirestoreUser({
         uid: firebaseUser.uid,
-        email,
-        displayName: displayName || email.split("@")[0],
-        stageName: stageName || undefined,
+        email: normalizedEmail,
+        displayName: normalizedDisplayName,
+        stageName: typeof stageName === "string" ? stageName.trim() || undefined : undefined,
         level,
         socialLinks: socialLinks || undefined,
         billingAddress: billingAddress || undefined,
+        competitionEntryFeesAcknowledgedAt: level === 2 ? new Date().toISOString() : undefined,
+        hostEventFeesAcknowledgedAt: level === 3 ? new Date().toISOString() : undefined,
       });
 
-      if (invitation && invitation.status === "pending") {
+      const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
+      if (level >= 2) {
+        await storage.createTalentProfile({
+          userId: firebaseUser.uid,
+          displayName: normalizedDisplayName,
+          stageName: stageName || null,
+          bio: null,
+          category: null,
+          location: null,
+          imageUrls: [],
+          videoUrls: [],
+          socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
+          role: roleMap[level],
+        });
+      }
+
+      const customToken = await getFirebaseAuth().createCustomToken(firebaseUser.uid);
+      if (invitation) {
         await firestoreInvitations.markAccepted(inviteToken, firebaseUser.uid);
       }
 
@@ -1238,8 +1287,8 @@ export async function registerRoutes(
                   to: ownerEmail,
                   ownerName: codeDoc.ownerName,
                   code: resolvedRef,
-                  usedBy: displayName || email.split("@")[0],
-                  usedByEmail: email.toLowerCase(),
+                  usedBy: normalizedDisplayName,
+                  usedByEmail: normalizedEmail,
                   action: "signup",
                   siteUrl,
                 });
@@ -1251,29 +1300,19 @@ export async function registerRoutes(
         })();
       }
 
-      const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
-      if (level >= 2) {
-        await storage.createTalentProfile({
-          userId: firebaseUser.uid,
-          displayName: displayName || email.split("@")[0],
-          stageName: stageName || null,
-          bio: null,
-          category: null,
-          location: null,
-          imageUrls: [],
-          videoUrls: [],
-          socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
-          role: roleMap[level],
-        });
-      }
-
       res.status(201).json({
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         level,
+        customToken,
       });
     } catch (error: any) {
+      if (createdUid) {
+        await storage.deleteTalentProfileByUserId(createdUid).catch(() => false);
+        await getFirestore().collection("users").doc(createdUid).delete().catch(() => {});
+        await deleteFirebaseUser(createdUid).catch(() => {});
+      }
       if (error.code === "auth/email-already-exists") {
         return res.status(400).json({ message: "Email already in use" });
       }

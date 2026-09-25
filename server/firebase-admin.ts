@@ -93,6 +93,8 @@ export interface FirestoreUser {
     verifiedAt: string | null;
     updatedAt: string | null;
   } | null;
+  competitionEntryFeesAcknowledgedAt?: string;
+  hostEventFeesAcknowledgedAt?: string;
   adminPasswordResetAt?: string;
   adminPasswordResetBy?: string;
   createdAt: admin.firestore.Timestamp;
@@ -113,6 +115,8 @@ export async function createFirestoreUser(data: {
   profileImageUrl?: string;
   stageName?: string;
   socialLinks?: Record<string, string>;
+  competitionEntryFeesAcknowledgedAt?: string;
+  hostEventFeesAcknowledgedAt?: string;
   billingAddress?: {
     street?: string;
     city?: string;
