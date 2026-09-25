@@ -3,6 +3,8 @@ import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
 import { isNonprofitPolicyConfigured } from "@shared/nonprofit-policy";
 import { storage } from "./storage";
+import { escapeXml, getPublicOrigin } from "./share-meta";
+import { parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
 import {
@@ -119,7 +121,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import QRCode from "qrcode";
-import { slugify, extractIdFromSlug } from "../shared/slugify";
+import { slugify, slugifyWithId, extractIdFromSlug } from "../shared/slugify";
 import type { CompetitionStage } from "../shared/schema";
 
 function generateUniqueFilename(originalName: string): string {
@@ -7359,12 +7361,21 @@ export async function registerRoutes(
       }));
 
       let hostedBy: string | null = null;
+      let hostedByProfileSlug: string | null = null;
       if (comp.createdBy) {
         const creatorProfile = await storage.getTalentProfileByUserId(comp.createdBy);
         if (creatorProfile?.role === "admin") {
           hostedBy = null;
         } else if (creatorProfile) {
           hostedBy = creatorProfile.stageName || creatorProfile.displayName;
+          const hostProfile = (await storage.getHostProfiles())
+            .find((profile) => profile.userId === comp.createdBy);
+          if (hostProfile) {
+            hostedByProfileSlug = slugifyWithId(
+              hostProfile.stageName || hostProfile.displayName,
+              hostProfile.id,
+            );
+          }
         }
       }
 
@@ -7373,6 +7384,7 @@ export async function registerRoutes(
         contestants: enrichedContestants,
         totalVotes,
         hostedBy,
+        hostedByProfileSlug,
       });
     } catch (error: any) {
       console.error("Competition slug resolution error:", error);
@@ -7394,13 +7406,29 @@ export async function registerRoutes(
       if (!host) return res.status(404).json({ message: "Host not found" });
 
       const user = await storage.getUser(host.userId);
-      const hostComps = await storage.getCompetitionsByCreator(host.userId);
+      const hostComps = (await storage.getCompetitionsByCreator(host.userId))
+        .filter((competition) => competition.status !== "draft")
+        .map((competition) => ({
+          id: competition.id,
+          title: competition.title,
+          description: competition.description,
+          category: competition.category,
+          coverImage: competition.coverImage,
+          status: competition.status,
+          startDate: competition.startDate,
+          endDate: competition.endDate,
+        }));
 
       res.json({
         host: {
-          ...host,
-          email: user?.email || null,
-          socialLinks: (host as any).socialLinks || user?.socialLinks || null,
+          id: host.id,
+          displayName: host.displayName,
+          stageName: host.stageName || null,
+          bio: host.bio || null,
+          category: host.category || null,
+          location: host.location || null,
+          imageUrls: host.imageUrls || [],
+          socialLinks: parsePublicLinks((host as any).socialLinks || user?.socialLinks),
           profileImageUrl: user?.profileImageUrl || null,
         },
         competitions: hostComps,
@@ -7640,16 +7668,82 @@ export async function registerRoutes(
   });
 
   app.get("/robots.txt", (_req, res) => {
-    const baseUrl = "https://cbpublishing.live";
+    const baseUrl = getPublicOrigin();
+    const disallowedPaths = [
+      "/api/",
+      "/admin",
+      "/thequest/admin",
+      "/thequest/checkout/",
+      "/thequest/my-purchases",
+      "/thequest/viewer",
+      "/thequest/dashboard",
+      "/thequest/login",
+      "/thequest/register",
+    ];
+    const crawlerGroups = ["OAI-SearchBot", "Claude-SearchBot", "Claude-User", "ChatGPT-User", "*"]
+      .map((agent) => [
+        `User-agent: ${agent}`,
+        "Allow: /",
+        ...disallowedPaths.map((path) => `Disallow: ${path}`),
+        "",
+      ].join("\n"))
+      .join("\n");
     res.set("Content-Type", "text/plain").send(
-      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /thequest/login\nSitemap: ${baseUrl}/sitemap.xml\n`
+      `# Public pages are available to search and answer crawlers, including AI search crawlers.\n` +
+      `${crawlerGroups}` +
+      `Sitemap: ${baseUrl}/sitemap.xml\n`
     );
+  });
+
+  app.get("/llms.txt", async (_req, res) => {
+    try {
+      const baseUrl = getPublicOrigin();
+      const [competitions, hostProfiles] = await Promise.all([
+        storage.getCompetitions(),
+        storage.getHostProfiles(),
+      ]);
+      const markdownLabel = (value: string) => value.replace(/[\\[\]()]/g, "\\$&");
+      const publicCompetitions = competitions
+        .filter((competition) => competition.status !== "draft")
+        .slice(0, 40);
+      const publicHosts = hostProfiles.slice(0, 40);
+      const lines = [
+        "# The Quest",
+        "",
+        "> The Quest is CB Publishing's public talent competition and voting platform. Visitors can browse competitions, view competitor profiles, vote, nominate talent, and explore hosts.",
+        "",
+        `Canonical site: ${baseUrl}/thequest`,
+        "",
+        "## Start here",
+        `- [The Quest](${baseUrl}/thequest)`,
+        `- [Browse competitions](${baseUrl}/thequest/competitions)`,
+        `- [Competition hosts](${baseUrl}/thequest/host)`,
+        `- [About The Quest](${baseUrl}/thequest/about)`,
+        `- [XML sitemap](${baseUrl}/sitemap.xml)`,
+        "",
+        "## Public competitions",
+        ...publicCompetitions.map((competition) =>
+          `- [${markdownLabel(competition.title)} — ${markdownLabel(competition.category)}](${baseUrl}/thequest/${slugify(competition.category)}/${slugify(competition.title)})`
+        ),
+        "",
+        "## Public hosts",
+        ...publicHosts.map((profile) => {
+          const name = profile.stageName || profile.displayName;
+          return `- [${markdownLabel(name)}](${baseUrl}/thequest/host/${slugifyWithId(name, profile.id)})`;
+        }),
+        "",
+        "Individual competition and competitor pages contain the current public descriptions, dates, images, and profile links.",
+      ];
+      res.type("text/plain; charset=utf-8").send(lines.join("\n"));
+    } catch (error) {
+      console.error("LLM guide generation error:", error);
+      res.status(500).type("text/plain").send("Error generating LLM guide");
+    }
   });
 
   app.get("/sitemap.xml", async (_req, res) => {
     try {
-      const baseUrl = "https://cbpublishing.live";
-      const today = new Date().toISOString().split("T")[0];
+      const baseUrl = getPublicOrigin();
 
       const [competitions, hostProfiles] = await Promise.all([
         storage.getCompetitions(),
@@ -7657,47 +7751,78 @@ export async function registerRoutes(
       ]);
 
       const activeComps = competitions.filter(c => c.status !== "draft");
+      const seen = new Set<string>();
+      const entries: string[] = [];
+      const toLastmod = (value: any): string | undefined => {
+        const normalized = value && typeof value.toDate === "function" ? value.toDate() : value;
+        if (!normalized) return undefined;
+        const date = normalized instanceof Date ? normalized : new Date(normalized);
+        return Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : undefined;
+      };
+      const addUrl = (loc: string, options: { lastmod?: string; image?: string | null; imageTitle?: string } = {}) => {
+        if (seen.has(loc)) return;
+        seen.add(loc);
+        const lastmod = options.lastmod ? `<lastmod>${escapeXml(options.lastmod)}</lastmod>` : "";
+        const imageUrl = safeExternalHttpUrl(options.image);
+        const image = imageUrl
+          ? `<image:image><image:loc>${escapeXml(imageUrl)}</image:loc>${options.imageTitle ? `<image:title>${escapeXml(options.imageTitle)}</image:title>` : ""}</image:image>`
+          : "";
+        entries.push(`<url><loc>${escapeXml(loc)}</loc>${lastmod}${image}</url>`);
+      };
 
-      let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-  <url><loc>${baseUrl}/</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>${baseUrl}/thequest</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>
-  <url><loc>${baseUrl}/thequest/competitions</loc><lastmod>${today}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>
-  <url><loc>${baseUrl}/thequest/nominate</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>${baseUrl}/thequest/host</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>${baseUrl}/thequest/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>`;
+      [
+        `${baseUrl}/`,
+        `${baseUrl}/thequest`,
+        `${baseUrl}/thequest/competitions`,
+        `${baseUrl}/thequest/nominate`,
+        `${baseUrl}/thequest/host`,
+        `${baseUrl}/thequest/about`,
+        `${baseUrl}/thequest/faq`,
+      ].forEach((loc) => addUrl(loc));
 
-      for (const host of hostProfiles) {
-        const hostSlug = slugify(host.stageName || host.displayName);
+      for (const profile of hostProfiles) {
+        const name = profile.stageName || profile.displayName;
+        const hostSlug = slugifyWithId(name, profile.id);
         if (!hostSlug) continue;
-        xml += `\n  <url><loc>${baseUrl}/thequest/host/${hostSlug}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`;
+        const hostUrl = `${baseUrl}/thequest/host/${hostSlug}`;
+        const user = await storage.getUser(profile.userId);
+        const image = (profile as any).profileImageUrl || user?.profileImageUrl || profile.imageUrls?.[0];
+        addUrl(hostUrl, {
+          lastmod: toLastmod((profile as any).updatedAt || (profile as any).createdAt),
+          image,
+          imageTitle: name,
+        });
       }
 
       for (const comp of activeComps) {
         const categorySlug = slugify(comp.category);
         const compSlug = slugify(comp.title);
+        if (!categorySlug || !compSlug) continue;
         const compUrl = `${baseUrl}/thequest/${categorySlug}/${compSlug}`;
-        const lastmod = comp.endDate ? new Date(comp.endDate).toISOString().split("T")[0] : today;
-        xml += `\n  <url><loc>${compUrl}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq><priority>0.8</priority>`;
-        if (comp.coverImage) xml += `\n    <image:image><image:loc>${comp.coverImage}</image:loc><image:title>${comp.title.replace(/</g,"&lt;")}</image:title></image:image>`;
-        xml += `\n  </url>`;
+        addUrl(compUrl, {
+          lastmod: toLastmod((comp as any).updatedAt || (comp as any).createdAt),
+          image: comp.coverImage,
+          imageTitle: comp.title,
+        });
 
-        try {
-          const contestants = await storage.getContestantsByCompetition(comp.id);
-          for (const c of contestants) {
-            const profile = c.talentProfile;
-            const talentSlug = slugify(profile.stageName || profile.displayName);
-            if (!talentSlug) continue;
-            const talentUrl = `${baseUrl}/thequest/${categorySlug}/${compSlug}/${talentSlug}`;
-            xml += `\n  <url><loc>${talentUrl}</loc><changefreq>daily</changefreq><priority>0.7</priority>`;
-            if (profile.imageUrls?.[0]) xml += `\n    <image:image><image:loc>${profile.imageUrls[0]}</image:loc><image:title>${(profile.stageName || profile.displayName).replace(/</g,"&lt;")}</image:title></image:image>`;
-            xml += `\n  </url>`;
-          }
-        } catch (_) {}
+        const contestants = await storage.getContestantsByCompetition(comp.id);
+        for (const contestant of contestants) {
+          const profile = contestant.talentProfile;
+          const name = profile.stageName || profile.displayName;
+          const talentSlug = slugifyWithId(name, profile.id);
+          if (!talentSlug) continue;
+          const talentUrl = `${compUrl}/${talentSlug}`;
+          addUrl(talentUrl, {
+            lastmod: toLastmod((profile as any).updatedAt || (contestant as any).updatedAt || (profile as any).createdAt),
+            image: profile.imageUrls?.[0],
+            imageTitle: name,
+          });
+        }
       }
 
-      xml += `\n</urlset>`;
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n` +
+        `${entries.map((entry) => `  ${entry}`).join("\n")}\n</urlset>`;
       res.set("Content-Type", "application/xml").send(xml);
     } catch (err) {
       console.error("Sitemap error:", err);
@@ -8175,7 +8300,10 @@ export async function registerRoutes(
     }
   });
 
-  const socialCrawlerPattern = /facebookexternalhit|facebot|twitterbot|whatsapp|linkedinbot|slackbot|discordbot|telegrambot|applebot|googlebot|bingbot|yandexbot|pinterestbot|redditbot|rogerbot|embedly|quora|outbrain|vkShare|skypeuripreview|iframely|Slurp/i;
+  // Public metadata is now generated by getShareMeta for every request.
+  // Keep legacy route handlers below inert so crawlers and browsers receive
+  // the same canonical metadata and page fallback content.
+  const socialCrawlerPattern = /$^/;
 
   app.get(["/thequest/login", "/thequest/register"], async (req, res, next) => {
     try {

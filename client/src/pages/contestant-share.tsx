@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, MapPin, Tag, ChevronRight, ChevronLeft, Play, Heart, ShoppingCart, Share2, Check, Users } from "lucide-react";
+import { Trophy, MapPin, Tag, ChevronRight, ChevronLeft, Play, Heart, ShoppingCart, Share2, Check, Users, Globe } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -12,8 +12,11 @@ import { isVoteAuthenticationError, VoteAuthDialog } from "@/components/vote-aut
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
+import { useSEO } from "@/hooks/use-seo";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
-import { slugify } from "@shared/slugify";
+import { extractIdFromSlug, slugify, slugifyWithId } from "@shared/slugify";
+import { parsePublicLinks } from "@shared/public-links";
+import { preserveReferralQuery } from "@/lib/referral";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { buildVimeoSrc } from "@/lib/media-utils";
 
@@ -73,6 +76,7 @@ interface CompetitionContestant {
   talentProfileId: number;
   voteCount: number;
   talentProfile: {
+    id: number;
     displayName: string;
     stageName: string | null;
     imageUrls?: string[] | null;
@@ -127,7 +131,21 @@ export default function ContestantSharePage() {
     videos: bundleData.contestant.videos,
   } : undefined;
   const competitionData = bundleData ? { contestants: bundleData.contestants } : undefined;
-
+  const seoProfile = data?.contestant.talentProfile;
+  const seoName = seoProfile?.stageName || seoProfile?.displayName;
+  const seoTalentSlug = seoProfile ? slugifyWithId(seoName || "contestant", seoProfile.id) : talentSlug;
+  useSEO({
+    title: seoName && data
+      ? `${seoName} — ${data.competition.title} | The Quest`
+      : "Contestant Profile | The Quest",
+    description: seoProfile?.bio
+      || (seoName && data ? `${seoName} is competing in ${data.competition.title}, a ${data.competition.category} competition on The Quest.` : undefined),
+    canonical: categorySlug && compSlug && seoTalentSlug
+      ? `/thequest/${categorySlug}/${compSlug}/${seoTalentSlug}`
+      : undefined,
+    ogType: "profile",
+    ogImage: seoProfile?.imageUrls?.[0] || data?.competition.coverImage || undefined,
+  });
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({
     queryKey: ["/api/referral/my-code"],
@@ -156,8 +174,11 @@ export default function ContestantSharePage() {
 
   // Build ordered contestant list and find prev/next
   const orderedContestants = competitionData?.contestants ?? [];
+  const requestedTalentId = extractIdFromSlug(talentSlug || "").id;
   const currentIndex = orderedContestants.findIndex(
-    (c) => slugify(c.talentProfile.stageName || c.talentProfile.displayName) === talentSlug
+    (c) => requestedTalentId
+      ? Number(c.talentProfile.id) === requestedTalentId
+      : slugify(c.talentProfile.stageName || c.talentProfile.displayName) === talentSlug
   );
   const prevContestant = currentIndex > 0 ? orderedContestants[currentIndex - 1] : null;
   const nextContestant = currentIndex >= 0 && currentIndex < orderedContestants.length - 1
@@ -166,9 +187,9 @@ export default function ContestantSharePage() {
 
   const goToContestant = useCallback((c: CompetitionContestant | null) => {
     if (!c) return;
-    const slug = slugify(c.talentProfile.stageName || c.talentProfile.displayName);
+    const slug = slugifyWithId(c.talentProfile.stageName || c.talentProfile.displayName, c.talentProfile.id);
     // Navigate relative to the wouter base (/thequest is already the base)
-    navigate(`/${categorySlug}/${compSlug}/${slug}`);
+    navigate(`/${categorySlug}/${compSlug}/${slug}${preserveReferralQuery(window.location.search)}`);
   }, [navigate, categorySlug, compSlug]);
 
   // Keyboard arrow navigation
@@ -592,28 +613,36 @@ export default function ContestantSharePage() {
 
           {/* Social links */}
           {(() => {
-            let socialObj: Record<string, string> = {};
-            try {
-              const raw = profile.socialLinks;
-              if (raw) socialObj = typeof raw === "string" ? JSON.parse(raw) : raw;
-            } catch {}
+            const socialObj = parsePublicLinks(profile.socialLinks);
             const platforms = [
               { key: "youtube", icon: SiYoutube, label: "YouTube", color: "text-[#FF0000] hover:text-[#FF0000]/80" },
               { key: "instagram", icon: SiInstagram, label: "Instagram", color: "text-[#E4405F] hover:text-[#E4405F]/80" },
               { key: "tiktok", icon: SiTiktok, label: "TikTok", color: "text-[#00F2EA] hover:text-[#00F2EA]/80" },
               { key: "facebook", icon: SiFacebook, label: "Facebook", color: "text-[#1877F2] hover:text-[#1877F2]/80" },
             ];
-            const active = platforms.filter(p => socialObj[p.key] && /^https?:\/\//i.test(socialObj[p.key]));
+            const active = Object.entries(socialObj);
             if (active.length === 0) return null;
             return (
               <div className="flex flex-wrap items-center justify-center gap-5 mb-10" data-testid="social-links">
-                {active.map(({ key, icon: Icon, label, color }) => (
-                  <a key={key} href={socialObj[key]} target="_blank" rel="noopener noreferrer"
-                    className={`${color} transition-colors duration-300`}
-                    data-testid={`link-social-${key}`} title={label}>
-                    <Icon className="h-6 w-6" />
-                  </a>
-                ))}
+                {active.map(([key, url]) => {
+                  const platform = platforms.find((item) => item.key === key.toLowerCase());
+                  const Icon = platform?.icon;
+                  const label = platform?.label || key;
+                  return (
+                    <a
+                      key={key}
+                      href={url}
+                      target="_blank"
+                      rel="me noopener noreferrer"
+                      className={`${platform?.color || "text-white/70 hover:text-[#FF5A09]"} transition-colors duration-300`}
+                      data-testid={`link-social-${key}`}
+                      title={label}
+                      aria-label={`${label} profile`}
+                    >
+                      {Icon ? <Icon className="h-6 w-6" /> : <Globe className="h-6 w-6" />}
+                    </a>
+                  );
+                })}
               </div>
             );
           })()}

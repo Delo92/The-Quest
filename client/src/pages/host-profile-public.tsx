@@ -6,7 +6,10 @@ import { Link } from "wouter";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
-import { slugify } from "@shared/slugify";
+import { useSEO } from "@/hooks/use-seo";
+import { slugify, slugifyWithId } from "@shared/slugify";
+import { preserveReferralQuery } from "@/lib/referral";
+import { parsePublicLinks } from "@shared/public-links";
 
 interface HostData {
   host: {
@@ -18,7 +21,7 @@ interface HostData {
     imageUrls: string[] | null;
     location: string | null;
     email: string | null;
-    socialLinks: Record<string, string> | null;
+    socialLinks: Record<string, string> | string | null;
     profileImageUrl: string | null;
   };
   competitions: {
@@ -43,6 +46,20 @@ export default function HostProfilePublic() {
   const { data, isLoading, error } = useQuery<HostData>({
     queryKey: ["/api/resolve/host", hostSlug],
     enabled: !!hostSlug && !isNumericId,
+  });
+  const seoHost = data?.host;
+  const seoHostName = seoHost?.stageName || seoHost?.displayName;
+  useSEO({
+    title: seoHostName
+      ? `${seoHostName} | Competition Host on The Quest`
+      : "Competition Host on The Quest",
+    description: seoHost?.bio
+      || (seoHostName ? `${seoHostName} hosts public competitions on The Quest, CB Publishing's talent competition and voting platform.` : undefined),
+    canonical: seoHostName && seoHost
+      ? `/thequest/host/${slugifyWithId(seoHostName, seoHost.id)}`
+      : hostSlug ? `${window.location.origin}/thequest/host/${hostSlug}` : undefined,
+    ogType: "profile",
+    ogImage: seoHost?.profileImageUrl || seoHost?.imageUrls?.[0] || undefined,
   });
 
   if (isLoading) {
@@ -78,6 +95,7 @@ export default function HostProfilePublic() {
 
   const { host, competitions } = data;
   const mainImage = host.profileImageUrl || host.imageUrls?.[0] || getImage("talent_profile_fallback") || undefined;
+  const socialLinks = parsePublicLinks(host.socialLinks);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -109,16 +127,14 @@ export default function HostProfilePublic() {
           </div>
         )}
 
-        {host.socialLinks && Object.keys(host.socialLinks).length > 0 && (
+        {Object.keys(socialLinks).length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-4 mb-10">
-            {Object.entries(host.socialLinks).map(([platform, url]) => {
-              if (!url) return null;
-              return (
+            {Object.entries(socialLinks).map(([platform, url]) => (
                 <a
                   key={platform}
                   href={url}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="me noopener noreferrer"
                   className="text-white/40 hover:text-[#FF5A09] transition-colors text-sm uppercase flex items-center gap-1.5"
                   style={{ letterSpacing: "2px" }}
                   data-testid={`link-social-${platform}`}
@@ -126,8 +142,7 @@ export default function HostProfilePublic() {
                   <Globe className="h-3.5 w-3.5" />
                   {platform}
                 </a>
-              );
-            })}
+            ))}
           </div>
         )}
 
@@ -141,7 +156,7 @@ export default function HostProfilePublic() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {competitions.map((comp) => (
-                <Link key={comp.id} href={`/${slugify(comp.category)}/${slugify(comp.title)}`}>
+                <Link key={comp.id} href={`/${slugify(comp.category)}/${slugify(comp.title)}${preserveReferralQuery(window.location.search)}`}>
                   <div className="group cursor-pointer transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]" data-testid={`card-comp-${comp.id}`}>
                     <div className="overflow-hidden relative h-44">
                       <img
@@ -176,7 +191,7 @@ export default function HostProfilePublic() {
         )}
 
         <div className="text-center pb-10">
-          <Link href="/competitions">
+          <Link href={`/competitions${preserveReferralQuery(window.location.search)}`}>
             <span
               className="inline-block bg-transparent text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer"
               data-testid="button-back"

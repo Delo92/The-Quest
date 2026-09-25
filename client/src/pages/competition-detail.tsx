@@ -14,7 +14,8 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { slugify } from "@shared/slugify";
+import { slugify, slugifyWithId } from "@shared/slugify";
+import { preserveReferralQuery } from "@/lib/referral";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
@@ -146,6 +147,7 @@ interface CompetitionDetail {
   contestants: ContestantWithProfile[];
   totalVotes: number;
   hostedBy?: string | null;
+  hostedByProfileSlug?: string | null;
   themeColor?: string | null;
   stages?: CompetitionStage[];
 }
@@ -586,9 +588,21 @@ export default function CompetitionDetailPage() {
         </div>
 
         {competition.hostedBy && (
-          <p className="text-white/50 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
-            Hosted by {competition.hostedBy === "admin" ? getText("site_name", "The Quest") : competition.hostedBy}
-          </p>
+          competition.hostedByProfileSlug ? (
+            <p className="text-white/50 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
+              Hosted by{" "}
+              <Link
+                href={`/host/${competition.hostedByProfileSlug}`}
+                className="underline decoration-white/30 underline-offset-4 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A09]"
+              >
+                {competition.hostedBy}
+              </Link>
+            </p>
+          ) : (
+            <p className="text-white/50 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
+              Hosted by {competition.hostedBy === "admin" ? getText("site_name", "The Quest") : competition.hostedBy}
+            </p>
+          )
         )}
 
          {!selectedStage && <CompetitionCountdownPanel competition={competition} />}
@@ -699,7 +713,8 @@ export default function CompetitionDetailPage() {
               const videos = contestantVideos.get(contestant.id) || [];
                const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
                const stageResult = selectedStage ? contestant.stageResults?.[selectedStage.id] : null;
-              const contestantHref = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.stageName || contestant.talentProfile.displayName)}`;
+    const referralQuery = preserveReferralQuery(window.location.search);
+    const contestantHref = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugifyWithId(contestant.talentProfile.stageName || contestant.talentProfile.displayName, contestant.talentProfile.id)}${referralQuery}`;
 
               return (
                 <div
@@ -810,7 +825,7 @@ export default function CompetitionDetailPage() {
 
                     <div className="flex flex-col items-center gap-2">
                       <Link
-                        href={`/${slugify(competition.category)}/${slugify(competition.title)}/${slugify(contestant.talentProfile.stageName || contestant.talentProfile.displayName)}`}
+                  href={contestantHref}
                         className="text-[11px] text-white group-hover:text-black uppercase border-b border-white group-hover:border-black pb-1 transition-colors duration-500"
                         style={{ letterSpacing: "4px" }}
                         data-testid={`link-profile-${contestant.id}`}

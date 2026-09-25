@@ -1,8 +1,61 @@
+# Public content is accessible to search and answer crawlers, including AI search crawlers.
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /thequest/admin
+Disallow: /thequest/checkout/
+Disallow: /thequest/my-purchases
+Disallow: /thequest/viewer
+Disallow: /thequest/dashboard
+Disallow: /thequest/login
+Disallow: /thequest/register
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /thequest/admin
+Disallow: /thequest/checkout/
+Disallow: /thequest/my-purchases
+Disallow: /thequest/viewer
+Disallow: /thequest/dashboard
+Disallow: /thequest/login
+Disallow: /thequest/register
+
+User-agent: Claude-User
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /thequest/admin
+Disallow: /thequest/checkout/
+Disallow: /thequest/my-purchases
+Disallow: /thequest/viewer
+Disallow: /thequest/dashboard
+Disallow: /thequest/login
+Disallow: /thequest/register
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /thequest/admin
+Disallow: /thequest/checkout/
+Disallow: /thequest/my-purchases
+Disallow: /thequest/viewer
+Disallow: /thequest/dashboard
+Disallow: /thequest/login
+Disallow: /thequest/register
+
 User-agent: *
 Allow: /
-Disallow: /dashboard
-Disallow: /checkout/
-Disallow: /my-purchases
 Disallow: /api/
-
-Sitemap: https://thequest-2dc77.firebaseapp.com/sitemap.xml
+Disallow: /admin
+Disallow: /thequest/admin
+Disallow: /thequest/checkout/
+Disallow: /thequest/my-purchases
+Disallow: /thequest/viewer
+Disallow: /thequest/dashboard
+Disallow: /thequest/login
+Disallow: /thequest/register
+Sitemap: https://cbpublishing.live/sitemap.xml

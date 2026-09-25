@@ -39,3 +39,4 @@
 - [Vimeo playback architecture](vimeo-playback-architecture.md) — embed iframe for contestant videos; native video tag for background loops; never hls.js+signed URL for either
 - [Lazy iframe mount/unmount pattern](lazy-iframe-pattern.md) — observer must toggle setVisible(entry.isIntersecting), not latch; latching causes all-12-players-in-RAM on scroll
 - [Firebase media persistence](firebase-media-persistence.md) — media records are database-owned; never run startup seed/synchronization writes that can replace saved URLs
+- [SEO canonical origin](quest-seo-canonical-origin.md) — client hydration must retain the configured production origin instead of replacing it with the Replit preview host

@@ -32,6 +32,32 @@ function setCanonical(url: string) {
   el.setAttribute("href", url);
 }
 
+function normalizeCanonical(canonical?: string) {
+  const configuredOrigin = document.querySelector('meta[name="site-origin"]')?.getAttribute("content")
+    || "https://cbpublishing.live";
+  let publicOrigin = "https://cbpublishing.live";
+  try {
+    publicOrigin = new URL(configuredOrigin).origin;
+  } catch {}
+  let url: URL;
+
+  try {
+    url = new URL(canonical || window.location.pathname, publicOrigin);
+  } catch {
+    url = new URL(window.location.pathname, publicOrigin);
+  }
+
+  url = new URL(`${url.pathname}${url.search}${url.hash}`, publicOrigin);
+
+  if (window.location.pathname.startsWith("/thequest") && !url.pathname.startsWith("/thequest")) {
+    url.pathname = `/thequest${url.pathname === "/" ? "" : url.pathname}`;
+  }
+
+  url.search = "";
+  url.hash = "";
+  return `${url.origin}${url.pathname === "/" ? "" : url.pathname}`;
+}
+
 export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOptions) {
   useEffect(() => {
     const fullTitle = title.includes("The Quest") ? title : `${title} | The Quest`;
@@ -49,22 +75,23 @@ export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOp
     setMetaTag("og:image", ogImage || defaultOgImage, true);
     setMetaTag("twitter:image", ogImage || defaultOgImage);
 
-    const url = canonical || "https://thequest-2dc77.firebaseapp.com";
+    const url = normalizeCanonical(canonical);
     setCanonical(url);
     setMetaTag("og:url", url, true);
 
     return () => {
+      const fallbackUrl = normalizeCanonical();
       document.title = DEFAULT_TITLE;
       setMetaTag("description", DEFAULT_DESC);
       setMetaTag("og:title", DEFAULT_TITLE, true);
       setMetaTag("og:description", DEFAULT_DESC, true);
       setMetaTag("og:image", defaultOgImage, true);
-      setMetaTag("og:url", "https://thequest-2dc77.firebaseapp.com", true);
+      setMetaTag("og:url", fallbackUrl, true);
       setMetaTag("og:type", "website", true);
       setMetaTag("twitter:title", DEFAULT_TITLE);
       setMetaTag("twitter:description", DEFAULT_DESC);
       setMetaTag("twitter:image", defaultOgImage);
-      setCanonical("https://thequest-2dc77.firebaseapp.com");
+      setCanonical(fallbackUrl);
     };
   }, [title, description, canonical, ogImage, ogType]);
 }
