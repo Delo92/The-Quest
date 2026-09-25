@@ -13,6 +13,11 @@ import {
   type FirestoreLiveryItem,
 } from "./firestore-collections";
 import { getFirestore, getFirestoreUser, createFirestoreUser, updateFirestoreUser, type FirestoreUser } from "./firebase-admin";
+import {
+  queueOCSocialProfileSyncForTalentProfile,
+  queueOCSocialProfileSyncForUser,
+  removeOCSocialProfileForDeletedTalentProfile,
+} from "./services/ocSocialProfileSync";
 
 export interface IStorage {
   getUser(id: string): Promise<FirestoreUser | null>;
@@ -90,7 +95,11 @@ export class FirestoreStorage implements IStorage {
   }
 
   async updateUser(id: string, data: Partial<any>): Promise<FirestoreUser | null> {
-    return updateFirestoreUser(id, data);
+    const updated = await updateFirestoreUser(id, data);
+    if (updated && ["email", "displayName", "socialLinks"].some((key) => data[key] !== undefined)) {
+      queueOCSocialProfileSyncForUser(id);
+    }
+    return updated;
   }
 
   async getTalentProfile(id: number): Promise<FirestoreTalentProfile | null> {
@@ -102,11 +111,22 @@ export class FirestoreStorage implements IStorage {
   }
 
   async createTalentProfile(profile: Omit<FirestoreTalentProfile, "id">): Promise<FirestoreTalentProfile> {
-    return firestoreTalentProfiles.create(profile);
+    const created = await firestoreTalentProfiles.create(profile);
+    if (created.role.toLowerCase() === "host") {
+      queueOCSocialProfileSyncForUser(created.userId);
+    }
+    return created;
   }
 
   async updateTalentProfile(userId: string, data: Partial<Omit<FirestoreTalentProfile, "id" | "userId">>): Promise<FirestoreTalentProfile | null> {
-    return firestoreTalentProfiles.updateByUserId(userId, data);
+    const updated = await firestoreTalentProfiles.updateByUserId(userId, data);
+    if (
+      updated &&
+      ["displayName", "stageName", "email", "socialLinks", "role"].some((key) => (data as any)[key] !== undefined)
+    ) {
+      queueOCSocialProfileSyncForUser(userId);
+    }
+    return updated;
   }
 
   async getAllTalentProfiles(): Promise<FirestoreTalentProfile[]> {
@@ -122,7 +142,12 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteTalentProfileByUserId(userId: string): Promise<boolean> {
-    return firestoreTalentProfiles.deleteByUserId(userId);
+    const existing = await firestoreTalentProfiles.getByUserId(userId);
+    const deleted = await firestoreTalentProfiles.deleteByUserId(userId);
+    if (deleted && existing) {
+      void removeOCSocialProfileForDeletedTalentProfile(existing);
+    }
+    return deleted;
   }
 
   async getCompetitions(): Promise<FirestoreCompetition[]> {
@@ -207,15 +232,23 @@ export class FirestoreStorage implements IStorage {
   }
 
   async createContestant(contestant: Omit<FirestoreContestant, "id">): Promise<FirestoreContestant> {
-    return firestoreContestants.create(contestant);
+    const created = await firestoreContestants.create(contestant);
+    queueOCSocialProfileSyncForTalentProfile(created.talentProfileId);
+    return created;
   }
 
   async updateContestantStatus(id: number, status: string): Promise<FirestoreContestant | null> {
-    return firestoreContestants.updateStatus(id, status);
+    const updated = await firestoreContestants.updateStatus(id, status);
+    if (updated) queueOCSocialProfileSyncForTalentProfile(updated.talentProfileId);
+    return updated;
   }
 
   async updateContestant(id: number, data: Partial<FirestoreContestant>): Promise<FirestoreContestant | null> {
-    return firestoreContestants.update(id, data);
+    const updated = await firestoreContestants.update(id, data);
+    if (updated && (data.applicationStatus !== undefined || data.competitionId !== undefined)) {
+      queueOCSocialProfileSyncForTalentProfile(updated.talentProfileId);
+    }
+    return updated;
   }
 
   async getContestant(competitionId: number, talentProfileId: number): Promise<FirestoreContestant | null> {
@@ -223,7 +256,10 @@ export class FirestoreStorage implements IStorage {
   }
 
   async deleteContestant(id: number): Promise<boolean> {
-    return firestoreContestants.delete(id);
+    const existing = await firestoreContestants.getById(id);
+    const deleted = await firestoreContestants.delete(id);
+    if (deleted && existing) queueOCSocialProfileSyncForTalentProfile(existing.talentProfileId);
+    return deleted;
   }
 
   async getAllContestants(): Promise<(FirestoreContestant & { talentProfile: FirestoreTalentProfile; competitionTitle: string })[]> {

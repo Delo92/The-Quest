@@ -68,6 +68,8 @@ import { registerQuestPayrollAdmin } from "./quest-payroll-admin";
 import { registerQuestTaxAndDonations } from "./quest-tax-donations";
 import { registerPaymentProviderWebhooks } from "./payment-provider-webhooks";
 import { registerQuestForms } from "./quest-forms";
+import { registerOCSocialProfileRoutes } from "./oc-social-profile-routes";
+import { queueOCSocialProfileSyncForUser } from "./services/ocSocialProfileSync";
 import { getOwnerAnalytics } from "./services/ownerAnalytics";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
 import {
@@ -793,6 +795,7 @@ export async function registerRoutes(
   registerQuestPayrollAdmin(app);
   registerQuestTaxAndDonations(app);
   registerQuestForms(app);
+  registerOCSocialProfileRoutes(app);
 
   const clientErrorTypes = new Set<ErrorType>([
     "registration",
@@ -7152,6 +7155,9 @@ export async function registerRoutes(
 
       if (Object.keys(updateData).length > 0) {
         await updateFirestoreUser(uid, updateData);
+        if (["displayName", "stageName", "socialLinks", "email"].some((key) => updateData[key] !== undefined)) {
+          queueOCSocialProfileSyncForUser(uid);
+        }
       }
 
       const profileUpdate: Record<string, any> = {};

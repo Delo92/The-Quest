@@ -183,6 +183,16 @@ export function queueOCSocialProfileSyncForTalentProfile(profileId: number): voi
   });
 }
 
+export async function removeOCSocialProfileForDeletedTalentProfile(profile: FirestoreTalentProfile): Promise<void> {
+  if (!isOCAdapterConfigured()) return;
+  try {
+    const built = await buildRecord(profile, [], []);
+    if (built.record) await syncOCSocialProfiles([built.record], "change");
+  } catch (error) {
+    await logSyncFailure(error, { userId: profile.userId, profileId: String(profile.id) });
+  }
+}
+
 export async function runOCSocialProfileBackfill(): Promise<{
   eligibleCount: number;
   sentCount: number;
@@ -244,10 +254,13 @@ export async function runOCSocialProfileBackfill(): Promise<{
       sentCount += acceptedCount;
       failedCount += batch.length - acceptedCount;
       const rejectedIds = new Set(rejected.map((item: any) => String(item?.questProfileId || "")));
+      const reportedFailedIds = batch
+        .filter((record) => rejectedIds.has(record.questProfileId))
+        .map((record) => record.questProfileId);
       failedProfileIds.push(
-        ...batch
-          .filter((record) => rejectedIds.has(record.questProfileId))
-          .map((record) => record.questProfileId),
+        ...(reportedFailedIds.length > 0
+          ? reportedFailedIds
+          : batch.slice(acceptedCount).map((record) => record.questProfileId)),
       );
     } catch (error) {
       failedCount += batch.length;
