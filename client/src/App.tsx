@@ -99,6 +99,8 @@ function App() {
     const ref = params.get("ref");
     if (ref) {
       localStorage.setItem("hfc_ref", ref);
+      localStorage.setItem("hfc_inbound_ref", ref);
+      localStorage.removeItem("hfc_auto_ref");
     }
   }, []);
 
