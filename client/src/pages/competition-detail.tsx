@@ -8,6 +8,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isVoteAuthenticationError, VoteAuthDialog } from "@/components/vote-auth-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
@@ -190,6 +191,7 @@ export default function CompetitionDetailPage() {
   const compSlug = params?.compSlug;
   const { user } = useAuth();
   const { toast } = useToast();
+  const [voteAuthOpen, setVoteAuthOpen] = useState(false);
 
   const voteSource = useMemo(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -257,6 +259,10 @@ export default function CompetitionDetailPage() {
       toast({ title: "Vote cast!", description: "Your vote has been recorded." });
     },
     onError: (error: Error) => {
+      if (isVoteAuthenticationError(error)) {
+        setVoteAuthOpen(true);
+        return;
+      }
       toast({ title: "Vote failed", description: error.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
     },
   });
@@ -816,6 +822,10 @@ export default function CompetitionDetailPage() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              if (!user) {
+                                setVoteAuthOpen(true);
+                                return;
+                              }
                               voteMutation.mutate({ contestantId: contestant.id, stageId: selectedStage?.id });
                             }}
                             disabled={voteMutation.isPending}
@@ -870,6 +880,7 @@ export default function CompetitionDetailPage() {
       </div>
 
       <SiteFooter />
+      <VoteAuthDialog open={voteAuthOpen} onOpenChange={setVoteAuthOpen} />
     </div>
   );
 }

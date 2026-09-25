@@ -39,6 +39,15 @@ const LEVEL_LABELS: Record<number, string> = {
   3: "Host",
 };
 
+function getAuthDestination(search: string): string {
+  const params = new URLSearchParams(search);
+  const returnTo = params.get("returnTo");
+  if (returnTo?.startsWith("/") && !returnTo.startsWith("//") && !returnTo.includes("\\")) {
+    return returnTo;
+  }
+  return params.get("section") === "tax" ? "/dashboard?section=tax" : "/dashboard";
+}
+
 export default function LoginPage() {
   const { login, register, resetPassword, isAuthenticated, error } = useAuth();
   const { loginViewer, isViewerLoggedIn } = useViewerSession();
@@ -49,6 +58,7 @@ export default function LoginPage() {
 
   const params = new URLSearchParams(search);
   const inviteToken = params.get("invite") || "";
+  const requiresAccount = params.get("requireAccount") === "1";
   const isRegisterPath = window.location.pathname === "/register";
 
   const [mode, setMode] = useState<Mode>(inviteToken ? "login" : isRegisterPath ? "register" : "login");
@@ -57,7 +67,7 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [viewerName, setViewerName] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState<number>(2);
+  const [selectedLevel, setSelectedLevel] = useState<number>(() => Number(params.get("level")) === 1 ? 1 : 2);
   const [viewerLoginType, setViewerLoginType] = useState<"registered" | "guest">("registered");
   const [loading, setLoading] = useState(false);
 
@@ -89,28 +99,24 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      setLocation(new URLSearchParams(window.location.search).get("section") === "tax"
-        ? "/dashboard?section=tax"
-        : "/dashboard");
+      setLocation(getAuthDestination(search));
     }
-  }, [isAuthenticated, setLocation]);
+  }, [isAuthenticated, search, setLocation]);
 
   useEffect(() => {
-    if (isViewerLoggedIn) {
+    if (isViewerLoggedIn && !requiresAccount) {
       setLocation("/viewer");
     }
-  }, [isViewerLoggedIn, setLocation]);
+  }, [isViewerLoggedIn, requiresAccount, setLocation]);
 
-  if (isAuthenticated || isViewerLoggedIn) {
+  if (isAuthenticated || (isViewerLoggedIn && !requiresAccount)) {
     return null;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const destination = new URLSearchParams(window.location.search).get("section") === "tax"
-      ? "/dashboard?section=tax"
-      : "/dashboard";
+    const destination = getAuthDestination(search);
 
     try {
       if (isGuestViewerMode) {
@@ -299,7 +305,7 @@ export default function LoginPage() {
             />
           </div>
 
-          {mode !== "reset" && mode === "login" && isViewerMode && (
+          {mode !== "reset" && mode === "login" && isViewerMode && !requiresAccount && (
             <div className="space-y-3">
               {/* Registered vs Guest toggle */}
               <div className="flex rounded-lg overflow-hidden border border-white/15">

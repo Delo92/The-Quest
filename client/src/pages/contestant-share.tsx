@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isVoteAuthenticationError, VoteAuthDialog } from "@/components/vote-auth-dialog";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
@@ -87,6 +88,7 @@ export default function ContestantSharePage() {
   const { getImage } = useLivery();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [voteAuthOpen, setVoteAuthOpen] = useState(false);
 
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -263,9 +265,21 @@ export default function ContestantSharePage() {
       dismissNudge();
     },
     onError: (err: any) => {
+      if (isVoteAuthenticationError(err)) {
+        setVoteAuthOpen(true);
+        return;
+      }
       toast({ title: "Vote failed", description: err.message || "Could not cast vote", variant: "destructive" });
     },
   });
+
+  const handleVoteClick = () => {
+    if (!user) {
+      setVoteAuthOpen(true);
+      return;
+    }
+    voteMutation.mutate();
+  };
 
   if (isLoading) {
     return (
@@ -423,7 +437,7 @@ export default function ContestantSharePage() {
               <div className="flex items-stretch border-t border-white/10">
                 {isVotingOpen && (
                   <button
-                    onClick={() => voteMutation.mutate()}
+                    onClick={handleVoteClick}
                     disabled={voteMutation.isPending}
                     className="flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold uppercase text-white transition-colors hover:bg-white/5 disabled:opacity-50 border-r border-white/10"
                     style={{ letterSpacing: "2px" }}
@@ -687,7 +701,7 @@ export default function ContestantSharePage() {
               {isVotingOpen && (
                 <div className="flex flex-wrap items-center justify-center gap-4 mt-8" data-testid="voting-actions">
                   <button
-                    onClick={() => voteMutation.mutate()}
+                    onClick={handleVoteClick}
                     disabled={voteMutation.isPending}
                     className="inline-flex items-center bg-black text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
                     style={{ letterSpacing: "2px" }}
@@ -714,7 +728,7 @@ export default function ContestantSharePage() {
           {videos.length === 0 && isVotingOpen && (
             <div className="flex flex-wrap items-center justify-center gap-4 mb-10" data-testid="voting-actions">
               <button
-                onClick={() => voteMutation.mutate()}
+                onClick={handleVoteClick}
                 disabled={voteMutation.isPending}
                 className="inline-flex items-center bg-black text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
                 style={{ letterSpacing: "2px" }}
@@ -770,6 +784,7 @@ export default function ContestantSharePage() {
         </div>
 
         <SiteFooter />
+        <VoteAuthDialog open={voteAuthOpen} onOpenChange={setVoteAuthOpen} />
       </div>
     </div>
   );
