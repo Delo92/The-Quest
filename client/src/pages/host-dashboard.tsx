@@ -12,7 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download, Settings, UserCircle, EyeOff, Wallet, Copy } from "lucide-react";
+import { Trophy, BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Calendar, Award, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye, ExternalLink, Search, ShoppingCart, DollarSign, Pencil, Save, ImageUp, QrCode, Download, Settings, UserCircle, EyeOff, Wallet, Copy, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteDialog } from "@/components/invite-dialog";
@@ -28,6 +28,7 @@ import OwnerAnalyticsPanel from "@/components/owner-analytics-panel";
 import ContestantTaxSettings from "@/components/contestant-tax-settings";
 import type { CompetitionStage } from "@shared/schema";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
+import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "@shared/public-links";
 
 interface HostStats {
   totalCompetitions: number;
@@ -222,6 +223,7 @@ export default function HostDashboard({ user }: { user: any }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [stageResultStage, setStageResultStage] = useState<Record<number, string>>({});
   const [accountForm, setAccountForm] = useState<any>({});
+  const [hostCustomLinks, setHostCustomLinks] = useState<Array<{ label: string; url: string }>>([]);
   const [accountPassword, setAccountPassword] = useState("");
   const [showAccountPassword, setShowAccountPassword] = useState(false);
   const [profileImageUploading, setProfileImageUploading] = useState(false);
@@ -286,6 +288,7 @@ export default function HostDashboard({ user }: { user: any }) {
       profileImageUrl: user?.profileImageUrl || myProfile?.imageUrls?.[0] || "",
       nonprofitDeclaration: normalizedDeclaration,
     });
+    setHostCustomLinks(parseCustomPublicLinks(myProfile?.socialLinks || user?.socialLinks));
     setNonprofitDeclaration(normalizedDeclaration);
     setAccountPassword("");
     setAccountOpen(true);
@@ -603,21 +606,120 @@ export default function HostDashboard({ user }: { user: any }) {
               <Label>Bio</Label>
               <Textarea value={accountForm.bio || ""} onChange={(e) => setAccountForm({ ...accountForm, bio: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2 min-h-28" placeholder="Tell contestants and viewers about you." data-testid="input-host-account-bio" />
             </div>
+            <div className="space-y-4 rounded-md border border-white/10 bg-white/[0.03] p-4 sm:p-5" data-testid="host-custom-links-editor">
+              <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+                <Globe className="h-5 w-5 text-orange-400" />
+                <div>
+                  <Label className="text-sm font-semibold text-white">Social Media & Custom Links</Label>
+                  <p className="mt-0.5 text-xs text-white/45">Add up to 5 labeled links. They’ll appear as buttons on your public host profile.</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold text-white">Custom links</p>
+                    <p className="mt-0.5 text-[11px] text-white/40">For example, your website, booking page, or social profile.</p>
+                  </div>
+                  {hostCustomLinks.length < 5 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-orange-500/30 px-3 text-xs text-orange-300 hover:bg-orange-500/10"
+                      onClick={() => setHostCustomLinks([...hostCustomLinks, { label: "", url: "" }])}
+                      data-testid="button-host-add-custom-link"
+                    >
+                      + Add link
+                    </Button>
+                  )}
+                </div>
+                {hostCustomLinks.length === 0 && (
+                  <p className="text-xs italic text-white/35">No custom links yet. Add one to show it on your public host profile.</p>
+                )}
+                {hostCustomLinks.map((link, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_2fr]">
+                      <Input
+                        value={link.label}
+                        onChange={(event) => setHostCustomLinks(hostCustomLinks.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, label: event.target.value } : item,
+                        ))}
+                        placeholder="Label (e.g. Book Me)"
+                        maxLength={30}
+                        aria-label={`Custom link ${index + 1} label`}
+                        data-testid={`input-host-custom-link-label-${index}`}
+                        className="border-white/15 bg-white/[0.06] text-white placeholder:text-white/30"
+                      />
+                      <Input
+                        value={link.url}
+                        onChange={(event) => setHostCustomLinks(hostCustomLinks.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, url: event.target.value } : item,
+                        ))}
+                        placeholder="https://yoursite.com"
+                        aria-label={`Custom link ${index + 1} URL`}
+                        data-testid={`input-host-custom-link-url-${index}`}
+                        className="border-white/15 bg-white/[0.06] text-white placeholder:text-white/30"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10 flex-shrink-0 text-white/45 hover:bg-red-400/10 hover:text-red-400"
+                      onClick={() => setHostCustomLinks(hostCustomLinks.filter((_, itemIndex) => itemIndex !== index))}
+                      aria-label={`Remove custom link ${index + 1}`}
+                      data-testid={`button-host-remove-custom-link-${index}`}
+                    >
+                      <XIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
             <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} level="host" />
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 border-t border-white/10 pt-4">
               <Button variant="ghost" onClick={() => setAccountOpen(false)} className="text-white/55">Cancel</Button>
               <Button
                 disabled={updateAccountMutation.isPending || (!!accountPassword && accountPassword.length < 6) || !accountForm.email?.trim() || !accountForm.displayName?.trim()}
-                onClick={() => updateAccountMutation.mutate({
-                  email: accountForm.email.trim(),
-                  displayName: accountForm.displayName.trim(),
-                  stageName: accountForm.stageName?.trim() || null,
-                  bio: accountForm.bio?.trim() || null,
-                  category: accountForm.category?.trim() || null,
-                  location: accountForm.location?.trim() || null,
-                  nonprofitDeclaration,
-                  ...(accountPassword ? { password: accountPassword } : {}),
-                })}
+                onClick={() => {
+                  const hasInvalidLink = hostCustomLinks.some((link) => {
+                    const label = link.label.trim();
+                    const url = link.url.trim();
+                    return Boolean(label || url) && (!label || !safeExternalHttpUrl(url));
+                  });
+                  if (hasInvalidLink) {
+                    toast({
+                      title: "Check your custom links",
+                      description: "Each link needs a label and a valid http or https URL.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+
+                  const socialLinks: Record<string, unknown> = parsePublicLinks(myProfile?.socialLinks || user?.socialLinks);
+                  const validCustomLinks = hostCustomLinks.flatMap((link) => {
+                    const label = link.label.trim();
+                    const url = safeExternalHttpUrl(link.url);
+                    return label && url ? [{ label, url }] : [];
+                  });
+                  if (validCustomLinks.length > 0) {
+                    socialLinks.customLinks = validCustomLinks;
+                  } else {
+                    delete socialLinks.customLinks;
+                  }
+
+                  updateAccountMutation.mutate({
+                    email: accountForm.email.trim(),
+                    displayName: accountForm.displayName.trim(),
+                    stageName: accountForm.stageName?.trim() || null,
+                    bio: accountForm.bio?.trim() || null,
+                    category: accountForm.category?.trim() || null,
+                    location: accountForm.location?.trim() || null,
+                    socialLinks: Object.keys(socialLinks).length > 0 ? JSON.stringify(socialLinks) : null,
+                    nonprofitDeclaration,
+                    ...(accountPassword ? { password: accountPassword } : {}),
+                  });
+                }}
                 className="bg-orange-500 hover:bg-orange-400 border-0 text-white"
                 data-testid="button-save-host-account"
               >

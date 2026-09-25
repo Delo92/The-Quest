@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Calendar, Users, ChevronRight, Crown, Globe, Instagram } from "lucide-react";
+import { Trophy, Calendar, Users, ChevronRight, Crown, Globe, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
@@ -22,6 +22,7 @@ interface HostData {
     location: string | null;
     email: string | null;
     socialLinks: Record<string, string> | string | null;
+    customLinks: Array<{ label: string; url: string }>;
     profileImageUrl: string | null;
   };
   competitions: {
@@ -142,6 +143,24 @@ export default function HostProfilePublic() {
                   <Globe className="h-3.5 w-3.5" />
                   {platform}
                 </a>
+            ))}
+          </div>
+        )}
+
+        {host.customLinks?.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-10" data-testid="host-custom-links">
+            {host.customLinks.map((link, index) => (
+              <a
+                key={`${link.url}-${index}`}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#FF5A09]/50 px-5 py-2 text-sm font-semibold text-[#FF5A09] transition-colors hover:bg-[#FF5A09]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]"
+                data-testid={`link-host-custom-${index}`}
+              >
+                <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                {link.label}
+              </a>
             ))}
           </div>
         )}

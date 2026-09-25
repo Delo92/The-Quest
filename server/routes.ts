@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { isNonprofitPolicyConfigured } from "@shared/nonprofit-policy";
 import { storage } from "./storage";
 import { escapeXml, getPublicOrigin } from "./share-meta";
-import { parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
+import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
 import {
@@ -1345,6 +1345,7 @@ export async function registerRoutes(
 
       const profile = await storage.getTalentProfileByUserId(uid);
 
+      const hostSocialLinks = (host as any).socialLinks || user?.socialLinks;
       res.json({
         uid,
         email: firestoreUser.email,
@@ -7434,7 +7435,8 @@ export async function registerRoutes(
           category: host.category || null,
           location: host.location || null,
           imageUrls: host.imageUrls || [],
-          socialLinks: parsePublicLinks((host as any).socialLinks || user?.socialLinks),
+          socialLinks: parsePublicLinks(hostSocialLinks),
+          customLinks: parseCustomPublicLinks(hostSocialLinks),
           profileImageUrl: user?.profileImageUrl || null,
         },
         competitions: hostComps,
