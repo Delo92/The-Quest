@@ -2,6 +2,11 @@ import type { Express, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
 import { isNonprofitPolicyConfigured } from "@shared/nonprofit-policy";
+import {
+  MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION,
+  VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_VERSION,
+  type WeeklyConsentRole,
+} from "@shared/weekly-consent";
 import { storage } from "./storage";
 import { escapeXml, getPublicOrigin } from "./share-meta";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
@@ -21,6 +26,11 @@ import {
   deleteFromFirebaseStorage,
   listFirebaseStorageFiles,
 } from "./firebase-admin";
+import {
+  getWeeklyConsentStatus,
+  getWeeklyConsentWeekStart,
+  recordWeeklyConsent,
+} from "./weekly-consent";
 import {
   createErrorContext,
   logError,
@@ -1201,6 +1211,8 @@ export async function registerRoutes(
         referralCode,
         competitionEntryFeesAcknowledged,
         hostEventFeesAcknowledged,
+        marketingGuidelinesAcknowledged,
+        votedArtistReminderAcknowledged,
       } = req.body || {};
       const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
       const normalizedDisplayName = typeof displayName === "string" ? displayName.trim() : "";
@@ -1234,6 +1246,12 @@ export async function registerRoutes(
       if (level === 3 && hostEventFeesAcknowledged !== true) {
         return res.status(400).json({ message: "Please confirm that hosting an event may require a fee" });
       }
+      if ([1, 2, 3].includes(level) && votedArtistReminderAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge the voted-artist reminder agreement" });
+      }
+      if ([2, 3].includes(level) && marketingGuidelinesAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge the marketing guidelines" });
+      }
 
       const firebaseUser = await createFirebaseUser(normalizedEmail, password, normalizedDisplayName);
       createdUid = firebaseUser.uid;
@@ -1249,7 +1267,21 @@ export async function registerRoutes(
         billingAddress: billingAddress || undefined,
         competitionEntryFeesAcknowledgedAt: level === 2 ? new Date().toISOString() : undefined,
         hostEventFeesAcknowledgedAt: level === 3 ? new Date().toISOString() : undefined,
+        marketingGuidelinesAcknowledgedAt: [2, 3].includes(level) ? new Date().toISOString() : undefined,
+        marketingGuidelinesAcknowledgedVersion: [2, 3].includes(level)
+          ? MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION
+          : undefined,
+        votedArtistReminderAcknowledgedAt: [1, 2, 3].includes(level) ? new Date().toISOString() : undefined,
+        votedArtistReminderAcknowledgedVersion: [1, 2, 3].includes(level)
+          ? VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_VERSION
+          : undefined,
       });
+      if (level === 2 || level === 3) {
+        await recordWeeklyConsent(
+          firebaseUser.uid,
+          level === 2 ? "contestant" : "host",
+        );
+      }
 
       const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
       if (level >= 2) {
@@ -1388,6 +1420,76 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  const resolveWeeklyConsentAudience = async (
+    uid: string,
+    fallbackLevel: number,
+  ): Promise<{ exists: boolean; role: WeeklyConsentRole | null }> => {
+    const [firestoreUser, profile] = await Promise.all([
+      getFirestoreUser(uid),
+      storage.getTalentProfileByUserId(uid),
+    ]);
+    if (!firestoreUser) return { exists: false, role: null };
+
+    const level = Number(firestoreUser.level ?? fallbackLevel);
+    if (profile?.role === "admin" || level >= 4) {
+      return { exists: true, role: null };
+    }
+    if (level === 2) return { exists: true, role: "contestant" };
+    if (level === 3) return { exists: true, role: "host" };
+    return { exists: true, role: null };
+  };
+
+  app.get("/api/weekly-consent", firebaseAuth, async (req, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    try {
+      const { uid, level } = req.firebaseUser!;
+      const audience = await resolveWeeklyConsentAudience(uid, level);
+      if (!audience.exists) {
+        return res.status(404).json({ message: "User account not found" });
+      }
+      if (!audience.role) {
+        return res.json({
+          required: false,
+          accepted: true,
+          weekStart: getWeeklyConsentWeekStart(),
+          version: MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION,
+          role: null,
+          acceptedAt: null,
+        });
+      }
+      return res.json(await getWeeklyConsentStatus(uid, audience.role));
+    } catch (error) {
+      console.error("Weekly consent status error:", error);
+      return res.status(500).json({ message: "Could not verify the weekly agreement" });
+    }
+  });
+
+  app.post("/api/weekly-consent", firebaseAuth, async (req, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    try {
+      if (req.body?.accepted !== true) {
+        return res.status(400).json({ message: "You must agree before continuing" });
+      }
+      if (req.body?.version !== MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION) {
+        return res.status(409).json({ message: "The agreement changed. Please review the current version." });
+      }
+
+      const { uid, level } = req.firebaseUser!;
+      const audience = await resolveWeeklyConsentAudience(uid, level);
+      if (!audience.exists) {
+        return res.status(404).json({ message: "User account not found" });
+      }
+      if (!audience.role) {
+        return res.status(403).json({ message: "This account does not require the weekly agreement" });
+      }
+
+      return res.json(await recordWeeklyConsent(uid, audience.role));
+    } catch (error) {
+      console.error("Weekly consent save error:", error);
+      return res.status(500).json({ message: "Could not save the weekly agreement" });
     }
   });
 
@@ -5059,7 +5161,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Nominations are not currently accepted" });
       }
 
-      const { fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId, chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress, nonprofitPolicyAcknowledged } = req.body;
+      const {
+        fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone,
+        dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
+        chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress, nonprofitPolicyAcknowledged,
+        nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged,
+      } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Nominee name and email are required" });
       }
@@ -5076,6 +5183,15 @@ export async function registerRoutes(
       };
       if (nonprofitPolicyAcknowledged !== true) {
         return res.status(400).json({ message: "Please acknowledge the required nonprofit contribution policy." });
+      }
+      if (nominationFeeAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge that nomination or competition fees may apply." });
+      }
+      if (marketingGuidelinesAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge the marketing guidelines." });
+      }
+      if (votedArtistReminderAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge the voted-artist reminder agreement." });
       }
       if (!competitionId) {
         return res.status(400).json({ message: "Please select a competition" });
@@ -5214,6 +5330,14 @@ export async function registerRoutes(
         nonprofitPolicyAcknowledgedAt: new Date().toISOString(),
         nonprofitContributionRatesAtAcknowledgment: { ...nonprofitContributionRates },
         nonprofitPlatformRecipientAtAcknowledgment: settings.charityName.trim(),
+        nominationFeeAcknowledged: true,
+        nominationFeeAcknowledgedAt: new Date().toISOString(),
+        marketingGuidelinesAcknowledged: true,
+        marketingGuidelinesAcknowledgedAt: new Date().toISOString(),
+        marketingGuidelinesAcknowledgedVersion: MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION,
+        votedArtistReminderAcknowledged: true,
+        votedArtistReminderAcknowledgedAt: new Date().toISOString(),
+        votedArtistReminderAcknowledgedVersion: VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_VERSION,
         nominatorName: nominatorName.trim(),
         nominatorEmail: nominatorEmail.toLowerCase().trim(),
         nominatorPhone: nominatorPhone || null,

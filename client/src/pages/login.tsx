@@ -12,6 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
+import {
+  MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
+  VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT,
+} from "@shared/weekly-consent";
 import { useSEO } from "@/hooks/use-seo";
 import { Mail } from "lucide-react";
 
@@ -94,6 +98,8 @@ export default function LoginPage() {
   const [selectedLevel, setSelectedLevel] = useState<number>(initialLevel);
   const [competitionEntryFeesAcknowledged, setCompetitionEntryFeesAcknowledged] = useState(false);
   const [hostEventFeesAcknowledged, setHostEventFeesAcknowledged] = useState(false);
+  const [marketingGuidelinesAcknowledged, setMarketingGuidelinesAcknowledged] = useState(false);
+  const [votedArtistReminderAcknowledged, setVotedArtistReminderAcknowledged] = useState(false);
   const [referralCode, setReferralCode] = useState(() => {
     if (urlReferralCode) return urlReferralCode.trim().toUpperCase();
     try {
@@ -211,6 +217,16 @@ export default function LoginPage() {
           setLoading(false);
           return;
         }
+        if ([1, 2, 3].includes(accountLevel) && !votedArtistReminderAcknowledged) {
+          toast({ title: "Please acknowledge the voted-artist reminder agreement", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        if ([2, 3].includes(accountLevel) && !marketingGuidelinesAcknowledged) {
+          toast({ title: "Please acknowledge the marketing guidelines", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
       }
 
       if (mode === "login") {
@@ -264,6 +280,8 @@ export default function LoginPage() {
         await register(email, password, displayName.trim(), inviteToken || undefined, registerLevel, {
           competitionEntryFeesAcknowledged,
           hostEventFeesAcknowledged,
+          marketingGuidelinesAcknowledged,
+          votedArtistReminderAcknowledged,
           referralCode: normalizedReferralCode || undefined,
         });
         toast({ title: "Account created!", description: "Welcome to the platform." });
@@ -379,6 +397,8 @@ export default function LoginPage() {
                     setSelectedLevel(Number(value));
                     setCompetitionEntryFeesAcknowledged(false);
                     setHostEventFeesAcknowledged(false);
+                    setMarketingGuidelinesAcknowledged(false);
+                    setVotedArtistReminderAcknowledged(false);
                   }}
                 >
                   <SelectTrigger
@@ -553,6 +573,44 @@ export default function LoginPage() {
                 className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
               >
                 I understand that submitting an event to host may require a hosting fee.
+              </Label>
+            </div>
+          )}
+
+          {mode === "register" && [2, 3].includes(accountLevel) && (
+            <div className="flex min-h-12 items-start gap-3 rounded-md border border-white/15 bg-white/[0.03] px-3 py-3">
+              <Checkbox
+                id="marketing-guidelines-acknowledged"
+                checked={marketingGuidelinesAcknowledged}
+                onCheckedChange={(checked) => setMarketingGuidelinesAcknowledged(checked === true)}
+                aria-required="true"
+                className="mt-0.5 border-white/40 data-[state=checked]:border-[#FF5A09] data-[state=checked]:bg-[#FF5A09]"
+                data-testid="checkbox-marketing-guidelines"
+              />
+              <Label
+                htmlFor="marketing-guidelines-acknowledged"
+                className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
+              >
+                {MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT}
+              </Label>
+            </div>
+          )}
+
+          {mode === "register" && [1, 2, 3].includes(accountLevel) && (
+            <div className="flex min-h-12 items-start gap-3 rounded-md border border-white/15 bg-white/[0.03] px-3 py-3">
+              <Checkbox
+                id="voted-artist-reminder-acknowledged"
+                checked={votedArtistReminderAcknowledged}
+                onCheckedChange={(checked) => setVotedArtistReminderAcknowledged(checked === true)}
+                aria-required="true"
+                className="mt-0.5 border-white/40 data-[state=checked]:border-[#FF5A09] data-[state=checked]:bg-[#FF5A09]"
+                data-testid="checkbox-voted-artist-reminders"
+              />
+              <Label
+                htmlFor="voted-artist-reminder-acknowledged"
+                className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
+              >
+                {VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT}
               </Label>
             </div>
           )}

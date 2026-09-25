@@ -344,6 +344,8 @@ export function useAuth() {
     acknowledgements?: {
       competitionEntryFeesAcknowledged?: boolean;
       hostEventFeesAcknowledged?: boolean;
+      marketingGuidelinesAcknowledged?: boolean;
+      votedArtistReminderAcknowledged?: boolean;
       referralCode?: string;
     },
   ) => {

@@ -28,6 +28,7 @@ import ViewerDashboard from "@/pages/viewer-dashboard";
 import ReferralLandingPage from "@/pages/referral-landing";
 import AdminFormsPage from "@/pages/admin-forms";
 import PublicFormPage from "@/pages/public-form";
+import { WeeklyConsentGate } from "@/components/weekly-consent-gate";
 
 function RootEntryPage() {
   const search = useSearch();
@@ -60,6 +61,14 @@ function QuestRouter() {
       <Route path="/:categorySlug/:compSlug" component={CompetitionDetail} />
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function QuestApplication() {
+  return (
+    <WeeklyConsentGate>
+      <QuestRouter />
+    </WeeklyConsentGate>
   );
 }
 
@@ -112,7 +121,7 @@ function App() {
         <Switch>
           <Route path="/" component={RootEntryPage} />
           <Route path="/talent/:id" component={TalentProfileRedirect} />
-          <Route path="/thequest" nest component={QuestRouter} />
+          <Route path="/thequest" nest component={QuestApplication} />
           <Route path="/:slug" component={CodeLandingPage} />
           <Route component={NotFound} />
         </Switch>

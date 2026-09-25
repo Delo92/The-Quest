@@ -21,6 +21,10 @@ import {
   MAX_NONPROFIT_CONTRIBUTION_PERCENT,
   type NonprofitContributionRates,
 } from "@shared/nonprofit-policy";
+import {
+  MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
+  VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT,
+} from "@shared/weekly-consent";
 
 interface JoinSettings {
   mode: "request" | "purchase";
@@ -95,6 +99,9 @@ export default function JoinPage() {
   const [promoValidated, setPromoValidated] = useState(false);
   const [promoChecking, setPromoChecking] = useState(false);
   const [nonprofitPolicyAcknowledged, setNonprofitPolicyAcknowledged] = useState(false);
+  const [nominationFeeAcknowledged, setNominationFeeAcknowledged] = useState(false);
+  const [marketingGuidelinesAcknowledged, setMarketingGuidelinesAcknowledged] = useState(false);
+  const [votedArtistReminderAcknowledged, setVotedArtistReminderAcknowledged] = useState(false);
   const nominationImageRef = useRef<HTMLInputElement>(null);
   const competitionSectionRef = useRef<HTMLDivElement>(null);
 
@@ -243,6 +250,18 @@ export default function JoinPage() {
       toast({ title: "Please acknowledge the nonprofit policy", variant: "destructive" });
       return false;
     }
+    if (!nominationFeeAcknowledged) {
+      toast({ title: "Please acknowledge that nomination or competition fees may apply", variant: "destructive" });
+      return false;
+    }
+    if (!marketingGuidelinesAcknowledged) {
+      toast({ title: "Please acknowledge the marketing guidelines", variant: "destructive" });
+      return false;
+    }
+    if (!votedArtistReminderAcknowledged) {
+      toast({ title: "Please acknowledge the voted-artist reminder agreement", variant: "destructive" });
+      return false;
+    }
     if (!selectedCompetitionId) {
       toast({ title: "Please select a competition", variant: "destructive" });
       return false;
@@ -283,7 +302,7 @@ export default function JoinPage() {
       }
     }
     return true;
-  }, [settings, nonprofitRatesReady, nonprofitPolicyAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
+  }, [settings, nonprofitRatesReady, nonprofitPolicyAcknowledged, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -312,7 +331,10 @@ export default function JoinPage() {
           paypalOrderId,
           ocPaymentId,
           billingAddress,
-          nonprofitPolicyAcknowledged: true,
+          nonprofitPolicyAcknowledged,
+          nominationFeeAcknowledged,
+          marketingGuidelinesAcknowledged,
+          votedArtistReminderAcknowledged,
         });
         setSuccess(true);
         toast({ title: "Nomination submitted!", description: "Thank you for your nomination!" });
@@ -355,7 +377,10 @@ export default function JoinPage() {
         bio: form.bio || "",
         category: form.category || "",
         chosenNonprofit: form.chosenNonprofit || null,
-        nonprofitPolicyAcknowledged: true,
+        nonprofitPolicyAcknowledged,
+        nominationFeeAcknowledged,
+        marketingGuidelinesAcknowledged,
+        votedArtistReminderAcknowledged,
         competitionId: selectedCompetitionId,
         nominatorName: nominatorForm.name,
         nominatorEmail: nominatorForm.email,
@@ -403,7 +428,7 @@ export default function JoinPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded]);
+  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, nonprofitPolicyAcknowledged, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -962,6 +987,7 @@ export default function JoinPage() {
               type="checkbox"
               checked={nonprofitPolicyAcknowledged}
               onChange={(event) => setNonprofitPolicyAcknowledged(event.target.checked)}
+              aria-required="true"
               className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
               aria-label="Acknowledge the required nonprofit contribution policy"
             />
@@ -969,6 +995,46 @@ export default function JoinPage() {
               I understand and acknowledge that the nominee must declare a nonprofit and meet the required contestant contribution rate to qualify for prize earnings, and that the program also requires contributions from hosts and The Quest.
             </span>
           </label>
+          <div className="mt-4 space-y-3">
+            <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
+              <input
+                id="nomination-fee-acknowledged"
+                type="checkbox"
+                checked={nominationFeeAcknowledged}
+                onChange={(event) => setNominationFeeAcknowledged(event.target.checked)}
+                aria-required="true"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
+                data-testid="checkbox-nomination-fees"
+              />
+              <span>
+                I understand that being nominated or entering competitions may require a nomination or registration fee.
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
+              <input
+                id="nomination-marketing-guidelines-acknowledged"
+                type="checkbox"
+                checked={marketingGuidelinesAcknowledged}
+                onChange={(event) => setMarketingGuidelinesAcknowledged(event.target.checked)}
+                aria-required="true"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
+                data-testid="checkbox-nomination-marketing-guidelines"
+              />
+              <span>{MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT}</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
+              <input
+                id="nomination-voted-artist-reminder-acknowledged"
+                type="checkbox"
+                checked={votedArtistReminderAcknowledged}
+                onChange={(event) => setVotedArtistReminderAcknowledged(event.target.checked)}
+                aria-required="true"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
+                data-testid="checkbox-nomination-voted-artist-reminders"
+              />
+              <span>{VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT}</span>
+            </label>
+          </div>
         </div>
 
         {needsPayment && (

@@ -335,6 +335,14 @@ export interface FirestoreJoinSubmission {
   nonprofitPolicyAcknowledgedAt?: string | null;
   nonprofitContributionRatesAtAcknowledgment?: { contestant: number; host: number; platform: number } | null;
   nonprofitPlatformRecipientAtAcknowledgment?: string | null;
+  nominationFeeAcknowledged?: boolean;
+  nominationFeeAcknowledgedAt?: string | null;
+  marketingGuidelinesAcknowledged?: boolean;
+  marketingGuidelinesAcknowledgedAt?: string | null;
+  marketingGuidelinesAcknowledgedVersion?: string | null;
+  votedArtistReminderAcknowledged?: boolean;
+  votedArtistReminderAcknowledgedAt?: string | null;
+  votedArtistReminderAcknowledgedVersion?: string | null;
   referralCode?: string | null;
 }
 

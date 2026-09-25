@@ -95,6 +95,10 @@ export interface FirestoreUser {
   } | null;
   competitionEntryFeesAcknowledgedAt?: string;
   hostEventFeesAcknowledgedAt?: string;
+  marketingGuidelinesAcknowledgedAt?: string;
+  marketingGuidelinesAcknowledgedVersion?: string;
+  votedArtistReminderAcknowledgedAt?: string;
+  votedArtistReminderAcknowledgedVersion?: string;
   adminPasswordResetAt?: string;
   adminPasswordResetBy?: string;
   createdAt: admin.firestore.Timestamp;
@@ -117,6 +121,10 @@ export async function createFirestoreUser(data: {
   socialLinks?: Record<string, string>;
   competitionEntryFeesAcknowledgedAt?: string;
   hostEventFeesAcknowledgedAt?: string;
+  marketingGuidelinesAcknowledgedAt?: string;
+  marketingGuidelinesAcknowledgedVersion?: string;
+  votedArtistReminderAcknowledgedAt?: string;
+  votedArtistReminderAcknowledgedVersion?: string;
   billingAddress?: {
     street?: string;
     city?: string;
