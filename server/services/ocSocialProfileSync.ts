@@ -76,10 +76,6 @@ async function buildRecord(
   const hasSocialLinks = Object.keys(socialLinks).length > 0;
   const operation = roleTypes.length > 0 ? "upsert" : "delete";
 
-  if (operation === "upsert" && !email) {
-    return { record: null, hasSocialLinks, missingEmail: true };
-  }
-
   return {
     record: {
       operation,
@@ -94,7 +90,7 @@ async function buildRecord(
       updatedAt: new Date().toISOString(),
     },
     hasSocialLinks,
-    missingEmail: false,
+    missingEmail: !email,
   };
 }
 
@@ -199,10 +195,11 @@ export async function removeOCSocialProfileForDeletedTalentProfile(profile: Fire
 
 export async function runOCSocialProfileBackfill(): Promise<{
   eligibleCount: number;
+  profileCountWithSocialLinks: number;
   sentCount: number;
   failedCount: number;
   skippedNoSocialLinks: number;
-  skippedMissingEmail: number;
+  recordsWithoutEmail: number;
   failedProfileIds: string[];
 }> {
   if (!isOCAdapterConfigured()) {
@@ -275,10 +272,11 @@ export async function runOCSocialProfileBackfill(): Promise<{
 
   return {
     eligibleCount: contexts.size,
+    profileCountWithSocialLinks: records.length,
     sentCount,
     failedCount,
-    skippedNoSocialLinks: eligible.filter((item) => !item.hasSocialLinks && !item.missingEmail).length,
-    skippedMissingEmail: built.filter((item) => item.missingEmail).length,
+    skippedNoSocialLinks: eligible.filter((item) => !item.hasSocialLinks).length,
+    recordsWithoutEmail: records.filter((record) => !record.email).length,
     failedProfileIds,
   };
 }
