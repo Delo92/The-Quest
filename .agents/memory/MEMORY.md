@@ -29,6 +29,7 @@
 - [Centralized error logging](chronicdocs-error-logging.md) — ChronicDocs logging behavior is ported onto The Quest's own Firestore helper and identity model
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
 - [OC Integration Bridge](oc-integration-bridge.md) — Quest calls OC for all Stripe payments/payouts; OC must set QUEST_OC_INTEGRATION_TOKEN before going live
+- [OC social profile sync](oc-social-profile-sync.md) — social links determine scan eligibility; email is optional and missing links must come from an account-linked source
 - [OC payment provider selection](oc-payment-provider-selection.md) — bridge availability and active buyer provider are separate settings
 - [Category artwork references](category-artwork-references.md) — category cards use shipped local artwork that matches the approved reference screenshots, not unstable Firebase Storage URLs
 - [Hero gallery competition media](hero-gallery-competition-media.md) — thumbnail always renders as base layer; video overlays on top so privacy-blocked iframes never black out a card
