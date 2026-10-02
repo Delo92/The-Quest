@@ -4,6 +4,11 @@ import { firebaseAuth, requireAdmin } from "./auth-middleware";
 import { decrypt, encrypt, isEncryptionKeySet } from "./encryption";
 import { getFirebaseStorage, getFirestore } from "./firebase-admin";
 import { storage } from "./storage";
+import {
+  W9_FORM_VERSION,
+  W9TaxFormSchema,
+  type W9TaxFormValues,
+} from "../shared/w9-tax-form";
 
 const TAX_PROFILES = "questTaxProfiles";
 const TAX_SETTINGS = "questTaxSettings";
@@ -16,18 +21,7 @@ const RECIPIENT_1099_TEMPLATE_DOC = "recipient1099Template";
 const RECIPIENT_1099_TEMPLATE_PREFIX = "questTaxTemplates/1099-NEC/";
 const RECIPIENT_COPY_PAGE_INDEX = 3;
 
-type TaxData = {
-  legalName: string;
-  businessName: string;
-  taxIdType: "ssn" | "ein";
-  taxId: string;
-  address1: string;
-  address2: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-};
+type TaxData = W9TaxFormValues & { w9FormVersion: string };
 
 const now = () => new Date().toISOString();
 const clean = (value: unknown, max = 240) => String(value ?? "").trim().slice(0, max);
@@ -87,24 +81,23 @@ const endOfDay = (value: unknown) => {
 };
 
 function validTaxData(body: any, retainedTaxId = ""): TaxData | null {
-  const taxIdType = body?.taxIdType === "ein" ? "ein" : body?.taxIdType === "ssn" ? "ssn" : null;
-  const taxId = digits(body?.taxId) || retainedTaxId;
-  const country = countryCode(body?.country || "US");
+  const parsed = W9TaxFormSchema.safeParse(body);
+  if (!parsed.success) return null;
+  const taxId = digits(parsed.data.taxId) || retainedTaxId;
+  const country = countryCode(parsed.data.country || "US");
   const data: TaxData = {
-    legalName: clean(body?.legalName, 160),
-    businessName: clean(body?.businessName, 160),
-    taxIdType: taxIdType || "ssn",
+    ...parsed.data,
     taxId,
-    address1: clean(body?.address1, 180),
-    address2: clean(body?.address2, 100),
-    city: clean(body?.city, 100),
-    state: stateCode(body?.state),
-    postalCode: clean(body?.postalCode, 24),
+    address1: clean(parsed.data.address1, 180),
+    address2: clean(parsed.data.address2, 100),
+    city: clean(parsed.data.city, 100),
+    state: stateCode(parsed.data.state),
+    postalCode: clean(parsed.data.postalCode, 24),
     country,
+    w9FormVersion: W9_FORM_VERSION,
   };
   if (
-    !taxIdType
-    || !data.legalName
+    !data.legalName
     || !data.address1
     || !data.city
     || data.state.length !== 2
@@ -113,6 +106,14 @@ function validTaxData(body: any, retainedTaxId = ""): TaxData | null {
     || data.taxId.length !== 9
   ) return null;
   return data;
+}
+
+function isCompleteW9(data: Partial<TaxData> | null | undefined): boolean {
+  return Boolean(
+    data
+    && data.w9FormVersion === W9_FORM_VERSION
+    && W9TaxFormSchema.safeParse(data).success,
+  );
 }
 
 function maskedTin(taxId: string) {
@@ -485,9 +486,20 @@ export function registerQuestTaxAndDonations(app: Express) {
           businessName: data.businessName,
           taxIdType: data.taxIdType,
           taxIdLast4: data.taxId.slice(-4),
+          federalTaxClassification: data.federalTaxClassification || null,
+          w9FormVersion: version.w9FormVersion || data.w9FormVersion || null,
+          w9Complete: isCompleteW9(data),
         };
       }));
       const paidGrossCents = await paidGrossCentsForProfile(uid, Number(profile.id), year);
+      res.setHeader("Cache-Control", "private, no-store");
+      const publicCurrent = currentData
+        ? (({ taxId, ...data }) => ({
+          ...data,
+          taxIdLast4: taxId.slice(-4),
+          w9Complete: isCompleteW9(currentData),
+        }))(currentData)
+        : null;
       res.json({
         taxYear: year,
         encryptionReady: isEncryptionKeySet(),
@@ -495,17 +507,10 @@ export function registerQuestTaxAndDonations(app: Express) {
         acknowledgedAt: parent.acknowledgedAt || null,
         dismissedAt: parent.dismissedAt || null,
         currentVersionId: currentDoc?.id || null,
-        current: currentData ? {
-          legalName: currentData.legalName,
-          businessName: currentData.businessName,
-          taxIdType: currentData.taxIdType,
-          taxIdLast4: currentData.taxId.slice(-4),
-          address1: currentData.address1,
-          address2: currentData.address2,
-          city: currentData.city,
-          state: stateCode(currentData.state),
-          postalCode: currentData.postalCode,
-          country: countryCode(currentData.country),
+        current: publicCurrent ? {
+          ...publicCurrent,
+          state: stateCode(currentData?.state),
+          country: countryCode(currentData?.country),
         } : null,
         versions,
         paidGrossCents,
@@ -582,6 +587,8 @@ export function registerQuestTaxAndDonations(app: Express) {
       const version = {
         encryptedPayload: encrypt(JSON.stringify(data)),
         complete: true,
+        w9FormVersion: data.w9FormVersion,
+        certificationAcceptedAt: createdAt,
         createdAt,
         acknowledgedAt: parent.acknowledgedAt,
         taxIdLast4: data.taxId.slice(-4),

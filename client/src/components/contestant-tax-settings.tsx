@@ -4,22 +4,16 @@ import { AlertTriangle, Download, FileText, LockKeyhole, ShieldCheck } from "luc
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import W9FormDialog from "@/components/w9-form-dialog";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { W9TaxFormValues } from "@shared/w9-tax-form";
 
-type TaxForm = {
-  legalName: string;
-  businessName: string;
-  taxIdType: "ssn" | "ein";
-  taxId: string;
-  address1: string;
-  address2: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
+type SavedW9 = Partial<Omit<W9TaxFormValues, "taxId">> & {
+  taxIdLast4: string;
+  w9Complete?: boolean;
+  w9FormVersion?: string | null;
 };
 
 type TaxProfile = {
@@ -29,7 +23,7 @@ type TaxProfile = {
   acknowledgedAt: string | null;
   dismissedAt: string | null;
   currentVersionId: string | null;
-  current: Omit<TaxForm, "taxId"> & { taxIdLast4: string } | null;
+  current: SavedW9 | null;
   versions: Array<{
     id: string;
     createdAt: string | null;
@@ -37,6 +31,8 @@ type TaxProfile = {
     businessName: string;
     taxIdType: "ssn" | "ein";
     taxIdLast4: string;
+    federalTaxClassification?: string | null;
+    w9Complete?: boolean;
   }>;
   paidGrossCents: number;
 };
@@ -48,19 +44,6 @@ type Deadline = {
   taxYear: number;
 };
 
-const emptyForm: TaxForm = {
-  legalName: "",
-  businessName: "",
-  taxIdType: "ssn",
-  taxId: "",
-  address1: "",
-  address2: "",
-  city: "",
-  state: "",
-  postalCode: "",
-  country: "US",
-};
-
 const money = (cents: number) =>
   `$${(Number(cents || 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -68,13 +51,23 @@ const dateLabel = (value?: string | null) => value
   ? new Date(value).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
   : "Date unavailable";
 
+const classificationLabels: Record<string, string> = {
+  individual_sole_proprietor: "Individual / sole proprietor",
+  c_corporation: "C corporation",
+  s_corporation: "S corporation",
+  partnership: "Partnership",
+  trust_estate: "Trust / estate",
+  llc: "Limited liability company",
+  other: "Other",
+};
+
 export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxDetails?: () => void } = {}) {
   const { toast } = useToast();
   const currentYear = new Date().getUTCFullYear();
   const [taxYear, setTaxYear] = useState(currentYear);
-  const [form, setForm] = useState<TaxForm>(emptyForm);
   const [showReminder, setShowReminder] = useState(true);
   const [taxPromptOpen, setTaxPromptOpen] = useState(false);
+  const [w9DialogOpen, setW9DialogOpen] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState("");
 
   const yearsQuery = useQuery<number[]>({ queryKey: ["/api/tax/my-years"] });
@@ -89,25 +82,7 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
   const deadlinesQuery = useQuery<Deadline[]>({ queryKey: ["/api/tax/my-deadlines"] });
 
   useEffect(() => {
-    const current = profileQuery.data?.current;
-    if (current) {
-      setForm({
-        legalName: current.legalName || "",
-        businessName: current.businessName || "",
-        taxIdType: current.taxIdType,
-        taxId: "",
-        address1: current.address1 || "",
-        address2: current.address2 || "",
-        city: current.city || "",
-        state: current.state || "",
-        postalCode: current.postalCode || "",
-        country: current.country || "US",
-      });
-      setSelectedVersionId(profileQuery.data?.currentVersionId || "");
-    } else {
-      setForm(emptyForm);
-      setSelectedVersionId("");
-    }
+    setSelectedVersionId(profileQuery.data?.currentVersionId || "");
     setShowReminder(!profileQuery.data?.dismissedAt);
   }, [profileQuery.data, taxYear]);
 
@@ -131,12 +106,13 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
   });
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/tax/my-profile/${taxYear}`, form);
+    mutationFn: async (values: W9TaxFormValues) => {
+      const response = await apiRequest("POST", `/api/tax/my-profile/${taxYear}`, values);
       return response.json();
     },
     onSuccess: () => {
       updateProfileQuery();
+      setW9DialogOpen(false);
       toast({ title: "Tax details saved securely" });
     },
     onError: (error: Error) => toast({ title: "Could not save tax details", description: error.message, variant: "destructive" }),
@@ -162,8 +138,6 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
   const profile = profileQuery.data;
   const deadlines = deadlinesQuery.data || [];
   const yearOptions = [...new Set([currentYear, ...(yearsQuery.data || [])])].sort((a, b) => b - a);
-  const update = (key: keyof TaxForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const inputClass = "border-white/15 bg-white/[0.06] text-white placeholder:text-white/25";
   const currentHasTin = Boolean(profile?.current?.taxIdLast4);
   const needsTaxProfile = Boolean(
     profileQuery.isSuccess
@@ -224,6 +198,17 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <W9FormDialog
+        open={w9DialogOpen}
+        onOpenChange={setW9DialogOpen}
+        initialValues={profile?.current}
+        hasSavedTaxId={currentHasTin}
+        taxIdLast4={profile?.current?.taxIdLast4}
+        canSave={Boolean(profile?.encryptionReady && profile?.acknowledgedAt)}
+        isSaving={saveMutation.isPending}
+        onSubmit={(values) => saveMutation.mutate(values)}
+      />
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -332,90 +317,86 @@ export default function ContestantTaxSettings({ onOpenTaxDetails }: { onOpenTaxD
           {profile?.acknowledgedAt && (
             <p className="text-xs text-white/40">Deadline acknowledged {dateLabel(profile.acknowledgedAt)}.</p>
           )}
-          <form
-            className="space-y-5 rounded-lg border border-white/10 bg-white/[0.03] p-4 sm:p-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              saveMutation.mutate();
-            }}
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-legal-name" className="text-white/70">Legal name</Label>
-                <Input id="tax-legal-name" autoComplete="name" required value={form.legalName} onChange={(event) => update("legalName", event.target.value)} className={inputClass} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-business-name" className="text-white/70">Business name (optional)</Label>
-                <Input id="tax-business-name" value={form.businessName} onChange={(event) => update("businessName", event.target.value)} className={inputClass} />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-id-type" className="text-white/70">Tax ID type</Label>
-                <select
-                  id="tax-id-type"
-                  value={form.taxIdType}
-                  onChange={(event) => update("taxIdType", event.target.value as TaxForm["taxIdType"])}
-                  className="h-10 w-full rounded-md border border-white/15 bg-[#171717] px-3 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
-                >
-                  <option value="ssn">Social Security number</option>
-                  <option value="ein">Employer identification number</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-id" className="text-white/70">Tax ID</Label>
-                <Input
-                  id="tax-id"
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={form.taxId}
-                  onChange={(event) => update("taxId", event.target.value)}
-                  placeholder={currentHasTin ? `Saved securely · ending in ${profile?.current?.taxIdLast4}` : "Enter 9 digits"}
-                  className={inputClass}
-                  aria-describedby="tax-id-help"
-                />
-                <p id="tax-id-help" className="text-xs text-white/40">
-                  {currentHasTin ? "Leave blank to keep the saved number. Enter a new 9-digit number to replace it." : "Enter the 9-digit number associated with the legal name above."}
+          <section className="rounded-lg border border-white/10 bg-white/[0.03] p-4 sm:p-5" aria-labelledby="saved-w9-heading">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <FileText className="h-4 w-4 text-orange-300" />
+                  <h3 id="saved-w9-heading" className="font-medium text-white">Tax Details · Form W-9</h3>
+                  {profile?.current && (
+                    <Badge variant="outline" className="border-white/15 text-[10px] text-white/55">
+                      {profile.current.w9Complete ? `Complete · ${profile.current.w9FormVersion || "W-9"}` : "Needs W-9 update"}
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-white/50">
+                  Saved information is encrypted. Your full tax ID is never displayed after saving.
                 </p>
               </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="tax-address1" className="text-white/70">Mailing address</Label>
-                <Input id="tax-address1" autoComplete="address-line1" required value={form.address1} onChange={(event) => update("address1", event.target.value)} className={inputClass} />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="tax-address2" className="text-white/70">Apartment, suite, etc. (optional)</Label>
-                <Input id="tax-address2" autoComplete="address-line2" value={form.address2} onChange={(event) => update("address2", event.target.value)} className={inputClass} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-city" className="text-white/70">City</Label>
-                <Input id="tax-city" autoComplete="address-level2" required value={form.city} onChange={(event) => update("city", event.target.value)} className={inputClass} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-state" className="text-white/70">State / region code</Label>
-                <Input id="tax-state" required maxLength={2} placeholder="IL" value={form.state} onChange={(event) => update("state", event.target.value.toUpperCase())} className={inputClass} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-postal" className="text-white/70">ZIP / postal code</Label>
-                <Input id="tax-postal" autoComplete="postal-code" required value={form.postalCode} onChange={(event) => update("postalCode", event.target.value)} className={inputClass} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tax-country" className="text-white/70">Country code</Label>
-                <Input id="tax-country" required maxLength={2} placeholder="US" value={form.country} onChange={(event) => update("country", event.target.value.toUpperCase())} className={inputClass} />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-white/40">Each save preserves a dated prior version. Tax IDs are never shown in full after saving.</p>
-              <Button type="submit" disabled={!profile?.encryptionReady || !profile?.acknowledgedAt || saveMutation.isPending} className="min-h-11 bg-orange-500 text-white hover:bg-orange-400">
-                {saveMutation.isPending ? "Saving securely…" : "Save tax details"}
+              <Button
+                type="button"
+                onClick={() => setW9DialogOpen(true)}
+                disabled={!profile?.encryptionReady}
+                className="min-h-11 w-full shrink-0 bg-orange-500 text-white hover:bg-orange-400 sm:w-auto"
+                data-testid="button-open-w9"
+              >
+                {profile?.current?.w9Complete ? "Update Form W-9" : "Complete Form W-9"}
               </Button>
             </div>
-          </form>
+
+            {profile?.current ? (
+              <>
+                <dl className="mt-4 grid gap-x-6 sm:grid-cols-2">
+                  {[
+                    ["Legal name", profile.current.legalName],
+                    ["Business / disregarded entity", profile.current.businessName],
+                    ["Federal tax classification", profile.current.federalTaxClassification
+                      ? classificationLabels[profile.current.federalTaxClassification] || profile.current.federalTaxClassification
+                      : "Not recorded in this version"],
+                    ["Other classification detail", profile.current.otherTaxClassification],
+                    ["LLC tax classification", profile.current.llcTaxClassification],
+                    ["Foreign owners / beneficiaries (line 3b)", typeof profile.current.hasForeignOwners === "boolean"
+                      ? (profile.current.hasForeignOwners ? "Yes" : "No")
+                      : "Not recorded in this version"],
+                    ["Exempt payee code", profile.current.exemptPayeeCode],
+                    ["FATCA exemption code", profile.current.fatcaExemptionCode],
+                    ["Mailing address", profile.current.address1],
+                    ["Apartment / suite", profile.current.address2],
+                    ["City", profile.current.city],
+                    ["State / region", profile.current.state],
+                    ["ZIP / postal code", profile.current.postalCode],
+                    ["Country", profile.current.country],
+                    ["Requester name and address", profile.current.requesterNameAddress],
+                    ["Account numbers", profile.current.accountNumbers],
+                    ["Tax ID", currentHasTin
+                      ? `${profile.current.taxIdType === "ein" ? "EIN" : "SSN"} ending in ${profile.current.taxIdLast4}`
+                      : "Not on file"],
+                    ["Backup withholding", profile.current.backupWithholdingCrossedOut
+                      ? "IRS notified taxpayer; certification item 2 crossed out"
+                      : "Not indicated"],
+                    ["Certification", profile.current.certificationAccepted ? "Accepted" : "Not recorded in this version"],
+                    ["Electronic signature", profile.current.signature],
+                    ["Signature date", profile.current.signatureDate],
+                  ].map(([label, value]) => (
+                    <div key={label} className="min-w-0 border-b border-white/[0.07] py-2.5">
+                      <dt className="text-xs text-white/45">{label}</dt>
+                      <dd className="mt-0.5 break-words text-sm text-white/85">{value || "—"}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-4 text-xs text-white/40">
+                  Each save preserves a dated prior version. Leave the tax ID blank in the update form to keep the saved number.
+                </p>
+              </>
+            ) : (
+              <p className="mt-4 text-sm text-white/40">No Form W-9 is saved for this tax year yet.</p>
+            )}
+            {!profile?.acknowledgedAt && (
+              <p className="mt-3 text-xs text-amber-200/70">
+                Acknowledge the tax deadline above before saving a completed W-9.
+              </p>
+            )}
+          </section>
 
           <section className="rounded-lg border border-white/10 bg-white/[0.03] p-4 sm:p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
