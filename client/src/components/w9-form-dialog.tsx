@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { ChevronDown, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,13 +45,43 @@ const taxClassifications = [
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialValues?: Partial<W9TaxFormValues> | null;
+  initialValues?: Partial<Omit<W9TaxFormValues, "taxId">> | null;
   hasSavedTaxId: boolean;
   taxIdLast4?: string | null;
   canSave: boolean;
   isSaving: boolean;
   onSubmit: (values: W9TaxFormValues) => void;
 };
+
+function PreviewText({
+  children,
+  left,
+  top,
+  width,
+  className = "",
+}: {
+  children: ReactNode;
+  left: string;
+  top: string;
+  width: string;
+  className?: string;
+}) {
+  if (children === null || children === undefined || children === "") return null;
+
+  return (
+    <span
+      className={`absolute z-10 overflow-hidden whitespace-nowrap bg-white/80 px-[1px] font-medium leading-tight text-[#171717] ${className}`}
+      style={{
+        left,
+        top,
+        width,
+        fontSize: "clamp(5px, 0.9vw, 11px)",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
 
 export default function W9FormDialog({
   open,
@@ -63,7 +93,27 @@ export default function W9FormDialog({
   isSaving,
   onSubmit,
 }: Props) {
-  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(true);
+  const [w9PreviewOpen, setW9PreviewOpen] = useState(false);
+  const hasSavedW9 = Boolean(initialValues);
+  const previewValues = { ...emptyW9TaxForm, ...initialValues, taxId: "" };
+  const safeTaxIdLast4 = (taxIdLast4 || "").replace(/\D/g, "").slice(-4);
+  const taxClassificationLabel = taxClassifications.find(
+    (classification) => classification.value === previewValues.federalTaxClassification,
+  )?.label;
+  const savedClassification =
+    previewValues.federalTaxClassification === "llc" && previewValues.llcTaxClassification
+      ? `LLC · ${previewValues.llcTaxClassification}`
+      : previewValues.federalTaxClassification === "other" && previewValues.otherTaxClassification
+        ? `Other · ${previewValues.otherTaxClassification}`
+        : taxClassificationLabel;
+  const mailingAddress = [previewValues.address1, previewValues.address2].filter(Boolean).join(", ");
+  const cityStatePostal = [previewValues.city, previewValues.state, previewValues.postalCode]
+    .filter(Boolean)
+    .join(", ");
+  const location = [cityStatePostal, previewValues.country !== "US" ? previewValues.country : ""]
+    .filter(Boolean)
+    .join(" · ");
+
   const form = useForm<W9TaxFormValues>({
     resolver: zodResolver(W9TaxFormSchema),
     defaultValues: { ...emptyW9TaxForm, ...initialValues, taxId: "" },
@@ -77,7 +127,7 @@ export default function W9FormDialog({
   useEffect(() => {
     if (open) {
       form.reset({ ...emptyW9TaxForm, ...initialValues, taxId: "" });
-      setPdfPreviewOpen(true);
+      setW9PreviewOpen(false);
     }
   }, [form, initialValues, open]);
 
@@ -112,7 +162,7 @@ export default function W9FormDialog({
               className="text-sm text-orange-300 underline decoration-orange-300/50 underline-offset-4 hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
               data-testid="link-attached-w9-pdf"
             >
-              Open attached W-9 PDF
+              Open blank IRS W-9 PDF
             </a>
           </div>
         </DialogHeader>
@@ -120,7 +170,7 @@ export default function W9FormDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(submit)} className="space-y-5 px-4 pb-5 sm:px-7 sm:pb-7">
             <p className="rounded-md border border-orange-300/20 bg-orange-300/[0.06] p-3 text-sm text-white/75">
-              The attached IRS form is shown here for reference. Complete the matching secure fields below to save them to Tax Details. Do not send the form to the IRS. Your tax ID is encrypted and is never returned in full to this page.
+              Review the saved W-9 preview, then edit the secure fields below to update Tax Details. The tax ID is encrypted and only its last four digits appear in the preview.
             </p>
             {!canSave && (
               <p className="rounded-md border border-amber-300/20 bg-amber-300/[0.06] p-3 text-sm text-amber-100/80" role="status">
@@ -128,27 +178,141 @@ export default function W9FormDialog({
               </p>
             )}
 
-            <section className="space-y-3" aria-label="Attached IRS Form W-9 PDF">
+            <section className="space-y-3" aria-label="Saved Form W-9 preview">
               <Button
                 type="button"
                 variant="outline"
-                aria-expanded={pdfPreviewOpen}
-                onClick={() => setPdfPreviewOpen((open) => !open)}
-                className="min-h-11 border-white/20 text-white hover:bg-white/10"
-                data-testid="button-toggle-w9-pdf"
+                aria-expanded={w9PreviewOpen}
+                aria-controls="w9-saved-preview"
+                onClick={() => setW9PreviewOpen((open) => !open)}
+                className="min-h-11 w-full justify-between border-white/20 text-left text-white hover:bg-white/10 sm:w-auto sm:min-w-72"
+                data-testid="button-toggle-w9-preview"
               >
-                <FileText className="mr-2 h-4 w-4" />
-                {pdfPreviewOpen ? "Hide attached W-9 PDF" : "Show attached W-9 PDF"}
+                <span className="flex items-center">
+                  <FileText className="mr-2 h-4 w-4 shrink-0" />
+                  {hasSavedW9 ? "Preview saved W-9" : "Preview blank W-9 template"}
+                </span>
+                <ChevronDown
+                  className={`ml-3 h-4 w-4 shrink-0 transition-transform ${w9PreviewOpen ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                />
               </Button>
-              {pdfPreviewOpen && (
-                <div className="space-y-2">
+              {w9PreviewOpen && (
+                <div id="w9-saved-preview" className="space-y-3" data-testid="w9-saved-preview">
+                  <p
+                    className={`rounded-md border p-3 text-sm ${
+                      hasSavedW9
+                        ? "border-white/10 bg-white/[0.04] text-white/65"
+                        : "border-amber-300/20 bg-amber-300/[0.06] text-amber-100/85"
+                    }`}
+                    role="status"
+                    data-testid="w9-preview-status"
+                  >
+                    {hasSavedW9
+                      ? "Saved profile details are shown on the form below. The tax ID is masked."
+                      : "No W-9 is saved yet. This is a blank IRS template; complete the fields below to save your information."}
+                  </p>
                   <div className="max-h-[min(55vh,560px)] overflow-y-auto rounded-md bg-white">
+                    <div className="relative mx-auto w-full" data-testid="w9-preview-page">
                     <img
                       src={w9PageImageUrl}
-                      alt="Page 1 of the attached March 2024 IRS Form W-9"
+                      alt="Page 1 of the March 2024 IRS Form W-9 template"
                       className="block h-auto w-full"
-                      data-testid="image-attached-w9-page"
+                      data-testid="image-w9-preview-page"
                     />
+                    {hasSavedW9 && (
+                      <>
+                        <PreviewText left="11.8%" top="15.2%" width="82%">
+                          {previewValues.legalName}
+                        </PreviewText>
+                        <PreviewText left="11.8%" top="18.2%" width="82%">
+                          {previewValues.businessName}
+                        </PreviewText>
+
+                        {[
+                          { value: "individual_sole_proprietor", left: "11.8%", top: "22.7%" },
+                          { value: "c_corporation", left: "29.1%", top: "22.7%" },
+                          { value: "s_corporation", left: "40.7%", top: "22.7%" },
+                          { value: "partnership", left: "52.4%", top: "22.7%" },
+                          { value: "trust_estate", left: "63.7%", top: "22.7%" },
+                          { value: "llc", left: "11.8%", top: "25.1%" },
+                          { value: "other", left: "11.8%", top: "28.9%" },
+                        ].map((mark) =>
+                          previewValues.federalTaxClassification === mark.value ? (
+                            <PreviewText
+                              key={mark.value}
+                              left={mark.left}
+                              top={mark.top}
+                              width="3%"
+                              className="bg-transparent text-[1.2em] font-bold"
+                            >
+                              ✓
+                            </PreviewText>
+                          ) : null,
+                        )}
+                        {previewValues.federalTaxClassification === "llc" && previewValues.llcTaxClassification && (
+                          <PreviewText left="26%" top="25.1%" width="17%">
+                            {previewValues.llcTaxClassification}
+                          </PreviewText>
+                        )}
+                        {previewValues.federalTaxClassification === "other" && previewValues.otherTaxClassification && (
+                          <PreviewText left="20%" top="28.9%" width="32%">
+                            {previewValues.otherTaxClassification}
+                          </PreviewText>
+                        )}
+                        <PreviewText left="73.5%" top="26.1%" width="20%">
+                          {previewValues.exemptPayeeCode}
+                        </PreviewText>
+                        <PreviewText left="73.5%" top="29.2%" width="20%">
+                          {previewValues.fatcaExemptionCode}
+                        </PreviewText>
+                        {previewValues.hasForeignOwners && (
+                          <PreviewText left="72.4%" top="33.5%" width="3%" className="bg-transparent text-[1.2em] font-bold">
+                            ✓
+                          </PreviewText>
+                        )}
+                        <PreviewText left="11.8%" top="36.1%" width="49%">
+                          {mailingAddress}
+                        </PreviewText>
+                        <PreviewText left="62%" top="36.1%" width="31%">
+                          {previewValues.requesterNameAddress}
+                        </PreviewText>
+                        <PreviewText left="11.8%" top="39.2%" width="82%">
+                          {location}
+                        </PreviewText>
+                        <PreviewText left="11.8%" top="42.4%" width="82%">
+                          {previewValues.accountNumbers}
+                        </PreviewText>
+                        <PreviewText left="68.5%" top="47.1%" width="23%">
+                          {previewValues.taxIdType === "ssn"
+                            ? safeTaxIdLast4
+                              ? `•••-••-${safeTaxIdLast4}`
+                              : "Not on file"
+                            : ""}
+                        </PreviewText>
+                        <PreviewText left="68.5%" top="53.3%" width="23%">
+                          {previewValues.taxIdType === "ein"
+                            ? safeTaxIdLast4
+                              ? `••-•••${safeTaxIdLast4}`
+                              : "Not on file"
+                            : ""}
+                        </PreviewText>
+                        {previewValues.backupWithholdingCrossedOut && (
+                          <span
+                            aria-label="Backup withholding certification crossed out"
+                            className="absolute z-10 border-t border-black"
+                            style={{ left: "7%", top: "66.5%", width: "88%" }}
+                          />
+                        )}
+                        <PreviewText left="15.3%" top="74.4%" width="42%">
+                          {previewValues.signature}
+                        </PreviewText>
+                        <PreviewText left="48.5%" top="74.4%" width="29%">
+                          {previewValues.signatureDate}
+                        </PreviewText>
+                      </>
+                    )}
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
                     <a
@@ -165,7 +329,7 @@ export default function W9FormDialog({
                       rel="noopener noreferrer"
                       className="text-orange-300 underline underline-offset-4 hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
                     >
-                      Open full 6-page PDF
+                      Open full 6-page IRS template
                     </a>
                   </div>
                 </div>
