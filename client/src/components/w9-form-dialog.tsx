@@ -186,7 +186,7 @@ export default function W9FormDialog({
                 aria-controls="w9-saved-preview"
                 onClick={() => setW9PreviewOpen((open) => !open)}
                 className="min-h-11 w-full justify-between border-white/20 text-left text-white hover:bg-white/10 sm:w-auto sm:min-w-72"
-                data-testid="button-toggle-w9-preview"
+                data-testid="button-toggle-w9-pdf"
               >
                 <span className="flex items-center">
                   <FileText className="mr-2 h-4 w-4 shrink-0" />
@@ -209,17 +209,17 @@ export default function W9FormDialog({
                     data-testid="w9-preview-status"
                   >
                     {hasSavedW9
-                      ? "Saved profile details are shown on the form below. The tax ID is masked."
+                      ? "Saved profile details are shown on this form. Only the tax ID’s last four digits are visible."
                       : "No W-9 is saved yet. This is a blank IRS template; complete the fields below to save your information."}
                   </p>
                   <div className="max-h-[min(55vh,560px)] overflow-y-auto rounded-md bg-white">
                     <div className="relative mx-auto w-full" data-testid="w9-preview-page">
-                    <img
-                      src={w9PageImageUrl}
-                      alt="Page 1 of the March 2024 IRS Form W-9 template"
-                      className="block h-auto w-full"
-                      data-testid="image-w9-preview-page"
-                    />
+                      <img
+                        src={w9PageImageUrl}
+                        alt="Page 1 of the March 2024 IRS Form W-9 template"
+                        className="block h-auto w-full"
+                        data-testid="image-attached-w9-page"
+                      />
                     {hasSavedW9 && (
                       <>
                         <PreviewText left="11.8%" top="15.2%" width="82%">
@@ -752,7 +752,7 @@ export default function W9FormDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={!canSave || isSaving}
+                disabled={isSaving}
                 className="min-h-11 border-white/20 text-white hover:bg-white/10"
                 data-testid="button-cancel-w9"
               >
