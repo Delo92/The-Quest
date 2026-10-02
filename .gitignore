@@ -64,6 +64,7 @@ attached_assets/
 # Images and media created in the workspace are not committed by default.
 # Existing tracked images remain tracked so the app's current assets are preserved.
 *.png
+!client/public/irs-w9-page-1.png
 *.jpg
 *.jpeg
 *.gif

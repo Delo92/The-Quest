@@ -30,6 +30,7 @@ import {
 } from "@shared/w9-tax-form";
 
 const w9PdfUrl = `${import.meta.env.BASE_URL}irs-w9-2024.pdf`;
+const w9PageImageUrl = `${import.meta.env.BASE_URL}irs-w9-page-1.png`;
 
 const taxClassifications = [
   { value: "individual_sole_proprietor", label: "Individual / sole proprietor" },
@@ -141,17 +142,32 @@ export default function W9FormDialog({
               </Button>
               {pdfPreviewOpen && (
                 <div className="space-y-2">
-                  <div className="h-[min(55vh,560px)] min-h-[300px] overflow-hidden rounded-md bg-white">
-                    <iframe
-                      src={w9PdfUrl}
-                      title="Attached March 2024 IRS Form W-9"
-                      className="h-full w-full border-0"
-                      data-testid="frame-attached-w9-pdf"
+                  <div className="max-h-[min(55vh,560px)] overflow-y-auto rounded-md bg-white">
+                    <img
+                      src={w9PageImageUrl}
+                      alt="Page 1 of the attached March 2024 IRS Form W-9"
+                      className="block h-auto w-full"
+                      data-testid="image-attached-w9-page"
                     />
                   </div>
-                  <p className="text-xs text-white/45">
-                    If your browser does not display PDFs here, use “Open attached W-9 PDF” above.
-                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                    <a
+                      href={w9PageImageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-300 underline underline-offset-4 hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                    >
+                      Open page 1 at full size
+                    </a>
+                    <a
+                      href={w9PdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-300 underline underline-offset-4 hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                    >
+                      Open full 6-page PDF
+                    </a>
+                  </div>
                 </div>
               )}
             </section>
