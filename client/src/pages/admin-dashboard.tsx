@@ -75,6 +75,7 @@ interface JoinHostSettings {
     host: number | null;
     platform: number | null;
   };
+  platformMatchMode?: "percentage" | "cash";
   freeNominationPromoCode?: string;
 }
 
@@ -103,7 +104,7 @@ interface JoinSubmission {
   chosenNonprofit?: string | null;
   nonprofitPolicyAcknowledged?: boolean;
   nonprofitPolicyAcknowledgedAt?: string | null;
-  nonprofitContributionRatesAtAcknowledgment?: { contestant: number; host: number; platform: number } | null;
+  nonprofitContributionRatesAtAcknowledgment?: { contestant?: number; host?: number; platform: number } | null;
   nonprofitPlatformRecipientAtAcknowledgment?: string | null;
 }
 
@@ -3653,42 +3654,47 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Label className="text-white/80 font-semibold">Non-Profit / Charity</Label>
                       </div>
                       <p className="text-xs leading-relaxed text-white/55 mb-4">
-                        Nonprofit contributions are mandatory for contestants, hosts, and The Quest. Set a separate rate for each level; every rate must be greater than 0% and no more than 10%. Nominations and prize payouts stay blocked until all three rates are configured.
+                        Contestants and hosts choose their own rate from 1% to 10% of their eligible share in their account. Set The Quest's platform rate from 1% to 10% of its own share. Any platform match is limited by that platform allocation and the participant's actual contribution.
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                        {([
-                          ["contestant", "Contestant rate"],
-                          ["host", "Host rate"],
-                          ["platform", "The Quest rate"],
-                        ] as const).map(([level, label]) => (
-                          <div key={level} className="space-y-1.5">
-                            <Label htmlFor={`nonprofit-rate-${level}`} className="text-white/60">{label} (%)</Label>
-                            <Input
-                              id={`nonprofit-rate-${level}`}
-                              key={`nonprofit-rate-${level}-${joinSettings.nonprofitContributionRates?.[level] ?? "unset"}`}
-                              type="number"
-                              min="0.01"
-                              max="10"
-                              step="0.01"
-                              defaultValue={joinSettings.nonprofitContributionRates?.[level] ?? ""}
-                              placeholder="Set 0–10%"
-                              onBlur={(event) => {
-                                const raw = event.target.value.trim();
-                                const rate = raw ? Number(raw) : null;
-                                updateJoinSettingsMutation.mutate({
-                                  nonprofitContributionRates: {
-                                    contestant: joinSettings.nonprofitContributionRates?.contestant ?? null,
-                                    host: joinSettings.nonprofitContributionRates?.host ?? null,
-                                    platform: joinSettings.nonprofitContributionRates?.platform ?? null,
-                                    [level]: rate,
-                                  },
-                                });
-                              }}
-                              className="bg-white/5 border-white/10 text-white"
-                              data-testid={`input-nonprofit-rate-${level}`}
-                            />
-                          </div>
-                        ))}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="nonprofit-rate-platform" className="text-white/60">The Quest's platform rate (%)</Label>
+                          <Input
+                            id="nonprofit-rate-platform"
+                            key={`nonprofit-rate-platform-${joinSettings.nonprofitContributionRates?.platform ?? "unset"}`}
+                            type="number"
+                            min="1"
+                            max="10"
+                            step="0.01"
+                            defaultValue={joinSettings.nonprofitContributionRates?.platform ?? ""}
+                            placeholder="Set 1–10%"
+                            onBlur={(event) => {
+                              const raw = event.target.value.trim();
+                              const rate = raw ? Number(raw) : null;
+                              updateJoinSettingsMutation.mutate({
+                                nonprofitContributionRates: { platform: rate } as JoinHostSettings["nonprofitContributionRates"],
+                              });
+                            }}
+                            className="bg-white/5 border-white/10 text-white"
+                            data-testid="input-nonprofit-rate-platform"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="platform-match-mode" className="text-white/60">Platform matching method</Label>
+                          <select
+                            id="platform-match-mode"
+                            value={joinSettings.platformMatchMode || "percentage"}
+                            onChange={(event) => updateJoinSettingsMutation.mutate({
+                              platformMatchMode: event.target.value as "percentage" | "cash",
+                            })}
+                            className="h-10 w-full rounded-md border border-white/10 bg-[#191919] px-3 text-sm text-white"
+                            data-testid="select-platform-match-mode"
+                          >
+                            <option value="percentage">Percentage of the participant's contribution</option>
+                            <option value="cash">Dollar-for-dollar cash match</option>
+                          </select>
+                          <p className="text-xs text-white/35">Either method is capped by the platform rate applied to The Quest's own share.</p>
+                        </div>
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-white/60">The Quest's nonprofit recipient</Label>
@@ -3700,7 +3706,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                           className="bg-white/5 border-white/10 text-white"
                           data-testid="input-charity-name"
                         />
-                        <p className="text-xs text-white/35">Required before the platform rate can be applied to its share of proceeds.</p>
+                        <p className="text-xs text-white/35">Required before nominations can open. Any platform allocation not used for matching goes to this recipient.</p>
                       </div>
                     </div>
                     <div className="mt-4 rounded-md bg-white/5 border border-white/10 p-4">
@@ -3869,7 +3875,9 @@ export default function AdminDashboard({ user }: { user: any }) {
                                     </p>
                                     {sub.nonprofitContributionRatesAtAcknowledgment ? (
                                       <p className="mt-2 text-xs leading-relaxed text-white/60">
-                                        Rates shown: contestant {sub.nonprofitContributionRatesAtAcknowledgment.contestant}% · host {sub.nonprofitContributionRatesAtAcknowledgment.host}% · The Quest {sub.nonprofitContributionRatesAtAcknowledgment.platform}%. Each role contributes from its own share; each rate is capped at 10%.
+                                        {sub.nonprofitContributionRatesAtAcknowledgment.contestant !== undefined
+                                          ? <>Legacy snapshot — contestant {sub.nonprofitContributionRatesAtAcknowledgment.contestant}% · host {sub.nonprofitContributionRatesAtAcknowledgment.host}% · The Quest {sub.nonprofitContributionRatesAtAcknowledgment.platform}%.</>
+                                          : <>Contestants and hosts select their own 1%–10% rates in their profiles. The Quest rate shown at submission was {sub.nonprofitContributionRatesAtAcknowledgment.platform}%.</>}
                                       </p>
                                     ) : (
                                       <p className="mt-2 text-xs text-amber-200/70">Rate snapshot is unavailable for this submission.</p>

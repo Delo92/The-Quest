@@ -7,12 +7,14 @@ import { firestoreJoinSettings } from "./firestore-collections";
 import { runMonthlyPayouts } from "./quest-payout-job";
 import { finalVotingDeadline, hasTaxInfoBeforeDeadline } from "./quest-tax-donations";
 import {
+  calculatePlatformMatchAllocations,
   declaredNonprofitName,
   hasAcknowledgedNonprofitDeclaration,
   hasPrizeReadyNonprofitDeclaration,
   isNonprofitPolicyConfigured,
   isValidNonprofitContributionRate,
   nonprofitAllocationCents,
+  type PlatformMatchMode,
 } from "@shared/nonprofit-policy";
 
 const SETTINGS = "questPayrollSettings";
@@ -260,12 +262,7 @@ async function buildFinancialOverview() {
   const platformNonprofitPercentage = isValidNonprofitContributionRate(nonprofitRates?.platform)
     ? nonprofitRates.platform
     : null;
-  const contestantNonprofitPercentage = isValidNonprofitContributionRate(nonprofitRates?.contestant)
-    ? nonprofitRates.contestant
-    : null;
-  const hostNonprofitPercentage = isValidNonprofitContributionRate(nonprofitRates?.host)
-    ? nonprofitRates.host
-    : null;
+  const platformMatchMode: PlatformMatchMode = joinSettings.platformMatchMode === "cash" ? "cash" : "percentage";
 
   const payeeMatchesProfile = (payee: any, profile: any) => {
     return payee.userId === profile.userId
@@ -345,6 +342,36 @@ async function buildFinancialOverview() {
     const platformNonprofitDueCents = platformNonprofitPercentage === null
       ? null
       : nonprofitAllocationCents(platformShareCents, platformNonprofitPercentage);
+    const platformMatchAllocations = calculatePlatformMatchAllocations(
+      compLedger
+        .filter((entry: any) =>
+          entry.status !== "forfeited"
+          && (entry.nonprofitContributionLevel === "contestant" || entry.nonprofitContributionLevel === "host")
+          && numericCents(entry.nonprofitCents) > 0
+          && String(entry.nonprofitSelection || "").trim(),
+        )
+        .map((entry: any) => {
+          const payee = payees.find((candidate: any) => candidate.id === entry.payeeId);
+          const profile = payee && Number(payee.talentProfileId) > 0
+            ? profilesById.get(Number(payee.talentProfileId))
+            : null;
+          const role = entry.nonprofitContributionLevel === "host" ? "host" as const : "contestant" as const;
+          return {
+            sourceId: String(entry.id || `${entry.batchId}:${entry.payeeId}`),
+            donorName: displayName(profile, payee?.name || "Participant"),
+            donorRole: role,
+            nonprofitName: String(entry.nonprofitSelection).trim(),
+            contributionCents: numericCents(entry.nonprofitCents),
+          };
+        }),
+      platformShareCents,
+      platformNonprofitPercentage ?? 0,
+      platformMatchMode,
+    );
+    const platformMatchDueCents = platformMatchAllocations.reduce((sum, allocation) => sum + allocation.matchCents, 0);
+    const platformDefaultCharityDueCents = platformNonprofitDueCents === null
+      ? null
+      : Math.max(0, platformNonprofitDueCents - platformMatchDueCents);
     const charityShareCents = charityAllocationCents(compTransactions, compLedger);
     const paidVoteCount = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
     const totalVoteCount = compFreeVotes + paidVoteCount;
@@ -363,6 +390,10 @@ async function buildFinancialOverview() {
       platformShareCents,
       platformNonprofitPercentage,
       platformNonprofitDueCents,
+      platformMatchMode,
+      platformMatchDueCents,
+      platformMatchAllocations,
+      platformDefaultCharityDueCents,
       votes: {
         freeVoteCount: compFreeVotes,
         paidVoteCount,
@@ -427,7 +458,9 @@ async function buildFinancialOverview() {
       const declaredCharity = hasPrizeReadyNonprofitDeclaration(declaration)
         ? declaredNonprofitName(declaration)
         : "";
-      const profileRate = profile.role === "host" ? hostNonprofitPercentage : contestantNonprofitPercentage;
+      const profileRate = isValidNonprofitContributionRate(declaration?.contributionRate)
+        ? declaration.contributionRate
+        : null;
       return {
         userId: profile.userId,
         talentProfileId: profile.id,
@@ -488,6 +521,7 @@ async function buildFinancialOverview() {
       platformNonprofitDueCents: platformNonprofitPercentage === null
         ? null
         : competitionBreakdowns.reduce((sum, competition) => sum + (competition.platformNonprofitDueCents || 0), 0),
+      platformMatchDueCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.platformMatchDueCents, 0),
       pendingPayoutCents: pendingPayouts.reduce((sum, payout) => sum + payout.netCents, 0),
       paidPayoutCents: ledger.filter((entry: any) => entry.status === "paid").reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0),
       forfeitedCents: ledger.filter((entry: any) => entry.status === "forfeited").reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0),
@@ -514,8 +548,9 @@ async function buildFinancialOverview() {
       percentage: platformDefaultCharityPercentage,
       dueCents: platformNonprofitPercentage === null
         ? null
-        : competitionBreakdowns.reduce((sum, competition) => sum + (competition.platformNonprofitDueCents || 0), 0),
+        : competitionBreakdowns.reduce((sum, competition) => sum + (competition.platformDefaultCharityDueCents || 0), 0),
     },
+    platformMatchMode,
     nonprofitContributionRates: nonprofitRates,
   };
 }
@@ -857,7 +892,7 @@ export function registerQuestPayrollAdmin(app: Express) {
       const { data: settings } = await getSettingDoc();
       const nonprofitPolicy = await firestoreJoinSettings.get();
       if (!isNonprofitPolicyConfigured(nonprofitPolicy)) {
-        return res.status(409).json({ message: "Configure all three nonprofit contribution rates and the platform recipient before creating a payout batch." });
+        return res.status(409).json({ message: "Configure The Quest's 1–10% platform rate and its nonprofit recipient before creating a payout batch." });
       }
       const competitionId = Number.isFinite(Number(req.body?.competitionId)) ? Number(req.body.competitionId) : null;
       const competition = competitionId ? await storage.getCompetition(competitionId) : null;
@@ -908,11 +943,9 @@ export function registerQuestPayrollAdmin(app: Express) {
           const nonprofitSelection = requiresNonprofitDeclaration
             ? nonprofitDeclarationReady ? declaredNonprofitName(declaration) : null
             : clean(raw?.nonprofitSelection, 180) || null;
-          const nonprofitPercentage = payeeType === "contestant"
-            ? nonprofitPolicy.nonprofitContributionRates.contestant
-            : payeeType === "host"
-              ? nonprofitPolicy.nonprofitContributionRates.host
-              : null;
+          const nonprofitPercentage = requiresNonprofitDeclaration
+            ? declaration?.contributionRate
+            : null;
           const nonprofitCents = requiresNonprofitDeclaration && isValidNonprofitContributionRate(nonprofitPercentage)
             ? nonprofitAllocationCents(grossCents, nonprofitPercentage)
             : 0;
@@ -955,7 +988,7 @@ export function registerQuestPayrollAdmin(app: Express) {
            nonprofitContributionLevel: requiresNonprofitDeclaration ? payeeType : null,
            nonprofitPercentage: requiresNonprofitDeclaration ? nonprofitPercentage : null,
            nonprofitPolicyAcknowledged: requiresNonprofitDeclaration
-             ? hasAcknowledgedNonprofitDeclaration(declaration)
+              ? nonprofitDeclarationReady
              : null,
           netCents,
            paymentInfoDeadline: taxDeadline,
@@ -969,7 +1002,7 @@ export function registerQuestPayrollAdmin(app: Express) {
              : blocked
                 ? [
                     !nonprofitDeclarationReady
-                      ? `A linked ${payeeType} profile must have a nonprofit name and acknowledge the required contribution policy.`
+                       ? `A linked ${payeeType} profile must choose a 1%–10% contribution rate, name a nonprofit, and acknowledge that exact rate.`
                       : null,
                     !paymentInfoProvided
                       ? payeeType === "contestant"

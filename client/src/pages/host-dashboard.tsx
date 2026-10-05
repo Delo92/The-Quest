@@ -29,6 +29,7 @@ import ContestantTaxSettings from "@/components/contestant-tax-settings";
 import type { CompetitionStage } from "@shared/schema";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "@shared/public-links";
+import { hasPrizeReadyNonprofitDeclaration } from "@shared/nonprofit-policy";
 
 interface HostStats {
   totalCompetitions: number;
@@ -271,7 +272,7 @@ export default function HostDashboard({ user }: { user: any }) {
 
   const openAccountEditor = () => {
     const savedDeclaration = myProfile?.nonprofitDeclaration || {};
-    const acknowledged = savedDeclaration.programAcknowledged === true;
+    const acknowledged = hasPrizeReadyNonprofitDeclaration(savedDeclaration);
     const normalizedDeclaration = {
       ...emptyNonprofitDeclaration,
       ...savedDeclaration,

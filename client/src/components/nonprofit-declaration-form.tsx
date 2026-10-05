@@ -1,9 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ShieldCheck } from "lucide-react";
-import { MAX_NONPROFIT_CONTRIBUTION_PERCENT, type NonprofitContributionRates } from "@shared/nonprofit-policy";
+import {
+  MAX_NONPROFIT_CONTRIBUTION_PERCENT,
+  MIN_NONPROFIT_CONTRIBUTION_PERCENT,
+  isValidNonprofitContributionRate,
+} from "@shared/nonprofit-policy";
 
 export type NonprofitDeclaration = {
   publicName: string;
@@ -17,6 +20,8 @@ export type NonprofitDeclaration = {
   donationContactEmail: string;
   donationContactPhone: string;
   designation: string;
+  contributionRate: number | null;
+  contributionRateAtAcknowledgment?: number | null;
   programAcknowledged: boolean;
   programAcknowledgedAt?: string | null;
   consentToDonate: boolean;
@@ -36,6 +41,8 @@ export const emptyNonprofitDeclaration: NonprofitDeclaration = {
   donationContactEmail: "",
   donationContactPhone: "",
   designation: "",
+  contributionRate: null,
+  contributionRateAtAcknowledgment: null,
   programAcknowledged: false,
   consentToDonate: false,
 };
@@ -49,12 +56,19 @@ export default function NonprofitDeclarationForm({
   onChange: (value: NonprofitDeclaration) => void;
   level: "contestant" | "host";
 }) {
-  const { data: settings } = useQuery<{ nonprofitContributionRates?: NonprofitContributionRates }>({
-    queryKey: ["/api/join/settings"],
-    staleTime: 60_000,
-  });
-  const contributionRate = settings?.nonprofitContributionRates?.[level];
-  const set = (key: keyof NonprofitDeclaration, next: string | boolean) => onChange({ ...value, [key]: next });
+  const set = (key: keyof NonprofitDeclaration, next: string | boolean) => {
+    const changingRecipient = key === "publicName" || key === "legalName";
+    onChange({
+      ...value,
+      [key]: next,
+      ...(changingRecipient ? {
+        programAcknowledged: false,
+        programAcknowledgedAt: null,
+        contributionRateAtAcknowledgment: null,
+        consentToDonate: false,
+      } : {}),
+    } as NonprofitDeclaration);
+  };
   const field = (key: keyof NonprofitDeclaration, label: string, placeholder: string, type = "text") => (
     <div className="space-y-1.5">
       <Label className="text-white/65">{label}</Label>
@@ -62,6 +76,8 @@ export default function NonprofitDeclarationForm({
     </div>
   );
 
+  const canAcknowledge = isValidNonprofitContributionRate(value.contributionRate)
+    && Boolean(value.publicName.trim() || value.legalName.trim());
   return (
     <div className="space-y-4 rounded-md border border-orange-400/20 bg-white/[0.03] p-5" data-testid="nonprofit-declaration-form">
       <div className="flex items-start gap-3 border-b border-white/10 pb-3">
@@ -69,11 +85,8 @@ export default function NonprofitDeclarationForm({
         <div>
           <p className="text-sm font-semibold text-white">Required nonprofit declaration</p>
           <p className="mt-1 text-xs leading-relaxed text-white/60">
-            A nonprofit contribution is required for prize earnings. Your {level} rate is{" "}
-            {typeof contributionRate === "number"
-              ? <strong className="text-orange-200">{contributionRate}%</strong>
-              : <>not configured yet (the maximum is {MAX_NONPROFIT_CONTRIBUTION_PERCENT}%)</>}.
-            You can save this declaration in stages; prize payments remain on hold until you provide a nonprofit name and acknowledge the policy.
+            Choose your own rate from {MIN_NONPROFIT_CONTRIBUTION_PERCENT}% to {MAX_NONPROFIT_CONTRIBUTION_PERCENT}% of your eligible share.
+            You can save this declaration in stages; prize payments remain on hold until you name a nonprofit, choose a rate, and acknowledge the policy.
           </p>
         </div>
       </div>
@@ -99,6 +112,36 @@ export default function NonprofitDeclarationForm({
         {field("donationContactPhone", "Donation contact phone", "(555) 555-5555", "tel")}
       </div>
       <div className="space-y-1.5">
+        <Label htmlFor={`${level}-nonprofit-contribution-rate`} className="text-white/65">Your contribution rate (%)</Label>
+        <Input
+          id={`${level}-nonprofit-contribution-rate`}
+          type="number"
+          min={MIN_NONPROFIT_CONTRIBUTION_PERCENT}
+          max={MAX_NONPROFIT_CONTRIBUTION_PERCENT}
+          step="0.01"
+          value={value.contributionRate ?? ""}
+          onChange={(event) => {
+            const raw = event.target.value.trim();
+            const rate = raw === "" ? null : Number(raw);
+            onChange({
+              ...value,
+              contributionRate: rate,
+              contributionRateAtAcknowledgment: null,
+              programAcknowledged: false,
+              programAcknowledgedAt: null,
+              consentToDonate: false,
+            });
+          }}
+          placeholder={`${MIN_NONPROFIT_CONTRIBUTION_PERCENT}–${MAX_NONPROFIT_CONTRIBUTION_PERCENT}%`}
+          className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/25"
+          aria-describedby={`${level}-nonprofit-contribution-help`}
+          data-testid={`${level}-nonprofit-contribution-rate`}
+        />
+        <p id={`${level}-nonprofit-contribution-help`} className="text-xs leading-relaxed text-white/45">
+          This percentage is deducted from your own eligible payout share and allocated to the nonprofit named above.
+        </p>
+      </div>
+      <div className="space-y-1.5">
         <Label className="text-white/65">Mailing address</Label>
         <Textarea value={value.mailingAddress} onChange={(event) => set("mailingAddress", event.target.value)} placeholder="Address needed for formal donation records" className="min-h-20 bg-white/[0.07] border-white/15 text-white placeholder:text-white/25" />
       </div>
@@ -110,12 +153,22 @@ export default function NonprofitDeclarationForm({
         <input
           type="checkbox"
           checked={value.programAcknowledged === true}
-          onChange={(event) => onChange({ ...value, programAcknowledged: event.target.checked, consentToDonate: event.target.checked })}
+          disabled={!canAcknowledge}
+          onChange={(event) => onChange({
+            ...value,
+            programAcknowledged: event.target.checked,
+            programAcknowledgedAt: event.target.checked ? new Date().toISOString() : null,
+            contributionRateAtAcknowledgment: event.target.checked ? value.contributionRate : null,
+            consentToDonate: event.target.checked,
+          })}
           className="mt-0.5 h-4 w-4 shrink-0 accent-orange-500"
           aria-label="Acknowledge the required nonprofit contribution policy"
         />
         <span>
-          I acknowledge that a nonprofit contribution at the configured {level} rate is required for prize earnings, and I designate the nonprofit named above for that allocation. I can save remaining organization details later.
+          {canAcknowledge
+            ? <>I acknowledge that {value.contributionRate}% of my eligible share will be allocated to the nonprofit named above before prize earnings are paid.</>
+            : <>Enter a nonprofit name and choose a rate from {MIN_NONPROFIT_CONTRIBUTION_PERCENT}% to {MAX_NONPROFIT_CONTRIBUTION_PERCENT}% before acknowledging the policy.</>}
+          {" "}I can save remaining organization details later.
         </span>
       </label>
     </div>

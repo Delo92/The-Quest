@@ -67,7 +67,7 @@ export default function AboutPage() {
   const givingTitle = getText("about_giving_title", "Talent That Gives Back");
   const givingText = getText(
     "about_giving_text",
-    "Any state- or nationally accredited nonprofit. Our default options are It Stops Now, a foundation that supports families with incarcerated loved ones, and Event Pro Group Foundation, a foundation dedicated to education, workforce development, housing stability, and community support—serving veterans, underserved populations, and individuals in need."
+    "Participants may select any eligible state- or nationally accredited nonprofit. Example partner organizations include It Stops Now, which supports families with incarcerated loved ones, and Event Pro Group Foundation, which supports education, workforce development, housing stability, and community support for veterans, underserved populations, and individuals in need."
   );
 
   const socialFacebook = getText("social_facebook", "");
@@ -199,7 +199,7 @@ export default function AboutPage() {
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold uppercase text-white mb-4">{givingTitle}</h2>
               <p className="text-white/75 text-[15px] leading-relaxed mb-4">
-                A portion of all proceeds from The Quest supports nonprofit giving as dictated by the artist and/or platform defaults.
+                Contestants and hosts each choose a 1%–10% rate for their own eligible payout share and select a nonprofit. The Quest separately contributes 1%–10% of its own eligible share. Platform matching is included within that platform allocation; each match is capped at the participant’s contribution, and all matches together stay within The Quest’s allocation. Any platform allocation not used for matching goes to The Quest’s configured nonprofit recipient.
               </p>
               <p className="text-white/75 text-[15px] leading-relaxed">
                 {renderGivingTextWithLinks(givingText)}

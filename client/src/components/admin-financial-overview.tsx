@@ -15,6 +15,7 @@ type FinancialOverview = {
     charityShareCents: number;
     platformShareCents: number;
     platformNonprofitDueCents: number | null;
+    platformMatchDueCents: number;
     pendingPayoutCents: number;
     paidPayoutCents: number;
     forfeitedCents: number;
@@ -36,6 +37,17 @@ type FinancialOverview = {
     platformShareCents: number;
     platformNonprofitPercentage: number | null;
     platformNonprofitDueCents: number | null;
+    platformMatchMode: "percentage" | "cash";
+    platformMatchDueCents: number;
+    platformDefaultCharityDueCents: number | null;
+    platformMatchAllocations: Array<{
+      sourceId: string;
+      donorName: string;
+      donorRole: "contestant" | "host";
+      nonprofitName: string;
+      contributionCents: number;
+      matchCents: number;
+    }>;
     votes: { freeVoteCount: number; paidVoteCount: number; totalVoteCount: number };
     paidVoting: { revenueCents: number; purchaseCount: number; purchasedVoteCount: number };
     paidVoteDetails: Array<{
@@ -120,6 +132,7 @@ type FinancialOverview = {
     payoutReady: boolean;
   }>;
   platformDefaultCharity: { name: string; percentage: number; dueCents: number | null };
+  platformMatchMode: "percentage" | "cash";
   nonprofitContributionRates: { contestant: number | null; host: number | null; platform: number | null };
 };
 
@@ -185,29 +198,82 @@ export default function AdminFinancialOverview({
         <Badge variant="outline" className="w-fit border-amber-400/25 bg-amber-400/5 text-amber-200">Manual payout recording</Badge>
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-orange-400/20 bg-orange-400/[0.04] p-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="platform-nonprofit-summary">
+      <div className="grid gap-3 rounded-xl border border-orange-400/20 bg-orange-400/[0.04] p-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="platform-nonprofit-summary">
         <div>
           <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform share estimate</span>
           <strong className="mt-1 block text-sm tabular-nums text-white">{money(data.summary.platformShareCents)}</strong>
           <span className="text-[10px] text-white/35">Paid voting proceeds less host and contestant gross shares</span>
         </div>
         <div>
-          <span className="block text-[10px] uppercase tracking-wider text-white/40">Required platform nonprofit contribution</span>
+          <span className="block text-[10px] uppercase tracking-wider text-white/40">Total platform nonprofit allocation</span>
           <strong className="mt-1 block text-sm tabular-nums text-orange-200">
             {data.summary.platformNonprofitDueCents === null ? "Rate not configured" : money(data.summary.platformNonprofitDueCents)}
           </strong>
           <span className="text-[10px] text-white/35">
             {data.nonprofitContributionRates.platform === null
-              ? "Set the platform rate in nomination settings"
-              : `${data.nonprofitContributionRates.platform}% · manual payout recording`}
+              ? "Set a 1–10% platform rate in nomination settings"
+              : `${data.nonprofitContributionRates.platform}% of The Quest's share`}
           </span>
         </div>
         <div>
-          <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform recipient</span>
+          <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform matches</span>
+          <strong className="mt-1 block text-sm tabular-nums text-orange-200">{money(data.summary.platformMatchDueCents)}</strong>
+          <span className="text-[10px] text-white/35">
+            {data.platformMatchMode === "cash"
+              ? "Dollar-for-dollar · capped by platform allocation"
+              : "Percentage-based · capped by platform allocation"}
+          </span>
+        </div>
+        <div>
+          <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform recipient remainder</span>
           <strong className="mt-1 block text-sm text-white">{data.platformDefaultCharity.name}</strong>
-          <span className="text-[10px] text-white/35">Contribution due is tracked separately from completed disbursements</span>
+          <span className="text-[10px] text-white/35">
+            {data.platformDefaultCharity.dueCents === null
+              ? "Rate not configured"
+              : `${money(data.platformDefaultCharity.dueCents)} · manual payout recording`}
+          </span>
         </div>
       </div>
+
+      <section className="rounded-xl border border-orange-400/15 bg-white/[0.025] p-4" data-testid="platform-match-allocations">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Platform match recipients</h3>
+            <p className="mt-1 text-xs text-white/45">
+              {data.platformMatchMode === "cash"
+                ? "Dollar-for-dollar matches are capped by The Quest's 1–10% allocation and each participant's contribution."
+                : "Percentage matches use The Quest's rate and are capped by its 1–10% allocation and each participant's contribution."}
+            </p>
+          </div>
+          <strong className="text-sm tabular-nums text-orange-200">{money(data.summary.platformMatchDueCents)} total</strong>
+        </div>
+        {data.competitions.every((competition) => competition.platformMatchAllocations.length === 0) ? (
+          <p className="mt-3 text-xs text-white/40">No eligible host or contestant nonprofit allocations are available to match yet.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {data.competitions.filter((competition) => competition.platformMatchAllocations.length > 0).map((competition) => (
+              <details key={competition.competitionId} className="rounded-lg border border-white/10 bg-black/15">
+                <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs text-white/70">
+                  <span>{competition.title} · {competition.platformMatchAllocations.length} match allocations</span>
+                  <span className="tabular-nums text-orange-200">{money(competition.platformMatchDueCents)}</span>
+                </summary>
+                <div className="space-y-2 border-t border-white/10 px-3 py-2">
+                  {competition.platformMatchAllocations.map((allocation) => (
+                    <div key={allocation.sourceId} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+                      <span className="min-w-0 text-white/65">
+                        {allocation.donorName} ({allocation.donorRole}) → {allocation.nonprofitName}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-orange-200">
+                        {money(allocation.matchCents)} of {money(allocation.contributionCents)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+      </section>
 
       {!activeView && <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-6 text-sm text-white/45">Select one of the dashboard cards above to open its financial breakdown.</div>}
 
@@ -238,7 +304,7 @@ export default function AdminFinancialOverview({
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Host share</span><strong className="mt-1 block text-white">{money(competition.hostShareCents)} <span className="text-[10px] text-white/35">({competition.hostSharePercentage}%)</span></strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Recorded nonprofit allocations</span><strong className="mt-1 block text-white">{money(competition.charityShareCents)}</strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Contestant share</span><strong className="mt-1 block text-white">{money(competition.contestantShareCents)}</strong></div>
-                        <div className="rounded-md bg-orange-400/[0.07] p-3"><span className="text-white/50">Platform nonprofit due</span><strong className="mt-1 block text-orange-200">{competition.platformNonprofitDueCents === null ? "Rate not set" : money(competition.platformNonprofitDueCents)}</strong></div>
+                        <div className="rounded-md bg-orange-400/[0.07] p-3"><span className="text-white/50">Total platform nonprofit allocation</span><strong className="mt-1 block text-orange-200">{competition.platformNonprofitDueCents === null ? "Rate not set" : money(competition.platformNonprofitDueCents)}</strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Purchases</span><strong className="mt-1 block text-white">{competition.paidVoting.purchaseCount.toLocaleString()}</strong></div>
                       </div>
                       <div className="rounded-md border border-white/10 p-3 text-xs text-white/55">

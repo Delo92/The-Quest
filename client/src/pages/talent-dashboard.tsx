@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 import ContestantTaxSettings from "@/components/contestant-tax-settings";
+import { hasPrizeReadyNonprofitDeclaration } from "@shared/nonprofit-policy";
 
 interface Props {
   user: any;
@@ -63,13 +64,13 @@ export default function TalentDashboard({ user, profile }: Props) {
   const [nonprofitDeclaration, setNonprofitDeclaration] = useState<NonprofitDeclaration>({
     ...emptyNonprofitDeclaration,
     ...((profile as any)?.nonprofitDeclaration || {}),
-    programAcknowledged: (profile as any)?.nonprofitDeclaration?.programAcknowledged === true,
-    consentToDonate: (profile as any)?.nonprofitDeclaration?.consentToDonate === true,
+    programAcknowledged: hasPrizeReadyNonprofitDeclaration((profile as any)?.nonprofitDeclaration),
+    consentToDonate: hasPrizeReadyNonprofitDeclaration((profile as any)?.nonprofitDeclaration),
   });
   useEffect(() => {
     const saved = (profile as any)?.nonprofitDeclaration;
     if (!saved) return;
-    const acknowledged = saved.programAcknowledged === true;
+    const acknowledged = hasPrizeReadyNonprofitDeclaration(saved);
     setNonprofitDeclaration({
       ...emptyNonprofitDeclaration,
       ...saved,
@@ -78,10 +79,7 @@ export default function TalentDashboard({ user, profile }: Props) {
     });
   }, [profile?.id, (profile as any)?.nonprofitDeclaration]);
   const savedNonprofitDeclaration = (profile as any)?.nonprofitDeclaration || {};
-  const hasSavedNonprofitDeclaration = Boolean(
-    (savedNonprofitDeclaration.publicName || savedNonprofitDeclaration.legalName)
-    && savedNonprofitDeclaration.programAcknowledged === true,
-  );
+  const hasSavedNonprofitDeclaration = hasPrizeReadyNonprofitDeclaration(savedNonprofitDeclaration);
 
   const savedPayoutInfo = (profile as any)?.payoutInfo || {};
   const hasSavedPayout = !!savedPayoutInfo.routingNumber;
@@ -800,10 +798,7 @@ export default function TalentDashboard({ user, profile }: Props) {
         {(() => {
           const hasPhoto = !!(user.profileImageUrl || (profile?.imageUrls && profile.imageUrls.length > 0));
           const savedDeclaration = (profile as any)?.nonprofitDeclaration || {};
-          const hasNonprofitDecision = Boolean(
-            (savedDeclaration.publicName || savedDeclaration.legalName)
-            && savedDeclaration.programAcknowledged === true,
-          );
+          const hasNonprofitDecision = hasPrizeReadyNonprofitDeclaration(savedDeclaration);
           const hasEmail = !!(profile?.email || user.email);
           const items = [
             !hasPhoto && {

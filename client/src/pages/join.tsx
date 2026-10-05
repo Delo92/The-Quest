@@ -38,6 +38,7 @@ interface JoinSettings {
   nonprofitRequired?: boolean;
   charityName?: string;
   nonprofitContributionRates?: NonprofitContributionRates;
+  platformMatchMode?: "percentage" | "cash";
   hasPromoCode?: boolean;
 }
 
@@ -243,7 +244,7 @@ export default function JoinPage() {
   const validateForm = useCallback(() => {
     if (!settings) return false;
     if (!nonprofitRatesReady) {
-      toast({ title: "Nominations are temporarily unavailable", description: "The Quest has not configured all required nonprofit contribution rates yet.", variant: "destructive" });
+      toast({ title: "Nominations are temporarily unavailable", description: "The Quest has not configured its 1–10% platform rate and nonprofit recipient yet.", variant: "destructive" });
       return false;
     }
     if (!nonprofitPolicyAcknowledged) {
@@ -949,15 +950,15 @@ export default function JoinPage() {
           </h3>
           <div className="mb-4 space-y-2 border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 text-xs leading-relaxed text-white/75">
             <p>
-              Contestants, hosts, and The Quest each make a required nonprofit contribution at a separate level-specific rate. No rate may exceed {MAX_NONPROFIT_CONTRIBUTION_PERCENT}%. A contestant must name a nonprofit and acknowledge the policy before prize earnings can be paid; the nominee can save remaining organization details later.
+              Each contestant and host chooses a contribution rate from 1% to {MAX_NONPROFIT_CONTRIBUTION_PERCENT}% of their own eligible share and selects a nonprofit. The Quest's platform rate is applied to its own share. Before prize earnings can be paid, the nominee must choose a rate, name a nonprofit, and acknowledge the policy.
             </p>
             {nonprofitRatesReady ? (
               <p className="tabular-nums text-white/90">
-                Current rates — Contestant: {settings!.nonprofitContributionRates!.contestant}%; Host: {settings!.nonprofitContributionRates!.host}%; The Quest: {settings!.nonprofitContributionRates!.platform}%.
+                The Quest's platform rate is {settings!.nonprofitContributionRates!.platform}%. Platform matching is {settings!.platformMatchMode === "cash" ? "dollar-for-dollar cash" : "percentage-based"} and is capped by both that platform allocation and the matched participant's contribution.
               </p>
             ) : (
               <p className="text-amber-200">
-                The nonprofit policy is not fully configured. Nominations cannot be submitted until all three rates and the platform recipient are set.
+                The nonprofit policy is not fully configured. Nominations cannot be submitted until The Quest's platform rate and recipient are set.
               </p>
             )}
           </div>
@@ -965,7 +966,7 @@ export default function JoinPage() {
             <div className="border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 mb-4">
               <p className="text-white/60 text-xs uppercase tracking-wider mb-1">The Quest's nonprofit recipient</p>
               <p className="text-[#FF5A09] font-bold text-sm">{settings.charityName}</p>
-              <p className="text-white/50 text-xs mt-1">This platform recipient is separate from the nominee's own required declaration.</p>
+              <p className="text-white/50 text-xs mt-1">Any platform contribution not used for matching goes to this recipient.</p>
             </div>
           )}
           <div>
@@ -992,7 +993,7 @@ export default function JoinPage() {
               aria-label="Acknowledge the required nonprofit contribution policy"
             />
             <span>
-              I understand and acknowledge that the nominee must declare a nonprofit and meet the required contestant contribution rate to qualify for prize earnings, and that the program also requires contributions from hosts and The Quest.
+              I understand and acknowledge that the nominee must choose a 1%–{MAX_NONPROFIT_CONTRIBUTION_PERCENT}% rate, declare a nonprofit, and affirm the policy before prize earnings can be paid. Hosts choose their own rate; The Quest's contribution and any match are capped at its configured 1%–{MAX_NONPROFIT_CONTRIBUTION_PERCENT}% of its own share.
             </span>
           </label>
           <div className="mt-4 space-y-3">

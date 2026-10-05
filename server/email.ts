@@ -252,7 +252,7 @@ export async function sendNominationCongrats(opts: {
   siteUrl: string;
   defaultPassword?: string;
   accountCreated?: boolean;
-  nonprofitContributionRates?: { contestant: number; host: number; platform: number };
+  nonprofitContributionRates?: { contestant?: number; host?: number; platform: number };
   nonprofitRecipientName?: string;
 }): Promise<boolean> {
   try {
@@ -265,11 +265,11 @@ export async function sendNominationCongrats(opts: {
     const nonprofitDisclosure = opts.nonprofitContributionRates
       ? `<div class="highlight-box">
           <p class="label">Required nonprofit contributions</p>
-          <p class="value">Contestant share: ${opts.nonprofitContributionRates.contestant}% of prize earnings</p>
-          <p style="font-size:13px;color:#bbb;">Hosts contribute ${opts.nonprofitContributionRates.host}% of their own share. The Quest contributes ${opts.nonprofitContributionRates.platform}% of its own share to ${safeRecipient}. Each rate is capped at 10%.</p>
-          <p style="font-size:13px;color:#bbb;">Before prize earnings can be paid, name a nonprofit in your account and affirm this policy. You can save your declaration in stages.</p>
+          <p class="value">Contestants and hosts each choose a rate from 1% to 10% of their own eligible share.</p>
+          <p style="font-size:13px;color:#bbb;">The Quest's platform rate is ${opts.nonprofitContributionRates.platform}% of its own share. Platform matches may be percentage-based or cash-based, but cannot exceed the platform contribution cap or the matched participant's contribution. The configured platform recipient is ${safeRecipient}.</p>
+          <p style="font-size:13px;color:#bbb;">Before prize earnings can be paid, choose a rate, name a nonprofit in your account, and affirm this policy. You can save the remaining organization details in stages.</p>
         </div>`
-      : `<p style="font-size:13px;color:#bbb;">The Quest requires a named nonprofit and affirmative policy acknowledgment before prize earnings can be paid. Check your account for the configured rates.</p>`;
+      : `<p style="font-size:13px;color:#bbb;">Contestants and hosts choose an individual nonprofit contribution rate from 1% to 10% of their own eligible share. The Quest's platform contribution and any matching are capped at its configured 1%–10% share. Choose a rate, name a nonprofit, and affirm the policy before prize earnings can be paid.</p>`;
 
     let credentialBlock = "";
     if (opts.accountCreated && opts.defaultPassword) {
@@ -332,7 +332,7 @@ export async function sendNominationReceipt(opts: {
   amount: string;
   transactionId?: string;
   isFree?: boolean;
-  nonprofitContributionRates?: { contestant: number; host: number; platform: number };
+  nonprofitContributionRates?: { contestant?: number; host?: number; platform: number };
   nonprofitRecipientName?: string;
 }): Promise<boolean> {
   try {
@@ -348,8 +348,8 @@ export async function sendNominationReceipt(opts: {
     const nonprofitDisclosure = opts.nonprofitContributionRates
       ? `<div class="highlight-box">
           <p class="label">Nonprofit policy acknowledged</p>
-          <p class="value">Contestant: ${opts.nonprofitContributionRates.contestant}% · Host: ${opts.nonprofitContributionRates.host}% · The Quest: ${opts.nonprofitContributionRates.platform}%</p>
-          <p style="font-size:13px;color:#bbb;">Each role contributes from its own share, with each rate capped at 10%. The Quest recipient is ${safeRecipient}. The nominee must complete their declaration before prize payouts.</p>
+          <p class="value">Contestants and hosts choose an individual 1%–10% rate; The Quest's platform rate is ${opts.nonprofitContributionRates.platform}%.</p>
+          <p style="font-size:13px;color:#bbb;">Each contribution is based on that party's own eligible share. Platform matching goes to the participant's chosen nonprofit and is capped by both the platform allocation and the participant's contribution. The Quest's designated recipient is ${safeRecipient}. The nominee must complete their own declaration before prize payouts.</p>
         </div>`
       : "";
 

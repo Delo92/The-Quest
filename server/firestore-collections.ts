@@ -111,6 +111,8 @@ export interface FirestoreNonprofitDeclaration {
   donationContactEmail: string;
   donationContactPhone: string | null;
   designation: string | null;
+  contributionRate?: number | null;
+  contributionRateAtAcknowledgment?: number | null;
   programAcknowledged?: boolean;
   programAcknowledgedAt?: string | null;
   consentToDonate: boolean;
@@ -300,6 +302,7 @@ export interface FirestoreJoinSettings {
     host: number | null;
     platform: number | null;
   };
+  platformMatchMode: "percentage" | "cash";
   nominationFee: number;
   nominationEnabled: boolean;
   nonprofitRequired: boolean;
@@ -333,7 +336,7 @@ export interface FirestoreJoinSubmission {
   chosenNonprofit: string | null;
   nonprofitPolicyAcknowledged?: boolean;
   nonprofitPolicyAcknowledgedAt?: string | null;
-  nonprofitContributionRatesAtAcknowledgment?: { contestant: number; host: number; platform: number } | null;
+  nonprofitContributionRatesAtAcknowledgment?: { contestant?: number; host?: number; platform: number } | null;
   nonprofitPlatformRecipientAtAcknowledgment?: string | null;
   nominationFeeAcknowledged?: boolean;
   nominationFeeAcknowledgedAt?: string | null;
@@ -1259,6 +1262,7 @@ const JOIN_SETTINGS_DEFAULTS: Omit<FirestoreJoinSettings, "updatedAt"> = {
     host: null,
     platform: null,
   },
+  platformMatchMode: "percentage",
   nominationFee: 0,
   nominationEnabled: true,
   nonprofitRequired: true,
@@ -1286,6 +1290,7 @@ export const firestoreJoinSettings = {
       ...JOIN_SETTINGS_DEFAULTS,
       ...stored,
       nonprofitRequired: true,
+      platformMatchMode: stored.platformMatchMode === "cash" ? "cash" : "percentage",
       nonprofitContributionRates: {
         ...JOIN_SETTINGS_DEFAULTS.nonprofitContributionRates,
         ...storedRates,
@@ -1309,18 +1314,23 @@ export const firestoreJoinSettings = {
             nonprofitContributionRates[level] = null;
           } else {
             const rate = Number(rawValue);
-            if (!Number.isFinite(rate) || rate <= 0 || rate > 10) {
-              throw new Error("Each required nonprofit share must be greater than 0% and no more than 10%.");
+            if (!Number.isFinite(rate) || rate < 1 || rate > 10) {
+              throw new Error("Each configured nonprofit rate must be from 1% through 10%, inclusive.");
             }
             nonprofitContributionRates[level] = Math.round(rate * 100) / 100;
           }
         }
       }
     }
+    const platformMatchMode = data.platformMatchMode ?? current.platformMatchMode ?? "percentage";
+    if (platformMatchMode !== "percentage" && platformMatchMode !== "cash") {
+      throw new Error("Platform match mode must be percentage or cash.");
+    }
     const update = {
       ...data,
       nonprofitRequired: true,
       nonprofitContributionRates,
+      platformMatchMode,
       updatedAt: now(),
     };
     if (doc.exists) {

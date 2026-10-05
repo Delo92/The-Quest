@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
-import { isNonprofitPolicyConfigured } from "@shared/nonprofit-policy";
+import { isNonprofitPolicyConfigured, isValidNonprofitContributionRate } from "@shared/nonprofit-policy";
 import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_VERSION,
@@ -774,7 +774,13 @@ function normalizeNonprofitDeclaration(value: any) {
   const clean = (input: unknown, max: number) => typeof input === "string" ? input.trim().slice(0, max) : "";
   const legalStatus = ["501c3", "other", "pending", "not_verified"].includes(value.legalStatus) ? value.legalStatus : "pending";
   const taxIdStatus = ["not_provided", "on_file_external", "verified"].includes(value.taxIdStatus) ? value.taxIdStatus : "not_provided";
-  const programAcknowledged = value.programAcknowledged === true;
+  const requestedRate = value.contributionRate === null || value.contributionRate === undefined || value.contributionRate === ""
+    ? null
+    : Number(value.contributionRate);
+  const contributionRate = isValidNonprofitContributionRate(requestedRate)
+    ? Math.round(requestedRate * 100) / 100
+    : null;
+  const programAcknowledged = value.programAcknowledged === true && contributionRate !== null;
   return {
     publicName: clean(value.publicName, 180),
     legalName: clean(value.legalName, 240),
@@ -787,6 +793,8 @@ function normalizeNonprofitDeclaration(value: any) {
     donationContactEmail: clean(value.donationContactEmail, 320).toLowerCase(),
     donationContactPhone: clean(value.donationContactPhone, 50) || null,
     designation: clean(value.designation, 500) || null,
+    contributionRate,
+    contributionRateAtAcknowledgment: programAcknowledged ? contributionRate : null,
     programAcknowledged,
     programAcknowledgedAt: programAcknowledged
       ? clean(value.programAcknowledgedAt, 64) || new Date().toISOString()
@@ -5004,11 +5012,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Name and email are required" });
       }
       if (!isNonprofitPolicyConfigured(settings)) {
-        return res.status(503).json({ message: "The nonprofit contribution rates and platform recipient are not configured yet. Please try again later." });
+        return res.status(503).json({ message: "The Quest's 1–10% platform rate and platform recipient are not configured yet. Please try again later." });
       }
       const nonprofitContributionRates = {
-        contestant: Number(settings.nonprofitContributionRates.contestant),
-        host: Number(settings.nonprofitContributionRates.host),
         platform: Number(settings.nonprofitContributionRates.platform),
       };
       if (nonprofitPolicyAcknowledged !== true) {
@@ -5174,11 +5180,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Your name and email are required" });
       }
       if (!isNonprofitPolicyConfigured(settings)) {
-        return res.status(503).json({ message: "The nonprofit contribution rates and platform recipient are not configured yet. Please try again later." });
+        return res.status(503).json({ message: "The Quest's 1–10% platform rate and platform recipient are not configured yet. Please try again later." });
       }
       const nonprofitContributionRates = {
-        contestant: Number(settings.nonprofitContributionRates.contestant),
-        host: Number(settings.nonprofitContributionRates.host),
         platform: Number(settings.nonprofitContributionRates.platform),
       };
       if (nonprofitPolicyAcknowledged !== true) {
