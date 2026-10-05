@@ -3583,7 +3583,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                             id="nomination-promo-code"
                             value={promoDraftCode}
                             onChange={(event) => setPromoDraftCode(event.target.value.toUpperCase())}
-                            placeholder="e.g. #1PROMOTEREJ"
+                            placeholder="Enter code"
                             autoComplete="off"
                             maxLength={41}
                             className="bg-white/5 border-white/10 text-white uppercase"
