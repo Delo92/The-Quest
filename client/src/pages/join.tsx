@@ -17,6 +17,10 @@ import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
 import {
+  formatNominationPromoDiscount,
+  type NominationPromoDiscountType,
+} from "@shared/nomination-promos";
+import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT,
 } from "@shared/weekly-consent";
@@ -38,6 +42,14 @@ type PaymentConfig = BuyerPaymentConfig & {
   clientKey: string;
   environment: string;
 };
+
+interface AppliedNominationPromo {
+  code: string;
+  discountType: NominationPromoDiscountType;
+  discountValue: number;
+  discountAmountCents: number;
+  finalAmountCents: number;
+}
 
 const FIELD_LABELS: Record<string, string> = {
   fullName: "Nominee's Name",
@@ -88,7 +100,7 @@ export default function JoinPage() {
   const [imageUploading, setImageUploading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [promoCode, setPromoCode] = useState("");
-  const [promoValidated, setPromoValidated] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState<AppliedNominationPromo | null>(null);
   const [promoChecking, setPromoChecking] = useState(false);
   const [nominationFeeAcknowledged, setNominationFeeAcknowledged] = useState(false);
   const [marketingGuidelinesAcknowledged, setMarketingGuidelinesAcknowledged] = useState(false);
@@ -182,8 +194,10 @@ export default function JoinPage() {
     }, 100);
   }, []);
 
-  const needsPayment = (settings?.nominationFee || 0) > 0 && !promoValidated;
-  const paymentAmount = settings?.nominationFee || 0;
+  const promoValidated = appliedPromo !== null;
+  const originalPaymentAmount = settings?.nominationFee || 0;
+  const paymentAmount = appliedPromo?.finalAmountCents ?? originalPaymentAmount;
+  const needsPayment = paymentAmount > 0;
 
   useEffect(() => {
     if (paymentConfig?.provider === "authorize" && needsPayment && !acceptLoaded) {
@@ -534,25 +548,49 @@ export default function JoinPage() {
 
         {(settings.nominationFee || 0) > 0 && (
           <div className="border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 mb-8">
-            {promoValidated ? (
+          {appliedPromo ? (
               <>
-                <p className="text-green-400 font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
-                  Promo Code Applied - FREE Nomination
-                </p>
-                <p className="text-white/40 text-xs mt-1">Your promo code has been applied. No payment required.</p>
+              <p className="text-[#FF5A09] font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
+                Nomination Fee: ${(originalPaymentAmount / 100).toFixed(2)}
+              </p>
+              <p className="text-green-400 font-bold uppercase text-sm mt-2">
+                Promo Code Applied: {appliedPromo.code} — {formatNominationPromoDiscount(appliedPromo)}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
+                <span className="text-white/50">
+                  Discount: -${(appliedPromo.discountAmountCents / 100).toFixed(2)}
+                </span>
+                <span className="font-semibold text-white">
+                  Due now: ${(paymentAmount / 100).toFixed(2)}
+                </span>
+              </div>
+              <p className="text-white/40 text-xs mt-1">
+                {paymentAmount === 0 ? "No payment is required to submit this nomination." : "The discounted amount will be charged at checkout."}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setAppliedPromo(null);
+                  setPromoCode("");
+                }}
+                className="mt-2 text-xs text-white/45 underline underline-offset-2 hover:text-white"
+                data-testid="button-remove-applied-promo"
+              >
+                Remove promo code
+              </button>
               </>
             ) : (
               <>
-                <p className="text-[#FF5A09] font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
-                  Nomination Fee: ${((settings.nominationFee || 0) / 100).toFixed(2)}
-                </p>
-                <p className="text-white/40 text-xs mt-1">Payment is required to submit a nomination.</p>
+              <p className="text-[#FF5A09] font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
+                Nomination Fee: ${(originalPaymentAmount / 100).toFixed(2)}
+              </p>
+              <p className="text-white/40 text-xs mt-1">Payment is required to submit a nomination.</p>
               </>
             )}
             {settings.hasPromoCode && !promoValidated && (
               <div className="mt-3 space-y-2">
-              <p className="text-white/50 text-xs">If you have a promo code, enter it here:</p>
-              <div className="flex items-center gap-2">
+              <p className="text-white/50 text-xs">Enter a nomination promo code:</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
                   placeholder="Enter promo code"
                   value={promoCode}
@@ -567,9 +605,22 @@ export default function JoinPage() {
                     try {
                       const res = await apiRequest("POST", "/api/join/validate-promo", { code: promoCode });
                       const data = await res.json();
-                      if (data.valid) {
-                        setPromoValidated(true);
-                        toast({ title: "Promo code applied!", description: "Nomination fee has been waived." });
+                      if (data.valid && data.code && Number.isFinite(data.finalAmountCents) && Number.isFinite(data.discountAmountCents)) {
+                        const applied = {
+                          code: data.code as string,
+                          discountType: data.discountType as NominationPromoDiscountType,
+                          discountValue: Number(data.discountValue),
+                          discountAmountCents: Number(data.discountAmountCents),
+                          finalAmountCents: Number(data.finalAmountCents),
+                        };
+                        setAppliedPromo(applied);
+                        setPromoCode(applied.code);
+                        toast({
+                          title: "Promo code applied!",
+                          description: applied.finalAmountCents === 0
+                            ? "The nomination fee has been waived."
+                            : `${formatNominationPromoDiscount(applied)}. You save $${(applied.discountAmountCents / 100).toFixed(2)}; $${(applied.finalAmountCents / 100).toFixed(2)} is due.`,
+                        });
                       } else {
                         toast({ title: "Invalid promo code", variant: "destructive" });
                       }
@@ -580,7 +631,7 @@ export default function JoinPage() {
                     }
                   }}
                   disabled={promoChecking || !promoCode.trim()}
-                  className="text-xs uppercase tracking-wider border border-[#FF5A09]/40 bg-[#FF5A09]/10 text-[#FF5A09] px-4 py-2 transition-colors hover:bg-[#FF5A09]/20 disabled:opacity-40"
+                  className="h-9 w-full text-xs uppercase tracking-wider border border-[#FF5A09]/40 bg-[#FF5A09]/10 text-[#FF5A09] px-4 transition-colors hover:bg-[#FF5A09]/20 disabled:opacity-40 sm:w-auto"
                   data-testid="button-apply-promo"
                 >
                   {promoChecking ? "Checking..." : "Apply"}
@@ -1121,7 +1172,11 @@ export default function JoinPage() {
             lineItems={[
               { label: "Nominee", value: form.fullName || "" },
               { label: "Update email", value: nominatorForm.email?.trim() || "Anonymous submission" },
-              { label: "Nomination Fee", value: `$${(paymentAmount / 100).toFixed(2)}` },
+              { label: appliedPromo ? "Original nomination fee" : "Nomination Fee", value: `$${(originalPaymentAmount / 100).toFixed(2)}` },
+              ...(appliedPromo ? [
+                { label: `Promo code (${appliedPromo.code})`, value: `-$${(appliedPromo.discountAmountCents / 100).toFixed(2)}` },
+                { label: "Amount due", value: `$${(paymentAmount / 100).toFixed(2)}` },
+              ] : []),
             ]}
             totalAmount={`$${(paymentAmount / 100).toFixed(2)}`}
             confirmText={`PAY $${(paymentAmount / 100).toFixed(2)} & NOMINATE`}

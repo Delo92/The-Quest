@@ -2,6 +2,8 @@ import admin from "firebase-admin";
 import crypto from "crypto";
 import { getFirestore } from "./firebase-admin";
 import type { CompetitionStage } from "../shared/schema";
+import { normalizeNominationPromoCodes } from "./nomination-promos";
+import type { NominationPromoCode } from "../shared/nomination-promos";
 
 const COLLECTIONS = {
   USERS: "users",
@@ -299,6 +301,7 @@ export interface FirestoreJoinSettings {
   nominationEnabled: boolean;
   nonprofitRequired: boolean;
   freeNominationPromoCode: string;
+  nominationPromoCodes?: NominationPromoCode[];
   updatedAt: admin.firestore.Timestamp;
 }
 
@@ -341,6 +344,8 @@ export interface FirestoreJoinSubmission {
   votedArtistReminderAcknowledgedAt?: string | null;
   votedArtistReminderAcknowledgedVersion?: string | null;
   referralCode?: string | null;
+  promoCode?: string | null;
+  promoDiscountAmount?: number;
 }
 
 export interface FirestoreHostSettings {
@@ -1254,6 +1259,7 @@ const JOIN_SETTINGS_DEFAULTS: Omit<FirestoreJoinSettings, "updatedAt"> = {
   nominationEnabled: true,
   nonprofitRequired: true,
   freeNominationPromoCode: "",
+  nominationPromoCodes: [],
 };
 
 export const firestoreJoinSettings = {
@@ -1272,9 +1278,24 @@ export const firestoreJoinSettings = {
       platformMatchMode: _legacyMatchMode,
       ...currentSettings
     } = stored;
+    const legacyPromoCode = typeof currentSettings.freeNominationPromoCode === "string"
+      ? currentSettings.freeNominationPromoCode.trim()
+      : "";
+    const nominationPromoCodes = Array.isArray(currentSettings.nominationPromoCodes)
+      ? normalizeNominationPromoCodes(currentSettings.nominationPromoCodes)
+      : legacyPromoCode
+        ? normalizeNominationPromoCodes([{
+            id: `legacy-${legacyPromoCode.toUpperCase()}`,
+            code: legacyPromoCode,
+            discountType: "free",
+            discountValue: 0,
+            isActive: true,
+          }])
+        : [];
     return {
       ...JOIN_SETTINGS_DEFAULTS,
       ...currentSettings,
+      nominationPromoCodes,
       nonprofitRequired: true,
     } as FirestoreJoinSettings;
   },

@@ -11,6 +11,8 @@ import {
   type WeeklyConsentRole,
 } from "@shared/weekly-consent";
 import { storage } from "./storage";
+import { calculateNominationPromoQuote, normalizeNominationPromoCodes } from "./nomination-promos";
+import { formatNominationPromoDiscount } from "../shared/nomination-promos";
 import { escapeXml, getPublicOrigin } from "./share-meta";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
@@ -4963,7 +4965,7 @@ export async function registerRoutes(
   app.get("/api/join/settings", async (_req, res) => {
     try {
       const settings = await firestoreJoinSettings.get();
-      const { freeNominationPromoCode, ...publicSettings } = settings;
+      const { freeNominationPromoCode: _legacyPromoCode, nominationPromoCodes: _promoCodes, ...publicSettings } = settings;
       res.json({ ...publicSettings, nonprofitRequired: true, hasPromoCode: true });
     } catch (error: any) {
       console.error("Get join settings error:", error);
@@ -4976,8 +4978,17 @@ export async function registerRoutes(
       const { code } = req.body;
       if (!code) return res.status(400).json({ valid: false });
       const settings = await firestoreJoinSettings.get();
-      const valid = !!(settings.freeNominationPromoCode && code.trim().toUpperCase() === settings.freeNominationPromoCode.trim().toUpperCase());
-      res.json({ valid });
+      const quote = calculateNominationPromoQuote(settings.nominationFee, code, settings);
+      if (!quote.valid || !quote.promoCode) return res.json({ valid: false });
+      res.json({
+        valid: true,
+        code: quote.promoCode.code,
+        discountType: quote.promoCode.discountType,
+        discountValue: quote.promoCode.discountValue,
+        discountAmountCents: quote.discountAmountCents,
+        finalAmountCents: quote.finalAmountCents,
+        originalAmountCents: quote.originalAmountCents,
+      });
     } catch (error: any) {
       res.status(500).json({ valid: false });
     }
@@ -4994,12 +5005,16 @@ export async function registerRoutes(
 
   app.put("/api/admin/join/settings", firebaseAuth, requireAdmin, async (req, res) => {
     try {
-      const updated = await firestoreJoinSettings.update(req.body);
+      const update = { ...req.body };
+      if (Object.prototype.hasOwnProperty.call(update, "nominationPromoCodes")) {
+        update.nominationPromoCodes = normalizeNominationPromoCodes(update.nominationPromoCodes);
+      }
+      const updated = await firestoreJoinSettings.update(update);
       res.json(updated);
     } catch (error: any) {
       console.error("Update join settings error:", error);
       const invalidRate = String(error?.message || "").includes("nonprofit share");
-      res.status(invalidRate ? 400 : 500).json({ message: error.message || "Failed to update join settings" });
+      res.status(error?.status === 400 || invalidRate ? 400 : 500).json({ message: error.message || "Failed to update join settings" });
     }
   });
 
@@ -5199,17 +5214,17 @@ export async function registerRoutes(
       if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
         return res.status(400).json({ message: "This competition is not accepting nominations" });
       }
-      const promoValid = !!(promoCode && settings.freeNominationPromoCode && promoCode.trim().toUpperCase() === settings.freeNominationPromoCode.trim().toUpperCase());
+      const promoQuote = calculateNominationPromoQuote(settings.nominationFee, promoCode, settings);
 
       let transactionId: string | null = null;
       let amountPaid = 0;
       let paymentId: string | null = null;
-      if (settings.nominationFee > 0 && !promoValid) {
+      if (promoQuote.finalAmountCents > 0) {
         if (!dataDescriptor && !dataValue && !stripePaymentIntentId && !paypalOrderId && !nominateOcPaymentId) {
           return res.status(400).json({ message: "Payment is required for nominations" });
         }
         const secured = await secureAuthorizeCharge(req, {
-          route: "/api/join/nominate", amountDollars: settings.nominationFee / 100,
+          route: "/api/join/nominate", amountDollars: promoQuote.finalAmountCents / 100,
           ownerKey: normalizedNominatorEmail
             ? `email:${normalizedNominatorEmail}`
             : `anonymous:${req.ip || req.socket.remoteAddress || "unknown"}:${nomineeEmail}`,
@@ -5223,7 +5238,7 @@ export async function registerRoutes(
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
         paymentId = secured.paymentId;
         transactionId = secured.charge.transactionId;
-        amountPaid = settings.nominationFee;
+        amountPaid = promoQuote.finalAmountCents;
       }
 
       const DEFAULT_PASSWORD = "CBP2026!";
@@ -5343,6 +5358,8 @@ export async function registerRoutes(
         nominatorEmail: normalizedNominatorEmail || null,
         nominatorPhone: null,
         referralCode: referralCode?.trim().toUpperCase() || null,
+        promoCode: promoQuote.promoCode?.code || null,
+        promoDiscountAmount: promoQuote.discountAmountCents,
         nominationStatus: "joined",
       });
 
@@ -5364,15 +5381,15 @@ export async function registerRoutes(
       }
 
       // Track free nomination promo code redemption with Chronic Brands USA
-      if (promoValid && promoCode) {
+      if (promoQuote.valid && promoQuote.promoCode) {
         const compTitle = competitionId ? (await storage.getCompetition(Number(competitionId)))?.title : null;
         trackChronicBrandsPromo({
-          code: promoCode.trim().toUpperCase(),
+          code: promoQuote.promoCode.code,
           orderNumber: submission.id,
-          orderValue: "0.00",
-          discountAmount: String((settings.nominationFee || 0) / 100),
+          orderValue: (amountPaid / 100).toFixed(2),
+          discountAmount: (promoQuote.discountAmountCents / 100).toFixed(2),
           customerEmail: normalizedNominatorEmail || undefined,
-          notes: `Free nomination for ${nomineeName}${compTitle ? ` in ${compTitle}` : ""}`,
+          notes: `${formatNominationPromoDiscount(promoQuote.promoCode)} nomination for ${nomineeName}${compTitle ? ` in ${compTitle}` : ""}`,
         }).catch((err: any) => console.warn("[ChronicBrands] Nomination promo tracking failed (non-blocking):", err.message));
       }
 
@@ -5998,12 +6015,11 @@ export async function registerRoutes(
     }
     if (input.purpose === "nominate") {
       const settings = await firestoreJoinSettings.get();
-      const promoValid = Boolean(input.promoCode && settings.freeNominationPromoCode
-        && input.promoCode.trim().toUpperCase() === settings.freeNominationPromoCode.trim().toUpperCase());
-      if (promoValid || settings.nominationFee <= 0) {
+      const quote = calculateNominationPromoQuote(settings.nominationFee, input.promoCode, settings);
+      if (quote.finalAmountCents <= 0) {
         throw Object.assign(new Error("This nomination does not require payment"), { status: 400 });
       }
-      return { amountCents: settings.nominationFee, description: "Competition nomination fee" };
+      return { amountCents: quote.finalAmountCents, description: "Competition nomination fee" };
     }
     const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
     const packages = settingsDoc.data()?.hostingPackages || [

@@ -23,6 +23,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Competition, SiteLivery } from "@shared/schema";
+import type { NominationPromoCode, NominationPromoDiscountType } from "@shared/nomination-promos";
+import { formatNominationPromoDiscount } from "@shared/nomination-promos";
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
@@ -33,6 +35,27 @@ import AdminFinancialOverview, { type FinancialView } from "@/components/admin-f
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
+
+async function copyAdminText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return copied;
+    } catch {
+      return false;
+    }
+  }
+}
 
 interface AdminStats {
   totalCompetitions: number;
@@ -69,6 +92,7 @@ interface JoinHostSettings {
   nominationEnabled?: boolean;
   nonprofitRequired?: boolean;
   freeNominationPromoCode?: string;
+  nominationPromoCodes?: NominationPromoCode[];
 }
 
 interface JoinSubmission {
@@ -1548,6 +1572,10 @@ export default function AdminDashboard({ user }: { user: any }) {
   const { data: hostSettings } = useQuery<JoinHostSettings>({ queryKey: ["/api/host/settings"] });
   const { data: hostSubmissions } = useQuery<HostSubmission[]>({ queryKey: ["/api/admin/host/submissions"] });
   const { data: hostUsers } = useQuery<HostProfile[]>({ queryKey: ["/api/admin/hosts"] });
+  const [promoDraftCode, setPromoDraftCode] = useState("");
+  const [promoDraftDiscountType, setPromoDraftDiscountType] = useState<NominationPromoDiscountType>("free");
+  const [promoDraftDiscountValue, setPromoDraftDiscountValue] = useState("");
+  const [editingPromoCodeId, setEditingPromoCodeId] = useState<string | null>(null);
   const selectedHost = useMemo(
     () => hostUsers?.find((host) => host.userId === hostDetailUid) || null,
     [hostUsers, hostDetailUid],
@@ -3476,131 +3504,266 @@ export default function AdminDashboard({ user }: { user: any }) {
                       />
                     </div>
                   </div>
-                  <div className="mb-4">
-                    <Label className="text-white/60 mb-2 block">Free Nomination Promo Code</Label>
-                    {joinSettings.freeNominationPromoCode ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-green-400/70 uppercase tracking-wider mb-1">Active Promo Code</p>
-                            <p className="text-xl font-bold text-green-300 tracking-[4px] uppercase" data-testid="text-active-promo-code">{joinSettings.freeNominationPromoCode}</p>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-green-500/30 text-green-300 hover:bg-green-500/20 gap-1.5"
-                              data-testid="button-copy-promo"
-                              onClick={async () => {
-                                const code = joinSettings.freeNominationPromoCode || "";
-                                try {
-                                  await navigator.clipboard.writeText(code);
-                                } catch {
-                                  const ta = document.createElement("textarea");
-                                  ta.value = code;
-                                  ta.style.position = "fixed";
-                                  ta.style.opacity = "0";
-                                  document.body.appendChild(ta);
-                                  ta.select();
-                                  document.execCommand("copy");
-                                  document.body.removeChild(ta);
-                                }
-                                toast({ title: "Copied!", description: "Promo code copied to clipboard." });
-                              }}
-                            >
-                              <Copy className="h-3.5 w-3.5" /> Copy
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-orange-500/30 text-orange-300 hover:bg-orange-500/20 gap-1.5"
-                              data-testid="button-share-promo"
-                              onClick={async () => {
-                                const text = `Use promo code ${joinSettings.freeNominationPromoCode} for a FREE nomination at ${window.location.origin}/nominate`;
-                                try {
-                                  await navigator.clipboard.writeText(text);
-                                } catch {
-                                  const ta = document.createElement("textarea");
-                                  ta.value = text;
-                                  ta.style.position = "fixed";
-                                  ta.style.opacity = "0";
-                                  document.body.appendChild(ta);
-                                  ta.select();
-                                  document.execCommand("copy");
-                                  document.body.removeChild(ta);
-                                }
-                                toast({ title: "Share message copied!", description: text });
-                              }}
-                            >
-                              <Share2 className="h-3.5 w-3.5" /> Share
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
+                  <section className="mb-6 space-y-4 rounded-md border border-white/10 bg-black/20 p-4" data-testid="nomination-promo-manager">
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-white/80 font-semibold">Nomination Promo Codes</Label>
+                        <span className="text-xs text-white/40">
+                          {(joinSettings.nominationPromoCodes || []).length} configured
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-white/45">
+                        Create multiple codes for free, percentage-off, or fixed-amount discounts. Active codes have no redemption limit.
+                      </p>
+                    </div>
+
+                    <form
+                      className="space-y-3"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const code = promoDraftCode.trim().replace(/\s+/g, "").toUpperCase();
+                        const currentCodes = joinSettings.nominationPromoCodes || [];
+                        const numericValue = Number(promoDraftDiscountValue);
+                        const discountValue = promoDraftDiscountType === "free"
+                          ? 0
+                          : promoDraftDiscountType === "percentage"
+                            ? numericValue
+                            : Math.round(numericValue * 100);
+
+                        if (!/^[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)) {
+                          toast({
+                            title: "Enter a valid promo code",
+                            description: "Use 2–40 letters, numbers, hyphens, or underscores.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        if (promoDraftDiscountType !== "free" && (!Number.isFinite(numericValue) || numericValue <= 0 || (promoDraftDiscountType === "percentage" && numericValue > 100))) {
+                          toast({
+                            title: "Enter a valid discount",
+                            description: promoDraftDiscountType === "percentage" ? "Percentage discounts must be from 0.01% to 100%." : "Enter a fixed discount greater than $0.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        if (currentCodes.some((promo) => promo.id !== editingPromoCodeId && promo.code === code)) {
+                          toast({ title: "That promo code already exists", variant: "destructive" });
+                          return;
+                        }
+
+                        const existing = currentCodes.find((promo) => promo.id === editingPromoCodeId);
+                        const nextPromo: NominationPromoCode = {
+                          id: editingPromoCodeId || crypto.randomUUID(),
+                          code,
+                          discountType: promoDraftDiscountType,
+                          discountValue,
+                          isActive: existing?.isActive ?? true,
+                        };
+                        const nextCodes = editingPromoCodeId
+                          ? currentCodes.map((promo) => promo.id === editingPromoCodeId ? nextPromo : promo)
+                          : [...currentCodes, nextPromo];
+
+                        updateJoinSettingsMutation.mutate(
+                          { nominationPromoCodes: nextCodes },
+                          {
+                            onSuccess: () => {
+                              setPromoDraftCode("");
+                              setPromoDraftDiscountType("free");
+                              setPromoDraftDiscountValue("");
+                              setEditingPromoCodeId(null);
+                            },
+                          },
+                        );
+                      }}
+                    >
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="nomination-promo-code" className="text-white/60">Code</Label>
                           <Input
-                            key={`promo-${joinSettings.freeNominationPromoCode}`}
-                            id="edit-promo-code-input"
-                            defaultValue={joinSettings.freeNominationPromoCode || ""}
-                            placeholder="e.g. HIFITFREE"
-                            className="bg-white/5 border-white/10 text-white uppercase max-w-xs"
-                            data-testid="input-promo-code"
+                            id="nomination-promo-code"
+                            value={promoDraftCode}
+                            onChange={(event) => setPromoDraftCode(event.target.value.toUpperCase())}
+                            placeholder="e.g. QUESTHALF"
+                            autoComplete="off"
+                            maxLength={40}
+                            className="bg-white/5 border-white/10 text-white uppercase"
+                            data-testid="input-nomination-promo-code"
                           />
-                          <Button
-                            size="sm"
-                            className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white gap-1.5"
-                            data-testid="button-save-promo-edit"
-                            onClick={() => {
-                              const input = document.getElementById("edit-promo-code-input") as HTMLInputElement;
-                              if (input?.value.trim()) {
-                                updateJoinSettingsMutation.mutate({ freeNominationPromoCode: input.value.trim().toUpperCase() });
-                                toast({ title: "Saved!", description: "Promo code updated." });
-                              }
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-white/60">Discount type</Label>
+                          <Select
+                            value={promoDraftDiscountType}
+                            onValueChange={(value: NominationPromoDiscountType) => {
+                              setPromoDraftDiscountType(value);
+                              setPromoDraftDiscountValue("");
                             }}
                           >
-                            <Check className="h-3.5 w-3.5" /> Save
-                          </Button>
+                            <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-nomination-promo-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="free">Free nomination</SelectItem>
+                              <SelectItem value="percentage">Percentage off</SelectItem>
+                              <SelectItem value="fixed">Fixed amount off</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {promoDraftDiscountType !== "free" && (
+                          <div className="space-y-1.5">
+                            <Label htmlFor="nomination-promo-value" className="text-white/60">
+                              {promoDraftDiscountType === "percentage" ? "Percent off" : "Amount off ($)"}
+                            </Label>
+                            <Input
+                              id="nomination-promo-value"
+                              type="number"
+                              inputMode="decimal"
+                              min="0.01"
+                              max={promoDraftDiscountType === "percentage" ? "100" : undefined}
+                              step="0.01"
+                              value={promoDraftDiscountValue}
+                              onChange={(event) => setPromoDraftDiscountValue(event.target.value)}
+                              placeholder={promoDraftDiscountType === "percentage" ? "50" : "5.00"}
+                              className="bg-white/5 border-white/10 text-white"
+                              data-testid="input-nomination-promo-value"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="submit"
+                          size="sm"
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white gap-1.5"
+                          data-testid="button-save-nomination-promo"
+                        >
+                          {editingPromoCodeId ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                          {editingPromoCodeId ? "Save changes" : "Add promo code"}
+                        </Button>
+                        {editingPromoCodeId && (
                           <Button
+                            type="button"
                             size="sm"
                             variant="ghost"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
-                            onClick={() => updateJoinSettingsMutation.mutate({ freeNominationPromoCode: "" })}
-                            data-testid="button-remove-promo"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" /> Remove
-                          </Button>
-                        </div>
-                        <p className="text-xs text-white/30">Edit the code above or remove it to disable free nominations.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            key={`promo-${joinSettings.freeNominationPromoCode}`}
-                            id="new-promo-code-input"
-                            defaultValue=""
-                            placeholder="e.g. HIFITFREE"
-                            className="bg-white/5 border-white/10 text-white uppercase max-w-xs"
-                            data-testid="input-promo-code"
-                          />
-                          <Button
-                            size="sm"
-                            className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white gap-1.5"
-                            data-testid="button-save-promo"
+                            className="text-white/60 hover:text-white"
                             onClick={() => {
-                              const input = document.getElementById("new-promo-code-input") as HTMLInputElement;
-                              if (input?.value.trim()) {
-                                updateJoinSettingsMutation.mutate({ freeNominationPromoCode: input.value.trim().toUpperCase() });
-                                toast({ title: "Saved!", description: "Promo code has been set." });
-                              }
+                              setPromoDraftCode("");
+                              setPromoDraftDiscountType("free");
+                              setPromoDraftDiscountValue("");
+                              setEditingPromoCodeId(null);
                             }}
                           >
-                            <Check className="h-3.5 w-3.5" /> Save
+                            Cancel edit
                           </Button>
-                        </div>
-                        <p className="text-xs text-white/30">Set a code that nominators can enter to skip the nomination fee.</p>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </form>
+
+                    <div className="divide-y divide-white/10">
+                      {(joinSettings.nominationPromoCodes || []).length > 0 ? (
+                        [...(joinSettings.nominationPromoCodes || [])]
+                          .sort((a, b) => a.code.localeCompare(b.code))
+                          .map((promo) => (
+                            <div key={promo.id} className={`flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between ${promo.isActive ? "" : "opacity-60"}`} data-testid={`nomination-promo-${promo.id}`}>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-semibold tracking-wide text-white">{promo.code}</span>
+                                  <Badge className={promo.isActive ? "border-0 bg-green-500/15 text-green-300" : "border-0 bg-white/10 text-white/50"}>
+                                    {promo.isActive ? "Active" : "Disabled"}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 text-xs text-white/45">{formatNominationPromoDiscount(promo)}</p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Switch
+                                  checked={promo.isActive}
+                                  aria-label={`${promo.isActive ? "Disable" : "Enable"} ${promo.code}`}
+                                  onCheckedChange={(isActive) => updateJoinSettingsMutation.mutate({
+                                    nominationPromoCodes: (joinSettings.nominationPromoCodes || []).map((item) =>
+                                      item.id === promo.id ? { ...item, isActive } : item,
+                                    ),
+                                  })}
+                                  data-testid={`switch-nomination-promo-${promo.id}`}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-white/15 text-white/70 gap-1.5"
+                                  onClick={() => {
+                                    setEditingPromoCodeId(promo.id);
+                                    setPromoDraftCode(promo.code);
+                                    setPromoDraftDiscountType(promo.discountType);
+                                    setPromoDraftDiscountValue(
+                                      promo.discountType === "percentage"
+                                        ? String(promo.discountValue)
+                                        : promo.discountType === "fixed"
+                                          ? (promo.discountValue / 100).toFixed(2)
+                                          : "",
+                                    );
+                                  }}
+                                  data-testid={`button-edit-nomination-promo-${promo.id}`}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" /> Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
+                                  onClick={() => {
+                                    if (!window.confirm(`Remove promo code ${promo.code}? It will no longer be accepted for new nominations.`)) return;
+                                    updateJoinSettingsMutation.mutate({
+                                      nominationPromoCodes: (joinSettings.nominationPromoCodes || []).filter((item) => item.id !== promo.id),
+                                    });
+                                    if (editingPromoCodeId === promo.id) {
+                                      setEditingPromoCodeId(null);
+                                      setPromoDraftCode("");
+                                      setPromoDraftDiscountType("free");
+                                      setPromoDraftDiscountValue("");
+                                    }
+                                  }}
+                                  data-testid={`button-remove-nomination-promo-${promo.id}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" /> Remove
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-white/50 hover:text-white gap-1.5"
+                                  onClick={async () => {
+                                    if (await copyAdminText(promo.code)) {
+                                      toast({ title: "Copied", description: `${promo.code} copied to clipboard.` });
+                                    } else {
+                                      toast({ title: "Copy failed", description: "Clipboard access is unavailable.", variant: "destructive" });
+                                    }
+                                  }}
+                                  data-testid={`button-copy-nomination-promo-${promo.id}`}
+                                >
+                                  <Copy className="h-3.5 w-3.5" /> Copy
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-orange-300/80 hover:text-orange-200 gap-1.5"
+                                  onClick={async () => {
+                                    const text = `Use promo code ${promo.code} for ${formatNominationPromoDiscount(promo)} on a nomination at ${window.location.origin}/nominate.`;
+                                    if (await copyAdminText(text)) {
+                                      toast({ title: "Share message copied", description: text });
+                                    } else {
+                                      toast({ title: "Copy failed", description: "Clipboard access is unavailable.", variant: "destructive" });
+                                    }
+                                  }}
+                                  data-testid={`button-share-nomination-promo-${promo.id}`}
+                                >
+                                  <Share2 className="h-3.5 w-3.5" /> Share
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                      ) : (
+                        <p className="py-4 text-sm text-white/40">No promo codes yet. Add one above; the code will be available to nominators after it is saved and active.</p>
+                      )}
+                    </div>
+                  </section>
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label className="text-white/60">Page Title</Label>
