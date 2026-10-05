@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 
 /**
  * ocAdapter.ts
@@ -52,7 +52,9 @@ export async function getOCConnectionStatus(): Promise<{
   }
 
   try {
-    await questFetch(`/payouts/${encodeURIComponent("__quest_connection_check__")}`);
+    // OC reserves fixed sentinel IDs, so use a fresh valid ID for this
+    // read-only probe. A 404 confirms the API route and shared token worked.
+    await questFetch(`/payouts/${encodeURIComponent(randomUUID())}`);
     return { configured: true, reachable: true, authorized: true, baseUrl: OC_BASE_URL };
   } catch (error: any) {
     const status = Number(error?.status || 0);
