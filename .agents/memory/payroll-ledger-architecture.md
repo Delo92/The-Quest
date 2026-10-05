@@ -15,6 +15,12 @@ Host accounts use the same encrypted, versioned tax-record contract as talent ac
 
 **How to apply:** Permit host-role profiles in personal tax routes and use owned competition IDs to supply deadlines. Continue matching gross by stable profile/user IDs and reporting it by the ledger paid year.
 
+Host and talent accounts must use the same W-9 Tax Details interface, including the preview, editable form, and save flow. Do not expose a legacy host-only inline tax form.
+
+**Why:** The user requires an identical W-9 experience across both account roles; differing interfaces create a product mismatch even when they share the same backend.
+
+**How to apply:** Mount the shared tax-settings and W-9 dialog components in both dashboards. Keep role-specific deadlines and eligibility logic, but preserve the same preview, edit, privacy, and save behavior.
+
 Keep the recipient 1099-NEC PDF in Firebase Storage and use Firestore metadata to select its active object and version. The server must load the template from Firebase for every export; do not bundle it or fall back to a local asset.
 
 **Why:** The user explicitly wants this template read from Firebase so it persists independently of local files and deployment packaging. Firebase Storage is the binary store; Firestore holds the active-template metadata.

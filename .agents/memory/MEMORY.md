@@ -3,7 +3,7 @@
 - [The Quest artifact setup](the-quest-artifact.md) — dev command must cd to workspace root; PORT=22558 injected by artifact
 - [Payment outcome handling](payment-outcome-handling.md) — uncertain Authorize.net outcomes stay locked; never make them automatically retryable
 - [Payment security controls](payment-security-controls.md) — every paid path must use shared server-side velocity, billing, duplicate, and reservation controls
-- [Quest payroll and tax ledger](payroll-ledger-architecture.md) — talent/host tax rules share stable IDs; 1099 templates live in Firebase Storage with Firestore config
+- [Quest payroll and tax ledger](payroll-ledger-architecture.md) — hosts and talent share one W-9 interface and encrypted tax contract; 1099 templates use Firebase Storage metadata
 - [Financial operations aggregation](financial-operations-aggregation.md) — charity totals need one authoritative allocation source to avoid ledger/transaction double counting
 - [Dashboard visual verification](dashboard-visual-verification.md) — protected pages need authenticated responsive checks; Radix force-mounted tabs need explicit inactive hiding
 - [Owner dashboard analytics](owner-dashboard-analytics.md) — generic role labels, last-30-day scoped visitors, and lifetime plays from distinct entry videos
