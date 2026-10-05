@@ -6,7 +6,7 @@ import type {
 } from "../shared/nomination-promos";
 
 const MAX_PROMO_CODES = 200;
-const PROMO_CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{1,39}$/;
+const PROMO_CODE_PATTERN = /^#?[A-Z0-9][A-Z0-9_-]{1,39}$/;
 
 export class PromoCodeConfigurationError extends Error {
   status = 400;
@@ -38,7 +38,7 @@ export function normalizeNominationPromoCodes(value: unknown): NominationPromoCo
     const code = normalizeCode(raw.code);
     if (!PROMO_CODE_PATTERN.test(code)) {
       throw new PromoCodeConfigurationError(
-        `Promo code ${index + 1} must be 2–40 characters and contain only letters, numbers, hyphens, or underscores.`,
+        `Promo code ${index + 1} must contain 2–40 letters, numbers, hyphens, or underscores, with an optional leading #.`,
       );
     }
     if (seenCodes.has(code)) {

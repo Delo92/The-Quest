@@ -21,6 +21,17 @@ test("normalizes and validates multiple promo codes", () => {
   assert.equal(promos[2].isActive, false);
 });
 
+test("accepts a leading # in nomination promo codes", () => {
+  const [promo] = normalizeNominationPromoCodes([
+    { id: "hashtag", code: "#1PROMOTEREJ", discountType: "free" },
+  ]);
+  assert.equal(promo.code, "#1PROMOTEREJ");
+  assert.equal(
+    calculateNominationPromoQuote(1000, "#1PROMOTEREJ", { nominationPromoCodes: [promo] }).finalAmountCents,
+    0,
+  );
+});
+
 test("rejects duplicate codes and invalid discount values", () => {
   assert.throws(
     () => normalizeNominationPromoCodes([

@@ -3530,10 +3530,10 @@ export default function AdminDashboard({ user }: { user: any }) {
                             ? numericValue
                             : Math.round(numericValue * 100);
 
-                        if (!/^[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)) {
+                        if (!/^#?[A-Z0-9][A-Z0-9_-]{1,39}$/.test(code)) {
                           toast({
                             title: "Enter a valid promo code",
-                            description: "Use 2–40 letters, numbers, hyphens, or underscores.",
+                            description: "Use 2–40 letters, numbers, hyphens, or underscores; an optional leading # is allowed.",
                             variant: "destructive",
                           });
                           return;
@@ -3583,9 +3583,9 @@ export default function AdminDashboard({ user }: { user: any }) {
                             id="nomination-promo-code"
                             value={promoDraftCode}
                             onChange={(event) => setPromoDraftCode(event.target.value.toUpperCase())}
-                            placeholder="e.g. QUESTHALF"
+                            placeholder="e.g. #1PROMOTEREJ"
                             autoComplete="off"
-                            maxLength={40}
+                            maxLength={41}
                             className="bg-white/5 border-white/10 text-white uppercase"
                             data-testid="input-nomination-promo-code"
                           />
