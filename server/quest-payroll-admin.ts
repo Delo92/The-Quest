@@ -3,18 +3,15 @@ import { Timestamp } from "firebase-admin/firestore";
 import { getFirestore } from "./firebase-admin";
 import { firebaseAuth, requireAdmin, requireHost } from "./auth-middleware";
 import { storage } from "./storage";
-import { firestoreJoinSettings } from "./firestore-collections";
 import { runMonthlyPayouts } from "./quest-payout-job";
 import { finalVotingDeadline, hasTaxInfoBeforeDeadline } from "./quest-tax-donations";
 import {
   calculatePlatformMatchAllocations,
   declaredNonprofitName,
+  effectiveNonprofitContributionRate,
   hasAcknowledgedNonprofitDeclaration,
   hasPrizeReadyNonprofitDeclaration,
-  isNonprofitPolicyConfigured,
-  isValidNonprofitContributionRate,
   nonprofitAllocationCents,
-  type PlatformMatchMode,
 } from "@shared/nonprofit-policy";
 
 const SETTINGS = "questPayrollSettings";
@@ -224,7 +221,7 @@ function displayName(profile: any, fallback = "Unknown") {
 }
 
 async function buildFinancialOverview() {
-  const [competitions, allContestants, profiles, payeesSnap, ledgerSnap, transactionsSnap, batchesSnap, joinSettings] = await Promise.all([
+  const [competitions, allContestants, profiles, payeesSnap, ledgerSnap, transactionsSnap, batchesSnap] = await Promise.all([
     storage.getCompetitions(),
     storage.getAllContestants(),
     storage.getAllTalentProfiles(),
@@ -232,7 +229,6 @@ async function buildFinancialOverview() {
     db().collection(LEDGER).get(),
     db().collection(TRANSACTIONS).get(),
     db().collection(BATCHES).get(),
-    firestoreJoinSettings.get(),
   ]);
 
   const payees: Array<{ id: string; name?: string; [key: string]: any }> =
@@ -258,11 +254,6 @@ async function buildFinancialOverview() {
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   const profilesByUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
   const contestantById = new Map(allContestants.map((contestant) => [contestant.id, contestant]));
-  const nonprofitRates = joinSettings.nonprofitContributionRates;
-  const platformNonprofitPercentage = isValidNonprofitContributionRate(nonprofitRates?.platform)
-    ? nonprofitRates.platform
-    : null;
-  const platformMatchMode: PlatformMatchMode = joinSettings.platformMatchMode === "cash" ? "cash" : "percentage";
 
   const payeeMatchesProfile = (payee: any, profile: any) => {
     return payee.userId === profile.userId
@@ -339,9 +330,6 @@ async function buildFinancialOverview() {
     const hostShareCents = hostEntries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
     const contestantShareCents = contestantRows.reduce((sum, row) => sum + row.earningsCents, 0);
     const platformShareCents = Math.max(0, paidVoteRevenueCents - hostShareCents - contestantShareCents);
-    const platformNonprofitDueCents = platformNonprofitPercentage === null
-      ? null
-      : nonprofitAllocationCents(platformShareCents, platformNonprofitPercentage);
     const platformMatchAllocations = calculatePlatformMatchAllocations(
       compLedger
         .filter((entry: any) =>
@@ -365,13 +353,8 @@ async function buildFinancialOverview() {
           };
         }),
       platformShareCents,
-      platformNonprofitPercentage ?? 0,
-      platformMatchMode,
     );
     const platformMatchDueCents = platformMatchAllocations.reduce((sum, allocation) => sum + allocation.matchCents, 0);
-    const platformDefaultCharityDueCents = platformNonprofitDueCents === null
-      ? null
-      : Math.max(0, platformNonprofitDueCents - platformMatchDueCents);
     const charityShareCents = charityAllocationCents(compTransactions, compLedger);
     const paidVoteCount = purchases.reduce((sum, purchase: any) => sum + Number(purchase.voteCount || 0), 0);
     const totalVoteCount = compFreeVotes + paidVoteCount;
@@ -388,12 +371,8 @@ async function buildFinancialOverview() {
       charityShareCents,
       contestantShareCents,
       platformShareCents,
-      platformNonprofitPercentage,
-      platformNonprofitDueCents,
-      platformMatchMode,
       platformMatchDueCents,
       platformMatchAllocations,
-      platformDefaultCharityDueCents,
       votes: {
         freeVoteCount: compFreeVotes,
         paidVoteCount,
@@ -439,8 +418,6 @@ async function buildFinancialOverview() {
 
   const hostUserIds = new Set(competitions.map((competition) => competition.createdBy).filter(Boolean));
   const contestantProfileIds = new Set(allContestants.map((contestant) => contestant.talentProfileId));
-  const platformDefaultCharity = joinSettings.charityName || "Platform recipient not configured";
-  const platformDefaultCharityPercentage = platformNonprofitPercentage ?? 0;
   const profileEarnings = profiles
     .filter((profile) => profile.role !== "admin" && (profile.role === "host" || hostUserIds.has(profile.userId) || contestantProfileIds.has(profile.id)))
     .map((profile) => {
@@ -455,11 +432,9 @@ async function buildFinancialOverview() {
         .sort((a: any, b: any) => String(batches.find((batch: any) => batch.id === a.batchId)?.payoutDueDate || "").localeCompare(String(batches.find((batch: any) => batch.id === b.batchId)?.payoutDueDate || "")))[0];
       const nonprofitCents = entries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
       const declaration = profile.nonprofitDeclaration;
-      const declaredCharity = hasPrizeReadyNonprofitDeclaration(declaration)
-        ? declaredNonprofitName(declaration)
-        : "";
-      const profileRate = isValidNonprofitContributionRate(declaration?.contributionRate)
-        ? declaration.contributionRate
+      const declaredCharity = declaredNonprofitName(declaration);
+      const profileRate = declaration
+        ? effectiveNonprofitContributionRate(declaration.contributionRate)
         : null;
       return {
         userId: profile.userId,
@@ -518,9 +493,6 @@ async function buildFinancialOverview() {
       contestantShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.contestantShareCents, 0),
       charityShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.charityShareCents, 0),
       platformShareCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.platformShareCents, 0),
-      platformNonprofitDueCents: platformNonprofitPercentage === null
-        ? null
-        : competitionBreakdowns.reduce((sum, competition) => sum + (competition.platformNonprofitDueCents || 0), 0),
       platformMatchDueCents: competitionBreakdowns.reduce((sum, competition) => sum + competition.platformMatchDueCents, 0),
       pendingPayoutCents: pendingPayouts.reduce((sum, payout) => sum + payout.netCents, 0),
       paidPayoutCents: ledger.filter((entry: any) => entry.status === "paid").reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0),
@@ -543,15 +515,6 @@ async function buildFinancialOverview() {
         declaration: profile.nonprofitDeclaration,
         payoutReady: hasPrizeReadyNonprofitDeclaration(profile.nonprofitDeclaration),
       })),
-    platformDefaultCharity: {
-      name: platformDefaultCharity,
-      percentage: platformDefaultCharityPercentage,
-      dueCents: platformNonprofitPercentage === null
-        ? null
-        : competitionBreakdowns.reduce((sum, competition) => sum + (competition.platformDefaultCharityDueCents || 0), 0),
-    },
-    platformMatchMode,
-    nonprofitContributionRates: nonprofitRates,
   };
 }
 
@@ -890,10 +853,6 @@ export function registerQuestPayrollAdmin(app: Express) {
       const entries = Array.isArray(req.body?.entries) ? req.body.entries : [];
       if (!entries.length) return res.status(400).json({ message: "At least one winner entitlement is required." });
       const { data: settings } = await getSettingDoc();
-      const nonprofitPolicy = await firestoreJoinSettings.get();
-      if (!isNonprofitPolicyConfigured(nonprofitPolicy)) {
-        return res.status(409).json({ message: "Configure The Quest's 1–10% platform rate and its nonprofit recipient before creating a payout batch." });
-      }
       const competitionId = Number.isFinite(Number(req.body?.competitionId)) ? Number(req.body.competitionId) : null;
       const competition = competitionId ? await storage.getCompetition(competitionId) : null;
        const competitionEndDate = clean(req.body?.competitionEndDate, 40) || competition?.endDate || null;
@@ -944,9 +903,9 @@ export function registerQuestPayrollAdmin(app: Express) {
             ? nonprofitDeclarationReady ? declaredNonprofitName(declaration) : null
             : clean(raw?.nonprofitSelection, 180) || null;
           const nonprofitPercentage = requiresNonprofitDeclaration
-            ? declaration?.contributionRate
+            ? effectiveNonprofitContributionRate(declaration?.contributionRate)
             : null;
-          const nonprofitCents = requiresNonprofitDeclaration && isValidNonprofitContributionRate(nonprofitPercentage)
+          const nonprofitCents = requiresNonprofitDeclaration && nonprofitPercentage !== null
             ? nonprofitAllocationCents(grossCents, nonprofitPercentage)
             : 0;
           let paymentInfoProvided = Boolean(raw?.paymentInfoProvided || payee.data.paymentInfoProvided);
@@ -1002,7 +961,7 @@ export function registerQuestPayrollAdmin(app: Express) {
              : blocked
                 ? [
                     !nonprofitDeclarationReady
-                       ? `A linked ${payeeType} profile must choose a 1%–10% contribution rate, name a nonprofit, and acknowledge that exact rate.`
+                        ? `A linked ${payeeType} profile must name a nonprofit and acknowledge the contribution; the 10% default applies when no rate is selected.`
                       : null,
                     !paymentInfoProvided
                       ? payeeType === "contestant"

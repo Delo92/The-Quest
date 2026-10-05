@@ -1,7 +1,10 @@
 import type { Express, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
-import { isNonprofitPolicyConfigured, isValidNonprofitContributionRate } from "@shared/nonprofit-policy";
+import {
+  DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT,
+  normalizeNonprofitContributionRate,
+} from "@shared/nonprofit-policy";
 import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_VERSION,
@@ -777,9 +780,9 @@ function normalizeNonprofitDeclaration(value: any) {
   const requestedRate = value.contributionRate === null || value.contributionRate === undefined || value.contributionRate === ""
     ? null
     : Number(value.contributionRate);
-  const contributionRate = isValidNonprofitContributionRate(requestedRate)
-    ? Math.round(requestedRate * 100) / 100
-    : null;
+  const contributionRate = requestedRate === null
+    ? DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT
+    : normalizeNonprofitContributionRate(requestedRate);
   const programAcknowledged = value.programAcknowledged === true && contributionRate !== null;
   return {
     publicName: clean(value.publicName, 180),
@@ -5007,18 +5010,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Join applications are currently closed" });
       }
 
-      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId, chosenNonprofit, nonprofitPolicyAcknowledged } = req.body;
+      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Name and email are required" });
-      }
-      if (!isNonprofitPolicyConfigured(settings)) {
-        return res.status(503).json({ message: "The Quest's 1–10% platform rate and platform recipient are not configured yet. Please try again later." });
-      }
-      const nonprofitContributionRates = {
-        platform: Number(settings.nonprofitContributionRates.platform),
-      };
-      if (nonprofitPolicyAcknowledged !== true) {
-        return res.status(400).json({ message: "Please acknowledge the required nonprofit contribution policy." });
       }
       if (!competitionId) {
         return res.status(400).json({ message: "Please select a competition to apply for" });
@@ -5064,11 +5058,7 @@ export async function registerRoutes(
         transactionId,
         amountPaid,
         type: "application",
-        chosenNonprofit: chosenNonprofit?.trim() || null,
-        nonprofitPolicyAcknowledged: true,
-        nonprofitPolicyAcknowledgedAt: new Date().toISOString(),
-        nonprofitContributionRatesAtAcknowledgment: { ...nonprofitContributionRates },
-        nonprofitPlatformRecipientAtAcknowledgment: settings.charityName.trim(),
+        chosenNonprofit: null,
         nominatorName: null,
         nominatorEmail: null,
         nominatorPhone: null,
@@ -5170,7 +5160,7 @@ export async function registerRoutes(
       const {
         fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone,
         dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
-        chosenNonprofit, mediaUrls, promoCode, referralCode, billingAddress, nonprofitPolicyAcknowledged,
+        mediaUrls, promoCode, referralCode, billingAddress,
         nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged,
       } = req.body;
       if (!fullName || !email) {
@@ -5178,15 +5168,6 @@ export async function registerRoutes(
       }
       if (!nominatorName || !nominatorEmail) {
         return res.status(400).json({ message: "Your name and email are required" });
-      }
-      if (!isNonprofitPolicyConfigured(settings)) {
-        return res.status(503).json({ message: "The Quest's 1–10% platform rate and platform recipient are not configured yet. Please try again later." });
-      }
-      const nonprofitContributionRates = {
-        platform: Number(settings.nonprofitContributionRates.platform),
-      };
-      if (nonprofitPolicyAcknowledged !== true) {
-        return res.status(400).json({ message: "Please acknowledge the required nonprofit contribution policy." });
       }
       if (nominationFeeAcknowledged !== true) {
         return res.status(400).json({ message: "Please acknowledge that nomination or competition fees may apply." });
@@ -5305,8 +5286,6 @@ export async function registerRoutes(
             siteUrl,
             ...(existingUser ? {} : { defaultPassword: DEFAULT_PASSWORD }),
             accountCreated: !existingUser,
-            nonprofitContributionRates,
-            nonprofitRecipientName: settings.charityName,
           });
         }
       } catch (autoCreateErr: any) {
@@ -5329,11 +5308,7 @@ export async function registerRoutes(
         transactionId,
         amountPaid,
         type: "nomination",
-        chosenNonprofit: chosenNonprofit?.trim() || null,
-        nonprofitPolicyAcknowledged: true,
-        nonprofitPolicyAcknowledgedAt: new Date().toISOString(),
-        nonprofitContributionRatesAtAcknowledgment: { ...nonprofitContributionRates },
-        nonprofitPlatformRecipientAtAcknowledgment: settings.charityName.trim(),
+        chosenNonprofit: null,
         nominationFeeAcknowledged: true,
         nominationFeeAcknowledgedAt: new Date().toISOString(),
         marketingGuidelinesAcknowledged: true,
@@ -5364,8 +5339,6 @@ export async function registerRoutes(
           amount: amountPaid ? `$${(amountPaid / 100).toFixed(2)}` : "$0.00",
           transactionId: transactionId || undefined,
           isFree: !amountPaid || amountPaid === 0,
-          nonprofitContributionRates,
-          nonprofitRecipientName: settings.charityName,
         }).catch((e: any) => console.error("Nomination receipt email error (non-blocking):", e.message));
       }
 

@@ -65,17 +65,9 @@ interface JoinHostSettings {
   pageDescription: string;
   requiredFields: string[];
   isActive: boolean;
-  charityName?: string;
-  charityPercentage?: number;
   nominationFee?: number;
   nominationEnabled?: boolean;
   nonprofitRequired?: boolean;
-  nonprofitContributionRates?: {
-    contestant: number | null;
-    host: number | null;
-    platform: number | null;
-  };
-  platformMatchMode?: "percentage" | "cash";
   freeNominationPromoCode?: string;
 }
 
@@ -104,7 +96,6 @@ interface JoinSubmission {
   chosenNonprofit?: string | null;
   nonprofitPolicyAcknowledged?: boolean;
   nonprofitPolicyAcknowledgedAt?: string | null;
-  nonprofitContributionRatesAtAcknowledgment?: { contestant?: number; host?: number; platform: number } | null;
   nonprofitPlatformRecipientAtAcknowledgment?: string | null;
 }
 
@@ -3653,61 +3644,9 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Award className="h-4 w-4 text-orange-400" />
                         <Label className="text-white/80 font-semibold">Non-Profit / Charity</Label>
                       </div>
-                      <p className="text-xs leading-relaxed text-white/55 mb-4">
-                        Contestants and hosts choose their own rate from 1% to 10% of their eligible share in their account. Set The Quest's platform rate from 1% to 10% of its own share. Any platform match is limited by that platform allocation and the participant's actual contribution.
+                      <p className="text-xs leading-relaxed text-white/55">
+                        Contestants and hosts choose their own nonprofit and contribution rate in their account. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount to the nonprofit they selected. The person submitting a nomination does not choose these details.
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="nonprofit-rate-platform" className="text-white/60">The Quest's platform rate (%)</Label>
-                          <Input
-                            id="nonprofit-rate-platform"
-                            key={`nonprofit-rate-platform-${joinSettings.nonprofitContributionRates?.platform ?? "unset"}`}
-                            type="number"
-                            min="1"
-                            max="10"
-                            step="0.01"
-                            defaultValue={joinSettings.nonprofitContributionRates?.platform ?? ""}
-                            placeholder="Set 1–10%"
-                            onBlur={(event) => {
-                              const raw = event.target.value.trim();
-                              const rate = raw ? Number(raw) : null;
-                              updateJoinSettingsMutation.mutate({
-                                nonprofitContributionRates: { platform: rate } as JoinHostSettings["nonprofitContributionRates"],
-                              });
-                            }}
-                            className="bg-white/5 border-white/10 text-white"
-                            data-testid="input-nonprofit-rate-platform"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="platform-match-mode" className="text-white/60">Platform matching method</Label>
-                          <select
-                            id="platform-match-mode"
-                            value={joinSettings.platformMatchMode || "percentage"}
-                            onChange={(event) => updateJoinSettingsMutation.mutate({
-                              platformMatchMode: event.target.value as "percentage" | "cash",
-                            })}
-                            className="h-10 w-full rounded-md border border-white/10 bg-[#191919] px-3 text-sm text-white"
-                            data-testid="select-platform-match-mode"
-                          >
-                            <option value="percentage">Percentage of the participant's contribution</option>
-                            <option value="cash">Dollar-for-dollar cash match</option>
-                          </select>
-                          <p className="text-xs text-white/35">Either method is capped by the platform rate applied to The Quest's own share.</p>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-white/60">The Quest's nonprofit recipient</Label>
-                        <Input
-                          key={`charity-name-${joinSettings.charityName}`}
-                          defaultValue={joinSettings.charityName || ""}
-                          placeholder="Name of the platform's nonprofit recipient"
-                          onBlur={(e) => updateJoinSettingsMutation.mutate({ charityName: e.target.value.trim() })}
-                          className="bg-white/5 border-white/10 text-white"
-                          data-testid="input-charity-name"
-                        />
-                        <p className="text-xs text-white/35">Required before nominations can open. Any platform allocation not used for matching goes to this recipient.</p>
-                      </div>
                     </div>
                     <div className="mt-4 rounded-md bg-white/5 border border-white/10 p-4">
                       <div className="flex items-center gap-2 mb-3">
@@ -3857,38 +3796,30 @@ export default function AdminDashboard({ user }: { user: any }) {
                                 )}
                                 {sub.chosenNonprofit && (
                                   <div>
-                                    <p className="text-[10px] text-white/30 uppercase tracking-wider">Choice of Non-Profit</p>
+                                    <p className="text-[10px] text-white/30 uppercase tracking-wider">Nominator’s legacy nonprofit note</p>
                                     <p className="text-sm text-[#FF5A09]">{sub.chosenNonprofit}</p>
                                   </div>
                                 )}
                               </div>
 
                               <div className="rounded-md border border-orange-400/15 bg-orange-400/[0.04] p-4" data-testid={`nonprofit-policy-audit-${sub.id}`}>
-                                <p className="text-xs uppercase tracking-wider text-orange-200/75 font-semibold">Nonprofit policy acknowledgment</p>
+                                <p className="text-xs uppercase tracking-wider text-orange-200/75 font-semibold">Nonprofit choices</p>
+                                <p className="mt-2 text-sm text-white/75">
+                                  The contestant or host chooses their nonprofit and contribution rate in their own account. The nominator does not provide these details.
+                                </p>
+                                <p className="mt-1 text-xs leading-relaxed text-white/50">
+                                  If no rate is selected, the 10% default applies. The Quest matches the same dollar amount to the selected nonprofit before payout.
+                                </p>
                                 {sub.nonprofitPolicyAcknowledged ? (
                                   <>
-                                    <p className="mt-2 text-sm text-white">Acknowledged before submission</p>
+                                    <p className="mt-2 text-xs text-amber-200/70">This submission contains a legacy acknowledgment; the nominee still makes their own payout declaration.</p>
                                     <p className="mt-1 text-xs text-white/40">
                                       {sub.nonprofitPolicyAcknowledgedAt
-                                        ? new Date(sub.nonprofitPolicyAcknowledgedAt).toLocaleString()
-                                        : "Acknowledgment timestamp not recorded"}
+                                        ? `Recorded ${new Date(sub.nonprofitPolicyAcknowledgedAt).toLocaleString()}`
+                                        : "Legacy acknowledgment timestamp not recorded"}
                                     </p>
-                                    {sub.nonprofitContributionRatesAtAcknowledgment ? (
-                                      <p className="mt-2 text-xs leading-relaxed text-white/60">
-                                        {sub.nonprofitContributionRatesAtAcknowledgment.contestant !== undefined
-                                          ? <>Legacy snapshot — contestant {sub.nonprofitContributionRatesAtAcknowledgment.contestant}% · host {sub.nonprofitContributionRatesAtAcknowledgment.host}% · The Quest {sub.nonprofitContributionRatesAtAcknowledgment.platform}%.</>
-                                          : <>Contestants and hosts select their own 1%–10% rates in their profiles. The Quest rate shown at submission was {sub.nonprofitContributionRatesAtAcknowledgment.platform}%.</>}
-                                      </p>
-                                    ) : (
-                                      <p className="mt-2 text-xs text-amber-200/70">Rate snapshot is unavailable for this submission.</p>
-                                    )}
-                                    {sub.nonprofitPlatformRecipientAtAcknowledgment && (
-                                      <p className="mt-1 text-xs text-white/45">The Quest recipient: {sub.nonprofitPlatformRecipientAtAcknowledgment}</p>
-                                    )}
                                   </>
-                                ) : (
-                                  <p className="mt-2 text-sm text-amber-200/75">No acknowledgment recorded</p>
-                                )}
+                                ) : null}
                               </div>
 
                               {sub.type === "nomination" && (

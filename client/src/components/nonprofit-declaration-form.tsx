@@ -3,8 +3,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ShieldCheck } from "lucide-react";
 import {
+  DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT,
   MAX_NONPROFIT_CONTRIBUTION_PERCENT,
   MIN_NONPROFIT_CONTRIBUTION_PERCENT,
+  effectiveNonprofitContributionRate,
   isValidNonprofitContributionRate,
 } from "@shared/nonprofit-policy";
 
@@ -41,7 +43,7 @@ export const emptyNonprofitDeclaration: NonprofitDeclaration = {
   donationContactEmail: "",
   donationContactPhone: "",
   designation: "",
-  contributionRate: null,
+  contributionRate: DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT,
   contributionRateAtAcknowledgment: null,
   programAcknowledged: false,
   consentToDonate: false,
@@ -76,7 +78,9 @@ export default function NonprofitDeclarationForm({
     </div>
   );
 
-  const canAcknowledge = isValidNonprofitContributionRate(value.contributionRate)
+  const effectiveRate = effectiveNonprofitContributionRate(value.contributionRate)
+    ?? DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT;
+  const canAcknowledge = isValidNonprofitContributionRate(effectiveRate)
     && Boolean(value.publicName.trim() || value.legalName.trim());
   return (
     <div className="space-y-4 rounded-md border border-orange-400/20 bg-white/[0.03] p-5" data-testid="nonprofit-declaration-form">
@@ -86,7 +90,7 @@ export default function NonprofitDeclarationForm({
           <p className="text-sm font-semibold text-white">Required nonprofit declaration</p>
           <p className="mt-1 text-xs leading-relaxed text-white/60">
             Choose your own rate from {MIN_NONPROFIT_CONTRIBUTION_PERCENT}% to {MAX_NONPROFIT_CONTRIBUTION_PERCENT}% of your eligible share.
-            You can save this declaration in stages; prize payments remain on hold until you name a nonprofit, choose a rate, and acknowledge the policy.
+            You can save this declaration in stages; prize payments remain on hold until you name a nonprofit and acknowledge your contribution. The rate defaults to 10% if you leave it unset.
           </p>
         </div>
       </div>
@@ -119,7 +123,7 @@ export default function NonprofitDeclarationForm({
           min={MIN_NONPROFIT_CONTRIBUTION_PERCENT}
           max={MAX_NONPROFIT_CONTRIBUTION_PERCENT}
           step="0.01"
-          value={value.contributionRate ?? ""}
+          value={value.contributionRate ?? DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT}
           onChange={(event) => {
             const raw = event.target.value.trim();
             const rate = raw === "" ? null : Number(raw);
@@ -138,7 +142,7 @@ export default function NonprofitDeclarationForm({
           data-testid={`${level}-nonprofit-contribution-rate`}
         />
         <p id={`${level}-nonprofit-contribution-help`} className="text-xs leading-relaxed text-white/45">
-          This percentage is deducted from your own eligible payout share and allocated to the nonprofit named above.
+          This percentage is deducted from your own eligible payout share and allocated to the nonprofit named above. If you leave the rate unset, the 10% default applies.
         </p>
       </div>
       <div className="space-y-1.5">
@@ -156,9 +160,10 @@ export default function NonprofitDeclarationForm({
           disabled={!canAcknowledge}
           onChange={(event) => onChange({
             ...value,
+            contributionRate: event.target.checked ? effectiveRate : value.contributionRate,
             programAcknowledged: event.target.checked,
             programAcknowledgedAt: event.target.checked ? new Date().toISOString() : null,
-            contributionRateAtAcknowledgment: event.target.checked ? value.contributionRate : null,
+            contributionRateAtAcknowledgment: event.target.checked ? effectiveRate : null,
             consentToDonate: event.target.checked,
           })}
           className="mt-0.5 h-4 w-4 shrink-0 accent-orange-500"
@@ -166,8 +171,8 @@ export default function NonprofitDeclarationForm({
         />
         <span>
           {canAcknowledge
-            ? <>I acknowledge that {value.contributionRate}% of my eligible share will be allocated to the nonprofit named above before prize earnings are paid.</>
-            : <>Enter a nonprofit name and choose a rate from {MIN_NONPROFIT_CONTRIBUTION_PERCENT}% to {MAX_NONPROFIT_CONTRIBUTION_PERCENT}% before acknowledging the policy.</>}
+            ? <>I acknowledge that {effectiveRate}% of my eligible share will be allocated to the nonprofit named above before prize earnings are paid.</>
+            : <>Enter a nonprofit name before acknowledging. Your rate must be from {MIN_NONPROFIT_CONTRIBUTION_PERCENT}% to {MAX_NONPROFIT_CONTRIBUTION_PERCENT}%; the 10% default applies if you leave it unset.</>}
           {" "}I can save remaining organization details later.
         </span>
       </label>

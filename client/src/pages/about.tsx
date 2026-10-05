@@ -199,7 +199,7 @@ export default function AboutPage() {
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold uppercase text-white mb-4">{givingTitle}</h2>
               <p className="text-white/75 text-[15px] leading-relaxed mb-4">
-                Contestants and hosts each choose a 1%–10% rate for their own eligible payout share and select a nonprofit. The Quest separately contributes 1%–10% of its own eligible share. Platform matching is included within that platform allocation; each match is capped at the participant’s contribution, and all matches together stay within The Quest’s allocation. Any platform allocation not used for matching goes to The Quest’s configured nonprofit recipient.
+                Contestants and hosts choose their own nonprofit and a 1%–10% contribution rate in their account. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount to the nonprofit they selected. The person submitting a nomination does not choose these details.
               </p>
               <p className="text-white/75 text-[15px] leading-relaxed">
                 {renderGivingTextWithLinks(givingText)}

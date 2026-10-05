@@ -295,14 +295,6 @@ export interface FirestoreJoinSettings {
   pageDescription: string;
   requiredFields: string[];
   isActive: boolean;
-  charityName: string;
-  charityPercentage: number;
-  nonprofitContributionRates: {
-    contestant: number | null;
-    host: number | null;
-    platform: number | null;
-  };
-  platformMatchMode: "percentage" | "cash";
   nominationFee: number;
   nominationEnabled: boolean;
   nonprofitRequired: boolean;
@@ -336,7 +328,6 @@ export interface FirestoreJoinSubmission {
   chosenNonprofit: string | null;
   nonprofitPolicyAcknowledged?: boolean;
   nonprofitPolicyAcknowledgedAt?: string | null;
-  nonprofitContributionRatesAtAcknowledgment?: { contestant?: number; host?: number; platform: number } | null;
   nonprofitPlatformRecipientAtAcknowledgment?: string | null;
   nominationFeeAcknowledged?: boolean;
   nominationFeeAcknowledgedAt?: string | null;
@@ -1255,14 +1246,6 @@ const JOIN_SETTINGS_DEFAULTS: Omit<FirestoreJoinSettings, "updatedAt"> = {
   pageDescription: "Ready to showcase your talent? Submit your application to join an upcoming competition. Fill out the form below with your details and we'll review your entry.",
   requiredFields: ["fullName", "email", "phone", "bio", "category"],
   isActive: true,
-  charityName: "",
-  charityPercentage: 0,
-  nonprofitContributionRates: {
-    contestant: null,
-    host: null,
-    platform: null,
-  },
-  platformMatchMode: "percentage",
   nominationFee: 0,
   nominationEnabled: true,
   nonprofitRequired: true,
@@ -1278,59 +1261,33 @@ export const firestoreJoinSettings = {
       return settings;
     }
     const stored = doc.data() || {};
-    const storedRates = stored.nonprofitContributionRates || {};
-    const hasPlatformRate = Object.prototype.hasOwnProperty.call(storedRates, "platform");
-    const legacyPlatformRate = Number(stored.charityPercentage);
-    const platformRate = hasPlatformRate
-      ? storedRates.platform
-      : Number.isFinite(legacyPlatformRate) && legacyPlatformRate > 0 && legacyPlatformRate <= 10
-        ? legacyPlatformRate
-        : null;
+    const {
+      charityName: _legacyCharityName,
+      charityPercentage: _legacyCharityPercentage,
+      nonprofitContributionRates: _legacyContributionRates,
+      platformMatchMode: _legacyMatchMode,
+      ...currentSettings
+    } = stored;
     return {
       ...JOIN_SETTINGS_DEFAULTS,
-      ...stored,
+      ...currentSettings,
       nonprofitRequired: true,
-      platformMatchMode: stored.platformMatchMode === "cash" ? "cash" : "percentage",
-      nonprofitContributionRates: {
-        ...JOIN_SETTINGS_DEFAULTS.nonprofitContributionRates,
-        ...storedRates,
-        platform: platformRate,
-      },
     } as FirestoreJoinSettings;
   },
 
   async update(data: Partial<Omit<FirestoreJoinSettings, "updatedAt">>): Promise<FirestoreJoinSettings> {
     const ref = db().collection(COLLECTIONS.JOIN_SETTINGS).doc("global");
     const doc = await ref.get();
-    const current = doc.exists ? await this.get() : JOIN_SETTINGS_DEFAULTS;
-    const incomingRates = data.nonprofitContributionRates;
-    const nonprofitContributionRates = { ...current.nonprofitContributionRates };
-    if (incomingRates) {
-      for (const level of ["contestant", "host", "platform"] as const) {
-        if (Object.prototype.hasOwnProperty.call(incomingRates, level)) {
-          const rawRate = incomingRates[level];
-          const rawValue: unknown = rawRate;
-          if (rawValue === null || rawValue === undefined || rawValue === "") {
-            nonprofitContributionRates[level] = null;
-          } else {
-            const rate = Number(rawValue);
-            if (!Number.isFinite(rate) || rate < 1 || rate > 10) {
-              throw new Error("Each configured nonprofit rate must be from 1% through 10%, inclusive.");
-            }
-            nonprofitContributionRates[level] = Math.round(rate * 100) / 100;
-          }
-        }
-      }
-    }
-    const platformMatchMode = data.platformMatchMode ?? current.platformMatchMode ?? "percentage";
-    if (platformMatchMode !== "percentage" && platformMatchMode !== "cash") {
-      throw new Error("Platform match mode must be percentage or cash.");
-    }
+    const {
+      charityName: _legacyCharityName,
+      charityPercentage: _legacyCharityPercentage,
+      nonprofitContributionRates: _legacyContributionRates,
+      platformMatchMode: _legacyMatchMode,
+      ...safeData
+    } = data as Partial<Omit<FirestoreJoinSettings, "updatedAt">> & Record<string, unknown>;
     const update = {
-      ...data,
+      ...safeData,
       nonprofitRequired: true,
-      nonprofitContributionRates,
-      platformMatchMode,
       updatedAt: now(),
     };
     if (doc.exists) {
@@ -1338,8 +1295,7 @@ export const firestoreJoinSettings = {
     } else {
       await ref.set({ ...JOIN_SETTINGS_DEFAULTS, ...update });
     }
-    const updated = await ref.get();
-    return updated.data() as FirestoreJoinSettings;
+    return this.get();
   },
 };
 

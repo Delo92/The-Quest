@@ -1,10 +1,8 @@
 export const MIN_NONPROFIT_CONTRIBUTION_PERCENT = 1;
 export const MAX_NONPROFIT_CONTRIBUTION_PERCENT = 10;
+export const DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT = 10;
 
-export type NonprofitContributionLevel = "contestant" | "host" | "platform";
-export type PlatformMatchMode = "percentage" | "cash";
-
-export type NonprofitContributionRates = Record<NonprofitContributionLevel, number | null>;
+export type NonprofitContributionLevel = "contestant" | "host";
 
 export function isValidNonprofitContributionRate(value: unknown): value is number {
   const rate = Number(value);
@@ -24,17 +22,18 @@ export function normalizeNonprofitContributionRate(value: unknown): number | nul
   return Math.round(rate * 100) / 100;
 }
 
-export function isNonprofitPolicyConfigured(settings: any): boolean {
-  return Boolean(
-    isValidNonprofitContributionRate(settings?.nonprofitContributionRates?.platform)
-    && typeof settings?.charityName === "string"
-    && settings.charityName.trim(),
-  );
+export function effectiveNonprofitContributionRate(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") {
+    return DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT;
+  }
+  const rate = Number(value);
+  return isValidNonprofitContributionRate(rate) ? rate : null;
 }
 
-export function nonprofitAllocationCents(grossCents: number, percentage: number): number {
-  if (!Number.isFinite(grossCents) || grossCents <= 0 || !isValidNonprofitContributionRate(percentage)) return 0;
-  return Math.round(grossCents * percentage / 100);
+export function nonprofitAllocationCents(grossCents: number, percentage: unknown): number {
+  const effectiveRate = effectiveNonprofitContributionRate(percentage);
+  if (!Number.isFinite(grossCents) || grossCents <= 0 || effectiveRate === null) return 0;
+  return Math.round(grossCents * effectiveRate / 100);
 }
 
 export function declaredNonprofitName(declaration: any): string {
@@ -46,13 +45,17 @@ export function hasAcknowledgedNonprofitDeclaration(declaration: any): boolean {
 }
 
 export function hasPrizeReadyNonprofitDeclaration(declaration: any): boolean {
-  const rate = Number(declaration?.contributionRate);
-  const acknowledgedRate = Number(declaration?.contributionRateAtAcknowledgment);
+  const rate = effectiveNonprofitContributionRate(declaration?.contributionRate);
+  const recordedAcknowledgedRate = declaration?.contributionRateAtAcknowledgment;
+  if (recordedAcknowledgedRate === null || recordedAcknowledgedRate === undefined || recordedAcknowledgedRate === "") {
+    return false;
+  }
+  const acknowledgedRate = effectiveNonprofitContributionRate(recordedAcknowledgedRate);
   return Boolean(
     declaredNonprofitName(declaration)
     && hasAcknowledgedNonprofitDeclaration(declaration)
-    && isValidNonprofitContributionRate(rate)
-    && isValidNonprofitContributionRate(acknowledgedRate)
+    && rate !== null
+    && acknowledgedRate !== null
     && Math.round(rate * 100) === Math.round(acknowledgedRate * 100),
   );
 }
@@ -70,28 +73,22 @@ export type PlatformMatchAllocation = PlatformMatchSource & {
 };
 
 /**
- * Percentage mode matches the platform rate against each participant's
- * contribution. Cash mode aims for a dollar-for-dollar match. In both modes,
- * total matches are capped by the platform's share allocation and by donors'
- * actual contributions.
+ * The Quest matches each participant's actual nonprofit contribution
+ * dollar-for-dollar. Matches use The Quest's available share and are never
+ * greater than either that share or the participant's contribution.
  */
 export function calculatePlatformMatchAllocations(
   sources: PlatformMatchSource[],
-  platformShareCents: number,
-  platformRate: number,
-  mode: PlatformMatchMode,
+  availablePlatformShareCents: number,
 ): PlatformMatchAllocation[] {
-  if (!isValidNonprofitContributionRate(platformRate) || !Number.isFinite(platformShareCents) || platformShareCents <= 0) {
+  if (!Number.isFinite(availablePlatformShareCents) || availablePlatformShareCents <= 0) {
     return [];
   }
 
   const eligible = sources
     .map((source) => {
       const contributionCents = Math.max(0, Math.round(Number(source.contributionCents) || 0));
-      const requestedCents = mode === "cash"
-        ? contributionCents
-        : Math.round(contributionCents * platformRate / 100);
-      return { ...source, contributionCents, requestedCents: Math.min(contributionCents, requestedCents) };
+      return { ...source, contributionCents, requestedCents: contributionCents };
     })
     .filter((source) =>
       source.sourceId
@@ -101,7 +98,7 @@ export function calculatePlatformMatchAllocations(
     );
 
   const requestedTotal = eligible.reduce((sum, source) => sum + source.requestedCents, 0);
-  const platformBudget = nonprofitAllocationCents(platformShareCents, platformRate);
+  const platformBudget = Math.max(0, Math.round(availablePlatformShareCents));
   const matchTotal = Math.min(requestedTotal, platformBudget);
   if (!matchTotal || !requestedTotal) return [];
   if (matchTotal === requestedTotal) {

@@ -14,7 +14,6 @@ type FinancialOverview = {
     contestantShareCents: number;
     charityShareCents: number;
     platformShareCents: number;
-    platformNonprofitDueCents: number | null;
     platformMatchDueCents: number;
     pendingPayoutCents: number;
     paidPayoutCents: number;
@@ -35,11 +34,7 @@ type FinancialOverview = {
     charityShareCents: number;
     contestantShareCents: number;
     platformShareCents: number;
-    platformNonprofitPercentage: number | null;
-    platformNonprofitDueCents: number | null;
-    platformMatchMode: "percentage" | "cash";
     platformMatchDueCents: number;
-    platformDefaultCharityDueCents: number | null;
     platformMatchAllocations: Array<{
       sourceId: string;
       donorName: string;
@@ -131,9 +126,6 @@ type FinancialOverview = {
     };
     payoutReady: boolean;
   }>;
-  platformDefaultCharity: { name: string; percentage: number; dueCents: number | null };
-  platformMatchMode: "percentage" | "cash";
-  nonprofitContributionRates: { contestant: number | null; host: number | null; platform: number | null };
 };
 
 const money = (cents: number | undefined) =>
@@ -205,44 +197,18 @@ export default function AdminFinancialOverview({
           <span className="text-[10px] text-white/35">Paid voting proceeds less host and contestant gross shares</span>
         </div>
         <div>
-          <span className="block text-[10px] uppercase tracking-wider text-white/40">Total platform nonprofit allocation</span>
-          <strong className="mt-1 block text-sm tabular-nums text-orange-200">
-            {data.summary.platformNonprofitDueCents === null ? "Rate not configured" : money(data.summary.platformNonprofitDueCents)}
-          </strong>
-          <span className="text-[10px] text-white/35">
-            {data.nonprofitContributionRates.platform === null
-              ? "Set a 1–10% platform rate in nomination settings"
-              : `${data.nonprofitContributionRates.platform}% of The Quest's share`}
-          </span>
-        </div>
-        <div>
-          <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform matches</span>
+          <span className="block text-[10px] uppercase tracking-wider text-white/40">The Quest’s dollar-for-dollar matches</span>
           <strong className="mt-1 block text-sm tabular-nums text-orange-200">{money(data.summary.platformMatchDueCents)}</strong>
-          <span className="text-[10px] text-white/35">
-            {data.platformMatchMode === "cash"
-              ? "Dollar-for-dollar · capped by platform allocation"
-              : "Percentage-based · capped by platform allocation"}
-          </span>
-        </div>
-        <div>
-          <span className="block text-[10px] uppercase tracking-wider text-white/40">Platform recipient remainder</span>
-          <strong className="mt-1 block text-sm text-white">{data.platformDefaultCharity.name}</strong>
-          <span className="text-[10px] text-white/35">
-            {data.platformDefaultCharity.dueCents === null
-              ? "Rate not configured"
-              : `${money(data.platformDefaultCharity.dueCents)} · manual payout recording`}
-          </span>
+          <span className="text-[10px] text-white/35">Equal to participant contributions, limited by The Quest’s available share</span>
         </div>
       </div>
 
       <section className="rounded-xl border border-orange-400/15 bg-white/[0.025] p-4" data-testid="platform-match-allocations">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-white">Platform match recipients</h3>
+            <h3 className="text-sm font-semibold text-white">The Quest’s match recipients</h3>
             <p className="mt-1 text-xs text-white/45">
-              {data.platformMatchMode === "cash"
-                ? "Dollar-for-dollar matches are capped by The Quest's 1–10% allocation and each participant's contribution."
-                : "Percentage matches use The Quest's rate and are capped by its 1–10% allocation and each participant's contribution."}
+              The Quest matches each contestant’s or host’s nonprofit contribution dollar-for-dollar from its available share.
             </p>
           </div>
           <strong className="text-sm tabular-nums text-orange-200">{money(data.summary.platformMatchDueCents)} total</strong>
@@ -304,7 +270,7 @@ export default function AdminFinancialOverview({
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Host share</span><strong className="mt-1 block text-white">{money(competition.hostShareCents)} <span className="text-[10px] text-white/35">({competition.hostSharePercentage}%)</span></strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Recorded nonprofit allocations</span><strong className="mt-1 block text-white">{money(competition.charityShareCents)}</strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Contestant share</span><strong className="mt-1 block text-white">{money(competition.contestantShareCents)}</strong></div>
-                        <div className="rounded-md bg-orange-400/[0.07] p-3"><span className="text-white/50">Total platform nonprofit allocation</span><strong className="mt-1 block text-orange-200">{competition.platformNonprofitDueCents === null ? "Rate not set" : money(competition.platformNonprofitDueCents)}</strong></div>
+                        <div className="rounded-md bg-orange-400/[0.07] p-3"><span className="text-white/50">The Quest’s match total</span><strong className="mt-1 block text-orange-200">{money(competition.platformMatchDueCents)}</strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Purchases</span><strong className="mt-1 block text-white">{competition.paidVoting.purchaseCount.toLocaleString()}</strong></div>
                       </div>
                       <div className="rounded-md border border-white/10 p-3 text-xs text-white/55">

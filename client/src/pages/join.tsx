@@ -12,15 +12,10 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Heart, Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
+import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
-import {
-  isNonprofitPolicyConfigured,
-  MAX_NONPROFIT_CONTRIBUTION_PERCENT,
-  type NonprofitContributionRates,
-} from "@shared/nonprofit-policy";
 import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT,
@@ -35,10 +30,6 @@ interface JoinSettings {
   isActive: boolean;
   nominationFee?: number;
   nominationEnabled?: boolean;
-  nonprofitRequired?: boolean;
-  charityName?: string;
-  nonprofitContributionRates?: NonprofitContributionRates;
-  platformMatchMode?: "percentage" | "cash";
   hasPromoCode?: boolean;
 }
 
@@ -99,7 +90,6 @@ export default function JoinPage() {
   const [promoCode, setPromoCode] = useState("");
   const [promoValidated, setPromoValidated] = useState(false);
   const [promoChecking, setPromoChecking] = useState(false);
-  const [nonprofitPolicyAcknowledged, setNonprofitPolicyAcknowledged] = useState(false);
   const [nominationFeeAcknowledged, setNominationFeeAcknowledged] = useState(false);
   const [marketingGuidelinesAcknowledged, setMarketingGuidelinesAcknowledged] = useState(false);
   const [votedArtistReminderAcknowledged, setVotedArtistReminderAcknowledged] = useState(false);
@@ -131,8 +121,6 @@ export default function JoinPage() {
     queryKey: ["/api/join/settings"],
     staleTime: 0,
   });
-  const nonprofitRatesReady = isNonprofitPolicyConfigured(settings);
-
   const { data: paymentConfig } = useQuery<PaymentConfig>({
     queryKey: ["/api/payment-config"],
   });
@@ -243,14 +231,6 @@ export default function JoinPage() {
 
   const validateForm = useCallback(() => {
     if (!settings) return false;
-    if (!nonprofitRatesReady) {
-      toast({ title: "Nominations are temporarily unavailable", description: "The Quest has not configured its 1–10% platform rate and nonprofit recipient yet.", variant: "destructive" });
-      return false;
-    }
-    if (!nonprofitPolicyAcknowledged) {
-      toast({ title: "Please acknowledge the nonprofit policy", variant: "destructive" });
-      return false;
-    }
     if (!nominationFeeAcknowledged) {
       toast({ title: "Please acknowledge that nomination or competition fees may apply", variant: "destructive" });
       return false;
@@ -303,7 +283,7 @@ export default function JoinPage() {
       }
     }
     return true;
-  }, [settings, nonprofitRatesReady, nonprofitPolicyAcknowledged, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
+  }, [settings, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -318,7 +298,6 @@ export default function JoinPage() {
           phone: form.phone || "",
           bio: form.bio || "",
           category: form.category || "",
-          chosenNonprofit: form.chosenNonprofit || null,
           competitionId: selectedCompetitionId,
           nominatorName: nominatorForm.name,
           nominatorEmail: nominatorForm.email,
@@ -332,7 +311,6 @@ export default function JoinPage() {
           paypalOrderId,
           ocPaymentId,
           billingAddress,
-          nonprofitPolicyAcknowledged,
           nominationFeeAcknowledged,
           marketingGuidelinesAcknowledged,
           votedArtistReminderAcknowledged,
@@ -377,8 +355,6 @@ export default function JoinPage() {
         phone: form.phone || "",
         bio: form.bio || "",
         category: form.category || "",
-        chosenNonprofit: form.chosenNonprofit || null,
-        nonprofitPolicyAcknowledged,
         nominationFeeAcknowledged,
         marketingGuidelinesAcknowledged,
         votedArtistReminderAcknowledged,
@@ -429,7 +405,7 @@ export default function JoinPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, nonprofitPolicyAcknowledged, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged]);
+  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -941,61 +917,6 @@ export default function JoinPage() {
         </div>
 
         <div className="mb-10">
-          <div className="flex items-center gap-2 mb-3">
-            <Heart className="h-4 w-4 text-[#FF5A09]" />
-            <p className="text-[#5f5f5f] text-sm">Required Program Policy</p>
-          </div>
-          <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
-            NONPROFIT CONTRIBUTION
-          </h3>
-          <div className="mb-4 space-y-2 border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 text-xs leading-relaxed text-white/75">
-            <p>
-              Each contestant and host chooses a contribution rate from 1% to {MAX_NONPROFIT_CONTRIBUTION_PERCENT}% of their own eligible share and selects a nonprofit. The Quest's platform rate is applied to its own share. Before prize earnings can be paid, the nominee must choose a rate, name a nonprofit, and acknowledge the policy.
-            </p>
-            {nonprofitRatesReady ? (
-              <p className="tabular-nums text-white/90">
-                The Quest's platform rate is {settings!.nonprofitContributionRates!.platform}%. Platform matching is {settings!.platformMatchMode === "cash" ? "dollar-for-dollar cash" : "percentage-based"} and is capped by both that platform allocation and the matched participant's contribution.
-              </p>
-            ) : (
-              <p className="text-amber-200">
-                The nonprofit policy is not fully configured. Nominations cannot be submitted until The Quest's platform rate and recipient are set.
-              </p>
-            )}
-          </div>
-          {settings.charityName && (
-            <div className="border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 mb-4">
-              <p className="text-white/60 text-xs uppercase tracking-wider mb-1">The Quest's nonprofit recipient</p>
-              <p className="text-[#FF5A09] font-bold text-sm">{settings.charityName}</p>
-              <p className="text-white/50 text-xs mt-1">Any platform contribution not used for matching goes to this recipient.</p>
-            </div>
-          )}
-          <div>
-            <Label htmlFor="chosenNonprofit" className="text-white/60 uppercase text-xs tracking-wider">
-              Nominee's nonprofit choice <span className="text-white/25 normal-case">(if already known)</span>
-            </Label>
-            <Input
-              id="chosenNonprofit"
-              type="text"
-              value={form.chosenNonprofit ?? ""}
-              onChange={(e) => updateField("chosenNonprofit", e.target.value)}
-              className="bg-white/[0.08] border-white/20 text-white mt-2"
-              placeholder="Nominee's intended nonprofit"
-              data-testid="input-chosen-nonprofit"
-            />
-          </div>
-          <label className="mt-4 flex items-start gap-3 border border-[#FF5A09]/30 bg-white/[0.04] p-4 text-xs leading-relaxed text-white/75">
-            <input
-              type="checkbox"
-              checked={nonprofitPolicyAcknowledged}
-              onChange={(event) => setNonprofitPolicyAcknowledged(event.target.checked)}
-              aria-required="true"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
-              aria-label="Acknowledge the required nonprofit contribution policy"
-            />
-            <span>
-              I understand and acknowledge that the nominee must choose a 1%–{MAX_NONPROFIT_CONTRIBUTION_PERCENT}% rate, declare a nonprofit, and affirm the policy before prize earnings can be paid. Hosts choose their own rate; The Quest's contribution and any match are capped at its configured 1%–{MAX_NONPROFIT_CONTRIBUTION_PERCENT}% of its own share.
-            </span>
-          </label>
           <div className="mt-4 space-y-3">
             <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
               <input
