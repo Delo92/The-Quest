@@ -4964,7 +4964,7 @@ export async function registerRoutes(
     try {
       const settings = await firestoreJoinSettings.get();
       const { freeNominationPromoCode, ...publicSettings } = settings;
-      res.json({ ...publicSettings, nonprofitRequired: true, hasPromoCode: !!freeNominationPromoCode });
+      res.json({ ...publicSettings, nonprofitRequired: true, hasPromoCode: true });
     } catch (error: any) {
       console.error("Get join settings error:", error);
       res.status(500).json({ message: "Failed to get join settings" });
