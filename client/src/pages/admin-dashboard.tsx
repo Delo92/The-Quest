@@ -87,6 +87,7 @@ interface JoinSubmission {
   nominatorName?: string | null;
   nominatorEmail?: string | null;
   nominatorPhone?: string | null;
+  suggestedNonprofit?: string | null;
   nominationStatus?: "pending" | "joined" | "unsure" | "not_interested" | null;
   address?: string | null;
   city?: string | null;
@@ -97,6 +98,8 @@ interface JoinSubmission {
   nonprofitPolicyAcknowledged?: boolean;
   nonprofitPolicyAcknowledgedAt?: string | null;
   nonprofitPlatformRecipientAtAcknowledgment?: string | null;
+  nonprofitProceedsAcknowledged?: boolean;
+  nonprofitProceedsAcknowledgedAt?: string | null;
 }
 
 interface HostSubmission {
@@ -104,6 +107,7 @@ interface HostSubmission {
   fullName: string;
   email: string;
   phone: string | null;
+  preferredNonprofit?: string | null;
   organization: string | null;
   eventName: string;
   eventDescription: string | null;
@@ -3645,7 +3649,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Label className="text-white/80 font-semibold">Non-Profit / Charity</Label>
                       </div>
                       <p className="text-xs leading-relaxed text-white/55">
-                        Contestants and hosts choose their own nonprofit and contribution rate in their account. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount to the nonprofit they selected. The person submitting a nomination does not choose these details.
+                        Contestants and hosts choose their own nonprofit and contribution rate in their account. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount to the nonprofit they selected. A nominator may suggest a nonprofit, but the participant makes the final choice.
                       </p>
                     </div>
                     <div className="mt-4 rounded-md bg-white/5 border border-white/10 p-4">
@@ -3805,7 +3809,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                               <div className="rounded-md border border-orange-400/15 bg-orange-400/[0.04] p-4" data-testid={`nonprofit-policy-audit-${sub.id}`}>
                                 <p className="text-xs uppercase tracking-wider text-orange-200/75 font-semibold">Nonprofit choices</p>
                                 <p className="mt-2 text-sm text-white/75">
-                                  The contestant or host chooses their nonprofit and contribution rate in their own account. The nominator does not provide these details.
+                                  Contestants and hosts choose their nonprofit and contribution rate in their own account. A nominator may provide an optional suggestion, but it does not set the participant's choice.
                                 </p>
                                 <p className="mt-1 text-xs leading-relaxed text-white/50">
                                   If no rate is selected, the 10% default applies. The Quest matches the same dollar amount to the selected nonprofit before payout.
@@ -3820,11 +3824,20 @@ export default function AdminDashboard({ user }: { user: any }) {
                                     </p>
                                   </>
                                 ) : null}
+                                {sub.type === "nomination" && (
+                                  <p className="mt-3 text-xs text-white/40">
+                                    Nomination contribution acknowledgment: {sub.nonprofitProceedsAcknowledged ? "recorded" : "not recorded"}
+                                    {sub.nonprofitProceedsAcknowledgedAt && ` on ${new Date(sub.nonprofitProceedsAcknowledgedAt).toLocaleString()}`}
+                                  </p>
+                                )}
                               </div>
 
                               {sub.type === "nomination" && (
                                 <div className="space-y-3">
                                   <h5 className="text-xs uppercase tracking-wider text-purple-400 font-semibold">Nominator Information</h5>
+                                  {!sub.nominatorName && !sub.nominatorEmail && !sub.nominatorPhone && (
+                                    <p className="text-sm text-white/40">Submitted anonymously</p>
+                                  )}
                                   {sub.nominatorName && (
                                     <div>
                                       <p className="text-[10px] text-white/30 uppercase tracking-wider">Nominator Name</p>
@@ -3835,6 +3848,12 @@ export default function AdminDashboard({ user }: { user: any }) {
                                     <div>
                                       <p className="text-[10px] text-white/30 uppercase tracking-wider">Nominator Email</p>
                                       <a href={`mailto:${sub.nominatorEmail}`} className="text-sm text-[#FF5A09] hover:underline">{sub.nominatorEmail}</a>
+                                    </div>
+                                  )}
+                                  {sub.suggestedNonprofit && (
+                                    <div>
+                                      <p className="text-[10px] text-white/30 uppercase tracking-wider">Optional nonprofit suggestion</p>
+                                      <p className="text-sm text-white">{sub.suggestedNonprofit}</p>
                                     </div>
                                   )}
                                   {sub.nominatorPhone && (
@@ -3994,6 +4013,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                     <h4 className="font-medium">{sub.eventName}</h4>
                                     <p className="text-xs text-white/30">{sub.fullName} | {sub.email}</p>
                                     {sub.organization && <p className="text-xs text-white/40">{sub.organization}</p>}
+                                    {sub.preferredNonprofit && <p className="text-xs text-white/40 mt-1">Preferred nonprofit: {sub.preferredNonprofit}</p>}
                                     {sub.eventCategory && <p className="text-xs text-white/40 mt-1">Category: {sub.eventCategory}</p>}
                                     {sub.eventDate && <p className="text-xs text-white/40">Date: {sub.eventDate}</p>}
                                     {sub.eventDescription && <p className="text-xs text-white/40 mt-1 line-clamp-2">{sub.eventDescription}</p>}

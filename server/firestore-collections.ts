@@ -326,9 +326,12 @@ export interface FirestoreJoinSubmission {
   nominatorPhone: string | null;
   nominationStatus: "pending" | "joined" | "unsure" | "not_interested" | null;
   chosenNonprofit: string | null;
+  suggestedNonprofit?: string | null;
   nonprofitPolicyAcknowledged?: boolean;
   nonprofitPolicyAcknowledgedAt?: string | null;
   nonprofitPlatformRecipientAtAcknowledgment?: string | null;
+  nonprofitProceedsAcknowledged?: boolean;
+  nonprofitProceedsAcknowledgedAt?: string | null;
   nominationFeeAcknowledged?: boolean;
   nominationFeeAcknowledgedAt?: string | null;
   marketingGuidelinesAcknowledged?: boolean;
@@ -355,6 +358,7 @@ export interface FirestoreHostSubmission {
   fullName: string;
   email: string;
   phone: string | null;
+  preferredNonprofit?: string | null;
   organization: string | null;
   address: string | null;
   city: string | null;

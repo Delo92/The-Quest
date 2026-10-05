@@ -40,7 +40,7 @@ type PaymentConfig = BuyerPaymentConfig & {
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  fullName: "Full Name",
+  fullName: "Nominee's Name",
   email: "Email",
   phone: "Phone Number",
   address: "Street Address",
@@ -93,6 +93,7 @@ export default function JoinPage() {
   const [nominationFeeAcknowledged, setNominationFeeAcknowledged] = useState(false);
   const [marketingGuidelinesAcknowledged, setMarketingGuidelinesAcknowledged] = useState(false);
   const [votedArtistReminderAcknowledged, setVotedArtistReminderAcknowledged] = useState(false);
+  const [nonprofitProceedsAcknowledged, setNonprofitProceedsAcknowledged] = useState(false);
   const nominationImageRef = useRef<HTMLInputElement>(null);
   const competitionSectionRef = useRef<HTMLDivElement>(null);
 
@@ -243,6 +244,10 @@ export default function JoinPage() {
       toast({ title: "Please acknowledge the voted-artist reminder agreement", variant: "destructive" });
       return false;
     }
+    if (!nonprofitProceedsAcknowledged) {
+      toast({ title: "Please acknowledge the nonprofit contribution policy", variant: "destructive" });
+      return false;
+    }
     if (!selectedCompetitionId) {
       toast({ title: "Please select a competition", variant: "destructive" });
       return false;
@@ -255,12 +260,9 @@ export default function JoinPage() {
       toast({ title: "Nominee's email is required", variant: "destructive" });
       return false;
     }
-    if (!nominatorForm.name?.trim()) {
-      toast({ title: "Your name is required", variant: "destructive" });
-      return false;
-    }
-    if (!nominatorForm.email?.trim()) {
-      toast({ title: "Your email is required", variant: "destructive" });
+    const nominatorEmail = nominatorForm.email?.trim() || "";
+    if (nominatorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nominatorEmail)) {
+      toast({ title: "Enter a valid email or leave it blank to nominate anonymously", variant: "destructive" });
       return false;
     }
     if (needsPayment) {
@@ -283,7 +285,7 @@ export default function JoinPage() {
       }
     }
     return true;
-  }, [settings, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
+  }, [settings, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -299,9 +301,8 @@ export default function JoinPage() {
           bio: form.bio || "",
           category: form.category || "",
           competitionId: selectedCompetitionId,
-          nominatorName: nominatorForm.name,
-          nominatorEmail: nominatorForm.email,
-          nominatorPhone: nominatorForm.phone || "",
+          nominatorEmail: nominatorForm.email?.trim() || undefined,
+          suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
           referralCode: referralCode || undefined,
           mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
           promoCode: promoValidated ? promoCode : undefined,
@@ -314,6 +315,7 @@ export default function JoinPage() {
           nominationFeeAcknowledged,
           marketingGuidelinesAcknowledged,
           votedArtistReminderAcknowledged,
+          nonprofitProceedsAcknowledged,
         });
         setSuccess(true);
         toast({ title: "Nomination submitted!", description: "Thank you for your nomination!" });
@@ -338,8 +340,8 @@ export default function JoinPage() {
           expMonth,
           expYear,
           cvv,
-          name: nominatorForm.name || form.fullName || "",
-          email: nominatorForm.email || "",
+          name: "Anonymous",
+          email: nominatorForm.email?.trim() || "",
           billingAddress,
         });
         await submitData(undefined, undefined, stripePaymentIntentId, undefined, ocPaymentId);
@@ -358,10 +360,10 @@ export default function JoinPage() {
         nominationFeeAcknowledged,
         marketingGuidelinesAcknowledged,
         votedArtistReminderAcknowledged,
+        nonprofitProceedsAcknowledged,
         competitionId: selectedCompetitionId,
-        nominatorName: nominatorForm.name,
-        nominatorEmail: nominatorForm.email,
-        nominatorPhone: nominatorForm.phone || "",
+        nominatorEmail: nominatorForm.email?.trim() || undefined,
+        suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
         referralCode: referralCode || undefined,
         mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
         promoCode: promoValidated ? promoCode : undefined,
@@ -405,7 +407,7 @@ export default function JoinPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged]);
+  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -678,46 +680,25 @@ export default function JoinPage() {
                 <span className="text-white font-medium">You can nominate yourself</span> — just fill in your own details below.
               </p>
             </div>
-            <p className="text-[#5f5f5f] text-sm mb-1">Your Information</p>
+            <p className="text-[#5f5f5f] text-sm mb-1">Optional Contact</p>
             <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
-              NOMINATOR DETAILS
+              NOMINATION UPDATES
             </h3>
+            <p className="text-white/40 text-sm">
+              We don't ask for your name or phone. Add an email only if you want an update when the nomination is accepted and active on The Quest.
+            </p>
             <div>
-              <Label className="text-white/60 uppercase text-xs tracking-wider">
-                Your Name <span className="text-[#FF5A09]">*</span>
+              <Label htmlFor="nominator-email" className="text-white/60 uppercase text-xs tracking-wider">
+                Email for updates <span className="text-white/30 normal-case">(optional)</span>
               </Label>
               <Input
-                value={nominatorForm.name || ""}
-                onChange={(e) => updateNominatorField("name", e.target.value)}
-                className="bg-white/[0.08] border-white/20 text-white mt-2"
-                placeholder="Enter your full name"
-                data-testid="input-nominator-name"
-              />
-            </div>
-            <div>
-              <Label className="text-white/60 uppercase text-xs tracking-wider">
-                Your Email <span className="text-[#FF5A09]">*</span>
-              </Label>
-              <Input
+                id="nominator-email"
                 type="email"
                 value={nominatorForm.email || ""}
                 onChange={(e) => updateNominatorField("email", e.target.value)}
                 className="bg-white/[0.08] border-white/20 text-white mt-2"
-                placeholder="Enter your email"
+                placeholder="Email for nomination updates"
                 data-testid="input-nominator-email"
-              />
-            </div>
-            <div>
-              <Label className="text-white/60 uppercase text-xs tracking-wider">
-                Your Phone
-              </Label>
-              <Input
-                type="tel"
-                value={nominatorForm.phone || ""}
-                onChange={(e) => updateNominatorField("phone", e.target.value)}
-                className="bg-white/[0.08] border-white/20 text-white mt-2"
-                placeholder="Enter your phone number"
-                data-testid="input-nominator-phone"
               />
             </div>
             <div>
@@ -756,7 +737,7 @@ export default function JoinPage() {
 
           {activeFields.map((field) => {
             const required = field === "fullName" || field === "email";
-            const label = field === "fullName" ? "Nominee's Full Name"
+            const label = field === "fullName" ? "Nominee's Name"
               : field === "email" ? "Nominee's Email"
               : field === "phone" ? "Nominee's Phone"
               : field === "bio" ? "Why Are You Making This Nomination?"
@@ -904,16 +885,38 @@ export default function JoinPage() {
                   value={form[field] || ""}
                   onChange={(e) => updateField(field, e.target.value)}
                   className="bg-white/[0.08] border-white/20 text-white mt-2"
-                  placeholder={field === "fullName" ? "Enter nominee's full name"
+                  placeholder={field === "fullName" ? "Enter the nominee's artist, stage, or business name"
                     : field === "email" ? "Enter nominee's email"
                     : field === "phone" ? "Enter nominee's phone number"
                     : `Enter ${label.toLowerCase()}`}
                   required={required}
                   data-testid={`input-${field}`}
                 />
+                {field === "fullName" && (
+                  <p className="mt-2 text-xs leading-relaxed text-white/40">
+                    This can be the name people know them by, such as an artist or stage name like Lil Wayne or Lady Gaga, or a business name.
+                  </p>
+                )}
               </div>
             );
           })}
+          <div className="space-y-2">
+            <Label htmlFor="suggested-nonprofit" className="text-white/60 uppercase text-xs tracking-wider">
+              Suggested Nonprofit <span className="text-white/30 normal-case">(optional)</span>
+            </Label>
+            <Input
+              id="suggested-nonprofit"
+              value={form.suggestedNonprofit || ""}
+              onChange={(event) => updateField("suggestedNonprofit", event.target.value)}
+              className="bg-white/[0.08] border-white/20 text-white"
+              placeholder="Suggest a nonprofit for the nominee"
+              maxLength={180}
+              data-testid="input-suggested-nonprofit"
+            />
+            <p className="text-xs leading-relaxed text-white/40">
+              This is only a suggestion. The nominee chooses their own nonprofit in their account.
+            </p>
+          </div>
         </div>
 
         <div className="mb-10">
@@ -955,6 +958,20 @@ export default function JoinPage() {
                 data-testid="checkbox-nomination-voted-artist-reminders"
               />
               <span>{VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT}</span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
+              <input
+                id="nomination-nonprofit-proceeds-acknowledged"
+                type="checkbox"
+                checked={nonprofitProceedsAcknowledged}
+                onChange={(event) => setNonprofitProceedsAcknowledged(event.target.checked)}
+                aria-required="true"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
+                data-testid="checkbox-nomination-nonprofit-proceeds"
+              />
+              <span>
+                I understand that The Quest's participants will be required to give a portion of any proceeds to a nonprofit.
+              </span>
             </label>
           </div>
         </div>
@@ -1057,11 +1074,11 @@ export default function JoinPage() {
         {needsPayment && (
           <div className="mt-4 space-y-1 text-center">
             <p className="text-white/30 text-xs">
-              Payments processed securely via {paymentConfig?.provider === "stripe" ? "Stripe" : paymentConfig?.provider === "paypal" ? "PayPal" : "Authorize.Net"}.
+              Payments are processed securely by Authorize.Net, Stripe, or PayPal, depending on the configured provider.
             </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}
-              <a href="/about#terms" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.
+              <a href="/thequest/about" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.
             </p>
           </div>
         )}
@@ -1076,7 +1093,7 @@ export default function JoinPage() {
             description="Please review your nomination details before proceeding."
             lineItems={[
               { label: "Nominee", value: form.fullName || "" },
-              { label: "Nominated by", value: nominatorForm.name || "" },
+              { label: "Update email", value: nominatorForm.email?.trim() || "Anonymous submission" },
               { label: "Nomination Fee", value: `$${(paymentAmount / 100).toFixed(2)}` },
             ]}
             totalAmount={`$${(paymentAmount / 100).toFixed(2)}`}

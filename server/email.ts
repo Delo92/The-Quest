@@ -247,7 +247,8 @@ export async function sendInviteEmail(opts: {
 export async function sendNominationCongrats(opts: {
   to: string;
   nomineeName: string;
-  nominatorName: string;
+  nominatorName?: string;
+  suggestedNonprofit?: string;
   competitionName: string;
   siteUrl: string;
   defaultPassword?: string;
@@ -257,6 +258,26 @@ export async function sendNominationCongrats(opts: {
     const transporter = await getTransporter();
     const loginUrl = `${opts.siteUrl}/login`;
     const compUrl = `${opts.siteUrl}/thequest/competitions`;
+    const escapedCharacters: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => escapedCharacters[character] || character);
+    const safeNomineeName = escapeHtml(opts.nomineeName);
+    const safeCompetitionName = escapeHtml(opts.competitionName);
+    const nominationIntro = opts.nominatorName?.trim()
+      ? `<strong style="color:#FF5A09;">${escapeHtml(opts.nominatorName.trim())}</strong> has nominated you to compete in:`
+      : "A community member has nominated you to compete in:";
+    const suggestionBlock = opts.suggestedNonprofit?.trim()
+      ? `<div class="highlight-box">
+          <p class="label">Optional nonprofit suggestion</p>
+          <p class="value">${escapeHtml(opts.suggestedNonprofit.trim())}</p>
+          <p style="font-size:13px;color:#bbb;">This is only a suggestion. You choose your own nonprofit and contribution rate in your account.</p>
+        </div>`
+      : "";
     const nonprofitDisclosure = `<div class="highlight-box">
         <p class="label">Nonprofit contribution</p>
         <p class="value">Choose your own nonprofit and a contribution rate from 1% to 10% in your account before prize payout.</p>
@@ -278,15 +299,16 @@ export async function sendNominationCongrats(opts: {
       <div style="text-align:center; margin-bottom: 28px;">
         <span class="badge">Nomination Confirmed</span>
       </div>
-      <h2 style="text-align:center;">Congratulations, ${opts.nomineeName}!</h2>
+      <h2 style="text-align:center;">Congratulations, ${safeNomineeName}!</h2>
       <p style="text-align:center; font-size:17px; color:#ccc;">
-        <strong style="color:#FF5A09;">${opts.nominatorName}</strong> has nominated you to compete in:
+        ${nominationIntro}
       </p>
       <div class="highlight-box" style="text-align:center;">
         <p class="label">Competition</p>
-        <p class="value">${opts.competitionName}</p>
+        <p class="value">${safeCompetitionName}</p>
       </div>
       <p>You're officially in the running! The public will vote for their favorite — share your profile link with friends, family, and fans to drive votes your way.</p>
+      ${suggestionBlock}
       ${nonprofitDisclosure}
       ${credentialBlock}
       <div class="btn-wrap">
@@ -318,7 +340,7 @@ export async function sendNominationCongrats(opts: {
 ───────────────────────────────────────────────────────────────────────── */
 export async function sendNominationReceipt(opts: {
   to: string;
-  nominatorName: string;
+  nominatorName?: string;
   nomineeName: string;
   competitionName: string;
   amount: string;
@@ -329,6 +351,19 @@ export async function sendNominationReceipt(opts: {
     const transporter = await getTransporter();
 
     const amountDisplay = opts.isFree ? "Free" : opts.amount;
+    const escapedCharacters: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => escapedCharacters[character] || character);
+    const nomineeName = escapeHtml(opts.nomineeName);
+    const competitionName = escapeHtml(opts.competitionName);
+    const greeting = opts.nominatorName?.trim()
+      ? `Hi <strong style="color:#fff;">${escapeHtml(opts.nominatorName.trim())}</strong>, thank you for nominating someone to The Quest.`
+      : "Thank you for submitting a nomination to The Quest.";
     const txLine = opts.transactionId
       ? `<p style="font-size:13px; color:#555; margin-top:16px;">Transaction ID: ${opts.transactionId}</p>`
       : "";
@@ -336,16 +371,16 @@ export async function sendNominationReceipt(opts: {
       <div style="text-align:center; margin-bottom: 28px;">
         <span class="badge">Nomination Receipt</span>
       </div>
-      <h2>Nomination Submitted!</h2>
-      <p>Hi <strong style="color:#fff;">${opts.nominatorName}</strong>, thank you for nominating someone to The Quest. Your submission has been received and the nominee has been notified.</p>
+      <h2>Nomination Accepted &amp; Active</h2>
+      <p>${greeting} The nomination has been accepted and is active on The Quest, and the nominee has been notified.</p>
 
       <div class="highlight-box">
         <p class="label">Nominee</p>
-        <p class="value">${opts.nomineeName}</p>
+        <p class="value">${nomineeName}</p>
       </div>
       <div class="highlight-box">
         <p class="label">Competition</p>
-        <p class="value">${opts.competitionName}</p>
+        <p class="value">${competitionName}</p>
       </div>
       <table class="receipt">
         <tr>
@@ -365,7 +400,7 @@ export async function sendNominationReceipt(opts: {
     await transporter.sendMail({
       from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
       to: opts.to,
-      subject: `Your Nomination Receipt — ${opts.nomineeName} | The Quest`,
+      subject: `Nomination Active — ${opts.nomineeName} | The Quest`,
       html,
     });
 

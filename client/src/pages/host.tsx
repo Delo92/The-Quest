@@ -576,6 +576,23 @@ export default function HostPage() {
               </div>
             );
           })}
+          <div className="space-y-2">
+            <Label htmlFor="host-preferred-nonprofit" className="text-white/60 uppercase text-xs tracking-wider">
+              Preferred Nonprofit <span className="text-white/30 normal-case">(optional)</span>
+            </Label>
+            <Input
+              id="host-preferred-nonprofit"
+              value={form.preferredNonprofit || ""}
+              onChange={(event) => updateField("preferredNonprofit", event.target.value)}
+              className="bg-white/[0.08] border-white/20 text-white"
+              placeholder="Enter a nonprofit you may want to support"
+              maxLength={180}
+              data-testid="input-host-preferred-nonprofit"
+            />
+            <p className="text-xs leading-relaxed text-white/40">
+              Optional. You can confirm or update your nonprofit choice in your account before payout.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-5 mb-10">
@@ -744,11 +761,11 @@ export default function HostPage() {
         {selectedPrice > 0 && (
           <div className="mt-4 space-y-1 text-center">
             <p className="text-white/30 text-xs">
-              Payments processed securely via {paymentConfig?.provider === "stripe" ? "Stripe" : paymentConfig?.provider === "paypal" ? "PayPal" : "Authorize.Net"}.
+              Payments are processed securely by Authorize.Net, Stripe, or PayPal, depending on the configured provider.
             </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}
-              <a href="/about#terms" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.
+              <a href="/thequest/about" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.
             </p>
           </div>
         )}

@@ -5158,16 +5158,27 @@ export async function registerRoutes(
       }
 
       const {
-        fullName, email, phone, bio, category, competitionId, nominatorName, nominatorEmail, nominatorPhone,
+        fullName, email, phone, bio, category, competitionId, nominatorEmail, suggestedNonprofit,
         dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
         mediaUrls, promoCode, referralCode, billingAddress,
         nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged,
+        nonprofitProceedsAcknowledged,
       } = req.body;
-      if (!fullName || !email) {
+      const nomineeName = typeof fullName === "string" ? fullName.trim() : "";
+      const nomineeEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+      const normalizedNominatorEmail = typeof nominatorEmail === "string" ? nominatorEmail.trim().toLowerCase() : "";
+      const nonprofitSuggestion = typeof suggestedNonprofit === "string" ? suggestedNonprofit.trim() : "";
+      if (!nomineeName || !nomineeEmail) {
         return res.status(400).json({ message: "Nominee name and email are required" });
       }
-      if (!nominatorName || !nominatorEmail) {
-        return res.status(400).json({ message: "Your name and email are required" });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nomineeEmail)) {
+        return res.status(400).json({ message: "Enter a valid nominee email" });
+      }
+      if (normalizedNominatorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedNominatorEmail)) {
+        return res.status(400).json({ message: "Enter a valid email for nomination updates or leave it blank" });
+      }
+      if (nonprofitSuggestion.length > 180) {
+        return res.status(400).json({ message: "The nonprofit suggestion must be 180 characters or fewer" });
       }
       if (nominationFeeAcknowledged !== true) {
         return res.status(400).json({ message: "Please acknowledge that nomination or competition fees may apply." });
@@ -5177,6 +5188,9 @@ export async function registerRoutes(
       }
       if (votedArtistReminderAcknowledged !== true) {
         return res.status(400).json({ message: "Please acknowledge the voted-artist reminder agreement." });
+      }
+      if (nonprofitProceedsAcknowledged !== true) {
+        return res.status(400).json({ message: "Please acknowledge the nonprofit contribution policy." });
       }
       if (!competitionId) {
         return res.status(400).json({ message: "Please select a competition" });
@@ -5196,10 +5210,14 @@ export async function registerRoutes(
         }
         const secured = await secureAuthorizeCharge(req, {
           route: "/api/join/nominate", amountDollars: settings.nominationFee / 100,
-          ownerKey: `email:${nominatorEmail.toLowerCase().trim()}`, packageKey: `nomination:${competitionId}`,
+          ownerKey: normalizedNominatorEmail
+            ? `email:${normalizedNominatorEmail}`
+            : `anonymous:${req.ip || req.socket.remoteAddress || "unknown"}:${nomineeEmail}`,
+          packageKey: `nomination:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
           stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
-          description: `Nomination fee for ${fullName}`, customerEmail: nominatorEmail, customerName: nominatorName,
+          description: `Nomination fee for ${nomineeName}`,
+          customerEmail: normalizedNominatorEmail || undefined,
           billingAddress,
         });
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
@@ -5208,13 +5226,12 @@ export async function registerRoutes(
         amountPaid = settings.nominationFee;
       }
 
-      const nomineeEmail = email.toLowerCase().trim();
-      const nomineeName = fullName.trim();
       const DEFAULT_PASSWORD = "CBP2026!";
 
       let firebaseUid: string | null = null;
       let talentProfileId: number | null = null;
       let contestantId: number | null = null;
+      let contestantIsActive = false;
       let emailSent = false;
 
       try {
@@ -5267,8 +5284,10 @@ export async function registerRoutes(
                 appliedAt: new Date().toISOString(),
               });
               contestantId = newContestant.id;
+              contestantIsActive = newContestant.applicationStatus === "approved";
             } else {
               contestantId = existingContestant.id;
+              contestantIsActive = existingContestant.applicationStatus === "approved";
             }
           }
 
@@ -5281,7 +5300,7 @@ export async function registerRoutes(
           emailSent = await sendNominationCongrats({
             to: nomineeEmail,
             nomineeName,
-            nominatorName: nominatorName.trim(),
+            suggestedNonprofit: nonprofitSuggestion || undefined,
             competitionName,
             siteUrl,
             ...(existingUser ? {} : { defaultPassword: DEFAULT_PASSWORD }),
@@ -5309,6 +5328,7 @@ export async function registerRoutes(
         amountPaid,
         type: "nomination",
         chosenNonprofit: null,
+        suggestedNonprofit: nonprofitSuggestion || null,
         nominationFeeAcknowledged: true,
         nominationFeeAcknowledgedAt: new Date().toISOString(),
         marketingGuidelinesAcknowledged: true,
@@ -5317,9 +5337,11 @@ export async function registerRoutes(
         votedArtistReminderAcknowledged: true,
         votedArtistReminderAcknowledgedAt: new Date().toISOString(),
         votedArtistReminderAcknowledgedVersion: VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_VERSION,
-        nominatorName: nominatorName.trim(),
-        nominatorEmail: nominatorEmail.toLowerCase().trim(),
-        nominatorPhone: nominatorPhone || null,
+        nonprofitProceedsAcknowledged: true,
+        nonprofitProceedsAcknowledgedAt: new Date().toISOString(),
+        nominatorName: null,
+        nominatorEmail: normalizedNominatorEmail || null,
+        nominatorPhone: null,
         referralCode: referralCode?.trim().toUpperCase() || null,
         nominationStatus: "joined",
       });
@@ -5327,13 +5349,12 @@ export async function registerRoutes(
       await firestoreJoinSubmissions.updateStatus(submission.id, "approved");
 
       // Send receipt to the nominator (non-blocking)
-      if (isEmailConfigured() && nominatorEmail) {
+      if (isEmailConfigured() && normalizedNominatorEmail && firebaseUid && talentProfileId !== null && contestantId !== null && contestantIsActive) {
         const compNameForReceipt = competitionId
           ? (await storage.getCompetition(Number(competitionId)))?.title || "The Quest"
           : "The Quest";
         sendNominationReceipt({
-          to: nominatorEmail.toLowerCase().trim(),
-          nominatorName: nominatorName.trim(),
+          to: normalizedNominatorEmail,
           nomineeName,
           competitionName: compNameForReceipt,
           amount: amountPaid ? `$${(amountPaid / 100).toFixed(2)}` : "$0.00",
@@ -5350,9 +5371,7 @@ export async function registerRoutes(
           orderNumber: submission.id,
           orderValue: "0.00",
           discountAmount: String((settings.nominationFee || 0) / 100),
-          customerName: nominatorName?.trim(),
-          customerEmail: nominatorEmail?.toLowerCase().trim(),
-          customerPhone: nominatorPhone || null,
+          customerEmail: normalizedNominatorEmail || undefined,
           notes: `Free nomination for ${nomineeName}${compTitle ? ` in ${compTitle}` : ""}`,
         }).catch((err: any) => console.warn("[ChronicBrands] Nomination promo tracking failed (non-blocking):", err.message));
       }
@@ -5364,7 +5383,7 @@ export async function registerRoutes(
         const amountInDollars = amountPaid ? (amountPaid / 100).toFixed(2) : "0.00";
 
         // Internal Firestore tracking
-        firestoreReferrals.trackReferralVote(resolvedRef, nominatorEmail?.toLowerCase().trim() || submission.id, 1)
+        firestoreReferrals.trackReferralVote(resolvedRef, normalizedNominatorEmail || submission.id, 1)
           .catch((err: any) => console.warn("[Referral] Internal nomination tracking failed (non-blocking):", err.message));
 
         // CBUSA report
@@ -5373,9 +5392,7 @@ export async function registerRoutes(
           orderNumber: submission.id,
           orderValue: amountInDollars,
           discountAmount: "0.00",
-          customerName: nominatorName?.trim(),
-          customerEmail: nominatorEmail?.toLowerCase().trim(),
-          customerPhone: nominatorPhone || null,
+          customerEmail: normalizedNominatorEmail || undefined,
           notes: `Nomination for ${nomineeName}${compTitle ? ` in ${compTitle}` : ""} — referred by code ${resolvedRef}`,
         }).catch((err: any) => console.warn("[ChronicBrands] Nomination referral tracking failed (non-blocking):", err.message));
 
@@ -5398,8 +5415,8 @@ export async function registerRoutes(
                     to: ownerEmail,
                     ownerName: codeDoc.ownerName,
                     code: resolvedRef,
-                    usedBy: nominatorName?.trim() || "Someone",
-                    usedByEmail: nominatorEmail?.toLowerCase().trim() || "",
+                    usedBy: "Someone",
+                    usedByEmail: normalizedNominatorEmail,
                     action: "nomination",
                     nomineeName,
                     competitionName: compTitle || undefined,
@@ -5428,7 +5445,7 @@ export async function registerRoutes(
           purchaseId: `nomination_${submission.id}`,
           orderId: transactionId,
           amountCents: amountPaid,
-          customer: { email: nominatorEmail.toLowerCase().trim(), name: nominatorName.trim() },
+          ...(normalizedNominatorEmail ? { customer: { email: normalizedNominatorEmail } } : {}),
           items: [{
             sku: `competition-nomination-${competitionId}`,
             name: `Nomination for ${nomineeName}`,
@@ -5520,9 +5537,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Host applications are currently closed" });
       }
 
-      const { fullName, email, phone, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: hostOcPaymentId, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
+      const { fullName, email, phone, preferredNonprofit, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: hostOcPaymentId, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
+      const normalizedPreferredNonprofit = typeof preferredNonprofit === "string" ? preferredNonprofit.trim() : "";
       if (!fullName || !email || !eventName) {
         return res.status(400).json({ message: "Name, email, and event name are required" });
+      }
+      if (normalizedPreferredNonprofit.length > 180) {
+        return res.status(400).json({ message: "The preferred nonprofit must be 180 characters or fewer" });
       }
 
       let transactionId: string | null = null;
@@ -5570,6 +5591,7 @@ export async function registerRoutes(
         fullName: fullName.trim(),
         email: email.toLowerCase().trim(),
         phone: phone || null,
+        preferredNonprofit: normalizedPreferredNonprofit || null,
         organization: organization || null,
         address: address || null,
         city: city || null,
@@ -6027,7 +6049,7 @@ export async function registerRoutes(
         amount: charge.amountCents,
         currency: "usd",
         automatic_payment_methods: { enabled: true },
-        receipt_email: typeof input.email === "string" ? input.email : undefined,
+        receipt_email: typeof input.email === "string" && input.email.trim() ? input.email.trim() : undefined,
         description: charge.description,
         metadata: {
           idempotencyKey: String(input.idempotencyKey || ""),

@@ -20,7 +20,7 @@ type StripeInstance = {
         card: { number: string; exp_month: number; exp_year: number; cvc: string };
         billing_details: {
           name: string;
-          email: string;
+          email?: string;
           address?: { line1?: string; city?: string; state?: string; postal_code?: string };
         };
       };
@@ -80,7 +80,7 @@ export async function confirmStripeCardPayment(input: {
       },
       billing_details: {
         name: input.name.trim(),
-        email: input.email.trim(),
+          ...(input.email.trim() ? { email: input.email.trim() } : {}),
         address: {
           line1: input.billingAddress.address,
           city: input.billingAddress.city,

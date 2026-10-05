@@ -22,7 +22,7 @@ declare global {
         data: {
           payment_method: {
             card: { number: string; exp_month: number; exp_year: number; cvc: string };
-            billing_details: { name: string; email: string; address?: { line1?: string; city?: string; state?: string; postal_code?: string; country?: string } };
+            billing_details: { name: string; email?: string; address?: { line1?: string; city?: string; state?: string; postal_code?: string; country?: string } };
           };
         },
       ) => Promise<{ paymentIntent?: { id: string; status: string }; error?: { message?: string } }>;
