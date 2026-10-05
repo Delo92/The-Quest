@@ -546,102 +546,6 @@ export default function JoinPage() {
           {settings.pageDescription}
         </p>
 
-        {(settings.nominationFee || 0) > 0 && (
-          <div className="border border-[#FF5A09]/30 bg-[#FF5A09]/5 p-4 mb-8">
-          {appliedPromo ? (
-              <>
-              <p className="text-[#FF5A09] font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
-                Nomination Fee: ${(originalPaymentAmount / 100).toFixed(2)}
-              </p>
-              <p className="text-green-400 font-bold uppercase text-sm mt-2">
-                Promo Code Applied: {appliedPromo.code} — {formatNominationPromoDiscount(appliedPromo)}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
-                <span className="text-white/50">
-                  Discount: -${(appliedPromo.discountAmountCents / 100).toFixed(2)}
-                </span>
-                <span className="font-semibold text-white">
-                  Due now: ${(paymentAmount / 100).toFixed(2)}
-                </span>
-              </div>
-              <p className="text-white/40 text-xs mt-1">
-                {paymentAmount === 0 ? "No payment is required to submit this nomination." : "The discounted amount will be charged at checkout."}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setAppliedPromo(null);
-                  setPromoCode("");
-                }}
-                className="mt-2 text-xs text-white/45 underline underline-offset-2 hover:text-white"
-                data-testid="button-remove-applied-promo"
-              >
-                Remove promo code
-              </button>
-              </>
-            ) : (
-              <>
-              <p className="text-[#FF5A09] font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
-                Nomination Fee: ${(originalPaymentAmount / 100).toFixed(2)}
-              </p>
-              <p className="text-white/40 text-xs mt-1">Payment is required to submit a nomination.</p>
-              </>
-            )}
-            {settings.hasPromoCode && !promoValidated && (
-              <div className="mt-3 space-y-2">
-              <p className="text-white/50 text-xs">Enter a nomination promo code:</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Input
-                  placeholder="Enter promo code"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                  className="bg-white/5 border-white/10 text-white uppercase max-w-[200px] h-9"
-                  data-testid="input-promo-code"
-                />
-                <button
-                  onClick={async () => {
-                    if (!promoCode.trim()) return;
-                    setPromoChecking(true);
-                    try {
-                      const res = await apiRequest("POST", "/api/join/validate-promo", { code: promoCode });
-                      const data = await res.json();
-                      if (data.valid && data.code && Number.isFinite(data.finalAmountCents) && Number.isFinite(data.discountAmountCents)) {
-                        const applied = {
-                          code: data.code as string,
-                          discountType: data.discountType as NominationPromoDiscountType,
-                          discountValue: Number(data.discountValue),
-                          discountAmountCents: Number(data.discountAmountCents),
-                          finalAmountCents: Number(data.finalAmountCents),
-                        };
-                        setAppliedPromo(applied);
-                        setPromoCode(applied.code);
-                        toast({
-                          title: "Promo code applied!",
-                          description: applied.finalAmountCents === 0
-                            ? "The nomination fee has been waived."
-                            : `${formatNominationPromoDiscount(applied)}. You save $${(applied.discountAmountCents / 100).toFixed(2)}; $${(applied.finalAmountCents / 100).toFixed(2)} is due.`,
-                        });
-                      } else {
-                        toast({ title: "Invalid promo code", variant: "destructive" });
-                      }
-                    } catch {
-                      toast({ title: "Failed to validate promo code", variant: "destructive" });
-                    } finally {
-                      setPromoChecking(false);
-                    }
-                  }}
-                  disabled={promoChecking || !promoCode.trim()}
-                  className="h-9 w-full text-xs uppercase tracking-wider border border-[#FF5A09]/40 bg-[#FF5A09]/10 text-[#FF5A09] px-4 transition-colors hover:bg-[#FF5A09]/20 disabled:opacity-40 sm:w-auto"
-                  data-testid="button-apply-promo"
-                >
-                  {promoChecking ? "Checking..." : "Apply"}
-                </button>
-              </div>
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="mb-10" ref={competitionSectionRef}>
           <p className="text-[#5f5f5f] text-sm mb-1">Select Competition</p>
           <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
@@ -1128,6 +1032,108 @@ export default function JoinPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {settings.hasPromoCode && (originalPaymentAmount > 0 || appliedPromo) && (
+          <section
+            className="mb-5 border border-white/10 bg-white/[0.03] p-4 sm:p-5"
+            aria-label="Checkout promo code and total"
+            data-testid="nomination-checkout-promo"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
+              <div>
+                <p className="text-white/50 text-xs uppercase tracking-wider">Checkout total</p>
+                <p className="mt-1 text-white font-semibold" data-testid="text-nomination-checkout-total">
+                  {appliedPromo ? `Due now: $${(paymentAmount / 100).toFixed(2)}` : `$${(originalPaymentAmount / 100).toFixed(2)}`}
+                </p>
+              </div>
+              {appliedPromo && (
+                <div className="text-right">
+                  <p className="text-green-400 text-sm font-semibold">Code {appliedPromo.code} applied</p>
+                  <p className="mt-1 text-xs text-white/50">
+                    {formatNominationPromoDiscount(appliedPromo)} · save ${(appliedPromo.discountAmountCents / 100).toFixed(2)}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {appliedPromo ? (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-white/50">
+                  Original fee ${(originalPaymentAmount / 100).toFixed(2)}
+                  <span className="mx-2 text-white/25">·</span>
+                  Discount -${(appliedPromo.discountAmountCents / 100).toFixed(2)}
+                  {paymentAmount === 0 && <span className="ml-2 text-green-300">No payment required.</span>}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppliedPromo(null);
+                    setPromoCode("");
+                  }}
+                  className="min-h-11 px-2 text-xs text-white/50 underline underline-offset-2 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A09]"
+                  data-testid="button-remove-applied-promo"
+                >
+                  Remove code
+                </button>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <Label htmlFor="input-promo-code" className="text-white/55 text-xs">Promo code</Label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    id="input-promo-code"
+                    placeholder="Enter promo code"
+                    value={promoCode}
+                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                    autoComplete="off"
+                    maxLength={40}
+                    className="h-11 w-full bg-white/5 border-white/10 text-white uppercase sm:max-w-xs"
+                    data-testid="input-promo-code"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!promoCode.trim()) return;
+                      setPromoChecking(true);
+                      try {
+                        const response = await apiRequest("POST", "/api/join/validate-promo", { code: promoCode });
+                        const data = await response.json();
+                        if (data.valid && data.code && Number.isFinite(data.finalAmountCents) && Number.isFinite(data.discountAmountCents)) {
+                          const applied = {
+                            code: data.code as string,
+                            discountType: data.discountType as NominationPromoDiscountType,
+                            discountValue: Number(data.discountValue),
+                            discountAmountCents: Number(data.discountAmountCents),
+                            finalAmountCents: Number(data.finalAmountCents),
+                          };
+                          setAppliedPromo(applied);
+                          setPromoCode(applied.code);
+                          toast({
+                            title: "Promo code applied!",
+                            description: applied.finalAmountCents === 0
+                              ? "The nomination fee has been waived."
+                              : `${formatNominationPromoDiscount(applied)}. You save $${(applied.discountAmountCents / 100).toFixed(2)}; $${(applied.finalAmountCents / 100).toFixed(2)} is due.`,
+                          });
+                        } else {
+                          toast({ title: "Invalid promo code", variant: "destructive" });
+                        }
+                      } catch {
+                        toast({ title: "Failed to validate promo code", variant: "destructive" });
+                      } finally {
+                        setPromoChecking(false);
+                      }
+                    }}
+                    disabled={promoChecking || !promoCode.trim()}
+                    className="h-11 w-full border border-[#FF5A09]/40 bg-[#FF5A09]/10 px-5 text-xs uppercase tracking-wider text-[#FF5A09] transition-colors hover:bg-[#FF5A09]/20 disabled:opacity-40 sm:w-auto"
+                    data-testid="button-apply-promo"
+                  >
+                    {promoChecking ? "Checking..." : "Apply code"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
         )}
 
         <button
