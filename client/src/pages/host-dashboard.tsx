@@ -536,9 +536,17 @@ export default function HostDashboard({ user }: { user: any }) {
             <Button variant="ghost" size="icon" onClick={openAccountEditor} className="sm:hidden h-9 w-9 rounded-full hover:bg-white/10" aria-label="Edit account" data-testid="button-host-account-mobile">
               <UserCircle className="h-5 w-5 text-white/60" />
             </Button>
-            <Badge className="bg-orange-500/15 text-orange-300 border border-orange-500/20">Host workspace</Badge>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-white/10" onClick={() => logout()} data-testid="button-logout" aria-label="Sign out">
-              <LogOut className="h-4 w-4 text-white/60" />
+            <Badge className="hidden bg-orange-500/15 text-orange-300 border border-orange-500/20 sm:inline-flex">Host workspace</Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 gap-2 rounded-md border-orange-400/50 bg-orange-500/10 px-3 text-xs font-semibold text-orange-100 hover:bg-orange-500/20 hover:text-white"
+              onClick={() => logout()}
+              data-testid="button-logout"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
             </Button>
           </div>
         </div>

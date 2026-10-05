@@ -726,8 +726,16 @@ export default function TalentDashboard({ user, profile }: Props) {
               </Avatar>
               <span className="text-xs text-white/60">{user.displayName || user.email}</span>
             </div>
-            <Button size="icon" variant="ghost" className="h-9 w-9 rounded-full text-white/40 hover:text-white hover:bg-white/10" onClick={() => logout()} data-testid="button-logout" aria-label="Sign out">
-              <LogOut className="h-3.5 w-3.5" />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 shrink-0 gap-2 rounded-md border-orange-400/50 bg-orange-500/10 px-3 text-xs font-semibold text-orange-100 hover:bg-orange-500/20 hover:text-white"
+              onClick={() => logout()}
+              data-testid="button-logout"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
             </Button>
           </div>
         </div>

@@ -2197,8 +2197,15 @@ export default function AdminDashboard({ user }: { user: any }) {
           <CBLogo size="sm" showText={false} />
           <span className="font-serif text-lg font-bold">Admin</span>
         </Link>
-        <Button size="icon" variant="ghost" className="text-white/40 hover:text-white" onClick={() => logout()} data-testid="button-logout-mobile">
-          <LogOut className="h-5 w-5" />
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 gap-2 border-orange-400/50 bg-orange-500/10 px-3 text-orange-100 hover:bg-orange-500/20 hover:text-white"
+          onClick={() => logout()}
+          data-testid="button-logout-mobile"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sign out</span>
         </Button>
       </div>
 
@@ -2223,7 +2230,16 @@ export default function AdminDashboard({ user }: { user: any }) {
                <p className="text-sm font-medium text-white truncate">{user.displayName || "Admin"}</p>
                <div className="flex items-center gap-2 mt-1">
                  <Badge className="bg-orange-500/20 text-orange-400 border-0 text-[10px] px-1.5 py-0 h-4">Level 4</Badge>
-                 <button onClick={() => logout()} className="text-[10px] text-white/40 hover:text-white uppercase tracking-wider font-semibold transition-colors" data-testid="button-logout">Log out</button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => logout()}
+                    className="h-7 gap-1.5 border-orange-400/40 bg-orange-500/10 px-2 text-[11px] font-semibold text-orange-200 hover:bg-orange-500/20 hover:text-white"
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign out
+                  </Button>
                </div>
              </div>
           </div>

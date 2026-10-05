@@ -683,6 +683,24 @@ input, textarea, select {
   background-color: #171717 !important;
   color: #f5f2ec;
   color-scheme: dark;
+  font-family: Poppins, Arial, sans-serif;
+}
+
+/* The global display face is useful for public-facing CTAs, but it is too
+ * condensed for dense admin controls and operational labels. */
+.quest-dashboard :is(button, [role="button"], input, textarea, select) {
+  font-family: inherit;
+  letter-spacing: 0.01em;
+}
+
+.quest-dashboard [class~="text-[10px]"] {
+  font-size: 0.75rem !important;
+  line-height: 1rem;
+}
+
+.quest-dashboard [class~="text-[11px]"] {
+  font-size: 0.8125rem !important;
+  line-height: 1.125rem;
 }
 
 .quest-dashboard [class~="bg-black"],

@@ -154,11 +154,11 @@ export default function ViewerDashboard() {
             </button>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 text-[#FF5A09] text-xs uppercase tracking-wider border border-[#FF5A09]/40 px-3 py-1.5 hover:bg-[#FF5A09] hover:text-white transition-colors"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#FF5A09]/60 bg-[#FF5A09]/10 px-3 text-sm font-sans font-semibold text-orange-100 transition-colors hover:bg-[#FF5A09]/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               data-testid="button-viewer-logout"
             >
               <LogOut className="h-3.5 w-3.5" />
-              Sign Out
+              Sign out
             </button>
           </div>
         </div>

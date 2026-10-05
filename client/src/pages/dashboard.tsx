@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Shield } from "lucide-react";
+import { LogOut, Shield } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import type { TalentProfile } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -77,8 +77,14 @@ export default function Dashboard() {
               <CBLogo size="sm" showText={false} />
               <span className="font-serif text-xl font-bold">The Quest</span>
             </a>
-            <Button variant="ghost" onClick={() => logout()} className="text-white/60" data-testid="button-logout">
-              Logout
+            <Button
+              variant="outline"
+              onClick={() => logout()}
+              className="min-h-10 gap-2 border-orange-400/50 bg-orange-500/10 px-3 text-sm font-sans font-semibold text-orange-100 hover:bg-orange-500/20 hover:text-white"
+              data-testid="button-logout"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
             </Button>
           </div>
         </nav>
