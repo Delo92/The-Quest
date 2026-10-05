@@ -27,6 +27,8 @@ interface CompDetailResponse {
     maxVideosPerContestant: number | null;
     startDate: string | null;
     endDate: string | null;
+    startDateTbd?: boolean;
+    endDateTbd?: boolean;
     onlineVoteWeight: number;
     inPersonOnly: boolean;
     vimeoFolderUrl: string | null;
@@ -193,6 +195,8 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       description: description.trim() || null,
       startDate: startDate || null,
       endDate: endDate || null,
+      startDateTbd: !startDate,
+      endDateTbd: !endDate,
       voteCost: parseFloat(voteCost) || 1,
       maxVotesPerDay: parseInt(maxVotesPerDay) || 10,
       maxImagesPerContestant: maxImages ? parseInt(maxImages) : null,
@@ -303,6 +307,14 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   if (!data) return <div className="text-white/40 text-sm py-8 text-center">Failed to load details.</div>;
 
   const { competition, totalVotes, createdByAdmin, hosts, contestants } = data;
+  const globalMaxImages = Math.max(1, Number(platformSettings?.maxImagesPerContestant ?? 10));
+  const globalMaxVideos = Math.max(1, Number(platformSettings?.maxVideosPerContestant ?? 3));
+  const effectiveMaxImages = maxImages
+    ? Math.min(Math.max(1, Number(maxImages) || 1), globalMaxImages)
+    : globalMaxImages;
+  const effectiveMaxVideos = maxVideos
+    ? Math.min(Math.max(1, Number(maxVideos) || 1), globalMaxVideos)
+    : globalMaxVideos;
 
   const filteredContestants = contestants.filter(c => {
     if (statusFilter !== "all" && c.applicationStatus !== statusFilter) return false;
@@ -656,11 +668,13 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                           <div className="space-y-1.5">
                             <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Start Date</Label>
                             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors [&::-webkit-calendar-picker-indicator]:invert-[0.8]" data-testid="input-comp-start" />
+                            {!startDate && <p className="text-[10px] text-orange-300/80">TBD — no start date has been entered.</p>}
                           </div>
 
                           <div className="space-y-1.5">
                             <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">End Date</Label>
                             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors [&::-webkit-calendar-picker-indicator]:invert-[0.8]" data-testid="input-comp-end" />
+                            {!endDate && <p className="text-[10px] text-orange-300/80">TBD — no end date has been entered.</p>}
                           </div>
 
                           <div className="space-y-1.5">
@@ -675,12 +689,22 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
 
                           <div className="space-y-1.5">
                             <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Max Photos (per profile)</Label>
-                            <Input type="number" min="1" value={maxImages} onChange={(e) => setMaxImages(e.target.value)} placeholder="Unlimited" className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors" data-testid="input-comp-max-images" />
+                            <Input type="number" min="1" max={globalMaxImages} value={maxImages} onChange={(e) => setMaxImages(e.target.value)} placeholder={`Use global (${globalMaxImages})`} className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors" data-testid="input-comp-max-images" />
+                            <p className="text-[10px] text-white/35">
+                              {maxImages
+                                ? `Effective limit: ${effectiveMaxImages} photos per contestant (platform cap: ${globalMaxImages}).`
+                                : `No competition override. Effective limit: ${globalMaxImages} photos per contestant.`}
+                            </p>
                           </div>
 
                           <div className="space-y-1.5">
                             <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Max Videos (per profile)</Label>
-                            <Input type="number" min="1" value={maxVideos} onChange={(e) => setMaxVideos(e.target.value)} placeholder="Unlimited" className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors" data-testid="input-comp-max-videos" />
+                            <Input type="number" min="1" max={globalMaxVideos} value={maxVideos} onChange={(e) => setMaxVideos(e.target.value)} placeholder={`Use global (${globalMaxVideos})`} className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors" data-testid="input-comp-max-videos" />
+                            <p className="text-[10px] text-white/35">
+                              {maxVideos
+                                ? `Effective limit: ${effectiveMaxVideos} videos per contestant (platform cap: ${globalMaxVideos}).`
+                                : `No competition override. Effective limit: ${globalMaxVideos} videos per contestant.`}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -713,11 +737,11 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-5 gap-x-4">
                           <div>
                             <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1.5"><CalendarDays className="w-3 h-3" /> Start</p>
-                            <p className="text-sm text-white/80">{competition.startDate ? new Date(competition.startDate).toLocaleDateString() : '—'}</p>
+                            <p className="text-sm text-white/80">{competition.startDate ? new Date(competition.startDate).toLocaleDateString() : competition.startDateTbd ? "TBD" : "—"}</p>
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1 flex items-center gap-1.5"><CalendarDays className="w-3 h-3" /> End</p>
-                            <p className="text-sm text-white/80">{competition.endDate ? new Date(competition.endDate).toLocaleDateString() : '—'}</p>
+                            <p className="text-sm text-white/80">{competition.endDate ? new Date(competition.endDate).toLocaleDateString() : competition.endDateTbd ? "TBD" : "—"}</p>
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Vote Cost</p>
