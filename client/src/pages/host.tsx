@@ -761,7 +761,7 @@ export default function HostPage() {
         {selectedPrice > 0 && (
           <div className="mt-4 space-y-1 text-center">
             <p className="text-white/30 text-xs">
-              Payments are processed securely by Authorize.Net, Stripe, or PayPal, depending on the configured provider.
+              Payments are processed securely by Authorize.Net, Stripe, or PayPal.
             </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}

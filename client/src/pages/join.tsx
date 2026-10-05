@@ -164,6 +164,14 @@ export default function JoinPage() {
   const selectedCompetition = useMemo(() => {
     return competitions?.find(c => c.id === selectedCompetitionId) || null;
   }, [competitions, selectedCompetitionId]);
+  const selectedCompetitionCategory = selectedCompetition?.category?.trim() || "";
+
+  useEffect(() => {
+    if (!selectedCompetitionCategory) return;
+    setForm((previous) => previous.category === selectedCompetitionCategory
+      ? previous
+      : { ...previous, category: selectedCompetitionCategory });
+  }, [selectedCompetitionCategory]);
 
   const handleGalleryCardClick = useCallback((categoryName: string) => {
     setSelectedCategory(categoryName);
@@ -599,7 +607,11 @@ export default function JoinPage() {
                 </div>
               </div>
               <button
-                onClick={() => { setSelectedCompetitionId(null); setSelectedCategory(selectedCompetition.category); }}
+                onClick={() => {
+                  setSelectedCompetitionId(null);
+                  setSelectedCategory(selectedCompetition.category);
+                  setForm((previous) => ({ ...previous, category: "" }));
+                }}
                 className="text-xs text-white/40 uppercase tracking-wider border border-white/10 px-3 py-1.5 transition-colors hover:text-white/60"
                 data-testid="button-change-competition"
               >
@@ -807,21 +819,36 @@ export default function JoinPage() {
             }
 
             if (field === "category") {
+              const categories = firestoreCategories || [];
+              const selectedCategoryIsListed = categories.some((category: any) => category.name === selectedCompetitionCategory);
               return (
                 <div key={field}>
                   <Label htmlFor={field} className="text-white/60 uppercase text-xs tracking-wider">
                     {label} {required && <span className="text-[#FF5A09]">*</span>}
                   </Label>
-                  <Select value={form.category || ""} onValueChange={(val) => updateField("category", val)}>
-                    <SelectTrigger className="bg-white/[0.08] border-white/20 text-white mt-2" data-testid="select-category">
+                  <Select
+                    value={selectedCompetitionCategory || form.category || ""}
+                    onValueChange={(val) => updateField("category", val)}
+                    disabled={Boolean(selectedCompetitionCategory)}
+                  >
+                    <SelectTrigger
+                      className="bg-white/[0.08] border-white/20 text-white mt-2 disabled:cursor-default disabled:opacity-100"
+                      data-testid="select-category"
+                    >
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-white/10">
-                      {(firestoreCategories || []).map((cat: any) => (
+                      {selectedCompetitionCategory && !selectedCategoryIsListed && (
+                        <SelectItem value={selectedCompetitionCategory}>{selectedCompetitionCategory}</SelectItem>
+                      )}
+                      {categories.map((cat: any) => (
                         <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedCompetitionCategory && (
+                    <p className="mt-1 text-xs text-white/40">Matches the competition you selected.</p>
+                  )}
                 </div>
               );
             }
@@ -1074,7 +1101,7 @@ export default function JoinPage() {
         {needsPayment && (
           <div className="mt-4 space-y-1 text-center">
             <p className="text-white/30 text-xs">
-              Payments are processed securely by Authorize.Net, Stripe, or PayPal, depending on the configured provider.
+              Payments are processed securely by Authorize.Net, Stripe, or PayPal.
             </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}
