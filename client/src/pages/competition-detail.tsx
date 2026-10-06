@@ -883,16 +883,15 @@ export default function CompetitionDetailPage() {
             <Users className="h-12 w-12 text-white/10 mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-2">No contestants yet</h3>
             <p className="text-sm text-white/30 mb-6">Be the first to apply!</p>
-            {!user && (
-              <a href="/login">
-                <span
-                  className="inline-block bg-black text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer"
-                  data-testid="button-apply-login"
-                >
-                  Log in to Apply <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
-                </span>
-              </a>
-            )}
+            <Link
+              href={`/nominate?competition=${competition.id}`}
+              className="inline-flex min-h-[48px] min-w-[212px] max-w-full items-center justify-center border border-white bg-black px-6 text-center text-base font-bold text-white transition-colors duration-200 hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f0f] sm:px-8"
+              data-testid="button-apply-login"
+            >
+              Want to Join the Competition?
+              <ChevronRight className="ml-1 h-4 w-4 shrink-0" />
+              <ChevronRight className="-ml-2 h-4 w-4 shrink-0" />
+            </Link>
           </div>
         )}
       </div>
