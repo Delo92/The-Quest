@@ -25,7 +25,7 @@
 - [Nomination promo visibility](nomination-promo-visibility.md) — show the nomination promo field whenever fees apply, independently of whether a redeemable code is configured
 - [Firebase Storage access](firebase-storage-access.md) — restore project storage access before changing UI media rendering; disabled billing makes stored media URLs fail
 - [Stage voting isolation](stage-voting-isolation.md) — stage vote records and legacy cumulative totals use separate count keys and query paths
-- [Competition share links](competition-share-links.md) — preserve inbound `?ref`; keep host, contestant vote-referral, and ticket promo codes distinct
+- [Competition share links](competition-share-links.md) — guest join CTAs go to the selected competition’s nomination form and preserve referral attribution
 - [Host platform referral codes](host-platform-referral-codes.md) — every host should have a global `?ref=CODE` link separate from competition-specific codes
 - [Centralized error logging](chronicdocs-error-logging.md) — ChronicDocs logging behavior is ported onto The Quest's own Firestore helper and identity model
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
