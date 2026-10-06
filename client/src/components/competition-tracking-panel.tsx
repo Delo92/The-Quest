@@ -111,7 +111,7 @@ function MetricBar({
   return (
     <div className="space-y-2" data-testid={`metric-source-${label.toLowerCase().replace(/\s+/g, "-")}`}>
       <div className="flex items-center justify-between gap-4 text-xs">
-        <span className="flex items-center gap-2 text-white/55">
+        <span className="flex items-center gap-2 text-white/75">
           {icon}
           {label}
         </span>
@@ -130,7 +130,7 @@ function MetricBar({
           style={{ width: `${Math.max(0, Math.min(100, percentage))}%`, transformOrigin: "left center" }}
         />
       </div>
-      <p className="text-right text-[11px] font-mono tabular-nums text-white/35">{formatPercent(percentage)} of total</p>
+      <p className="text-right text-xs font-mono tabular-nums text-white/75">{formatPercent(percentage)} of total</p>
     </div>
   );
 }
@@ -208,13 +208,13 @@ export default function CompetitionTrackingPanel({
             <h2 id="competition-tracking-title" className="text-2xl font-semibold tracking-[-0.03em] text-[#f4f0ec] sm:text-3xl">
               Follow the lead
             </h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/48">
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">
               Vote totals are shown as they arrive. Rankings are ordered by tournament points, with votes breaking a tie.
             </p>
           </div>
 
           <div className="flex items-center justify-between gap-3 sm:justify-end">
-            <div className="flex items-center gap-2 text-xs text-white/45" aria-live="polite" data-testid="text-last-updated">
+            <div className="flex items-center gap-2 text-sm text-white/75" aria-live="polite" data-testid="text-last-updated">
               {isRefreshing ? <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> : <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />}
               <span>{freshnessLabel}</span>
             </div>
@@ -263,10 +263,10 @@ export default function CompetitionTrackingPanel({
               <Trophy className="h-5 w-5" aria-hidden="true" />
             </div>
             <h3 className="text-lg font-semibold text-white/90">The board is waiting</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/45">
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/80">
               Contestant standings will appear here as soon as the competition receives its first entry.
             </p>
-            <div className="mt-7 inline-flex items-center gap-2 border border-white/10 px-3 py-2 text-xs text-white/45">
+            <div className="mt-7 inline-flex items-center gap-2 border border-white/15 px-3 py-2 text-sm text-white/75">
               <Users className="h-3.5 w-3.5" aria-hidden="true" />
               No contestants ranked yet
             </div>
@@ -276,25 +276,25 @@ export default function CompetitionTrackingPanel({
             <div className="min-w-0">
                <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden border border-white/[0.1] bg-white/[0.1] sm:grid-cols-2 lg:grid-cols-4">
                  <div className="bg-[#1b1a18] p-5 sm:p-6">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/38">Total votes</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">Total votes</p>
                   <p className="mt-2 font-mono text-3xl font-medium tabular-nums tracking-[-0.04em] text-[#f4f0ec]" data-testid="text-total-votes">
                     {formatCount(totalVotes)}
                   </p>
                 </div>
                 <div className="bg-[#1b1a18] p-5 sm:p-6">
-                   <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/38">Vote points</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">Vote points</p>
                   <p className="mt-2 font-mono text-2xl font-medium tabular-nums text-white/90" data-testid="text-contestant-count">
                      {formatCount(totalPoints)}
                   </p>
                 </div>
                 <div className="bg-[#1b1a18] p-5 sm:p-6">
-                   <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/38">Contestants</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">Contestants</p>
                    <p className="mt-2 font-mono text-2xl font-medium tabular-nums text-white/90" data-testid="text-contestant-count">
                      {formatCount(rankedContestants.length)}
                    </p>
                  </div>
                  <div className="bg-[#1b1a18] p-5 sm:p-6">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/38">Current lead</p>
+                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">Current lead</p>
                   <p className="mt-2 truncate text-lg font-semibold text-[#db6d2f]" data-testid="text-current-leader">
                     {leaderName}
                   </p>
@@ -303,10 +303,10 @@ export default function CompetitionTrackingPanel({
 
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#db6d2f]">Ranked field</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#db6d2f]">Ranked field</p>
                   <h3 className="mt-1 text-lg font-semibold text-white/90">Who is leading now</h3>
                 </div>
-                <div className="hidden items-center gap-2 text-[11px] text-white/35 sm:flex">
+                <div className="hidden items-center gap-2 text-xs text-white/75 sm:flex">
                   <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Points + vote share</span>
                 </div>
@@ -324,7 +324,7 @@ export default function CompetitionTrackingPanel({
                       className={`group grid grid-cols-[2rem_minmax(0,1fr)_4.2rem_auto] items-center gap-3 border-b border-white/[0.07] px-2 py-4 transition-[background-color,transform] duration-200 last:border-b-0 hover:bg-white/[0.035] sm:grid-cols-[2.25rem_minmax(0,1fr)_5.25rem_5.5rem] sm:gap-4 sm:px-3 ${isLeader ? "bg-[#201b17]" : ""}`}
                       data-testid={`row-contestant-${contestant.contestantId}`}
                     >
-                      <div className="flex items-center justify-center text-sm font-mono tabular-nums text-white/35">
+                      <div className="flex items-center justify-center text-sm font-mono tabular-nums text-white/75">
                         {isLeader ? <Crown className="h-4 w-4 text-[#db6d2f]" aria-label="Current leader" /> : `0${index + 1}`.slice(-2)}
                       </div>
                       <div className="flex min-w-0 items-center gap-3">
@@ -332,7 +332,7 @@ export default function CompetitionTrackingPanel({
                         <div className="min-w-0">
                           <p className={`truncate text-sm font-semibold ${isLeader ? "text-white" : "text-white/85"}`}>{name}</p>
                           {contestant.stageName && contestant.displayName !== contestant.stageName && (
-                            <p className="truncate text-xs text-white/35">{contestant.displayName}</p>
+                            <p className="truncate text-sm text-white/75">{contestant.displayName}</p>
                           )}
                           <div className="mt-2 h-1.5 w-full min-w-[100px] max-w-[280px] overflow-hidden rounded-full bg-white/[0.08]" role="progressbar" aria-label={`${name} vote share`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage}>
                             <div
@@ -344,7 +344,7 @@ export default function CompetitionTrackingPanel({
                       </div>
                       <div className="text-right">
                         <p className="font-mono text-sm tabular-nums text-white/85">{formatCount(contestant.tournamentPoints)}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-white/30">points</p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.12em] text-white/75">points</p>
                       </div>
                       <div className="text-right">
                         <p className="font-mono text-sm font-medium tabular-nums text-white/90">{formatCount(contestant.voteCount)}</p>
@@ -360,7 +360,7 @@ export default function CompetitionTrackingPanel({
               <div className="border border-[#db6d2f]/35 bg-[#211b17] p-5 sm:p-6" data-testid="card-current-leader">
                 <div className="mb-6 flex items-center justify-between gap-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#db6d2f]">Current leader</p>
-                  <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-[#edbd9f]">
+                  <span className="flex items-center gap-1.5 text-xs uppercase tracking-[0.12em] text-[#edbd9f]">
                     <Activity className="h-3.5 w-3.5" aria-hidden="true" />
                     Rank 01
                   </span>
@@ -370,21 +370,21 @@ export default function CompetitionTrackingPanel({
                   <div className="min-w-0">
                     <h3 className="truncate text-xl font-semibold tracking-[-0.03em] text-white" data-testid="text-leader-name">{leaderName}</h3>
                     {leader.stageName && leader.displayName !== leader.stageName && (
-                      <p className="mt-1 truncate text-sm text-white/45">{leader.displayName}</p>
+                      <p className="mt-1 truncate text-sm text-white/75">{leader.displayName}</p>
                     )}
                   </div>
                 </div>
                 <div className="mt-7 grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
                   <div>
-                     <p className="text-[10px] uppercase tracking-[0.16em] text-white/35">Points</p>
+                      <p className="text-xs uppercase tracking-[0.12em] text-white/75">Points</p>
                      <p className="mt-1 font-mono text-xl tabular-nums text-white/90">{formatCount(leader.tournamentPoints)}</p>
                   </div>
                   <div>
-                     <p className="text-[10px] uppercase tracking-[0.16em] text-white/35">Votes</p>
+                      <p className="text-xs uppercase tracking-[0.12em] text-white/75">Votes</p>
                      <p className="mt-1 font-mono text-xl tabular-nums text-white/90">{formatCount(leader.voteCount)}</p>
                    </div>
                    <div>
-                     <p className="text-[10px] uppercase tracking-[0.16em] text-white/35">Point share</p>
+                      <p className="text-xs uppercase tracking-[0.12em] text-white/75">Point share</p>
                     <p className="mt-1 font-mono text-xl tabular-nums text-[#db6d2f]">{formatPercent(leader.votePercentage)}</p>
                   </div>
                 </div>
@@ -393,20 +393,20 @@ export default function CompetitionTrackingPanel({
               <div className="border border-white/[0.1] bg-[#1b1a18] p-5 sm:p-6" data-testid="card-vote-sources">
                 <div className="mb-6 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/38">Vote sources</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">Vote sources</p>
                     <h3 className="mt-1 text-base font-semibold text-white/90">Where support comes from</h3>
                   </div>
                   {sourceTotal === totalVotes && totalVotes > 0 ? (
                     <Check className="h-4 w-4 text-[#db6d2f]" aria-label="Source totals match total votes" />
                   ) : (
-                    <Wifi className="h-4 w-4 text-white/30" aria-label="Source totals are updating" />
+                    <Wifi className="h-4 w-4 text-white/70" aria-label="Source totals are updating" />
                   )}
                 </div>
                 <div className="space-y-6">
                   <MetricBar label="Online" value={onlineVotes} total={totalVotes} icon={<Wifi className="h-3.5 w-3.5 text-[#db6d2f]" aria-hidden="true" />} />
                   <MetricBar label="In person" value={inPersonVotes} total={totalVotes} icon={<Users className="h-3.5 w-3.5 text-[#db6d2f]" aria-hidden="true" />} />
                 </div>
-                <p className="mt-6 border-t border-white/[0.08] pt-4 text-xs leading-5 text-white/35">
+                <p className="mt-6 border-t border-white/[0.08] pt-4 text-sm leading-6 text-white/75">
                   Source totals may briefly lag while new votes are being verified.
                 </p>
               </div>

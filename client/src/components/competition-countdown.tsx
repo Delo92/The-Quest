@@ -109,7 +109,7 @@ export function CompetitionCountdownBadge({
     : phase === "live"
       ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
       : phase === "ended"
-        ? "border-white/10 bg-white/5 text-white/45"
+        ? "border-white/15 bg-white/5 text-white/75"
         : "border-[#FF5A09]/30 bg-[#FF5A09]/10 text-[#FFB08A]";
 
   return (
@@ -156,7 +156,7 @@ export function CompetitionCountdownPanel({
             title: "Voting has ended",
             description: "This competition is no longer accepting votes.",
             icon: CheckCircle2,
-            accent: "text-white/50",
+            accent: "text-white/80",
           }
         : {
             eyebrow: "Competition schedule",
@@ -172,33 +172,33 @@ export function CompetitionCountdownPanel({
       className="mb-8 overflow-hidden rounded-sm border border-white/10 bg-[#0d0d0d] px-4 py-5 sm:px-6 sm:py-6"
       data-testid="competition-countdown-panel"
     >
-      <div className="mb-4 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[3px] text-white/45">
+      <div className="mb-4 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[3px] text-white/75">
         <PhaseIcon className={`h-4 w-4 ${phaseCopy.accent}`} />
         <span>{phaseCopy.eyebrow}</span>
       </div>
       <h2 className={`mb-2 text-center text-lg font-semibold uppercase tracking-[4px] sm:text-xl ${phaseCopy.accent}`}>
         {phaseCopy.title}
       </h2>
-      <p className="mx-auto mb-5 max-w-xl text-center text-sm leading-relaxed text-white/50">
+      <p className="mx-auto mb-5 max-w-xl text-center text-sm leading-relaxed text-white/80">
         {phaseCopy.description}
       </p>
 
       {targetDate ? (
         <FlipCountdown targetDate={targetDate} compact title={phase === "upcoming" ? "Time until voting opens" : "Time remaining"} />
       ) : (
-        <p className="text-center text-lg font-semibold uppercase tracking-[4px] text-white/35">
+        <p className="text-center text-lg font-semibold uppercase tracking-[4px] text-white/80">
           {phase === "live" ? "Voting is open" : "Schedule pending"}
         </p>
       )}
 
-      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/45">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-white/75">
         <span className="inline-flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 text-white/30" />
+          <Calendar className="h-3.5 w-3.5 text-white/65" />
           Starts {formatCompetitionDate(schedule.start, schedule.startIsTbd)}
         </span>
         <span className="hidden text-white/15 sm:inline">|</span>
         <span className="inline-flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 text-white/30" />
+          <Calendar className="h-3.5 w-3.5 text-white/65" />
           Ends {formatCompetitionDate(schedule.end, schedule.endIsTbd)}
         </span>
       </div>

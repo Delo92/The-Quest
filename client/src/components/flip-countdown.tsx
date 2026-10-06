@@ -84,7 +84,7 @@ function FlipCard({ value, label, compact = false }: FlipCardProps) {
           </>
         )}
       </div>
-      <span className="text-[10px] sm:text-xs uppercase tracking-[3px] text-white/50 font-medium">{label}</span>
+      <span className="text-xs sm:text-sm uppercase tracking-[3px] text-white/75 font-medium">{label}</span>
     </div>
   );
 }
@@ -125,7 +125,7 @@ export default function FlipCountdown({ targetDate, title, compact = false }: Fl
   return (
     <div className={`flex flex-col items-center ${compact ? "gap-4" : "gap-6"}`} data-testid="countdown-timer">
       {title && (
-        <p className={`text-white/50 uppercase text-center ${compact ? "text-[11px] tracking-[3px]" : "text-xs tracking-[4px] sm:text-sm sm:tracking-[6px]"}`}>{title}</p>
+        <p className={`text-white/75 uppercase text-center ${compact ? "text-xs tracking-[3px]" : "text-sm tracking-[4px] sm:text-base sm:tracking-[6px]"}`}>{title}</p>
       )}
       {isExpired ? (
         <p className="text-[#FF5A09] text-lg sm:text-2xl uppercase tracking-[6px] font-bold">Voting Closed</p>

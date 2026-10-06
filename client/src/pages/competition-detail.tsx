@@ -19,6 +19,7 @@ import { preserveReferralQuery } from "@/lib/referral";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
+import CompetitionSummaryText from "@/components/competition-summary-text";
 import {
   CompetitionCountdownPanel,
   formatCompetitionDate,
@@ -56,6 +57,17 @@ function LazyVimeoIframe({ src, title, className, allow }: { src: string; title:
       )}
     </div>
   );
+}
+
+function readableTextColor(hexColor: string): string {
+  const match = hexColor.match(/^#?([0-9a-f]{6})$/i);
+  if (!match) return "#000000";
+  const channels = [0, 2, 4].map((offset) => {
+    const value = parseInt(match[1].slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  return luminance > 0.179 ? "#000000" : "#ffffff";
 }
 
 interface ContestantWithProfile {
@@ -330,27 +342,24 @@ export default function CompetitionDetailPage() {
     setMobileStageMenuOpen(false);
   };
 
-  // Per-competition theme derived from themeColor (falls back to platform orange)
-  const accent      = competition.themeColor || "#FF5A09";
-  const accentBg    = competition.themeColor ? "#FFB3D9" : "#FF5A09";   // bubblegum pink vs orange
-  const accentText  = competition.themeColor ? "#000000" : "#ffffff";   // black on bubblegum, white on orange
-  const accentMuted = competition.themeColor ? `${competition.themeColor}20` : "rgba(255,90,9,0.08)";
-  const accentFont  = competition.themeColor ? "'Bebas Neue', sans-serif" : undefined;
-  // Slanted parallelogram clip-path for branded buttons (not square)
-  const clipBtn     = competition.themeColor
-    ? "polygon(14px 0%, 100% 0%, calc(100% - 14px) 100%, 0% 100%)"
-    : undefined;
-  // Atmospheric gradient background for themed competitions
-  const pageBgStyle = competition.themeColor
-    ? {
-        background: `
-          radial-gradient(ellipse 90% 35% at 50% 0%,   ${competition.themeColor}18 0%, transparent 65%),
-          radial-gradient(ellipse 50% 25% at 10% 40%,  ${competition.themeColor}0d 0%, transparent 55%),
-          radial-gradient(ellipse 45% 20% at 90% 60%,  ${competition.themeColor}0a 0%, transparent 50%),
-          linear-gradient(180deg, #0d0008 0%, #060006 40%, #040004 70%, #000 100%)
-        `,
-      }
-    : undefined;
+  // Keep the public competition layout consistent with Starr Struck while
+  // honoring a competition's custom accent when one is configured.
+  const accent      = competition.themeColor || "#FF0E9B";
+  const accentBg    = accent;
+  const accentText  = readableTextColor(accent);
+  const accentMuted = `${accent}20`;
+  const accentFont  = "'Bebas Neue', sans-serif";
+  const clipBtn     = "polygon(14px 0%, 100% 0%, calc(100% - 14px) 100%, 0% 100%)";
+  // Keep the same atmospheric page treatment across competitions, using each
+  // competition's own accent rather than reserving the gradient for themed pages.
+  const pageBgStyle = {
+    background: `
+      radial-gradient(ellipse 90% 35% at 50% 0%,   ${accent}18 0%, transparent 65%),
+      radial-gradient(ellipse 50% 25% at 10% 40%,  ${accent}0d 0%, transparent 55%),
+      radial-gradient(ellipse 45% 20% at 90% 60%,  ${accent}0a 0%, transparent 50%),
+      linear-gradient(180deg, #0d0008 0%, #060006 40%, #040004 70%, #000 100%)
+    `,
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -366,8 +375,8 @@ export default function CompetitionDetailPage() {
                   <div className="absolute inset-0 bg-black/65" />
                   {competition.themeColor ? (
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pt-8 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
-                      <p className="text-base leading-relaxed mb-1" style={{ color: `${competition.themeColor}99` }}>
-                        <Link href="/competitions" className="transition-colors hover:opacity-100" style={{ color: `${competition.themeColor}99` }} data-testid="link-back">Competitions</Link>
+                      <p className="text-base leading-relaxed mb-1 text-white/85">
+                        <Link href="/competitions" className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.85)" }} data-testid="link-back">Competitions</Link>
                         <span className="mx-2">/</span>{competition.category}
                       </p>
                       <h2 className="uppercase leading-none tracking-widest drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,6vw,4rem)", color: competition.themeColor, letterSpacing: "0.15em", textShadow: `0 0 24px ${competition.themeColor}55` }} data-testid="text-competition-title">{competition.title}</h2>
@@ -396,8 +405,8 @@ export default function CompetitionDetailPage() {
                 <div className="absolute inset-0 bg-black/65" />
                 {competition.themeColor ? (
                   <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pt-8 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
-                    <p className="text-base leading-relaxed mb-1" style={{ color: `${competition.themeColor}99` }}>
-                      <Link href="/competitions" className="transition-colors hover:opacity-100" style={{ color: `${competition.themeColor}99` }} data-testid="link-back">Competitions</Link>
+                    <p className="text-base leading-relaxed mb-1 text-white/85">
+                      <Link href="/competitions" className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.85)" }} data-testid="link-back">Competitions</Link>
                       <span className="mx-2">/</span>{competition.category}
                     </p>
                     <h2 className="uppercase leading-none tracking-widest drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,6vw,4rem)", color: competition.themeColor, letterSpacing: "0.15em", textShadow: `0 0 24px ${competition.themeColor}55` }} data-testid="text-competition-title">{competition.title}</h2>
@@ -418,8 +427,8 @@ export default function CompetitionDetailPage() {
             <div className="bg-black/80 pt-20 pb-0">
               {competition.themeColor ? (
                 <div className="mx-auto text-center pt-8 pb-6 px-8 w-[calc(100%-60px)] max-w-[552px]">
-                  <p className="text-base leading-relaxed mb-1" style={{ color: `${competition.themeColor}99` }}>
-                    <Link href="/competitions" className="transition-colors hover:opacity-100" style={{ color: `${competition.themeColor}99` }} data-testid="link-back">Competitions</Link>
+                  <p className="text-base leading-relaxed mb-1 text-white/85">
+                    <Link href="/competitions" className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.85)" }} data-testid="link-back">Competitions</Link>
                     <span className="mx-2">/</span>{competition.category}
                   </p>
                   <h2 className="uppercase leading-none tracking-widest drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,6vw,4rem)", color: competition.themeColor, letterSpacing: "0.15em", textShadow: `0 0 24px ${competition.themeColor}55` }} data-testid="text-competition-title">{competition.title}</h2>
@@ -532,7 +541,7 @@ export default function CompetitionDetailPage() {
                   role="tab"
                   aria-selected={!selectedStage}
                   onClick={() => selectStage("overview")}
-                  className={`min-h-[46px] border px-5 text-sm font-bold uppercase tracking-[2px] transition-colors focus-visible:outline-none focus-visible:ring-2 ${!selectedStage ? "text-white" : "border-white/15 bg-white/[0.03] text-white/55 hover:border-white/35 hover:text-white"}`}
+                  className={`min-h-[46px] border px-5 text-sm font-bold uppercase tracking-[2px] transition-colors focus-visible:outline-none focus-visible:ring-2 ${!selectedStage ? "text-white" : "border-white/20 bg-white/[0.04] text-white/75 hover:border-white/45 hover:text-white"}`}
                   style={{ fontFamily: accentFont, ...(!selectedStage ? { backgroundColor: accent, borderColor: accent } : {}) }}
                   data-testid="stage-option-overview"
                 >
@@ -545,7 +554,7 @@ export default function CompetitionDetailPage() {
                     role="tab"
                     aria-selected={selectedStage?.id === stage.id}
                     onClick={() => selectStage(stage.id)}
-                    className={`min-h-[46px] border px-5 text-sm font-bold uppercase tracking-[2px] transition-colors focus-visible:outline-none focus-visible:ring-2 ${selectedStage?.id === stage.id ? "text-white" : "border-white/15 bg-white/[0.03] text-white/55 hover:border-white/35 hover:text-white"}`}
+                    className={`min-h-[46px] border px-5 text-sm font-bold uppercase tracking-[2px] transition-colors focus-visible:outline-none focus-visible:ring-2 ${selectedStage?.id === stage.id ? "text-white" : "border-white/20 bg-white/[0.04] text-white/75 hover:border-white/45 hover:text-white"}`}
                     style={{ fontFamily: accentFont, ...(selectedStage?.id === stage.id ? { backgroundColor: accent, borderColor: accent } : {}) }}
                     data-testid={`stage-option-${stage.id}`}
                   >
@@ -566,21 +575,27 @@ export default function CompetitionDetailPage() {
                 </p>
                 <h2 className="text-white leading-none" style={{ fontFamily: accentFont || "inherit", fontSize: "clamp(1.8rem, 4vw, 2.8rem)", letterSpacing: accentFont ? "0.06em" : "0.02em" }}>{selectedStage.name}</h2>
                 {selectedStage.description && (
-                  <p className="mt-3 text-sm leading-7 sm:text-base" style={{ color: "rgba(255,255,255,0.5)", fontStyle: accentFont ? "italic" : "normal", fontWeight: 300 }} data-testid="text-stage-description">
-                    {selectedStage.description}
-                  </p>
+                  <CompetitionSummaryText
+                    content={selectedStage.description}
+                    accentColor={accent}
+                    className="mt-3"
+                    testId="text-stage-description"
+                  />
                 )}
               </div>
-              <div className="inline-flex items-center gap-2 border border-white/10 bg-black/30 px-3 py-2 text-xs uppercase tracking-[1.5px] text-white/55">
+              <div className="inline-flex items-center gap-2 border border-white/20 bg-black/30 px-3 py-2 text-xs uppercase tracking-[1.5px] text-white/75">
                 <Clock3 className="h-4 w-4" style={{ color: accent }} />
                 {formatStageWindow(selectedStage)}
               </div>
             </div>
           </section>
         ) : competition.description ? (
-          <p className="mb-8 max-w-3xl leading-8" style={{ color: "rgba(255,255,255,0.45)", fontStyle: accentFont ? "italic" : "normal", fontWeight: 300, fontSize: "1rem" }} data-testid="text-description">
-            {competition.description}
-          </p>
+          <CompetitionSummaryText
+            content={competition.description}
+            accentColor={accent}
+            className="mb-8 max-w-3xl"
+            testId="text-description"
+          />
         ) : null}
 
         <div className="mb-8">
@@ -589,7 +604,7 @@ export default function CompetitionDetailPage() {
 
         {competition.hostedBy && (
           competition.hostedByProfileSlug ? (
-            <p className="text-white/50 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
+            <p className="text-white/75 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
               Hosted by{" "}
               <Link
                 href={`/host/${competition.hostedByProfileSlug}`}
@@ -599,7 +614,7 @@ export default function CompetitionDetailPage() {
               </Link>
             </p>
           ) : (
-            <p className="text-white/50 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
+            <p className="text-white/75 text-sm mb-6 uppercase tracking-wider" data-testid="text-hosted-by">
               Hosted by {competition.hostedBy === "admin" ? getText("site_name", "The Quest") : competition.hostedBy}
             </p>
           )
@@ -636,7 +651,7 @@ export default function CompetitionDetailPage() {
                role="tab"
                aria-selected={false}
                onClick={() => setActiveSection("contestants")}
-               className="inline-flex min-h-[42px] items-center border border-white/10 px-4 text-sm font-bold uppercase text-white/45 transition-colors hover:border-white/30 hover:text-white/80"
+                className="inline-flex min-h-[44px] items-center border border-white/20 px-4 text-sm font-bold uppercase text-white/75 transition-colors hover:border-white/40 hover:text-white"
                style={{ letterSpacing: "2px" }}
                data-testid="button-view-contestants"
              >
@@ -646,37 +661,37 @@ export default function CompetitionDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div className="flex flex-wrap items-center gap-6 text-sm text-white/40">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-white/75 sm:gap-6">
             {(selectedStage ? selectedStage.startDate : (schedule.start || schedule.startIsTbd)) && (
               <span className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-white/30" />
+                <Calendar className="h-4 w-4 text-white/65" />
                 Starts {selectedStage ? formatCompetitionDate(selectedStage.startDate ? new Date(selectedStage.startDate) : null, !selectedStage.startDate) : formatCompetitionDate(schedule.start, schedule.startIsTbd)}
               </span>
             )}
             {(selectedStage ? selectedStage.endDate : (schedule.end || schedule.endIsTbd)) && (
               <span className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-white/30" />
+                <Calendar className="h-4 w-4 text-white/65" />
                 Ends {selectedStage ? formatCompetitionDate(selectedStage.endDate ? new Date(selectedStage.endDate) : null, !selectedStage.endDate) : formatCompetitionDate(schedule.end, schedule.endIsTbd)}
               </span>
             )}
             {selectedStage && !selectedStage.startDate && (
               <span className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-white/30" />
+                <Calendar className="h-4 w-4 text-white/65" />
                 Stage schedule TBD
               </span>
             )}
             <span className="flex items-center gap-1.5">
-              <Vote className="h-4 w-4 text-white/30" />
+              <Vote className="h-4 w-4 text-white/65" />
               {(selectedStage ? stageLeaderboardQuery.data?.totalVotes || 0 : competition.totalVotes).toLocaleString()} {selectedStage ? "stage votes" : "total votes"}
             </span>
             {competition.voteCost > 0 && (
               <span className="flex items-center gap-1.5">
-                <Heart className="h-4 w-4 text-white/30" />
+                <Heart className="h-4 w-4 text-white/65" />
                 {competition.voteCost} credits/vote
               </span>
             )}
             <span className="flex items-center gap-1.5">
-              <Vote className="h-4 w-4 text-white/30" />
+              <Vote className="h-4 w-4 text-white/65" />
               {competition.maxVotesPerDay} free {competition.maxVotesPerDay === 1 ? "vote" : "votes"}/{selectedStage ? "stage" : "competition"}/day
             </span>
           </div>
@@ -725,7 +740,7 @@ export default function CompetitionDetailPage() {
                   <Link href={contestantHref} className={`block relative overflow-hidden bg-black ${videos.length > 0 ? "p-1 space-y-1" : "h-52"}`}>
                     {selectedStage && stageSubmissionsQuery.isLoading ? (
                       <div
-                        className="h-52 bg-[#101010] animate-pulse flex items-center justify-center text-xs uppercase tracking-[3px] text-white/20"
+                        className="h-52 bg-[#101010] animate-pulse flex items-center justify-center text-xs uppercase tracking-[3px] text-white/70"
                         aria-label="Loading stage submission"
                       >
                         Loading stage media
@@ -749,11 +764,11 @@ export default function CompetitionDetailPage() {
                     ) : selectedStage ? (
                       <div className="flex h-52 flex-col items-center justify-center gap-3 bg-[#101010] px-5 text-center">
                         <ImageIcon className="h-8 w-8 text-white/15" />
-                        <span className="text-xs uppercase tracking-[2px] text-white/30">No stage submission yet</span>
+                        <span className="text-xs uppercase tracking-[2px] text-white/70">No stage submission yet</span>
                       </div>
                     ) : isLoadingContestantVideos ? (
                       <div
-                        className="h-52 bg-[#101010] animate-pulse flex items-center justify-center text-xs uppercase tracking-[3px] text-white/20"
+                        className="h-52 bg-[#101010] animate-pulse flex items-center justify-center text-xs uppercase tracking-[3px] text-white/70"
                         aria-label="Loading contestant media"
                       >
                         Loading media
@@ -808,7 +823,7 @@ export default function CompetitionDetailPage() {
                       </span>
                       {contestant.talentProfile.category && (
                         <>
-                          <span className="text-white/30 group-hover:text-black/30 mx-2 transition-colors duration-500">|</span>
+                          <span className="text-white/55 group-hover:text-black/55 mx-2 transition-colors duration-500">|</span>
                           <span className="text-white/60 group-hover:text-black/60 text-sm transition-colors duration-500">
                             {contestant.talentProfile.category}
                           </span>
@@ -868,7 +883,7 @@ export default function CompetitionDetailPage() {
                         </div>
                       )}
                       {isVotingOpen && isInPersonOnlyEvent && !isInPersonVoting && (
-                        <span className="text-[11px] text-white/40 uppercase" style={{ letterSpacing: "3px" }} data-testid={`text-in-person-only-${contestant.id}`}>
+                        <span className="text-xs text-white/75 uppercase" style={{ letterSpacing: "2px" }} data-testid={`text-in-person-only-${contestant.id}`}>
                           Scan QR to Vote
                         </span>
                       )}
@@ -882,7 +897,7 @@ export default function CompetitionDetailPage() {
           <div className="text-center py-20">
             <Users className="h-12 w-12 text-white/10 mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-2">No contestants yet</h3>
-            <p className="text-sm text-white/30 mb-6">Be the first to apply!</p>
+            <p className="text-sm text-white/75 mb-6">Be the first to apply!</p>
             <Link
               href={`/nominate?competition=${competition.id}${preserveReferralQuery(window.location.search).replace(/^\?/, "&")}`}
               className="inline-flex min-h-[48px] min-w-[212px] max-w-full items-center justify-center border border-white bg-black px-6 text-center text-base font-bold text-white transition-colors duration-200 hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f0f] sm:px-8"
