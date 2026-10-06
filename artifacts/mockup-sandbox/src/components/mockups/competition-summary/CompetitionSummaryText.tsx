@@ -5,6 +5,19 @@ type SummaryBlock =
   | { kind: "heading"; level: number; text: string }
   | { kind: "list"; ordered: boolean; items: string[] };
 
+function splitLongParagraph(text: string): string[] {
+  if (text.length < 320) return [text];
+
+  const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z0-9“"'‘(])/);
+  if (sentences.length < 3) return [text];
+
+  const groups: string[] = [];
+  for (let index = 0; index < sentences.length; index += 2) {
+    groups.push(sentences.slice(index, index + 2).join(" "));
+  }
+  return groups;
+}
+
 function parseSummary(content: string): SummaryBlock[] {
   const blocks: SummaryBlock[] = [];
   let list: Extract<SummaryBlock, { kind: "list" }> | null = null;
@@ -37,7 +50,9 @@ function parseSummary(content: string): SummaryBlock[] {
       continue;
     }
     flushList();
-    blocks.push({ kind: "paragraph", text: line });
+    for (const text of splitLongParagraph(line)) {
+      blocks.push({ kind: "paragraph", text });
+    }
   }
   flushList();
   return blocks;
@@ -82,24 +97,24 @@ export function CompetitionSummaryText({
   const summaryStyle: CSSProperties = {
     color: "rgba(255, 255, 255, 0.84)",
     fontFamily: "Poppins, sans-serif",
-    fontSize: "1.0625rem",
+    fontSize: "1rem",
     fontWeight: 400,
-    lineHeight: 1.75,
+    lineHeight: 1.55,
     overflowWrap: "anywhere",
   };
   return (
     <div className={`competition-summary-copy ${className}`} style={summaryStyle}>
       {parseSummary(content).map((block, index) => {
         if (block.kind === "paragraph") {
-          return <p key={index} className="mb-3 last:mb-0">{renderInline(block.text)}</p>;
+          return <p key={index} className="mb-2.5 last:mb-0">{renderInline(block.text)}</p>;
         }
         if (block.kind === "heading") {
           const Heading = block.level === 1 ? "h3" : block.level === 2 ? "h4" : "h5";
-          return <Heading key={index} className="mb-2 mt-4 text-base font-semibold leading-snug text-white first:mt-0">{renderInline(block.text)}</Heading>;
+          return <Heading key={index} className="mb-1.5 mt-3 text-base font-semibold leading-snug text-white first:mt-0">{renderInline(block.text)}</Heading>;
         }
         const List = block.ordered ? "ol" : "ul";
         return (
-          <List key={index} className="mb-4 space-y-2 last:mb-0">
+          <List key={index} className="mb-3 space-y-1.5 last:mb-0">
             {block.items.map((item, itemIndex) => (
               <li key={itemIndex} className="flex gap-3">
                 <span className="shrink-0 font-semibold" style={{ color: accentColor }} aria-hidden="true">{block.ordered ? `${itemIndex + 1}.` : "•"}</span>

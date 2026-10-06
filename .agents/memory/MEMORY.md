@@ -37,6 +37,7 @@
 - [Hero gallery routing](hero-gallery-routing.md) — homepage category cards open the selected competition, not a contestant profile
 - [Fallback image resilience](fallback-image-resilience.md) — public talent cards need a local final placeholder and async-source reset
 - [Cross-browser gallery media](cross-browser-gallery-media.md) — use Vimeo API posters instead of vumbnail placeholders and PNG category artwork for older browser support
+- [Mockup sandbox PostCSS isolation](mockup-sandbox-postcss.md) — keep its Tailwind v4 pipeline isolated from the workspace's Tailwind v3 PostCSS config
 - [Service worker dev guard](service-worker-dev-guard.md) — SW must actively unregister on localhost/.replit.dev or clients.claim() drops Vite HMR; skipping register() alone is not enough
 - [Vimeo embed privacy](vimeo-embed-privacy.md) — unlisted Vimeo hashes are not enough when the video's embed privacy blocks playback
 - [Vimeo playback architecture](vimeo-playback-architecture.md) — embed iframe for contestant videos; native video tag for background loops; never hls.js+signed URL for either

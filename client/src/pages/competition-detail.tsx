@@ -360,6 +360,34 @@ export default function CompetitionDetailPage() {
       linear-gradient(180deg, #0d0008 0%, #060006 40%, #040004 70%, #000 100%)
     `,
   };
+  const competitionTitleContent = (
+    <>
+      <p className="mb-1 text-sm leading-relaxed text-white/85">
+        <Link
+          href="/competitions"
+          className="transition-colors hover:text-white"
+          style={{ color: "rgba(255,255,255,0.85)" }}
+          data-testid="link-back"
+        >
+          Competitions
+        </Link>
+        <span className="mx-2">/</span>{competition.category}
+      </p>
+      <h2
+        className="mx-auto max-w-full uppercase leading-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
+        style={{
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: "clamp(2rem, 6vw, 4rem)",
+          color: accent,
+          letterSpacing: "0.08em",
+          textShadow: `0 2px 12px rgba(0,0,0,0.95), 0 0 24px ${accent}55`,
+        }}
+        data-testid="text-competition-title"
+      >
+        {competition.title}
+      </h2>
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -373,23 +401,9 @@ export default function CompetitionDetailPage() {
                 <div className="h-[270px] md:h-[340px] relative overflow-hidden">
                   <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />
                   <div className="absolute inset-0 bg-black/65" />
-                  {competition.themeColor ? (
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pt-8 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
-                      <p className="text-base leading-relaxed mb-1 text-white/85">
-                        <Link href="/competitions" className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.85)" }} data-testid="link-back">Competitions</Link>
-                        <span className="mx-2">/</span>{competition.category}
-                      </p>
-                      <h2 className="uppercase leading-none tracking-widest drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,6vw,4rem)", color: competition.themeColor, letterSpacing: "0.15em", textShadow: `0 0 24px ${competition.themeColor}55` }} data-testid="text-competition-title">{competition.title}</h2>
-                    </div>
-                  ) : (
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
-                      <p className="text-black/50 text-base leading-relaxed mb-1">
-                        <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
-                        <span className="mx-2">/</span>{competition.category}
-                      </p>
-                      <h2 className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none" style={{ letterSpacing: "10px" }} data-testid="text-competition-title">{competition.title}</h2>
-                    </div>
-                  )}
+                  <div className="absolute bottom-0 left-1/2 z-20 w-full max-w-4xl -translate-x-1/2 px-4 pb-6 pt-8 text-center sm:px-6">
+                    {competitionTitleContent}
+                  </div>
                 </div>
               </>
             );
@@ -403,45 +417,17 @@ export default function CompetitionDetailPage() {
                   : <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${fallback.url}')` }} />
                 }
                 <div className="absolute inset-0 bg-black/65" />
-                {competition.themeColor ? (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pt-8 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
-                    <p className="text-base leading-relaxed mb-1 text-white/85">
-                      <Link href="/competitions" className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.85)" }} data-testid="link-back">Competitions</Link>
-                      <span className="mx-2">/</span>{competition.category}
-                    </p>
-                    <h2 className="uppercase leading-none tracking-widest drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,6vw,4rem)", color: competition.themeColor, letterSpacing: "0.15em", textShadow: `0 0 24px ${competition.themeColor}55` }} data-testid="text-competition-title">{competition.title}</h2>
-                  </div>
-                ) : (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-20 w-[calc(100%-60px)] max-w-[552px]">
-                    <p className="text-black/50 text-base leading-relaxed mb-1">
-                      <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
-                      <span className="mx-2">/</span>{competition.category}
-                    </p>
-                    <h2 className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none" style={{ letterSpacing: "10px" }} data-testid="text-competition-title">{competition.title}</h2>
-                  </div>
-                )}
+                <div className="absolute bottom-0 left-1/2 z-20 w-full max-w-4xl -translate-x-1/2 px-4 pb-6 pt-8 text-center sm:px-6">
+                  {competitionTitleContent}
+                </div>
               </div>
             );
           }
           return (
-            <div className="bg-black/80 pt-20 pb-0">
-              {competition.themeColor ? (
-                <div className="mx-auto text-center pt-8 pb-6 px-8 w-[calc(100%-60px)] max-w-[552px]">
-                  <p className="text-base leading-relaxed mb-1 text-white/85">
-                    <Link href="/competitions" className="transition-colors hover:text-white" style={{ color: "rgba(255,255,255,0.85)" }} data-testid="link-back">Competitions</Link>
-                    <span className="mx-2">/</span>{competition.category}
-                  </p>
-                  <h2 className="uppercase leading-none tracking-widest drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(2.5rem,6vw,4rem)", color: competition.themeColor, letterSpacing: "0.15em", textShadow: `0 0 24px ${competition.themeColor}55` }} data-testid="text-competition-title">{competition.title}</h2>
-                </div>
-              ) : (
-                <div className="mx-auto bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 w-[calc(100%-60px)] max-w-[552px]">
-                  <p className="text-black/50 text-base leading-relaxed mb-1">
-                    <Link href="/competitions" className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back">Competitions</Link>
-                    <span className="mx-2">/</span>{competition.category}
-                  </p>
-                  <h2 className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none" style={{ letterSpacing: "10px" }} data-testid="text-competition-title">{competition.title}</h2>
-                </div>
-              )}
+            <div className="bg-black/80 pt-16 pb-0">
+              <div className="mx-auto w-full max-w-4xl px-4 pb-6 pt-4 text-center sm:px-6">
+                {competitionTitleContent}
+              </div>
             </div>
           );
         })()}
