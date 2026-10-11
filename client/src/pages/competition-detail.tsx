@@ -342,24 +342,22 @@ export default function CompetitionDetailPage() {
     setMobileStageMenuOpen(false);
   };
 
-  // Keep the public competition layout consistent with Starr Struck while
-  // honoring a competition's custom accent when one is configured.
-  const accent      = competition.themeColor || "#FF0E9B";
+  // Share layout and typography, not Starr Struck's event-specific colors.
+  const accent      = competition.themeColor || "#FF5A09";
   const accentBg    = accent;
   const accentText  = readableTextColor(accent);
   const accentMuted = `${accent}20`;
   const accentFont  = "'Bebas Neue', sans-serif";
   const clipBtn     = "polygon(14px 0%, 100% 0%, calc(100% - 14px) 100%, 0% 100%)";
-  // Keep the same atmospheric page treatment across competitions, using each
-  // competition's own accent rather than reserving the gradient for themed pages.
-  const pageBgStyle = {
+  // Unthemed competitions keep the neutral platform background.
+  const pageBgStyle = competition.themeColor ? {
     background: `
       radial-gradient(ellipse 90% 35% at 50% 0%,   ${accent}18 0%, transparent 65%),
       radial-gradient(ellipse 50% 25% at 10% 40%,  ${accent}0d 0%, transparent 55%),
       radial-gradient(ellipse 45% 20% at 90% 60%,  ${accent}0a 0%, transparent 50%),
-      linear-gradient(180deg, #0d0008 0%, #060006 40%, #040004 70%, #000 100%)
+      linear-gradient(180deg, #101010 0%, #080808 40%, #050505 70%, #000 100%)
     `,
-  };
+  } : undefined;
   const competitionTitleContent = (
     <>
       <p className="mb-1 text-sm leading-relaxed text-white/85">
