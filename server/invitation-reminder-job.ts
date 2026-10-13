@@ -3,14 +3,64 @@ import { storage } from "./storage";
 import { isEmailConfigured, sendInviteEmail } from "./email";
 
 const DAILY_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const SCAN_INTERVAL_MS = 30 * 60 * 1000;
+const REMINDER_TIMEZONE = "America/Chicago";
+const DAILY_SCAN_HOUR = 9;
 
-function centralHour(date: Date): number {
-  return Number(new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).format(date));
+function getCentralParts(date: Date) {
+  const values = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: REMINDER_TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
+}
+
+function centralWallTimeToUtc(year: number, month: number, day: number, hour: number): number {
+  const utcGuess = Date.UTC(year, month - 1, day, hour);
+  const localPartsAtGuess = getCentralParts(new Date(utcGuess));
+  const representedUtc = Date.UTC(
+    localPartsAtGuess.year,
+    localPartsAtGuess.month - 1,
+    localPartsAtGuess.day,
+    localPartsAtGuess.hour,
+    localPartsAtGuess.minute,
+    localPartsAtGuess.second,
+  );
+  const timezoneOffset = representedUtc - utcGuess;
+  return utcGuess - timezoneOffset;
+}
+
+function nextDailyScanAt(now: Date): Date {
+  const centralNow = getCentralParts(now);
+  const todayAtNine = centralWallTimeToUtc(
+    centralNow.year,
+    centralNow.month,
+    centralNow.day,
+    DAILY_SCAN_HOUR,
+  );
+  if (now.getTime() <= todayAtNine) return new Date(todayAtNine);
+
+  const tomorrow = new Date(Date.UTC(centralNow.year, centralNow.month - 1, centralNow.day + 1));
+  return new Date(centralWallTimeToUtc(
+    tomorrow.getUTCFullYear(),
+    tomorrow.getUTCMonth() + 1,
+    tomorrow.getUTCDate(),
+    DAILY_SCAN_HOUR,
+  ));
 }
 
 function hasProfilePhotoAndVideo(
@@ -45,7 +95,7 @@ export function startRaplahomaInvitationReminderJob(): void {
   let running = false;
 
   const run = async () => {
-    if (running || centralHour(new Date()) < 9 || !isEmailConfigured()) return;
+    if (running || !isEmailConfigured()) return;
     running = true;
 
     try {
@@ -129,7 +179,16 @@ export function startRaplahomaInvitationReminderJob(): void {
     }
   };
 
-  void run();
-  const timer = setInterval(() => void run(), SCAN_INTERVAL_MS);
-  timer.unref();
+  const scheduleNextScan = () => {
+    const now = new Date();
+    const nextScan = nextDailyScanAt(now);
+    const delay = Math.max(0, nextScan.getTime() - now.getTime());
+    const timer = setTimeout(async () => {
+      await run();
+      scheduleNextScan();
+    }, delay);
+    timer.unref();
+  };
+
+  scheduleNextScan();
 }
