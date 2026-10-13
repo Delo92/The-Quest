@@ -817,3 +817,45 @@ input, textarea, select {
   border-color: #f97316 !important;
   box-shadow: 0 0 0 2px rgb(249 115 22 / 0.18) !important;
 }
+
+/* Keep the public/demo shell unchanged; only improve compressed text inside
+   the read-only demo dashboards at phone widths. */
+@media (max-width: 639px) {
+  .demo-read-only-surface [data-testid^="sticky-tab-"] {
+    flex: 0 0 auto !important;
+    min-width: 88px !important;
+    min-height: 56px !important;
+    font-family: Poppins, sans-serif !important;
+    letter-spacing: normal !important;
+  }
+
+  .demo-read-only-surface [data-testid^="sticky-tab-"] span {
+    text-align: center;
+    line-height: 1.4 !important;
+  }
+
+  .demo-read-only-surface [class~="text-[9px]"],
+  .demo-read-only-surface [class~="text-[10px]"],
+  .demo-read-only-surface [class~="text-[11px]"] {
+    font-size: 0.75rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .demo-read-only-surface [class~="text-xs"] {
+    font-size: 0.8125rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .demo-read-only-surface [class~="text-white/20"],
+  .demo-read-only-surface [class~="text-white/25"],
+  .demo-read-only-surface [class~="text-white/30"],
+  .demo-read-only-surface [class~="text-white/35"],
+  .demo-read-only-surface [class~="text-white/40"] {
+    color: #b9b4ac !important;
+  }
+
+  .demo-read-only-surface [class~="text-white/45"],
+  .demo-read-only-surface [class~="text-white/50"] {
+    color: #c5c0b8 !important;
+  }
+}
