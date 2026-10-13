@@ -20,6 +20,7 @@
 - [Competition tracking](competition-tracking.md) — public standings use a no-store read endpoint with short client polling, not the protected admin breakdown route
 - [Express route params](express-route-params.md) — this project’s Express 5 typings require auth middleware to use ParamsFlatDictionary for string route parameters
 - [Contestant invitation links](contestant-invitation-links.md) — contestant invites use /thequest/login with token-backed competition metadata and login-time acceptance
+- [Raplahoma invitation reminders](raplahoma-invitation-reminders.md) — artist invites get daily reminders until accepted with a photo and video; no cap, with inviter pause control
 - [Firestore REST index deployment](firestore-index-deployment.md) — composite index creates are asynchronous and live listings must be filtered by collection group
 - [Chronic Brands promotion rules](chronic-brands-promotion.md) — per-event ticket URLs override the global fallback; preserve contestant tracking and separate host referrals
 - [Nomination promo visibility](nomination-promo-visibility.md) — show the nomination promo field whenever fees apply, independently of whether a redeemable code is configured

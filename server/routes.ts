@@ -4119,7 +4119,10 @@ export async function registerRoutes(
       const relatedInvitations = await firestoreInvitations.getByCompetition(competition.id);
       const inviteeEmail = invitation.invitedEmail.trim().toLowerCase();
       const sameInvitee = relatedInvitations.filter(
-        (item) => item.invitedEmail.trim().toLowerCase() === inviteeEmail,
+        (item) =>
+          item.targetLevel === 2 &&
+          item.invitedBy === invitation.invitedBy &&
+          item.invitedEmail.trim().toLowerCase() === inviteeEmail,
       );
       await Promise.all(sameInvitee.map((item) => firestoreInvitations.setRemindersPaused(item.id, paused)));
       res.json({ paused, updatedInvitations: sameInvitee.length });

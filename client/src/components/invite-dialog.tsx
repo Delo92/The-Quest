@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video, Upload, Loader2, X, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Mail, Copy, Check, Trash2, Clock, UserCheck, Link as LinkIcon, Megaphone, Image, Video, Upload, Loader2, X, Eye, EyeOff, Pause, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getIdToken } from "@/lib/firebase";
@@ -38,6 +38,9 @@ interface Invitation {
   acceptedBy: string | null;
   competitionId?: number | null;
   mediaUrl?: string | null;
+  remindersPausedAt?: string | null;
+  remindersCompletedAt?: string | null;
+  reminderSendCount?: number;
 }
 
 const LEVEL_LABELS: Record<number, string> = {
@@ -92,6 +95,9 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
     queryKey: ["/api/invitations/sent"],
     enabled: open,
   });
+  const raplahomaCompetitionId = competitions?.find(
+    (competition) => competition.title.trim().toLowerCase() === "raplahoma",
+  )?.id;
 
   const buildInviteLink = (token: string, level: number) => {
     if (level >= 3) return `${window.location.origin}/thequest/host?invite=${token}`;
@@ -134,6 +140,22 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations/sent"] });
       toast({ title: "Invitation deleted" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const reminderControlMutation = useMutation({
+    mutationFn: async ({ id, paused }: { id: string; paused: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/invitations/${id}/reminders`, { paused });
+      return res.json() as Promise<{ paused: boolean }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations/sent"] });
+      toast({
+        title: data.paused ? "Daily reminders paused" : "Daily reminders resumed",
+      });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
@@ -332,9 +354,12 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
         {invitations && invitations.length > 0 && (
           <div className="mt-4 border-t border-white/10 pt-4">
             <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold mb-3">Sent Invitations</h4>
+            <p className="text-xs text-white/50 mb-3">
+              Raplahoma artist reminders repeat daily until the artist accepts and adds a profile photo and video. You can pause or resume them here.
+            </p>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {invitations.map((inv) => (
-                <div key={inv.id} className="rounded-md bg-white/5 border border-white/5 p-3 flex items-center gap-3" data-testid={`invite-row-${inv.id}`}>
+                <div key={inv.id} className="rounded-md bg-white/5 border border-white/5 p-3 flex flex-wrap items-center gap-3" data-testid={`invite-row-${inv.id}`}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{inv.invitedName}</p>
                     <p className="text-xs text-white/40 truncate">{inv.invitedEmail}</p>
@@ -342,6 +367,42 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
                   <Badge className={`border-0 text-xs shrink-0 ${LEVEL_COLORS[inv.targetLevel] || "bg-white/10 text-white/50"}`}>
                     {LEVEL_LABELS[inv.targetLevel] || `Level ${inv.targetLevel}`}
                   </Badge>
+                  {raplahomaCompetitionId !== undefined &&
+                    inv.targetLevel === 2 &&
+                    inv.competitionId === raplahomaCompetitionId && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className={`border-0 text-xs ${
+                        inv.remindersCompletedAt
+                          ? "bg-green-500/20 text-green-400"
+                          : inv.remindersPausedAt
+                            ? "bg-white/10 text-white/60"
+                            : "bg-orange-500/15 text-orange-300"
+                      }`}>
+                        {inv.remindersCompletedAt
+                          ? "Profile complete"
+                          : inv.remindersPausedAt
+                            ? "Reminders paused"
+                            : `Daily · ${inv.reminderSendCount || 0} sent`}
+                      </Badge>
+                      {!inv.remindersCompletedAt && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 border-white/15 text-white/75 hover:text-white"
+                          disabled={reminderControlMutation.isPending}
+                          onClick={() => reminderControlMutation.mutate({
+                            id: inv.id,
+                            paused: !inv.remindersPausedAt,
+                          })}
+                          aria-label={`${inv.remindersPausedAt ? "Resume" : "Pause"} daily reminders for ${inv.invitedName}`}
+                          data-testid={`button-${inv.remindersPausedAt ? "resume" : "pause"}-reminders-${inv.id}`}
+                        >
+                          {inv.remindersPausedAt ? <Play className="h-3.5 w-3.5 mr-1" /> : <Pause className="h-3.5 w-3.5 mr-1" />}
+                          {inv.remindersPausedAt ? "Resume" : "Pause"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   {inv.status === "pending" ? (
                     <div className="flex items-center gap-1 shrink-0">
                       <Button
