@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { createContext, useState, useEffect, useCallback, useContext, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   initFirebase,
@@ -33,6 +33,11 @@ export interface AuthUser {
 
 const AUTH_CACHE_KEY = "thequest_auth_user";
 const AUTH_TIMEOUT_MS = 10000;
+const DemoAuthContext = createContext(false);
+
+export function DemoAuthProvider({ children }: { children: ReactNode }) {
+  return <DemoAuthContext.Provider value>{children}</DemoAuthContext.Provider>;
+}
 
 function getCachedUser(): AuthUser | null {
   try {
@@ -60,8 +65,8 @@ export function getAuthToken(): string | null {
 }
 
 export function useAuth() {
-  const cached = getCachedUser();
-  const [user, setUser] = useState<AuthUser | null>(cached);
+  const demoMode = useContext(DemoAuthContext);
+  const [user, setUser] = useState<AuthUser | null>(() => demoMode ? null : getCachedUser());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -86,6 +91,15 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    if (demoMode) {
+      globalToken = null;
+      setUser(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
     let cancelled = false;
     let tokenRefreshInterval: ReturnType<typeof setInterval> | null = null;
     let hasSynced = false;
@@ -218,7 +232,7 @@ export function useAuth() {
       if (tokenRefreshInterval) clearInterval(tokenRefreshInterval);
       cleanup.then(unsub => unsub?.());
     };
-  }, [syncUserWithBackend]);
+  }, [syncUserWithBackend, demoMode]);
 
   const login = useCallback(async (
     email: string,
@@ -226,6 +240,7 @@ export function useAuth() {
     inviteToken?: string,
     expectedAccountLevel?: number,
   ) => {
+    if (demoMode) throw new Error("Sign-in is disabled in the public demo.");
     setError(null);
     try {
       await firebaseLogin(email, password);
@@ -333,7 +348,7 @@ export function useAuth() {
       setError(msg);
       throw new Error(msg);
     }
-  }, []);
+  }, [demoMode]);
 
   const register = useCallback(async (
     email: string,
@@ -349,6 +364,7 @@ export function useAuth() {
       referralCode?: string;
     },
   ) => {
+    if (demoMode) throw new Error("Account creation is disabled in the public demo.");
     setError(null);
     try {
       const response = await fetch("/api/auth/register", {
@@ -389,18 +405,20 @@ export function useAuth() {
       setError(msg);
       throw new Error(msg);
     }
-  }, [syncUserWithBackend]);
+  }, [syncUserWithBackend, demoMode]);
 
   const logout = useCallback(async () => {
+    if (demoMode) return;
     setCachedUser(null);
     globalToken = null;
     hasInvalidatedAfterRestore = false;
     setUser(null);
     await firebaseLogout();
     queryClient.clear();
-  }, [queryClient]);
+  }, [queryClient, demoMode]);
 
   const resetPassword = useCallback(async (email: string) => {
+    if (demoMode) throw new Error("Password reset is disabled in the public demo.");
     setError(null);
     try {
       await firebaseResetPassword(email);
@@ -410,7 +428,7 @@ export function useAuth() {
       setError(msg);
       throw new Error(msg);
     }
-  }, []);
+  }, [demoMode]);
 
   return {
     user,

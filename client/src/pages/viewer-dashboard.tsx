@@ -29,15 +29,61 @@ interface LookupResult {
   purchases: PurchaseDetail[];
 }
 
-export default function ViewerDashboard() {
+const DEMO_VIEWER: ViewerSession = {
+  id: "demo-voter-01",
+  email: "alex.morgan@example.com",
+  displayName: "Alex Morgan",
+  totalVotesPurchased: 164,
+  totalSpent: 8200,
+  createdAt: "2026-01-14T18:30:00.000Z",
+};
+
+const DEMO_PURCHASES: PurchaseDetail[] = [
+  {
+    id: 9101,
+    competitionId: 8101,
+    contestantId: 501,
+    voteCount: 50,
+    amount: 2500,
+    transactionId: "DEMO-ORDER-9101",
+    purchasedAt: "2026-10-08T19:42:00.000Z",
+    competitionTitle: "Acoustic Spotlight: Summer Sessions",
+    competitionCategory: "Music",
+  },
+  {
+    id: 9102,
+    competitionId: 8101,
+    contestantId: 502,
+    voteCount: 64,
+    amount: 3200,
+    transactionId: "DEMO-ORDER-9102",
+    purchasedAt: "2026-10-10T16:18:00.000Z",
+    competitionTitle: "Acoustic Spotlight: Summer Sessions",
+    competitionCategory: "Music",
+  },
+  {
+    id: 9103,
+    competitionId: 8102,
+    contestantId: 503,
+    voteCount: 50,
+    amount: 2500,
+    transactionId: "DEMO-ORDER-9103",
+    purchasedAt: "2026-10-12T21:05:00.000Z",
+    competitionTitle: "Spotlight: Emerging Voices",
+    competitionCategory: "Music",
+  },
+];
+
+export default function ViewerDashboard({ demoMode = false }: { demoMode?: boolean } = {}) {
   useSEO({
     title: "My Dashboard",
     description: "View your voting history, purchases, and active competitions on The Quest.",
     canonical: "https://thequest-2dc77.firebaseapp.com/viewer",
   });
 
-  const { viewer, logoutViewer, refreshViewer } = useViewerSession();
+  const { viewer: sessionViewer, logoutViewer, refreshViewer } = useViewerSession(demoMode);
   const { user, isAuthenticated, isLoading: authLoading, logout: authLogout } = useAuth();
+  const viewer = demoMode ? DEMO_VIEWER : sessionViewer;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { getMedia } = useLivery();
@@ -47,19 +93,24 @@ export default function ViewerDashboard() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Firebase Auth level-1 viewer uses auth credentials; guest voter uses session
-  const isAuthViewer = isAuthenticated && user?.level === 1;
+  const isAuthViewer = !demoMode && isAuthenticated && user?.level === 1;
   const effectiveName = isAuthViewer ? (user?.displayName || user?.email || "") : (viewer?.displayName || "");
   const effectiveEmail = isAuthViewer ? (user?.email || "") : (viewer?.email || "");
   const hasSession = isAuthViewer || !!viewer;
 
   useEffect(() => {
+    if (demoMode) {
+      setPurchases(DEMO_PURCHASES);
+      setLoading(false);
+      return;
+    }
     if (authLoading) return;
     if (!hasSession) {
       setLocation("/login");
       return;
     }
     loadData();
-  }, [hasSession, authLoading]);
+  }, [demoMode, hasSession, authLoading]);
 
   const loadData = async () => {
     if (!hasSession) return;
@@ -86,11 +137,13 @@ export default function ViewerDashboard() {
   };
 
   const handleRefresh = () => {
+    if (demoMode) return;
     setRefreshing(true);
     loadData();
   };
 
   const handleLogout = () => {
+    if (demoMode) return;
     if (isAuthViewer) {
       authLogout();
     } else {
@@ -106,8 +159,8 @@ export default function ViewerDashboard() {
     ? purchases.reduce((sum, p) => sum + p.amount, 0)
     : (viewer?.totalSpent ?? 0);
 
-  if (authLoading) return null;
-  if (!hasSession) return null;
+  if (!demoMode && authLoading) return null;
+  if (!demoMode && !hasSession) return null;
 
   const uniqueCompetitions = Array.from(
     new Map(purchases.map(p => [p.competitionId, p])).values()
@@ -139,13 +192,13 @@ export default function ViewerDashboard() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-10">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-8 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.16em] text-white/35">Signed in as</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/35">{demoMode ? "Demo voter" : "Signed in as"}</p>
             <p className="text-white/70 text-sm mt-1 truncate max-w-[260px]">{effectiveEmail}</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
-              disabled={refreshing}
+              disabled={demoMode || refreshing}
               className="inline-flex items-center gap-1.5 text-white/70 text-xs uppercase tracking-wider border border-white/20 px-3 py-1.5 hover:border-white/40 hover:text-white transition-colors disabled:opacity-50"
               data-testid="button-refresh"
             >
@@ -154,6 +207,7 @@ export default function ViewerDashboard() {
             </button>
             <button
               onClick={handleLogout}
+              disabled={demoMode}
               className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#FF5A09]/60 bg-[#FF5A09]/10 px-3 text-sm font-sans font-semibold text-orange-100 transition-colors hover:bg-[#FF5A09]/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               data-testid="button-viewer-logout"
             >

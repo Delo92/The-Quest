@@ -199,10 +199,10 @@ function stageVideoEmbedUrl(mediaUrl: string): string {
   return match ? `https://player.vimeo.com/video/${match[1]}` : mediaUrl;
 }
 
-export default function CompetitionDetailPage() {
+export default function CompetitionDetailPage({ demoMode = false }: { demoMode?: boolean } = {}) {
   const params = useParams<{ categorySlug: string; compSlug: string }>();
-  const categorySlug = params?.categorySlug;
-  const compSlug = params?.compSlug;
+  const categorySlug = demoMode ? "music" : params?.categorySlug;
+  const compSlug = demoMode ? "acoustic-spotlight-summer-sessions" : params?.compSlug;
   const { user } = useAuth();
   const { toast } = useToast();
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);

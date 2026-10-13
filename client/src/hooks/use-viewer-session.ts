@@ -19,27 +19,30 @@ function getStoredSession(): ViewerSession | null {
   return null;
 }
 
-export function useViewerSession() {
-  const [viewer, setViewer] = useState<ViewerSession | null>(getStoredSession);
+export function useViewerSession(demoMode = false) {
+  const [viewer, setViewer] = useState<ViewerSession | null>(() => demoMode ? null : getStoredSession());
 
   const loginViewer = useCallback((session: ViewerSession) => {
+    if (demoMode) return;
     localStorage.setItem(VIEWER_SESSION_KEY, JSON.stringify(session));
     setViewer(session);
-  }, []);
+  }, [demoMode]);
 
   const logoutViewer = useCallback(() => {
+    if (demoMode) return;
     localStorage.removeItem(VIEWER_SESSION_KEY);
     setViewer(null);
-  }, []);
+  }, [demoMode]);
 
   const refreshViewer = useCallback((updated: Partial<ViewerSession>) => {
+    if (demoMode) return;
     setViewer(prev => {
       if (!prev) return null;
       const merged = { ...prev, ...updated };
       localStorage.setItem(VIEWER_SESSION_KEY, JSON.stringify(merged));
       return merged;
     });
-  }, []);
+  }, [demoMode]);
 
   return {
     viewer,
