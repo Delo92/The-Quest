@@ -338,7 +338,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function resolveDemoApi(url: URL): unknown {
+function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   const path = url.pathname.replace(/\/+$/, "") || "/";
 
   if (path === "/api/competitions") return demoCompetitions;
@@ -388,6 +388,64 @@ function resolveDemoApi(url: URL): unknown {
   if (path === "/api/admin/join/submissions") return [];
   if (path === "/api/admin/host/submissions") return [];
   if (path === "/api/admin/gmail-status") return { configured: true, connected: true };
+  if (path === "/api/analytics/my-dashboard") {
+    const entries = demoCompetition.contestants.slice(0, 3).map((contestant, index) => ({
+      contestantId: contestant.id,
+      talentProfileId: contestant.talentProfileId,
+      displayName: contestant.talentProfile.displayName,
+      pagePath: `/music/acoustic-spotlight-summer-sessions/${contestant.talentProfile.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      websiteVisitors: [247, 193, 128][index],
+      uniquePlays: [896, 624, 412][index],
+    }));
+    const competitions = [
+      {
+        competitionId: demoCompetition.id,
+        title: demoCompetition.title,
+        category: demoCompetition.category,
+        pagePath: "/music/acoustic-spotlight-summer-sessions",
+        websiteVisitors: 428,
+        uniquePlays: 1932,
+        entries,
+      },
+      {
+        competitionId: demoSecondCompetition.id,
+        title: demoSecondCompetition.title,
+        category: demoSecondCompetition.category,
+        pagePath: "/music/spotlight-emerging-voices",
+        websiteVisitors: 316,
+        uniquePlays: 1184,
+        entries: entries.slice(0, 2).map((entry) => ({
+          ...entry,
+          pagePath: "/music/spotlight-emerging-voices",
+        })),
+      },
+    ];
+    const visibleCompetitions = analyticsRole === "talent"
+      ? competitions.map((competition) => ({
+          ...competition,
+          entries: competition.entries.filter((entry) => entry.talentProfileId === 501),
+        }))
+      : competitions;
+    const visibleEntries = visibleCompetitions.reduce((total, competition) => total + competition.entries.length, 0);
+
+    return {
+      role: analyticsRole,
+      visitorPeriod: "Last 30 days",
+      playPeriod: "Lifetime",
+      summary: {
+        websiteVisitors: analyticsRole === "talent" ? 563 : 744,
+        uniquePlays: analyticsRole === "talent" ? 1708 : 3116,
+        competitionCount: visibleCompetitions.length,
+        entryCount: visibleEntries,
+      },
+      competitions: visibleCompetitions,
+    };
+  }
+  if (path === "/api/tax/my-years") return [2024, 2025, 2026];
+  if (path.startsWith("/api/tax/my-profile/")) {
+    return { current: null, versions: [], currentVersionId: null };
+  }
+  if (path === "/api/tax/my-deadlines") return [];
 
   if (path.includes("/api/resolve/competition/") && path.endsWith("/videos")) {
     return demoCompetition.contestants.map(({ id }) => ({
@@ -455,7 +513,7 @@ function resolveDemoApi(url: URL): unknown {
   return {};
 }
 
-export function installDemoApiGuard(): () => void {
+export function installDemoApiGuard(analyticsRole: "host" | "talent" = "talent"): () => void {
   const originalFetch = window.fetch;
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -472,7 +530,7 @@ export function installDemoApiGuard(): () => void {
     if (method === "HEAD") {
       return new Response(null, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8" } });
     }
-    return jsonResponse(resolveDemoApi(url));
+    return jsonResponse(resolveDemoApi(url, analyticsRole));
   };
 
   return () => {

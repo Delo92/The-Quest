@@ -1,6 +1,5 @@
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { useLayoutEffect, useState, type ReactNode, type SyntheticEvent } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
 import TalentDashboard from "./talent-dashboard";
 import HostDashboard from "./host-dashboard";
 import AdminDashboard from "./admin-dashboard";
@@ -10,7 +9,6 @@ import { DemoAuthProvider } from "@/hooks/use-auth";
 import { getQueryFn } from "@/lib/queryClient";
 import { installDemoApiGuard } from "@/lib/app-demo-data";
 import CBLogo from "@/components/cb-logo";
-import { useLivery } from "@/hooks/use-livery";
 
 type DemoRole = "artist" | "host-admin" | "voter";
 type HostAdminPanel = "host" | "admin";
@@ -81,7 +79,7 @@ function isRole(value: string | null): value is DemoRole {
 }
 
 function DemoReadOnlySurface({ children }: { children: ReactNode }) {
-  const blockAction = (event: React.SyntheticEvent<HTMLDivElement>) => {
+  const blockAction = (event: SyntheticEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
     if (target.closest('[role="tab"], [data-demo-navigation="allowed"]')) return;
@@ -141,13 +139,13 @@ export default function AppDemoPage() {
   }));
 
   useLayoutEffect(() => {
-    const restoreFetch = installDemoApiGuard();
+    const restoreFetch = installDemoApiGuard(role === "host-admin" ? "host" : "talent");
     setApiGuardReady(true);
     return () => {
       restoreFetch();
       demoQueryClient.clear();
     };
-  }, [demoQueryClient]);
+  }, [demoQueryClient, role]);
 
   const panelLabel = role === "host-admin"
     ? hostAdminPanel === "host" ? "Host dashboard" : "Admin dashboard"

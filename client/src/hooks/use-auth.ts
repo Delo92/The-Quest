@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback, useContext, type ReactNode } from "react";
+import { createContext, createElement, useState, useEffect, useCallback, useContext, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   initFirebase,
@@ -36,7 +36,7 @@ const AUTH_TIMEOUT_MS = 10000;
 const DemoAuthContext = createContext(false);
 
 export function DemoAuthProvider({ children }: { children: ReactNode }) {
-  return <DemoAuthContext.Provider value>{children}</DemoAuthContext.Provider>;
+  return createElement(DemoAuthContext.Provider, { value: true }, children);
 }
 
 function getCachedUser(): AuthUser | null {

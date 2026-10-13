@@ -25,6 +25,7 @@ import HostProfilePublic from "@/pages/host-profile-public";
 import AboutPage from "@/pages/about";
 import FAQPage from "@/pages/faq";
 import ViewerDashboard from "@/pages/viewer-dashboard";
+import AppDemoPage from "@/pages/app-demo";
 import ReferralLandingPage from "@/pages/referral-landing";
 import AdminFormsPage from "@/pages/admin-forms";
 import PublicFormPage from "@/pages/public-form";
@@ -52,13 +53,13 @@ function QuestRouter() {
       <Route path="/about" component={AboutPage} />
       <Route path="/faq" component={FAQPage} />
       <Route path="/host/:hostSlug" component={HostProfilePublic} />
-      <Route path="/viewer" component={ViewerDashboard} />
+      <Route path="/viewer" component={() => <ViewerDashboard />} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/admin" component={Dashboard} />
       <Route path="/admin/forms" component={AdminFormsPage} />
       <Route path="/f/:slug" component={PublicFormPage} />
       <Route path="/:categorySlug/:compSlug/:talentSlug" component={ContestantSharePage} />
-      <Route path="/:categorySlug/:compSlug" component={CompetitionDetail} />
+      <Route path="/:categorySlug/:compSlug" component={() => <CompetitionDetail />} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -120,6 +121,7 @@ function App() {
         <Toaster />
         <Switch>
           <Route path="/" component={RootEntryPage} />
+          <Route path="/app-demo" component={AppDemoPage} />
           <Route path="/talent/:id" component={TalentProfileRedirect} />
           <Route path="/thequest" nest component={QuestApplication} />
           <Route path="/:slug" component={CodeLandingPage} />
