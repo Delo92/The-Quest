@@ -8,3 +8,9 @@ The public demo must remain a visual-only representation of The Quest. Visitors 
 **Why:** The user explicitly requested a complete visual representation with no authorization and no actionable ability to affect real data.
 
 **How to apply:** Keep the public demo outside normal auth and consent gates, isolate its query state, serve fixtures for its data reads, allow role and section navigation only, block all action controls and write requests, and preserve normal authentication behavior on every non-demo route.
+
+Demo contestant media must use explicit Vimeo IDs that have been checked for public playback; never derive IDs from synthetic contestant IDs or treat metadata alone as proof of playback.
+
+**Why:** Numeric ID arithmetic produced a nonexistent player URL, while neighboring generated IDs happened to point at unrelated real videos.
+
+**How to apply:** Maintain deliberate sample-media mappings and verify each Vimeo player through the public demo embed path.
