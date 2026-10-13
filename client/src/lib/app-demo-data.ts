@@ -331,6 +331,13 @@ const demoPurchases = [
   },
 ];
 
+const demoVideoIdsByContestantId: Record<number, number> = {
+  501: 769000501,
+  502: 769000501,
+  503: 769000503,
+  504: 769000504,
+};
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -448,16 +455,19 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/tax/my-deadlines") return [];
 
   if (path.includes("/api/resolve/competition/") && path.endsWith("/videos")) {
-    return demoCompetition.contestants.map(({ id }) => ({
-      contestantId: id,
-      videos: [{
-        uri: `https://vimeo.com/${769000000 + id}`,
-        name: "Live acoustic session",
-        embedUrl: `https://player.vimeo.com/video/${769000000 + id}`,
-        duration: 186,
-        thumbnail: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=640&q=80",
-      }],
-    }));
+    return demoCompetition.contestants.map(({ id }) => {
+      const videoId = demoVideoIdsByContestantId[id];
+      return {
+        contestantId: id,
+        videos: [{
+          uri: `https://vimeo.com/${videoId}`,
+          name: "Demo sample video",
+          embedUrl: `https://player.vimeo.com/video/${videoId}`,
+          duration: 186,
+          thumbnail: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=640&q=80",
+        }],
+      };
+    });
   }
   if (path.includes("/api/resolve/competition/") && path.endsWith("/tracking")) {
     return {

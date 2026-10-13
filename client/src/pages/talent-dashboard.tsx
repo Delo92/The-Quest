@@ -765,6 +765,7 @@ export default function TalentDashboard({ user, profile }: Props) {
             <button
               key={id}
               onClick={() => setActiveSection(id)}
+              data-demo-navigation="allowed"
               data-testid={`sticky-tab-${id}`}
                className={`min-w-[68px] flex-1 rounded-xl py-2 px-1 flex flex-col items-center gap-1 transition-all border ${
                 activeSection === id
@@ -890,6 +891,7 @@ export default function TalentDashboard({ user, profile }: Props) {
               <button
                 key={id}
                 onClick={() => setActiveSection(id)}
+                data-demo-navigation="allowed"
                 data-testid={`nav-${id}`}
                 className={`w-full text-left rounded-xl px-3.5 py-3 flex items-center gap-3 transition-all duration-200 group ${
                   activeSection === id
