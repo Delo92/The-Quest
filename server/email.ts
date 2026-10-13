@@ -246,18 +246,22 @@ export async function sendInviteEmail(opts: {
     const renderedHeading = opts.isReminder
       ? opts.inviteToken
         ? `Finish your ${escapeHtml(opts.competitionName || "The Quest")} invitation`
-        : "Complete your artist profile"
+        : opts.competitionName
+          ? `Complete your ${escapeHtml(opts.competitionName)} profile`
+          : "Complete your artist profile"
       : applyPlaceholders(heading, vars);
     const renderedBody = opts.isReminder
       ? opts.inviteToken
         ? "You still have an invitation to participate. Complete the remaining steps below to finish setting up your artist profile."
-        : "Your artist profile is missing information needed to participate. Complete the remaining steps below."
+        : opts.competitionName
+          ? `Your artist profile for ${escapeHtml(opts.competitionName)} is missing information needed to participate. Complete the remaining steps below.`
+          : "Your artist profile is missing information needed to participate. Complete the remaining steps below."
       : applyPlaceholders(body, vars);
 
     const html = wrapInTemplate(`
       <h2>${renderedHeading}</h2>
       <p>${renderedBody}</p>
-      ${opts.competitionName ? `<div class="credentials-box"><p class="cred-label">Event invitation</p><p class="cred-row"><span class="cred-value">${escapeHtml(opts.competitionName)}</span></p></div>` : ""}
+      ${opts.competitionName ? `<div class="credentials-box"><p class="cred-label">${opts.isReminder ? "Competition" : "Event invitation"}</p><p class="cred-row"><span class="cred-value">${escapeHtml(opts.competitionName)}</span></p></div>` : ""}
       ${reminderBlock}
       ${invitationMessageBlock}
       ${opts.isReminder ? "" : mediaBlock}
@@ -276,7 +280,9 @@ export async function sendInviteEmail(opts: {
       subject: (opts.isReminder
         ? opts.inviteToken
           ? `Reminder: finish your ${opts.competitionName || "The Quest"} invitation`
-          : "Reminder: complete your artist profile"
+          : opts.competitionName
+            ? `Reminder: complete your ${opts.competitionName} profile`
+            : "Reminder: complete your artist profile"
         : applyPlaceholders(subject, vars)).replace(/[\r\n]/g, "").replace(/<br\/>/g, ""),
       html,
     });

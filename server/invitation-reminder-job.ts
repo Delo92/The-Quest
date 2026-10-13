@@ -1,7 +1,7 @@
 import {
   firestoreArtistProfileReminders,
+  firestoreContestants,
   firestoreInvitations,
-  firestoreJoinSubmissions,
   type FirestoreInvitation,
   type FirestoreTalentProfile,
 } from "./firestore-collections";
@@ -76,11 +76,21 @@ function hasPhoto(profile: FirestoreTalentProfile | null): boolean {
 
 function hasVideo(profile: FirestoreTalentProfile | null, competitionId?: number | null): boolean {
   if (!profile) return false;
-  const hasProfileVideo = profile.videoUrls?.some((url) => typeof url === "string" && url.trim());
-  const hasCompetitionVideo = competitionId
-    ? Boolean(profile.competitionVideoUris?.[String(competitionId)]?.trim())
-    : Object.values(profile.competitionVideoUris || {}).some((url) => typeof url === "string" && url.trim());
-  return Boolean(hasProfileVideo || hasCompetitionVideo);
+  const competitionVideos = Object.values(profile.competitionVideoUris || {}).filter(
+    (url) => typeof url === "string" && url.trim(),
+  );
+  if (competitionId) {
+    const competitionVideo = profile.competitionVideoUris?.[String(competitionId)];
+    if (typeof competitionVideo === "string" && competitionVideo.trim()) return true;
+    // Older profiles may only have unscoped videos. Once any competition-scoped
+    // videos exist, don't let one competition's video satisfy every entry.
+    return competitionVideos.length === 0
+      && Boolean(profile.videoUrls?.some((url) => typeof url === "string" && url.trim()));
+  }
+  return Boolean(
+    profile.videoUrls?.some((url) => typeof url === "string" && url.trim())
+    || competitionVideos.length,
+  );
 }
 
 function profileIsComplete(profile: FirestoreTalentProfile | null, competitionId?: number | null): boolean {
@@ -91,16 +101,17 @@ function normalizeEmail(email: string | null | undefined): string {
   return typeof email === "string" ? email.trim().toLowerCase() : "";
 }
 
-function groupInvitationsByEmail(invitations: FirestoreInvitation[]): Map<string, FirestoreInvitation[]> {
-  const groups = new Map<string, FirestoreInvitation[]>();
-  for (const invitation of invitations) {
-    const email = normalizeEmail(invitation.invitedEmail);
-    if (!email || invitation.targetLevel !== 2 || invitation.status === "expired") continue;
-    const group = groups.get(email) || [];
-    group.push(invitation);
-    groups.set(email, group);
-  }
-  return groups;
+interface ReminderTask {
+  stateKey: string;
+  email: string;
+  profile: FirestoreTalentProfile | null;
+  competitionId: number | null;
+  competitionName?: string;
+  name: string;
+  invitation?: FirestoreInvitation;
+  inviterName: string;
+  replyTo?: string;
+  needsLogin: boolean;
 }
 
 export function startArtistProfileReminderJob(): void {
@@ -121,149 +132,157 @@ export function startArtistProfileReminderJob(): void {
         return;
       }
 
-      const [invitations, submissions, profiles, users, competitions] = await Promise.all([
+      const [invitations, profiles, users, contestants, competitions] = await Promise.all([
         firestoreInvitations.getAll(),
-        firestoreJoinSubmissions.getAll(),
         storage.getAllTalentProfiles(),
         getAllFirestoreUsers(),
+        firestoreContestants.getAll(),
         storage.getCompetitions(),
       ]);
       const usersById = new Map(users.map((user) => [user.uid, user]));
+      const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
+      const profilesByUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
       const competitionsById = new Map(competitions.map((competition) => [competition.id, competition]));
-      const invitationsByEmail = groupInvitationsByEmail(invitations);
-      const profilesByEmail = new Map<string, FirestoreTalentProfile>();
-
-      for (const profile of profiles) {
-        if (profile.role?.toLowerCase() !== "talent") continue;
-        const email = normalizeEmail(profile.email || usersById.get(profile.userId)?.email);
-        if (!email) continue;
-        const current = profilesByEmail.get(email);
-        if (!current || profileIsComplete(profile) || !profileIsComplete(current)) {
-          profilesByEmail.set(email, profile);
-        }
-      }
-
-      const nominationByEmail = new Map<string, typeof submissions>();
-      for (const submission of submissions) {
-        if (submission.type !== "nomination" || submission.nominationStatus === "not_interested") continue;
-        const email = normalizeEmail(submission.email);
-        if (!email) continue;
-        const group = nominationByEmail.get(email) || [];
-        group.push(submission);
-        nominationByEmail.set(email, group);
-      }
-
-      const allEmails = new Set([
-        ...invitationsByEmail.keys(),
-        ...profilesByEmail.keys(),
-        ...nominationByEmail.keys(),
-      ]);
+      const tasksByStateKey = new Map<string, ReminderTask>();
+      const activeProfileIds = new Set<number>();
+      const pendingInviteEmails = new Set<string>();
       const now = new Date();
 
-      for (const email of allEmails) {
-        const profile = profilesByEmail.get(email) || null;
-        const emailInvitations = (invitationsByEmail.get(email) || []).sort(
-          (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-        );
-        const eligibleInvitations: FirestoreInvitation[] = [];
+      for (const contestant of contestants) {
+        if (contestant.applicationStatus !== "approved" && contestant.applicationStatus !== "pending") continue;
+        const profile = profilesById.get(contestant.talentProfileId);
+        if (!profile || profile.role?.toLowerCase() !== "talent") continue;
+        activeProfileIds.add(profile.id);
+        const email = (profile.email || usersById.get(profile.userId)?.email || "").trim();
+        if (!email) continue;
 
-        for (const invitation of emailInvitations) {
-          if (invitation.status === "accepted" && invitation.acceptedBy) {
-            const acceptedProfile = profile?.userId === invitation.acceptedBy
-              ? profile
-              : profiles.find((item) => item.userId === invitation.acceptedBy) || null;
-            if (profileIsComplete(acceptedProfile, invitation.competitionId)) {
-              await firestoreInvitations.markRemindersCompleted(invitation.id, now.toISOString());
-              continue;
-            }
+        const competition = competitionsById.get(contestant.competitionId);
+        const competitionName = competition?.title;
+        const stateKey = `profile:${profile.userId}:competition:${contestant.competitionId}`;
+        if (profileIsComplete(profile, contestant.competitionId)) continue;
+
+        tasksByStateKey.set(stateKey, {
+          stateKey,
+          email,
+          profile,
+          competitionId: contestant.competitionId,
+          competitionName,
+          name: profile.stageName || profile.displayName || email.split("@")[0],
+          inviterName: "The Quest team",
+          needsLogin: false,
+        });
+      }
+
+      for (const invitation of invitations) {
+        if (invitation.targetLevel !== 2 || invitation.status === "expired") continue;
+        if (invitation.status === "accepted" && invitation.acceptedBy) {
+          const profile = profilesByUserId.get(invitation.acceptedBy) || null;
+          if (profile && profileIsComplete(profile, invitation.competitionId)) {
+            await firestoreInvitations.markRemindersCompleted(invitation.id, now.toISOString());
+            continue;
           }
-          if (!invitation.remindersPausedAt && !invitation.remindersCompletedAt) {
-            eligibleInvitations.push(invitation);
+          if (invitation.remindersCompletedAt || !profile) continue;
+          const email = (profile.email || usersById.get(profile.userId)?.email || "").trim();
+          if (!email) continue;
+          const stateKey = `profile:${profile.userId}:competition:${invitation.competitionId ?? "profile"}`;
+          const competition = invitation.competitionId
+            ? competitionsById.get(invitation.competitionId)
+            : null;
+          const existingTask = tasksByStateKey.get(stateKey);
+          if (existingTask) {
+            existingTask.invitation ||= invitation;
+          } else if (!invitation.remindersPausedAt) {
+            tasksByStateKey.set(stateKey, {
+              stateKey,
+              email,
+              profile,
+              competitionId: invitation.competitionId ?? null,
+              competitionName: competition?.title || invitation.suggestedEventName || undefined,
+              name: profile.stageName || profile.displayName || invitation.invitedName || email.split("@")[0],
+              invitation,
+              inviterName: invitation.invitedByName || "The Quest team",
+              replyTo: invitation.invitedByEmail || undefined,
+              needsLogin: false,
+            });
           }
-        }
-
-        const nomination = (nominationByEmail.get(email) || []).sort(
-          (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-        )[0];
-        const hasInvitationPath = emailInvitations.length > 0;
-        const hasDirectSignupPath = Boolean(profile && !hasInvitationPath);
-        const chosenInvitation = eligibleInvitations[0] || null;
-
-        let name = profile?.stageName || profile?.displayName || nomination?.fullName || email.split("@")[0];
-        let competitionId: number | null = null;
-        let competitionName: string | undefined;
-        let inviteToken: string | undefined;
-        let inviterName = "The Quest team";
-        let replyTo: string | undefined;
-        let needsLogin = false;
-        let profilePathEligible = false;
-
-        if (chosenInvitation) {
-          const competition = chosenInvitation.competitionId
-            ? competitionsById.get(chosenInvitation.competitionId)
-            : null;
-          name = chosenInvitation.invitedName || name;
-          competitionId = chosenInvitation.competitionId ?? null;
-          competitionName = competition?.title || chosenInvitation.suggestedEventName || undefined;
-          inviteToken = chosenInvitation.token;
-          inviterName = chosenInvitation.invitedByName || inviterName;
-          replyTo = chosenInvitation.invitedByEmail || undefined;
-          needsLogin = chosenInvitation.status !== "accepted" || !chosenInvitation.acceptedBy;
-        } else if (nomination) {
-          const competition = nomination.competitionId
-            ? competitionsById.get(nomination.competitionId)
-            : null;
-          name = nomination.fullName || name;
-          competitionId = nomination.competitionId;
-          competitionName = competition?.title;
-          profilePathEligible = true;
-        } else if (hasDirectSignupPath) {
-          profilePathEligible = true;
-        }
-
-        if (!chosenInvitation && !profilePathEligible) continue;
-        if (chosenInvitation && chosenInvitation.status === "accepted" && !chosenInvitation.acceptedBy) {
-          needsLogin = true;
-        }
-
-        const hasProfilePhoto = hasPhoto(profile);
-        const hasProfileVideo = hasVideo(profile, competitionId);
-        if (chosenInvitation && chosenInvitation.status === "accepted" && profileIsComplete(profile, competitionId)) {
-          await firestoreInvitations.markRemindersCompleted(chosenInvitation.id, now.toISOString());
           continue;
         }
-        if (!chosenInvitation && profileIsComplete(profile, competitionId)) continue;
 
-        const reminderState = await firestoreArtistProfileReminders.getOrCreate(email);
+        if (invitation.remindersPausedAt || invitation.remindersCompletedAt) continue;
+        const email = invitation.invitedEmail.trim();
+        if (!email) continue;
+        pendingInviteEmails.add(normalizeEmail(email));
+        const competition = invitation.competitionId
+          ? competitionsById.get(invitation.competitionId)
+          : null;
+        const stateKey = `invitation:${invitation.id}`;
+        tasksByStateKey.set(stateKey, {
+          stateKey,
+          email,
+          profile: null,
+          competitionId: invitation.competitionId ?? null,
+          competitionName: competition?.title || invitation.suggestedEventName || undefined,
+          name: invitation.invitedName || email.split("@")[0],
+          invitation,
+          inviterName: invitation.invitedByName || "The Quest team",
+          replyTo: invitation.invitedByEmail || undefined,
+          needsLogin: true,
+        });
+      }
+
+      // Keep the existing reminder behavior for talent accounts that have not
+      // joined a competition yet, without sending a second generic email to
+      // profiles that already have active competition entries.
+      for (const profile of profiles) {
+        if (profile.role?.toLowerCase() !== "talent" || activeProfileIds.has(profile.id)) continue;
+        const email = (profile.email || usersById.get(profile.userId)?.email || "").trim();
+        if (!email || pendingInviteEmails.has(normalizeEmail(email)) || profileIsComplete(profile)) continue;
+        const stateKey = `profile:${profile.userId}:profile`;
+        tasksByStateKey.set(stateKey, {
+          stateKey,
+          email,
+          profile,
+          competitionId: null,
+          name: profile.stageName || profile.displayName || email.split("@")[0],
+          inviterName: "The Quest team",
+          needsLogin: false,
+        });
+      }
+
+      for (const task of tasksByStateKey.values()) {
+        const reminderState = await firestoreArtistProfileReminders.getOrCreate(task.email, task.stateKey);
         if (reminderState.stoppedAt) continue;
         const attemptedAt = new Date().toISOString();
         const claimed = await firestoreArtistProfileReminders.claimDaily(
-          email,
+          task.email,
+          task.stateKey,
           attemptedAt,
           DAILY_INTERVAL_MS,
         );
         if (!claimed) continue;
 
+        const hasProfilePhoto = hasPhoto(task.profile);
+        const hasProfileVideo = hasVideo(task.profile, task.competitionId);
         const sent = await sendInviteEmail({
-          to: email,
-          inviterName,
-          ...(inviteToken ? { inviteToken } : {}),
+          to: task.email,
+          inviterName: task.inviterName,
+          ...(task.invitation && task.needsLogin ? { inviteToken: task.invitation.token } : {}),
           role: "talent",
           siteUrl,
-          nomineeName: name,
-          competitionName,
-          replyTo,
+          nomineeName: task.name,
+          competitionName: task.competitionName,
+          replyTo: task.replyTo,
           isReminder: true,
-          needsLogin,
-          needsAccountSetup: !profile && !inviteToken,
+          needsLogin: task.needsLogin,
+          needsAccountSetup: false,
           needsProfilePhoto: !hasProfilePhoto,
           needsVideo: !hasProfileVideo,
           reminderStopUrl: `${siteUrl}/api/artist-profile-reminders/stop?token=${encodeURIComponent(reminderState.stopToken)}`,
         });
 
-        await firestoreArtistProfileReminders.recordResult(email, new Date().toISOString(), sent);
-        if (chosenInvitation) {
-          await firestoreInvitations.recordReminderResult(chosenInvitation.id, new Date().toISOString(), sent);
+        await firestoreArtistProfileReminders.recordResult(task.stateKey, new Date().toISOString(), sent);
+        if (task.invitation) {
+          await firestoreInvitations.recordReminderResult(task.invitation.id, new Date().toISOString(), sent);
         }
       }
     } catch (error) {

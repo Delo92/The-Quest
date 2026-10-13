@@ -3,8 +3,8 @@ name: Artist profile reminders
 description: User-approved scope and completion rules for recurring artist profile reminders
 ---
 
-Artist reminders cover talent invitations, direct artist registrations, and nominees across every competition. Send at most one daily reminder per email, with no send-count cap. Invitation-based recipients must accept their invitation; every path requires both a profile photo and video. Reminder recipients can stop all future reminders through an email link, while inviters retain pause/resume controls for their invitations.
+Artist reminders cover talent invitations, direct artist registrations, and nominees. Send a separate daily reminder for every active artist-and-competition entry that still needs its required profile photo or competition video. Do not deduplicate or throttle reminders by email; use the artist account and competition as the reminder unit. Invitation-based recipients must accept their invitation. Reminder recipients can stop all future reminders through an email link, while inviters retain pause/resume controls for pending invitations.
 
-**Why:** The scope was explicitly broadened from the initial Raplahoma-only feature so all artist onboarding paths receive consistent profile-completion follow-up without duplicate messages.
+**Why:** The user clarified that an artist in multiple competitions needs a separate reminder for each incomplete competition, regardless of how or when the account was created.
 
-**How to apply:** Keep the daily scan at 9 a.m. Central, deduplicate by normalized email, preserve invitation acceptance as a separate requirement, and keep a recipient-controlled stop mechanism for unlimited reminders.
+**How to apply:** Key completion and daily cooldown by artist account plus competition. A photo is account-level; a video must satisfy that specific competition when competition-scoped uploads exist. Keep invitation acceptance and recipient-controlled stop links.

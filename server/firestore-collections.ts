@@ -1636,43 +1636,84 @@ function artistReminderEmailHash(email: string): string {
   return crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
 }
 
+function artistReminderStateId(reminderKey: string): string {
+  return crypto.createHash("sha256").update(reminderKey).digest("hex");
+}
+
 export const firestoreArtistProfileReminders = {
-  async getOrCreate(email: string): Promise<FirestoreArtistProfileReminder> {
+  async getOrCreate(email: string, reminderKey = email): Promise<FirestoreArtistProfileReminder & { id: string }> {
     const normalizedEmail = email.trim().toLowerCase();
     const emailHash = artistReminderEmailHash(normalizedEmail);
-    const ref = db().collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS).doc(emailHash);
+    const collection = db().collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS);
+    const globalRef = collection.doc(emailHash);
+    const stateId = artistReminderStateId(reminderKey);
+    const stateRef = collection.doc(stateId);
     const proposedToken = crypto.randomBytes(32).toString("hex");
     return db().runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(ref);
-      if (snapshot.exists) {
-        const current = snapshot.data() as FirestoreArtistProfileReminder;
-        if (current.stopToken) return current;
-        const updated = { ...current, stopToken: proposedToken };
-        transaction.set(ref, updated, { merge: true });
-        return updated;
+      const [globalSnapshot, stateSnapshot] = await Promise.all([
+        transaction.get(globalRef),
+        transaction.get(stateRef),
+      ]);
+      let globalState: FirestoreArtistProfileReminder;
+      if (globalSnapshot.exists) {
+        globalState = globalSnapshot.data() as FirestoreArtistProfileReminder;
+        if (!globalState.stopToken) {
+          globalState = { ...globalState, stopToken: proposedToken };
+          transaction.set(globalRef, globalState, { merge: true });
+        }
+      } else {
+        globalState = {
+          emailHash,
+          stopToken: proposedToken,
+          stoppedAt: null,
+          lastAttemptAt: null,
+          lastSentAt: null,
+          sendCount: 0,
+        };
+        transaction.set(globalRef, globalState);
       }
 
-      const created: FirestoreArtistProfileReminder = {
+      const state = stateSnapshot.exists
+        ? stateSnapshot.data() as FirestoreArtistProfileReminder
+        : {
+            emailHash,
+            stopToken: globalState.stopToken,
+            stoppedAt: globalState.stoppedAt,
+            lastAttemptAt: null,
+            lastSentAt: null,
+            sendCount: 0,
+          };
+      if (!stateSnapshot.exists) {
+        transaction.set(stateRef, state);
+      }
+      return {
+        ...state,
         emailHash,
-        stopToken: proposedToken,
-        stoppedAt: null,
-        lastAttemptAt: null,
-        lastSentAt: null,
-        sendCount: 0,
+        stopToken: globalState.stopToken,
+        stoppedAt: globalState.stoppedAt,
+        id: stateId,
       };
-      transaction.set(ref, created);
-      return created;
     });
   },
 
-  async claimDaily(email: string, attemptedAt: string, minimumIntervalMs: number): Promise<boolean> {
-    const emailHash = artistReminderEmailHash(email);
-    const ref = db().collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS).doc(emailHash);
+  async claimDaily(
+    email: string,
+    reminderKey: string,
+    attemptedAt: string,
+    minimumIntervalMs: number,
+  ): Promise<boolean> {
+    const collection = db().collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS);
+    const globalRef = collection.doc(artistReminderEmailHash(email));
+    const stateRef = collection.doc(artistReminderStateId(reminderKey));
     return db().runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(ref);
-      if (!snapshot.exists) return false;
-      const reminder = snapshot.data() as FirestoreArtistProfileReminder;
-      if (reminder.stoppedAt) return false;
+      const [globalSnapshot, stateSnapshot] = await Promise.all([
+        transaction.get(globalRef),
+        transaction.get(stateRef),
+      ]);
+      if (!globalSnapshot.exists || !stateSnapshot.exists) return false;
+      const globalState = globalSnapshot.data() as FirestoreArtistProfileReminder;
+      const reminder = stateSnapshot.data() as FirestoreArtistProfileReminder;
+      if (globalState.stoppedAt) return false;
 
       const lastAttemptTime = Date.parse(reminder.lastAttemptAt || "");
       const currentTime = Date.parse(attemptedAt);
@@ -1682,14 +1723,15 @@ export const firestoreArtistProfileReminders = {
         currentTime - lastAttemptTime < minimumIntervalMs
       ) return false;
 
-      transaction.update(ref, { lastAttemptAt: attemptedAt });
+      transaction.update(stateRef, { lastAttemptAt: attemptedAt });
       return true;
     });
   },
 
-  async recordResult(email: string, sentAt: string, sent: boolean): Promise<void> {
-    const emailHash = artistReminderEmailHash(email);
-    const ref = db().collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS).doc(emailHash);
+  async recordResult(reminderKey: string, sentAt: string, sent: boolean): Promise<void> {
+    const ref = db()
+      .collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS)
+      .doc(artistReminderStateId(reminderKey));
     await ref.update(sent
       ? {
           lastSentAt: sentAt,
@@ -1705,7 +1747,13 @@ export const firestoreArtistProfileReminders = {
       .limit(1)
       .get();
     if (snapshot.empty) return false;
-    await snapshot.docs[0].ref.update({ stoppedAt: new Date().toISOString() });
+    const reminder = snapshot.docs[0].data() as FirestoreArtistProfileReminder;
+    const globalRef = db()
+      .collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS)
+      .doc(reminder.emailHash);
+    const globalSnapshot = await globalRef.get();
+    if (!globalSnapshot.exists) return false;
+    await globalRef.update({ stoppedAt: new Date().toISOString() });
     return true;
   },
 };
