@@ -153,6 +153,11 @@ export async function sendInviteEmail(opts: {
   accountCreated?: boolean;
   invitationMessage?: string;
   mediaUrl?: string;
+  isReminder?: boolean;
+  needsLogin?: boolean;
+  needsProfilePhoto?: boolean;
+  needsVideo?: boolean;
+  replyTo?: string;
 }): Promise<boolean> {
   try {
     const transporter = await getTransporter();
@@ -175,9 +180,12 @@ export async function sendInviteEmail(opts: {
 
     let actionUrl: string;
     let actionLabel: string;
-     if (opts.inviteToken) {
+     if (opts.isReminder && !opts.needsLogin) {
+       actionUrl = `${opts.siteUrl}/thequest/dashboard`;
+       actionLabel = "Finish Your Profile";
+     } else if (opts.inviteToken) {
        actionUrl = `${opts.siteUrl}/thequest/login?invite=${opts.inviteToken}`;
-       actionLabel = "Log In to Continue";
+       actionLabel = opts.isReminder ? "Accept Invitation" : "Log In to Continue";
     } else {
       actionUrl = `${opts.siteUrl}/login`;
       actionLabel = "Get Started";
@@ -194,7 +202,7 @@ export async function sendInviteEmail(opts: {
         </div>`;
     }
 
-    const invitationMessageBlock = opts.invitationMessage
+    const invitationMessageBlock = !opts.isReminder && opts.invitationMessage
       ? `<div class="credentials-box"><p class="cred-label">A message from ${escapeHtml(opts.inviterName)}</p><p style="white-space:pre-line">${escapeHtml(opts.invitationMessage)}</p></div>`
       : "";
 
@@ -212,23 +220,47 @@ export async function sendInviteEmail(opts: {
       }
     }
 
+    const reminderTasks = [
+      opts.needsLogin ? "Sign in with the invited email to accept your invitation." : "",
+      opts.needsProfilePhoto ? "Upload a profile photo." : "",
+      opts.needsVideo ? "Add a video to your talent profile." : "",
+    ].filter(Boolean);
+    const reminderBlock = opts.isReminder
+      ? `<div class="credentials-box">
+          <p class="cred-label">What remains</p>
+          <ul style="color:#ccc;line-height:1.8;margin:8px 0;padding-left:22px">${reminderTasks.map(task => `<li>${task}</li>`).join("")}</ul>
+          <p style="color:#888;font-size:12px;margin:10px 0 0">Reminders stop after you accept the invitation and add both a profile photo and a video.</p>
+        </div>`
+      : "";
+    const renderedHeading = opts.isReminder
+      ? `Finish your ${escapeHtml(opts.competitionName || "The Quest")} invitation`
+      : applyPlaceholders(heading, vars);
+    const renderedBody = opts.isReminder
+      ? "You still have an invitation to participate. Complete the remaining steps below to finish setting up your artist profile."
+      : applyPlaceholders(body, vars);
+
     const html = wrapInTemplate(`
-      <h2>${applyPlaceholders(heading, vars)}</h2>
-      <p>${applyPlaceholders(body, vars)}</p>
+      <h2>${renderedHeading}</h2>
+      <p>${renderedBody}</p>
       ${opts.competitionName ? `<div class="credentials-box"><p class="cred-label">Event invitation</p><p class="cred-row"><span class="cred-value">${escapeHtml(opts.competitionName)}</span></p></div>` : ""}
+      ${reminderBlock}
       ${invitationMessageBlock}
-      ${mediaBlock}
+      ${opts.isReminder ? "" : mediaBlock}
       ${credentialBlock}
       <div class="btn-wrap">
         <a href="${actionUrl}" class="btn">${actionLabel}</a>
       </div>
       <p class="fallback-link">Or copy this link: <a href="${actionUrl}">${actionUrl}</a></p>
+      ${opts.isReminder ? `<p class="fallback-link">If you no longer wish to participate, reply to this email and ask your inviter to stop reminders.</p>` : ""}
     `);
 
     await transporter.sendMail({
       from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
       to: opts.to,
-      subject: applyPlaceholders(subject, vars).replace(/<br\/>/g, ""),
+      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      subject: (opts.isReminder
+        ? `Reminder: finish your ${opts.competitionName || "The Quest"} invitation`
+        : applyPlaceholders(subject, vars)).replace(/[\r\n]/g, "").replace(/<br\/>/g, ""),
       html,
     });
 

@@ -1455,6 +1455,12 @@ export interface FirestoreInvitation {
   createdAt: string;
   acceptedAt: string | null;
   acceptedBy: string | null;
+  remindersPausedAt?: string | null;
+  remindersCompletedAt?: string | null;
+  lastReminderAttemptAt?: string | null;
+  lastReminderSentAt?: string | null;
+  reminderSendCount?: number;
+  lastReminderError?: string | null;
 }
 
 function generateToken(): string {
@@ -1524,6 +1530,74 @@ export const firestoreInvitations = {
     const snapshot = await db().collection(COLLECTIONS.INVITATIONS).get();
     const items = snapshot.docs.map(doc => doc.data() as FirestoreInvitation);
     return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  async getByCompetition(competitionId: number): Promise<FirestoreInvitation[]> {
+    const snapshot = await db()
+      .collection(COLLECTIONS.INVITATIONS)
+      .where("competitionId", "==", competitionId)
+      .get();
+    return snapshot.docs.map(doc => doc.data() as FirestoreInvitation);
+  },
+
+  async getById(id: string): Promise<FirestoreInvitation | null> {
+    const snapshot = await db().collection(COLLECTIONS.INVITATIONS).doc(id).get();
+    return snapshot.exists ? snapshot.data() as FirestoreInvitation : null;
+  },
+
+  async setRemindersPaused(id: string, paused: boolean): Promise<void> {
+    await db().collection(COLLECTIONS.INVITATIONS).doc(id).update({
+      remindersPausedAt: paused ? new Date().toISOString() : null,
+    });
+  },
+
+  async claimDailyReminder(id: string, attemptedAt: string, minimumIntervalMs: number): Promise<boolean> {
+    const ref = db().collection(COLLECTIONS.INVITATIONS).doc(id);
+    return db().runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists) return false;
+
+      const invitation = snapshot.data() as FirestoreInvitation;
+      if (
+        invitation.targetLevel !== 2 ||
+        invitation.status === "expired" ||
+        invitation.remindersPausedAt ||
+        invitation.remindersCompletedAt
+      ) return false;
+
+      const lastAttempt = invitation.lastReminderAttemptAt || invitation.createdAt;
+      const lastAttemptTime = Date.parse(lastAttempt);
+      const currentTime = Date.parse(attemptedAt);
+      if (
+        !Number.isFinite(lastAttemptTime) ||
+        !Number.isFinite(currentTime) ||
+        currentTime - lastAttemptTime < minimumIntervalMs
+      ) return false;
+
+      transaction.update(ref, {
+        lastReminderAttemptAt: attemptedAt,
+        lastReminderError: null,
+      });
+      return true;
+    });
+  },
+
+  async recordReminderResult(id: string, sentAt: string, sent: boolean): Promise<void> {
+    const ref = db().collection(COLLECTIONS.INVITATIONS).doc(id);
+    await ref.update(sent
+      ? {
+          lastReminderSentAt: sentAt,
+          lastReminderError: null,
+          reminderSendCount: admin.firestore.FieldValue.increment(1),
+        }
+      : { lastReminderError: "Gmail did not accept the reminder send." });
+  },
+
+  async markRemindersCompleted(id: string, completedAt: string): Promise<void> {
+    await db().collection(COLLECTIONS.INVITATIONS).doc(id).update({
+      remindersCompletedAt: completedAt,
+      lastReminderError: null,
+    });
   },
 
   async markAccepted(token: string, acceptedByUid: string): Promise<FirestoreInvitation | null> {

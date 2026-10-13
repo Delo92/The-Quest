@@ -4094,6 +4094,41 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/invitations/:id/reminders", firebaseAuth, requireTalent, async (req, res) => {
+    try {
+      const paused = req.body?.paused;
+      if (typeof paused !== "boolean") {
+        return res.status(400).json({ message: "paused must be a boolean" });
+      }
+
+      const invitation = await firestoreInvitations.getById(req.params.id);
+      if (!invitation) return res.status(404).json({ message: "Invitation not found" });
+      const isAdmin = req.firebaseUser!.level >= 4;
+      if (!isAdmin && invitation.invitedBy !== req.firebaseUser!.uid) {
+        return res.status(403).json({ message: "You cannot manage this invitation" });
+      }
+      if (invitation.targetLevel !== 2 || !invitation.competitionId) {
+        return res.status(400).json({ message: "Daily reminders are only enabled for Raplahoma artist invitations" });
+      }
+
+      const competition = await storage.getCompetition(invitation.competitionId);
+      if (competition?.title.trim().toLowerCase() !== "raplahoma") {
+        return res.status(400).json({ message: "Daily reminders are only enabled for Raplahoma artist invitations" });
+      }
+
+      const relatedInvitations = await firestoreInvitations.getByCompetition(competition.id);
+      const inviteeEmail = invitation.invitedEmail.trim().toLowerCase();
+      const sameInvitee = relatedInvitations.filter(
+        (item) => item.invitedEmail.trim().toLowerCase() === inviteeEmail,
+      );
+      await Promise.all(sameInvitee.map((item) => firestoreInvitations.setRemindersPaused(item.id, paused)));
+      res.json({ paused, updatedInvitations: sameInvitee.length });
+    } catch (error: any) {
+      console.error("Update invitation reminders error:", error);
+      res.status(500).json({ message: "Failed to update invitation reminders" });
+    }
+  });
+
   app.get("/api/invitations/all", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const invitations = await firestoreInvitations.getAll();
