@@ -54,6 +54,7 @@ import {
   firestoreHostSettings,
   firestoreHostSubmissions,
   firestoreInvitations,
+  firestoreArtistProfileReminders,
   firestoreReferrals,
   firestoreCompetitions,
   firestoreTalentProfiles,
@@ -4107,16 +4108,11 @@ export async function registerRoutes(
       if (!isAdmin && invitation.invitedBy !== req.firebaseUser!.uid) {
         return res.status(403).json({ message: "You cannot manage this invitation" });
       }
-      if (invitation.targetLevel !== 2 || !invitation.competitionId) {
-        return res.status(400).json({ message: "Daily reminders are only enabled for Raplahoma artist invitations" });
+      if (invitation.targetLevel !== 2) {
+        return res.status(400).json({ message: "Daily reminders are only enabled for artist invitations" });
       }
 
-      const competition = await storage.getCompetition(invitation.competitionId);
-      if (competition?.title.trim().toLowerCase() !== "raplahoma") {
-        return res.status(400).json({ message: "Daily reminders are only enabled for Raplahoma artist invitations" });
-      }
-
-      const relatedInvitations = await firestoreInvitations.getByCompetition(competition.id);
+      const relatedInvitations = await firestoreInvitations.getAll();
       const inviteeEmail = invitation.invitedEmail.trim().toLowerCase();
       const sameInvitee = relatedInvitations.filter(
         (item) =>
@@ -4129,6 +4125,56 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Update invitation reminders error:", error);
       res.status(500).json({ message: "Failed to update invitation reminders" });
+    }
+  });
+
+  app.get("/api/artist-profile-reminders/stop", (req, res) => {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+    if (!/^[a-f0-9]{64}$/i.test(token)) {
+      return res.status(400).type("html").send("<!doctype html><html><body><h1>Invalid reminder link</h1></body></html>");
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.type("html").send(`<!doctype html>
+      <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Stop artist profile reminders</title>
+      <body style="margin:0;background:#111;color:#eee;font:16px system-ui,sans-serif">
+        <main style="max-width:520px;margin:12vh auto;padding:32px">
+          <h1>Stop artist profile reminders?</h1>
+          <p>You can stop these daily reminders. This will not delete your account or profile.</p>
+          <form method="post" action="/api/artist-profile-reminders/stop?token=${encodeURIComponent(token)}">
+            <button style="min-height:44px;padding:0 18px;background:#f59e0b;color:#111;border:0;border-radius:6px;font-weight:700;cursor:pointer">Stop reminders</button>
+          </form>
+        </main>
+      </body></html>`);
+  });
+
+  app.post("/api/artist-profile-reminders/stop", async (req, res) => {
+    const token = typeof req.body?.token === "string"
+      ? req.body.token
+      : typeof req.query.token === "string"
+        ? req.query.token
+        : "";
+    if (!/^[a-f0-9]{64}$/i.test(token)) {
+      return res.status(400).type("html").send("<!doctype html><html><body><h1>Invalid reminder link</h1></body></html>");
+    }
+    try {
+      const stopped = await firestoreArtistProfileReminders.stopByToken(token);
+      if (!stopped) {
+        return res.status(404).type("html").send("<!doctype html><html><body><h1>Reminder link not found</h1></body></html>");
+      }
+      res.setHeader("Cache-Control", "no-store");
+      res.type("html").send(`<!doctype html>
+        <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Reminders stopped</title>
+        <body style="margin:0;background:#111;color:#eee;font:16px system-ui,sans-serif">
+          <main style="max-width:520px;margin:12vh auto;padding:32px">
+            <h1>Reminders stopped</h1>
+            <p>You will no longer receive daily artist profile reminders at this email address.</p>
+          </main>
+        </body></html>`);
+    } catch (error) {
+      console.error("Stop artist profile reminders error:", error);
+      res.status(500).type("html").send("<!doctype html><html><body><h1>Could not stop reminders</h1><p>Please try again later.</p></body></html>");
     }
   });
 

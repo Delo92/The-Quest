@@ -95,10 +95,6 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
     queryKey: ["/api/invitations/sent"],
     enabled: open,
   });
-  const raplahomaCompetitionId = competitions?.find(
-    (competition) => competition.title.trim().toLowerCase() === "raplahoma",
-  )?.id;
-
   const buildInviteLink = (token: string, level: number) => {
     if (level >= 3) return `${window.location.origin}/thequest/host?invite=${token}`;
     return `${window.location.origin}/thequest/login?invite=${token}`;
@@ -355,7 +351,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
           <div className="mt-4 border-t border-white/10 pt-4">
             <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold mb-3">Sent Invitations</h4>
             <p className="text-xs text-white/50 mb-3">
-              Raplahoma artist reminders repeat daily until the artist accepts and adds a profile photo and video. You can pause or resume them here.
+              Artist reminders repeat daily until the invitation is accepted and the artist adds a profile photo and video. You can pause or resume them here.
             </p>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {invitations.map((inv) => (
@@ -367,9 +363,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
                   <Badge className={`border-0 text-xs shrink-0 ${LEVEL_COLORS[inv.targetLevel] || "bg-white/10 text-white/50"}`}>
                     {LEVEL_LABELS[inv.targetLevel] || `Level ${inv.targetLevel}`}
                   </Badge>
-                  {raplahomaCompetitionId !== undefined &&
-                    inv.targetLevel === 2 &&
-                    inv.competitionId === raplahomaCompetitionId && (
+                  {inv.targetLevel === 2 && (
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge className={`border-0 text-xs ${
                         inv.remindersCompletedAt

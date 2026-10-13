@@ -6,7 +6,7 @@ import { createServer } from "http";
 import { logError } from "./services/errorLogger";
 import { startOCPurchaseFeedWorker } from "./services/ocPurchaseFeed";
 import { warmVimeoPlayUrlCache } from "./vimeo";
-import { startRaplahomaInvitationReminderJob } from "./invitation-reminder-job";
+import { startArtistProfileReminderJob } from "./invitation-reminder-job";
 
 const app = express();
 const httpServer = createServer(app);
@@ -139,7 +139,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
-      startRaplahomaInvitationReminderJob();
+      startArtistProfileReminderJob();
     },
   );
 })();

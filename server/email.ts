@@ -155,8 +155,10 @@ export async function sendInviteEmail(opts: {
   mediaUrl?: string;
   isReminder?: boolean;
   needsLogin?: boolean;
+  needsAccountSetup?: boolean;
   needsProfilePhoto?: boolean;
   needsVideo?: boolean;
+  reminderStopUrl?: string;
   replyTo?: string;
 }): Promise<boolean> {
   try {
@@ -180,12 +182,18 @@ export async function sendInviteEmail(opts: {
 
     let actionUrl: string;
     let actionLabel: string;
-     if (opts.isReminder && !opts.needsLogin) {
+     if (opts.isReminder && opts.inviteToken && opts.needsLogin) {
+       actionUrl = `${opts.siteUrl}/thequest/login?invite=${opts.inviteToken}`;
+       actionLabel = "Accept Invitation";
+     } else if (opts.isReminder && !opts.inviteToken && opts.needsAccountSetup) {
+       actionUrl = `${opts.siteUrl}/thequest/login`;
+       actionLabel = "Get Started";
+     } else if (opts.isReminder) {
        actionUrl = `${opts.siteUrl}/thequest/dashboard`;
        actionLabel = "Finish Your Profile";
      } else if (opts.inviteToken) {
        actionUrl = `${opts.siteUrl}/thequest/login?invite=${opts.inviteToken}`;
-       actionLabel = opts.isReminder ? "Accept Invitation" : "Log In to Continue";
+       actionLabel = "Log In to Continue";
     } else {
       actionUrl = `${opts.siteUrl}/login`;
       actionLabel = "Get Started";
@@ -221,7 +229,8 @@ export async function sendInviteEmail(opts: {
     }
 
     const reminderTasks = [
-      opts.needsLogin ? "Sign in with the invited email to accept your invitation." : "",
+      opts.inviteToken && opts.needsLogin ? "Sign in with the invited email to accept your invitation." : "",
+      opts.needsAccountSetup ? "Sign in or create your artist account." : "",
       opts.needsProfilePhoto ? "Upload a profile photo." : "",
       opts.needsVideo ? "Add a video to your talent profile." : "",
     ].filter(Boolean);
@@ -229,14 +238,20 @@ export async function sendInviteEmail(opts: {
       ? `<div class="credentials-box">
           <p class="cred-label">What remains</p>
           <ul style="color:#ccc;line-height:1.8;margin:8px 0;padding-left:22px">${reminderTasks.map(task => `<li>${task}</li>`).join("")}</ul>
-          <p style="color:#888;font-size:12px;margin:10px 0 0">Reminders stop after you accept the invitation and add both a profile photo and a video.</p>
+          <p style="color:#888;font-size:12px;margin:10px 0 0">${opts.inviteToken
+            ? "Reminders stop after you accept the invitation and add both a profile photo and a video."
+            : "Reminders stop after you add both a profile photo and a video."}</p>
         </div>`
       : "";
     const renderedHeading = opts.isReminder
-      ? `Finish your ${escapeHtml(opts.competitionName || "The Quest")} invitation`
+      ? opts.inviteToken
+        ? `Finish your ${escapeHtml(opts.competitionName || "The Quest")} invitation`
+        : "Complete your artist profile"
       : applyPlaceholders(heading, vars);
     const renderedBody = opts.isReminder
-      ? "You still have an invitation to participate. Complete the remaining steps below to finish setting up your artist profile."
+      ? opts.inviteToken
+        ? "You still have an invitation to participate. Complete the remaining steps below to finish setting up your artist profile."
+        : "Your artist profile is missing information needed to participate. Complete the remaining steps below."
       : applyPlaceholders(body, vars);
 
     const html = wrapInTemplate(`
@@ -251,7 +266,7 @@ export async function sendInviteEmail(opts: {
         <a href="${actionUrl}" class="btn">${actionLabel}</a>
       </div>
       <p class="fallback-link">Or copy this link: <a href="${actionUrl}">${actionUrl}</a></p>
-      ${opts.isReminder ? `<p class="fallback-link">If you no longer wish to participate, reply to this email and ask your inviter to stop reminders.</p>` : ""}
+      ${opts.isReminder && opts.reminderStopUrl ? `<p class="fallback-link"><a href="${escapeHtml(opts.reminderStopUrl)}">Stop these reminders</a></p>` : ""}
     `);
 
     await transporter.sendMail({
@@ -259,7 +274,9 @@ export async function sendInviteEmail(opts: {
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: (opts.isReminder
-        ? `Reminder: finish your ${opts.competitionName || "The Quest"} invitation`
+        ? opts.inviteToken
+          ? `Reminder: finish your ${opts.competitionName || "The Quest"} invitation`
+          : "Reminder: complete your artist profile"
         : applyPlaceholders(subject, vars)).replace(/[\r\n]/g, "").replace(/<br\/>/g, ""),
       html,
     });
