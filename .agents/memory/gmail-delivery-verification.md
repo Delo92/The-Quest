@@ -7,7 +7,7 @@ The application's existing Gmail authorization supports SMTP and read-only IMAP,
 
 **Why:** Mail sending and IMAP authentication succeeded while the Gmail REST API was unavailable. Asking the owner to reconnect working credentials would not address the disabled API.
 
-**How to apply:** For authorized mailbox investigations, use IMAP over TLS with the existing OAuth authorization. Use `EXAMINE` and `BODY.PEEK` so messages remain unchanged. Check All Mail, Spam, and Trash; match delivery notices to the original subject/message and recipient rather than treating every historical bounce as part of the latest batch. Never print OAuth tokens, whole quoted account-access messages, or reset links.
+**How to apply:** For authorized mailbox investigations, use IMAP over TLS with the existing OAuth authorization. Use `EXAMINE` and `BODY.PEEK` so messages remain unchanged. Check All Mail, Spam, and Trash; match delivery notices to the original subject/message and recipient rather than treating every historical bounce as part of the latest batch. Never print OAuth tokens, whole quoted account-access messages, or reset links. A negative IMAP BODY search for the original Message-ID does not establish that no bounce exists: Gmail may not search attached original-message headers. Enumerate recent delivery notices and compare decoded attached headers, recipient, and timestamps before reporting no rejection.
 
 SMTP acceptance means the sending service accepted a message, not that the recipient's provider or inbox accepted it. Absence of a bounce does not establish inbox delivery. Apple's `554 5.7.1 [HM08]` is a local-policy rejection; it does not identify the precise filtering signal.
 
