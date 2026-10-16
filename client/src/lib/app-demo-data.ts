@@ -1,3 +1,5 @@
+import { buildDemoEarnings, demoArtistNonprofitDeclaration, demoHostNonprofitDeclaration } from "./app-demo-finances";
+
 const demoImages = {
   host: "",
   jordan: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/talent-images%2FCB%20Publishing%20-%20Music%20Quest%2FMost%20Hated%20Twinz%2F1778105736665-4itkhi.jpeg",
@@ -38,7 +40,7 @@ const demoTalentProfile = {
     facebook: "https://www.facebook.com/share/1bYTcgLDZw/",
   },
   payoutInfo: {},
-  nonprofitDeclaration: {},
+  nonprofitDeclaration: demoArtistNonprofitDeclaration,
 };
 
 const demoCompetition = {
@@ -213,10 +215,7 @@ const demoContestants = [
 
 const demoFinancialOverview = {
   earnings: {
-    grossCents: 124800,
-    nextPayoutCents: 28600,
-    pendingCents: 41200,
-    paidCents: 83600,
+    ...buildDemoEarnings(124000, 55800),
   },
   competitions: [
     {
@@ -241,7 +240,7 @@ const demoFinancialOverview = {
           name: "Most Hated Twinz",
           grossCents: 74400,
           earningsCents: 74400,
-          netCents: 59520,
+          netCents: 66960,
           voteCount: 1488,
           paidVoteCount: 1488,
           freeVoteCount: 0,
@@ -256,8 +255,10 @@ const demoFinancialOverview = {
     },
   ],
   pendingPayouts: [
-    { profileType: "host", netCents: 28600, status: "pending" },
-    { profileType: "contestant", netCents: 59520, status: "pending" },
+    { profileType: "host", netCents: 22320, status: "approved" },
+    { profileType: "host", netCents: 22320, status: "pending_approval" },
+    { profileType: "contestant", netCents: 33480, status: "approved" },
+    { profileType: "contestant", netCents: 33480, status: "pending_approval" },
   ],
   summary: {
     totalVoteCount: 2489,
@@ -270,28 +271,14 @@ const demoFinancialOverview = {
       profileId: 501,
       displayName: "Most Hated Twinz",
       profileType: "contestant",
-      grossCents: 74400,
-      nextPayoutCents: 59520,
-      pendingCents: 59520,
-      paidCents: 0,
-      nonprofitCents: 0,
-      charityPercentage: 10,
-      charityRateSource: "default",
-      estimatedNonprofitCents: 7440,
+      ...buildDemoEarnings(74400, 33480),
     },
     {
       userId: "demo-host-01",
       profileId: 9001,
       displayName: "Ouuuuwwwweeeej",
       profileType: "host",
-      grossCents: 49600,
-      nextPayoutCents: 28600,
-      pendingCents: 28600,
-      paidCents: 16040,
-      nonprofitCents: 0,
-      charityPercentage: 10,
-      charityRateSource: "default",
-      estimatedNonprofitCents: 4960,
+      ...buildDemoEarnings(49600, 22320),
     },
   ],
 };
@@ -480,7 +467,9 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/competitions") return demoCompetitions;
   if (path === "/api/categories") return demoCategories;
   if (path === "/api/livery") return [];
-  if (path === "/api/talent-profiles/me") return demoTalentProfile;
+  if (path === "/api/talent-profiles/me") return analyticsRole === "host"
+    ? { ...demoTalentProfile, id: 9001, userId: demoHost.userId, displayName: demoHost.displayName, nonprofitDeclaration: demoHostNonprofitDeclaration }
+    : demoTalentProfile;
   if (path === "/api/contestants/me") return demoContestEntries;
   if (path === "/api/host/competitions") return demoCompetitions;
   if (path === "/api/host/contestants") return demoContestants;

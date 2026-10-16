@@ -1301,7 +1301,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                 </div>
                 <p className="text-xs leading-relaxed text-white/45 sm:col-span-3">
                   {savedNonprofitName
-                    ? `Recipient: ${savedNonprofitName}. Estimates become recorded allocations when a payout is prepared.`
+                    ? `${demoMode ? "Sample recipient (demo only)" : "Recipient"}: ${savedNonprofitName}. Estimates become recorded allocations when a payout is prepared.`
                     : "No recipient selected. Choose your nonprofit in the declaration below; the 10% default is a rate, not a preselected organization."}
                 </p>
               </div>

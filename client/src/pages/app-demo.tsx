@@ -8,6 +8,7 @@ import CompetitionDetail from "./competition-detail";
 import { DemoAuthProvider } from "@/hooks/use-auth";
 import { getQueryFn } from "@/lib/queryClient";
 import { installDemoApiGuard } from "@/lib/app-demo-data";
+import { demoArtistNonprofitDeclaration } from "@/lib/app-demo-finances";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ExternalLink, Menu } from "lucide-react";
 
@@ -52,7 +53,7 @@ const artistProfile = {
   ],
   socialLinks: artistUser.socialLinks,
   payoutInfo: {},
-  nonprofitDeclaration: {},
+  nonprofitDeclaration: demoArtistNonprofitDeclaration,
 };
 
 const hostUser = {
