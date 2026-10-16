@@ -308,6 +308,8 @@ export interface FirestoreJoinSettings {
 }
 
 export interface FirestoreJoinSubmission {
+  accessEmailStatus?: "sent" | "failed";
+  accessEmailLastAttemptAt?: string;
   id: string;
   competitionId: number | null;
   fullName: string;
@@ -1327,6 +1329,12 @@ export const firestoreJoinSettings = {
 };
 
 export const firestoreJoinSubmissions = {
+  async recordAccessEmail(id: string, sent: boolean): Promise<void> {
+    await db().collection(COLLECTIONS.JOIN_SUBMISSIONS).doc(id).update({
+      accessEmailLastAttemptAt: new Date().toISOString(),
+      accessEmailStatus: sent ? "sent" : "failed",
+    });
+  },
   async create(data: Omit<FirestoreJoinSubmission, "id" | "createdAt" | "status">): Promise<FirestoreJoinSubmission> {
     const docRef = db().collection(COLLECTIONS.JOIN_SUBMISSIONS).doc();
     const submission: FirestoreJoinSubmission = {

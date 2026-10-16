@@ -1,5 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AdminDiagnostics from "@/components/admin-diagnostics";
+import NomineeAccessEmailActions from "@/components/nominee-access-email-actions";
+import AdminAccountAccess from "@/components/admin-account-access";
 import { slugify } from "@shared/slugify";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -96,6 +98,8 @@ interface JoinHostSettings {
 }
 
 interface JoinSubmission {
+  accessEmailStatus?: "sent" | "failed";
+  accessEmailLastAttemptAt?: string;
   id: string;
   competitionId: number | null;
   fullName: string;
@@ -524,6 +528,8 @@ function TalentDetailModal({ profileId, competitions }: { profileId: number; com
           </div>
         </div>
       </div>
+
+      <AdminAccountAccess key={profile.userId} uid={profile.userId} email={profile.email} name={profile.displayName} />
 
       <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="user-detail-level-mgmt">
         <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold mb-3">Change User Level</h3>
@@ -3872,6 +3878,9 @@ export default function AdminDashboard({ user }: { user: any }) {
 
               <div>
                 <h3 className="font-bold text-lg mb-3">Nomination Submissions ({joinSubmissions?.length || 0})</h3>
+                <div className="mb-4">
+                  <NomineeAccessEmailActions submissions={joinSubmissions || []} />
+                </div>
                 {joinSubmissions && joinSubmissions.length > 0 ? (
                   <div className="space-y-3">
                     {joinSubmissions.map((sub) => (
@@ -4056,6 +4065,9 @@ export default function AdminDashboard({ user }: { user: any }) {
 
                             {sub.type === "nomination" && (
                               <div className="rounded-md bg-white/[0.03] border border-white/5 p-4">
+                                <div className="mb-4">
+                                  <NomineeAccessEmailActions submissions={[sub]} single />
+                                </div>
                                 <p className="text-xs uppercase tracking-wider text-white/40 mb-3 font-semibold">Nomination Status</p>
                                 <div className="flex flex-wrap gap-2">
                                   {([

@@ -138,6 +138,9 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import { getTemporaryAccountPassword, nomineeAccountLevel } from "./account-email-access";
+import { sendAccountAccessEmail } from "./email";
+import { resetAdminAccount } from "./admin-account-reset";
 import QRCode from "qrcode";
 import { slugify, slugifyWithId, extractIdFromSlug } from "../shared/slugify";
 import type { CompetitionStage } from "../shared/schema";
@@ -3055,14 +3058,14 @@ export async function registerRoutes(
           to, inviterName: "The Quest Admin", role: "talent", siteUrl,
           nomineeName: "Sample Talent", nominatorName: "The Quest Admin",
           competitionName: "CB Publishing Music 2026",
-          defaultPassword: "CBP2026!", accountCreated: true,
+          defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
         });
 
         // 2. Nomination Congrats (to the nominee)
         results["2_nomination_congrats"] = await sendNominationCongrats({
           to, nomineeName: "Sample Talent", nominatorName: "Jordan Smith",
           competitionName: "CB Publishing Music 2026", siteUrl,
-          defaultPassword: "CBP2026!", accountCreated: true,
+          defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
         });
 
         // 3. Nomination Receipt (for the nominator)
@@ -3105,13 +3108,13 @@ export async function registerRoutes(
           to, inviterName: "The Quest Admin", role: "talent", siteUrl,
           nomineeName: "Sample Talent", nominatorName: "The Quest Admin",
           competitionName: "CB Publishing Music 2026",
-          defaultPassword: "CBP2026!", accountCreated: true,
+          defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
         });
       } else if (template === "nomination_congrats") {
         await sendNominationCongrats({
           to, nomineeName: "Sample Talent", nominatorName: "Jordan Smith",
           competitionName: "CB Publishing Music 2026", siteUrl,
-          defaultPassword: "CBP2026!", accountCreated: true,
+          defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
         });
       } else if (template === "nomination_receipt") {
         await sendNominationReceipt({
@@ -3787,26 +3790,20 @@ export async function registerRoutes(
   app.post("/api/admin/users/:uid/reset-password", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const { uid } = req.params;
-      const targetUser = await getFirestoreUser(uid);
-      if (!targetUser) return res.status(404).json({ message: "User not found" });
-
-      const resetPassword = "#1Quest";
-      await getFirebaseAuth().updateUser(uid, { password: resetPassword });
-      await getFirebaseAuth().revokeRefreshTokens(uid);
-      const resetAt = new Date().toISOString();
-      await updateFirestoreUser(uid, {
-        adminPasswordResetAt: resetAt,
-        adminPasswordResetBy: req.firebaseUser!.uid,
+      const result = await resetAdminAccount({
+        uid, adminUid: req.firebaseUser!.uid, sendEmail: req.body?.sendEmail === true,
+        siteUrl: process.env.SITE_URL || `${req.protocol}://${req.get("host")}`,
+      }, {
+        getUser: getFirestoreUser,
+        setPassword: (targetUid, password) => getFirebaseAuth().updateUser(targetUid, { password }),
+        revokeSessions: (targetUid) => getFirebaseAuth().revokeRefreshTokens(targetUid),
+        recordReset: updateFirestoreUser,
+        sendEmail: sendAccountAccessEmail,
       });
-
-      res.json({
-        email: targetUser.email || null,
-        temporaryPassword: resetPassword,
-        resetAt,
-      });
+      res.set("Cache-Control", "no-store").json(result);
     } catch (error: any) {
       console.error("Admin password reset error:", error);
-      res.status(500).json({ message: error.message || "Failed to reset password" });
+      res.status(error.status === 404 ? 404 : 500).json({ message: error.message || "Failed to reset password" });
     }
   });
 
@@ -3827,10 +3824,11 @@ export async function registerRoutes(
         && Date.parse(lastSignInAt) >= Date.parse(resetAt)
       );
 
-      res.json({
+      res.set("Cache-Control", "no-store").json({
         resetAt,
         lastSignInAt,
         signedInSinceReset,
+        lastResetTemporaryPassword: resetAt ? getTemporaryAccountPassword() : null,
       });
     } catch (error: any) {
       console.error("Admin access status error:", error);
@@ -3990,7 +3988,7 @@ export async function registerRoutes(
       const inviterName = senderUser?.displayName || req.firebaseUser!.email || "Someone";
       const roleName = targetLevel >= 4 ? "admin" : targetLevel >= 3 ? "host" : targetLevel >= 2 ? "talent" : "viewer";
 
-      const DEFAULT_PASSWORD = typeof password === "string" && password.length > 0 ? password : "CBP2026!";
+      const DEFAULT_PASSWORD = typeof password === "string" && password.length > 0 ? password : getTemporaryAccountPassword();
       const inviteeEmail = email.toLowerCase().trim();
       const inviteeName = name.trim();
       let accountCreated = false;
@@ -4073,8 +4071,9 @@ export async function registerRoutes(
         console.error("Auto-create invited user account error (non-fatal):", autoCreateErr.message);
       }
 
+      let emailSent = false;
       if (isEmailConfigured()) {
-        sendInviteEmail({
+        emailSent = await sendInviteEmail({
           to: inviteeEmail,
           inviterName,
           inviteToken: invitation.token,
@@ -4087,10 +4086,10 @@ export async function registerRoutes(
           competitionName: invitedCompetition?.title,
           invitationMessage: message || undefined,
           mediaUrl: mediaUrl || invitedCompetition?.coverImage || invitedCompetition?.coverVideo || undefined,
-        }).catch(err => console.error("Invite email send failed:", err));
+        });
       }
 
-      res.status(201).json(invitation);
+      res.status(201).json({ ...invitation, emailSent });
     } catch (error: any) {
       console.error("Create invitation error:", error);
       res.status(500).json({ message: "Failed to create invitation" });
@@ -5344,7 +5343,7 @@ export async function registerRoutes(
         amountPaid = promoQuote.finalAmountCents;
       }
 
-      const DEFAULT_PASSWORD = "CBP2026!";
+      const DEFAULT_PASSWORD = getTemporaryAccountPassword();
 
       let firebaseUid: string | null = null;
       let talentProfileId: number | null = null;
@@ -5414,6 +5413,18 @@ export async function registerRoutes(
             const comp = await storage.getCompetition(Number(competitionId));
             if (comp) competitionName = comp.title;
           }
+          const nomineeUser = await getFirestoreUser(firebaseUid);
+          const accountLevel = nomineeAccountLevel(nomineeUser?.level ?? existingUser?.customClaims?.level);
+          if (!nomineeUser) {
+            await createFirestoreUser({ uid: firebaseUid, email: nomineeEmail, displayName: nomineeName, level: accountLevel });
+            await setUserLevel(firebaseUid, accountLevel);
+          } else if (nomineeUser.level !== accountLevel) {
+            await setUserLevel(firebaseUid, accountLevel);
+            await updateFirestoreUser(firebaseUid, { level: accountLevel });
+          }
+          if (accountLevel === 2 && existingProfile.role === "viewer") {
+            await storage.updateTalentProfile(firebaseUid, { role: "talent" });
+          }
           const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get("host")}`;
           emailSent = await sendNominationCongrats({
             to: nomineeEmail,
@@ -5423,6 +5434,7 @@ export async function registerRoutes(
             siteUrl,
             ...(existingUser ? {} : { defaultPassword: DEFAULT_PASSWORD }),
             accountCreated: !existingUser,
+            accountLevel,
           });
         }
       } catch (autoCreateErr: any) {
@@ -5467,6 +5479,7 @@ export async function registerRoutes(
       });
 
       await firestoreJoinSubmissions.updateStatus(submission.id, "approved");
+      await firestoreJoinSubmissions.recordAccessEmail(submission.id, emailSent);
 
       // Send receipt to the nominator (non-blocking)
       if (isEmailConfigured() && normalizedNominatorEmail && firebaseUid && talentProfileId !== null && contestantId !== null && contestantIsActive) {
@@ -5587,6 +5600,84 @@ export async function registerRoutes(
       }
       if (error.status) return res.status(error.status).json({ message: error.message });
       res.status(500).json({ message: "Nomination failed. Please try again." });
+    }
+  });
+
+  app.post("/api/admin/join/submissions/:id/send-access-email", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const submission = await firestoreJoinSubmissions.get(req.params.id);
+      if (!submission || submission.type !== "nomination") {
+        return res.status(404).json({ message: "Nomination not found" });
+      }
+      if (submission.status === "rejected" || submission.nominationStatus === "not_interested") {
+        return res.status(409).json({ message: "This nomination is rejected or opted out of participation." });
+      }
+      if (!isEmailConfigured()) {
+        return res.status(503).json({ message: "Email delivery is not configured. No email was sent." });
+      }
+      if (submission.accessEmailLastAttemptAt
+        && Date.now() - Date.parse(submission.accessEmailLastAttemptAt) < 60_000) {
+        return res.status(429).json({ message: "Please wait one minute before sending another access email." });
+      }
+      const email = submission.email.trim().toLowerCase();
+      let account;
+      let temporaryPassword: string | undefined;
+      try {
+        account = await getFirebaseAuth().getUserByEmail(email);
+      } catch (error: any) {
+        if (error.code !== "auth/user-not-found") throw error;
+        temporaryPassword = getTemporaryAccountPassword();
+        try {
+          account = await createFirebaseUser(email, temporaryPassword, submission.fullName);
+          await setUserLevel(account.uid, 2);
+          await createFirestoreUser({ uid: account.uid, email, displayName: submission.fullName, level: 2 });
+        } catch (createError: any) {
+          if (createError.code !== "auth/email-already-exists") throw createError;
+          account = await getFirebaseAuth().getUserByEmail(email);
+          temporaryPassword = undefined;
+        }
+      }
+      if (account.disabled) return res.status(409).json({ message: "This account is disabled. Review it before sending access instructions." });
+      const nomineeUser = await getFirestoreUser(account.uid);
+      const accountLevel = nomineeAccountLevel(nomineeUser?.level ?? account.customClaims?.level);
+      if (!nomineeUser) {
+        await createFirestoreUser({ uid: account.uid, email, displayName: submission.fullName, level: accountLevel });
+        await setUserLevel(account.uid, accountLevel);
+      } else if (nomineeUser.level !== accountLevel) {
+        await setUserLevel(account.uid, accountLevel);
+        await updateFirestoreUser(account.uid, { level: accountLevel });
+      }
+      let profile = await storage.getTalentProfileByUserId(account.uid);
+      if (!profile) {
+        profile = await storage.createTalentProfile({
+          userId: account.uid, email, displayName: submission.fullName,
+          stageName: null, bio: submission.bio || null, category: submission.category || null,
+          location: null, imageUrls: submission.mediaUrls || [], videoUrls: [], socialLinks: null, role: "talent",
+        });
+      }
+      if (accountLevel === 2 && profile.role === "viewer") {
+        await storage.updateTalentProfile(account.uid, { role: "talent" });
+      }
+      const competition = submission.competitionId ? await storage.getCompetition(Number(submission.competitionId)) : null;
+      if (competition && !await storage.getContestant(competition.id, profile.id)) {
+        await storage.createContestant({
+          competitionId: competition.id, talentProfileId: profile.id,
+          applicationStatus: "approved", appliedAt: new Date().toISOString(),
+        });
+      }
+      const emailSent = await sendNominationCongrats({
+        to: email, nomineeName: submission.fullName,
+        competitionName: competition?.title || "The Quest",
+        siteUrl: process.env.SITE_URL || `${req.protocol}://${req.get("host")}`,
+        accountCreated: !!temporaryPassword, defaultPassword: temporaryPassword,
+        accountLevel,
+      });
+      await firestoreJoinSubmissions.recordAccessEmail(submission.id, emailSent);
+      if (!emailSent) return res.status(502).json({ message: "Email delivery failed. No password was changed for an existing account. Please retry or check email diagnostics." });
+      res.json({ emailSent: true, message: "Access email sent with login and password setup instructions." });
+    } catch (error) {
+      console.error("[NomineeAccessEmail] Failed:", error instanceof Error ? error.message : "Unknown error");
+      res.status(500).json({ message: "Could not send the nominee access email. Please check email diagnostics." });
     }
   });
 

@@ -23,6 +23,7 @@ interface Category {
 }
 
 interface Invitation {
+  emailSent?: boolean;
   id: string;
   token: string;
   invitedBy: string;
@@ -96,8 +97,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
     enabled: open,
   });
   const buildInviteLink = (token: string, level: number) => {
-    if (level >= 3) return `${window.location.origin}/thequest/host?invite=${token}`;
-    return `${window.location.origin}/thequest/login?invite=${token}`;
+    return `${window.location.origin}/thequest/login?invite=${encodeURIComponent(token)}&level=${level}`;
   };
 
   const inviteMutation = useMutation({
@@ -119,9 +119,9 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
       navigator.clipboard.writeText(link).then(() => {
         setCopiedToken(data.token);
         setTimeout(() => setCopiedToken(null), 3000);
-        toast({ title: "Invitation created & link copied!" });
+        toast({ title: data.emailSent === false ? "Invitation saved, but email failed" : "Invitation created & link copied!", description: data.emailSent === false ? "Check email diagnostics. The recipient has not received login instructions." : undefined, variant: data.emailSent === false ? "destructive" : "default" });
       }).catch(() => {
-        toast({ title: "Invitation created!", description: "Copy the link below to share it." });
+        toast({ title: data.emailSent === false ? "Invitation saved, but email failed" : "Invitation created!", description: data.emailSent === false ? "Check email diagnostics and resend access instructions." : "Copy the link below to share it.", variant: data.emailSent === false ? "destructive" : "default" });
       });
     },
     onError: (err: Error) => {
@@ -629,14 +629,14 @@ export function InviteHostDialog() {
     onSuccess: (data: Invitation) => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations/sent"] });
       setEmail(""); setName(""); setPhone(""); setSuggestedCategory(""); setSuggestedEventName(""); setCompetitionId(""); setMediaUrl(""); setMediaUploading(false); setPassword(""); setShowPassword(false); setMessage("");
-      const link = `${window.location.origin}/host?invite=${data.token}`;
+      const link = `${window.location.origin}/thequest/login?invite=${encodeURIComponent(data.token)}`;
       setNewInviteLink(link);
       navigator.clipboard.writeText(link).then(() => {
         setCopiedToken(data.token);
         setTimeout(() => setCopiedToken(null), 3000);
-        toast({ title: "Host invitation created & link copied!" });
+        toast({ title: data.emailSent === false ? "Host invitation saved, but email failed" : "Host invitation created & link copied!", description: data.emailSent === false ? "Check email diagnostics. The recipient has not received login instructions." : undefined, variant: data.emailSent === false ? "destructive" : "default" });
       }).catch(() => {
-        toast({ title: "Host invitation created!", description: "Copy the link below to share it." });
+        toast({ title: data.emailSent === false ? "Host invitation saved, but email failed" : "Host invitation created!", description: data.emailSent === false ? "Check email diagnostics before retrying." : "Copy the link below to share it.", variant: data.emailSent === false ? "destructive" : "default" });
       });
     },
     onError: (err: Error) => {
@@ -653,7 +653,7 @@ export function InviteHostDialog() {
   });
 
   const copyLink = (token: string) => {
-    const link = `${window.location.origin}/host?invite=${token}`;
+    const link = `${window.location.origin}/thequest/login?invite=${encodeURIComponent(token)}&level=3`;
     navigator.clipboard.writeText(link).then(() => {
       setCopiedToken(token);
       setTimeout(() => setCopiedToken(null), 3000);

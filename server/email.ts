@@ -1,6 +1,20 @@
 import nodemailer from "nodemailer";
 import { google } from "googleapis";
 import { firestoreLivery } from "./firestore-collections";
+import { getFirebaseAuth } from "./firebase-admin";
+import { buildAccountLoginUrl } from "../shared/account-login-links";
+import { renderAccountEmailAccess } from "./account-email-access";
+
+async function accountResetUrl(siteUrl: string, email: string, level: number, inviteToken?: string): Promise<string> {
+  const loginUrl = buildAccountLoginUrl(siteUrl, email, { level, inviteToken });
+  try {
+    return await getFirebaseAuth().generatePasswordResetLink(email, { url: loginUrl });
+  } catch {
+    // An authorized-domain or provider failure must not leave recipients without recovery.
+    console.warn("[Email] Direct password-reset link unavailable; using the prefilled reset form.");
+    return buildAccountLoginUrl(siteUrl, email, { level, inviteToken, reset: true });
+  }
+}
 
 const GMAIL_ADDRESS = "chronicstudios2021@gmail.com";
 const DISPLAY_NAME = "The Quest";
@@ -182,33 +196,31 @@ export async function sendInviteEmail(opts: {
 
     let actionUrl: string;
     let actionLabel: string;
+    const accountLevel = opts.role === "admin" ? 4 : opts.role === "host" ? 3 : opts.role === "viewer" ? 1 : 2;
+    const prefilledLoginUrl = buildAccountLoginUrl(opts.siteUrl, opts.to, { level: accountLevel, inviteToken: opts.inviteToken });
      if (opts.isReminder && opts.inviteToken && opts.needsLogin) {
-       actionUrl = `${opts.siteUrl}/thequest/login?invite=${opts.inviteToken}`;
+       actionUrl = prefilledLoginUrl;
        actionLabel = "Accept Invitation";
      } else if (opts.isReminder && !opts.inviteToken && opts.needsAccountSetup) {
-       actionUrl = `${opts.siteUrl}/thequest/login`;
+       actionUrl = prefilledLoginUrl;
        actionLabel = "Get Started";
      } else if (opts.isReminder) {
        actionUrl = `${opts.siteUrl}/thequest/dashboard`;
        actionLabel = "Finish Your Profile";
      } else if (opts.inviteToken) {
-       actionUrl = `${opts.siteUrl}/thequest/login?invite=${opts.inviteToken}`;
+       actionUrl = prefilledLoginUrl;
        actionLabel = "Log In to Continue";
     } else {
-      actionUrl = `${opts.siteUrl}/login`;
+      actionUrl = prefilledLoginUrl;
       actionLabel = "Get Started";
     }
 
-    let credentialBlock = "";
-    if (opts.accountCreated && opts.defaultPassword) {
-      credentialBlock = `
-        <div class="credentials-box">
-          <p class="cred-label">Your Login Credentials</p>
-          <p class="cred-row">Email: <span class="cred-value">${opts.to}</span></p>
-          <p class="cred-row">Temporary Password: <span class="cred-value">${opts.defaultPassword}</span></p>
-          <p style="color:#555; font-size:12px; margin: 10px 0 0;">Change your password after your first login.</p>
-        </div>`;
-    }
+    const credentialBlock = renderAccountEmailAccess({
+      email: opts.to,
+      accountCreated: opts.accountCreated,
+      temporaryPassword: opts.defaultPassword,
+      resetUrl: await accountResetUrl(opts.siteUrl, opts.to, accountLevel, opts.inviteToken),
+    });
 
     const invitationMessageBlock = !opts.isReminder && opts.invitationMessage
       ? `<div class="credentials-box"><p class="cred-label">A message from ${escapeHtml(opts.inviterName)}</p><p style="white-space:pre-line">${escapeHtml(opts.invitationMessage)}</p></div>`
@@ -267,9 +279,9 @@ export async function sendInviteEmail(opts: {
       ${opts.isReminder ? "" : mediaBlock}
       ${credentialBlock}
       <div class="btn-wrap">
-        <a href="${actionUrl}" class="btn">${actionLabel}</a>
+        <a href="${escapeHtml(actionUrl)}" class="btn">${actionLabel}</a>
       </div>
-      <p class="fallback-link">Or copy this link: <a href="${actionUrl}">${actionUrl}</a></p>
+      <p class="fallback-link">Or copy this link: <a href="${escapeHtml(actionUrl)}">${escapeHtml(actionUrl)}</a></p>
       ${opts.isReminder && opts.reminderStopUrl ? `<p class="fallback-link"><a href="${escapeHtml(opts.reminderStopUrl)}">Stop these reminders</a></p>` : ""}
     `);
 
@@ -308,10 +320,11 @@ export async function sendNominationCongrats(opts: {
   siteUrl: string;
   defaultPassword?: string;
   accountCreated?: boolean;
+  accountLevel?: number;
 }): Promise<boolean> {
   try {
     const transporter = await getTransporter();
-    const loginUrl = `${opts.siteUrl}/login`;
+    const loginUrl = buildAccountLoginUrl(opts.siteUrl, opts.to, { level: opts.accountLevel || 2 });
     const compUrl = `${opts.siteUrl}/thequest/competitions`;
     const escapedCharacters: Record<string, string> = {
       "&": "&amp;",
@@ -339,16 +352,12 @@ export async function sendNominationCongrats(opts: {
         <p style="font-size:13px;color:#bbb;">If you do not choose a rate, the 10% default applies. The Quest matches the same dollar amount to your selected nonprofit.</p>
       </div>`;
 
-    let credentialBlock = "";
-    if (opts.accountCreated && opts.defaultPassword) {
-      credentialBlock = `
-        <div class="credentials-box">
-          <p class="cred-label">Your Account Has Been Created</p>
-          <p class="cred-row">Email: <span class="cred-value">${opts.to}</span></p>
-          <p class="cred-row">Temporary Password: <span class="cred-value">${opts.defaultPassword}</span></p>
-          <p style="color:#555; font-size:12px; margin: 10px 0 0;">Log in and update your profile to build your fan base!</p>
-        </div>`;
-    }
+    const credentialBlock = renderAccountEmailAccess({
+      email: opts.to,
+      accountCreated: opts.accountCreated,
+      temporaryPassword: opts.defaultPassword,
+      resetUrl: await accountResetUrl(opts.siteUrl, opts.to, opts.accountLevel || 2),
+    });
 
     const html = wrapInTemplate(`
       <div style="text-align:center; margin-bottom: 28px;">
@@ -367,7 +376,7 @@ export async function sendNominationCongrats(opts: {
       ${nonprofitDisclosure}
       ${credentialBlock}
       <div class="btn-wrap">
-        <a href="${loginUrl}" class="btn">Log In &amp; Update Your Profile</a>
+        <a href="${escapeHtml(loginUrl)}" class="btn">Log In &amp; Update Your Profile</a>
       </div>
       <p class="fallback-link">View all competitions: <a href="${compUrl}">${compUrl}</a></p>
       <hr class="divider" />
@@ -386,6 +395,41 @@ export async function sendNominationCongrats(opts: {
   } catch (err: any) {
     console.error("Failed to send nomination congrats email:", err.message);
     resetTransporter();
+    return false;
+  }
+}
+
+export async function sendAccountAccessEmail(opts: {
+  to: string;
+  name: string;
+  level: number;
+  siteUrl: string;
+  temporaryPassword?: string;
+}): Promise<boolean> {
+  try {
+    const transporter = await getTransporter();
+    const loginUrl = buildAccountLoginUrl(opts.siteUrl, opts.to, { level: opts.level });
+    const credentials = renderAccountEmailAccess({
+      email: opts.to,
+      accountCreated: !!opts.temporaryPassword,
+      temporaryPassword: opts.temporaryPassword,
+      resetUrl: await accountResetUrl(opts.siteUrl, opts.to, opts.level),
+    });
+    await transporter.sendMail({
+      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      to: opts.to,
+      subject: "Your Quest account access instructions",
+      html: wrapInTemplate(`
+        <h2>Your Quest Account Access</h2>
+        <p>Hi ${escapeHtml(opts.name || "there")}, here are your sign-in instructions for The Quest.</p>
+        ${credentials}
+        <div class="btn-wrap"><a href="${escapeHtml(loginUrl)}" class="btn">Log In to Your Account</a></div>
+        <p>After signing in, open your dashboard to add profile photos and videos. Change your temporary password after login.</p>
+        <p class="fallback-link">Or copy this link: <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a></p>`),
+    });
+    return true;
+  } catch {
+    console.error("[AccountAccessEmail] Email delivery failed.");
     return false;
   }
 }

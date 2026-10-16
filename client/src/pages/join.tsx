@@ -317,7 +317,7 @@ export default function JoinPage() {
 
     const submitData = async (dataDescriptor?: string, dataValue?: string, stripePaymentIntentId?: string, paypalOrderId?: string, ocPaymentId?: string) => {
       try {
-        await apiRequest("POST", "/api/join/nominate", {
+        const nominationResponse = await apiRequest("POST", "/api/join/nominate", {
           idempotencyKey: paymentIdempotencyKey.current,
           fullName: form.fullName,
           email: form.email,
@@ -342,7 +342,12 @@ export default function JoinPage() {
           nonprofitProceedsAcknowledged,
         });
         setSuccess(true);
-        toast({ title: "Nomination submitted!", description: "Thank you for your nomination!" });
+        const nominationResult = await nominationResponse.json();
+        toast({
+          title: nominationResult.emailSent === false ? "Nomination saved; email needs attention" : "Nomination submitted!",
+          description: nominationResult.emailSent === false ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions." : "The nominee was emailed login and account access instructions.",
+          variant: nominationResult.emailSent === false ? "destructive" : "default",
+        });
       } catch (error: any) {
         toast({ title: "Submission Failed", description: error.message?.replace(/^\d+:\s*/, "") || "Something went wrong", variant: "destructive" });
       } finally {
@@ -446,7 +451,11 @@ export default function JoinPage() {
         if (!response.ok) throw new Error(data.message || "PayPal payment could not be completed.");
         sessionStorage.removeItem("quest_paypal_nomination");
         setSuccess(true);
-        toast({ title: "Nomination submitted!", description: "Thank you for your nomination!" });
+        toast({
+          title: data.emailSent === false ? "Nomination saved; email needs attention" : "Nomination submitted!",
+          description: data.emailSent === false ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions." : "The nominee was emailed login and account access instructions.",
+          variant: data.emailSent === false ? "destructive" : "default",
+        });
       })
       .catch((error: any) => toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" }))
       .finally(() => setProcessing(false));
