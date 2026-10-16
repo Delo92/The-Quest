@@ -29,7 +29,11 @@ import ContestantTaxSettings from "@/components/contestant-tax-settings";
 import type { CompetitionStage } from "@shared/schema";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "@shared/public-links";
-import { hasPrizeReadyNonprofitDeclaration } from "@shared/nonprofit-policy";
+import {
+  DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT,
+  hasPrizeReadyNonprofitDeclaration,
+  nonprofitAllocationCents,
+} from "@shared/nonprofit-policy";
 
 interface HostStats {
   totalCompetitions: number;
@@ -513,6 +517,17 @@ export default function HostDashboard({ user }: { user: any }) {
     { name: "Pro", price: 149, maxEvents: 5, description: "For experienced hosts running multiple events" },
     { name: "Enterprise", price: 399, maxEvents: 0, description: "Unlimited events with premium support" },
   ];
+  const hostRate = Number(financialOverview?.earnings?.charityPercentage
+    ?? DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT);
+  const hostEarningsCents = Number(financialOverview?.earnings?.grossCents
+    ?? financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.hostShareCents || 0), 0)
+    ?? 0);
+  const hostRecordedNonprofitCents = Number(financialOverview?.earnings?.nonprofitCents
+    ?? financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.hostNonprofitCents || 0), 0)
+    ?? 0);
+  const hostEstimatedNonprofitCents = Number(financialOverview?.earnings?.estimatedNonprofitCents
+    ?? nonprofitAllocationCents(hostEarningsCents, hostRate));
+  const hostRateSource = financialOverview?.earnings?.charityRateSource === "selected" ? "your selected rate" : "10% default rate";
 
   return (
     <div className="quest-dashboard min-h-screen bg-[#090909] text-white" data-testid="host-dashboard">
@@ -1502,10 +1517,22 @@ export default function HostDashboard({ user }: { user: any }) {
                   ["Contestant share", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.contestantShareCents || 0), 0)],
                 ].map(([label, cents]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.04] p-4"><p className="text-xl font-semibold tabular-nums text-white">${((Number(cents || 0) / 100)).toFixed(2)}</p><p className="mt-1 text-xs text-white/40">{label}</p></div>)}
               </div>
+              <div className="rounded-xl border border-orange-400/20 bg-orange-400/[0.04] p-4 sm:flex sm:items-center sm:justify-between sm:gap-5" data-testid="host-nonprofit-summary">
+                <div>
+                  <p className="text-sm font-semibold text-white">Your nonprofit contribution</p>
+                  <p className="mt-1 text-xs leading-relaxed text-white/50">
+                    {hostRate}% · {hostRateSource}. The rate defaults to 10%; you choose the nonprofit in your host account.
+                  </p>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs sm:mt-0 sm:text-right">
+                  <span className="text-white/45">Estimated from your share<b className="mt-1 block text-sm tabular-nums text-orange-200">${(hostEstimatedNonprofitCents / 100).toFixed(2)}</b></span>
+                  <span className="text-white/45">Recorded allocation<b className="mt-1 block text-sm tabular-nums text-white">${(hostRecordedNonprofitCents / 100).toFixed(2)}</b></span>
+                </div>
+              </div>
               <div className="space-y-2">
                 {(financialOverview?.competitions || []).map((competition: any) => (
                   <div key={competition.competitionId} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} purchases · {competition.paidVoting.purchasedVoteCount} paid votes</p></div><div className="grid grid-cols-3 gap-3 text-left sm:text-right"><span className="text-xs text-white/40">Voting<b className="mt-1 block text-sm text-white">${((Number(competition.paidVoting.revenueCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Host<b className="mt-1 block text-sm text-orange-200">${((Number(competition.hostShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Charity<b className="mt-1 block text-sm text-white">${((Number(competition.charityShareCents || 0) / 100)).toFixed(2)}</b></span></div></div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} purchases · {competition.paidVoting.purchasedVoteCount} paid votes</p></div><div className="grid grid-cols-2 gap-3 text-left sm:grid-cols-4 sm:text-right"><span className="text-xs text-white/40">Voting<b className="mt-1 block text-sm text-white">${((Number(competition.paidVoting.revenueCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Host<b className="mt-1 block text-sm text-orange-200">${((Number(competition.hostShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Recorded charity<b className="mt-1 block text-sm text-white">${((Number(competition.charityShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Est. at current rates<b className="mt-1 block text-sm text-orange-200">{competition.estimatedCharityShareCents == null ? "—" : `$${(Number(competition.estimatedCharityShareCents) / 100).toFixed(2)}`}</b></span></div></div>
                     {competition.contestants?.length > 0 && <div className="mt-4 space-y-2 border-t border-white/10 pt-3">{competition.contestants.map((contestant: any) => <div key={contestant.contestantId} className="flex items-center justify-between gap-3 text-xs"><span className="text-white/65">{contestant.name}<span className="ml-2 text-white/35">{contestant.voteSharePercentage}% paid-vote share</span></span><span className="tabular-nums text-white">${((Number(contestant.earningsCents || 0) / 100)).toFixed(2)}</span></div>)}</div>}
                   </div>
                 ))}

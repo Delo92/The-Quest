@@ -400,7 +400,6 @@ async function buildFinancialOverview() {
         ? "invalid"
         : hostProfile?.nonprofitDeclaration?.contributionRate === null
           || hostProfile?.nonprofitDeclaration?.contributionRate === undefined
-          || hostProfile?.nonprofitDeclaration?.contributionRate === ""
           ? "default"
           : "selected",
       hostNonprofitCents,
@@ -490,7 +489,6 @@ async function buildFinancialOverview() {
           ? "invalid"
           : declaration?.contributionRate === null
             || declaration?.contributionRate === undefined
-            || declaration?.contributionRate === ""
             ? "default"
             : "selected",
         grossCents: gross,

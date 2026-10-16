@@ -8,6 +8,8 @@ import CompetitionDetail from "./competition-detail";
 import { DemoAuthProvider } from "@/hooks/use-auth";
 import { getQueryFn } from "@/lib/queryClient";
 import { installDemoApiGuard } from "@/lib/app-demo-data";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ExternalLink, Menu } from "lucide-react";
 
 type DemoRole = "artist" | "host-admin" | "voter";
 type HostAdminPanel = "host" | "admin";
@@ -160,32 +162,67 @@ export default function AppDemoPage() {
       <DemoAuthProvider>
         <div className="min-h-screen bg-[#080808] text-white">
           <header className="sticky top-0 z-[70] border-b border-white/10 bg-[#101010]/95 backdrop-blur">
-            <nav
-              aria-label="The Quest website"
-              className="mx-auto grid max-w-[1600px] grid-cols-2 gap-2 px-3 py-2 sm:grid-cols-5 sm:px-6 lg:px-8"
-            >
-              <a href="/thequest" className="inline-flex min-h-11 items-center justify-center rounded-md bg-orange-500 px-3 text-center text-sm font-semibold text-white transition-colors hover:bg-orange-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
-                Visit The Quest
-              </a>
-              <a href="/thequest/competitions" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
-                Competitions
-              </a>
-              <a href="/thequest/nominate" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
-                Nominate
-              </a>
-              <a href="/thequest/host" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
-                Host an event
-              </a>
-              <a href="/thequest/login" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
-                Log in
-              </a>
-            </nav>
+            <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-300">App demo preview</p>
+                <p className="mt-0.5 text-[11px] text-white/45">Real contestant media · fictional demo metrics</p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md border border-white/20 bg-white/[0.04] px-3 text-sm font-medium text-white/85 transition-colors hover:border-orange-400/60 hover:bg-orange-400/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                    aria-label="Open menu for the full Quest site"
+                  >
+                    <Menu className="h-4 w-4" />
+                    <span>Full Quest site</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))] border-white/15 bg-[#171717] text-white">
+                  <DropdownMenuLabel className="text-white">Leave the app demo</DropdownMenuLabel>
+                  <p className="px-2 pb-2 text-xs leading-relaxed text-white/55">
+                    These links take you to the full Quest site, outside this preview.
+                  </p>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
+                    <a href="/thequest" className="flex cursor-pointer items-center justify-between">
+                      The Quest home <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
+                    <a href="/thequest/competitions" className="flex cursor-pointer items-center justify-between">
+                      Competitions <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
+                    <a href="/thequest/nominate" className="flex cursor-pointer items-center justify-between">
+                      Nominate <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
+                    <a href="/thequest/host" className="flex cursor-pointer items-center justify-between">
+                      Host an event <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-white">
+                    <a href="/thequest/login" className="flex cursor-pointer items-center justify-between">
+                      Log in <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </header>
 
-          <section className="border-b border-white/10 bg-[#0d0d0d]" aria-label="Demo view controls">
-            <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 px-3 py-2.5 sm:px-6 lg:px-8">
-              <span className="mr-1 text-xs font-medium uppercase tracking-wider text-white/50">Preview</span>
-              <nav aria-label="Choose a demo role" className="grid flex-1 grid-cols-3 gap-1.5 sm:flex sm:flex-none">
+          <section className="border-b border-orange-400/20 bg-[#0d0d0d]" aria-label="Demo preview controls">
+            <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h1 className="text-base font-semibold text-white sm:text-lg">Choose a demo experience</h1>
+                  <p className="mt-1 text-xs text-white/45">Switch between sample artist, host, and voter screens.</p>
+                </div>
+              </div>
+              <nav aria-label="Choose a demo role" className="grid grid-cols-3 gap-2 sm:gap-3">
                 {roles.map((item) => {
                   const selected = role === item.id;
                   return (
@@ -196,23 +233,22 @@ export default function AppDemoPage() {
                       aria-pressed={selected}
                       aria-label={`${item.label}. ${item.description}`}
                       onClick={() => setRole(item.id)}
-                      className={`min-h-10 rounded-md border px-2 text-xs font-semibold tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 sm:px-3 sm:text-sm ${
+                      className={`flex min-h-[60px] flex-col items-center justify-center rounded-lg border px-2 text-center font-sans tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 sm:min-h-[76px] sm:items-start sm:px-4 sm:text-left ${
                         selected
-                          ? "border-orange-400/70 bg-orange-400/10 text-orange-100"
-                          : "border-white/10 text-white/60 hover:border-white/25 hover:text-white/90"
+                          ? "border-orange-400/80 bg-orange-400/15 text-orange-100 shadow-[inset_0_0_0_1px_rgba(251,146,60,0.16)]"
+                          : "border-white/15 bg-white/[0.025] text-white/70 hover:border-white/30 hover:bg-white/[0.05] hover:text-white"
                       }`}
                     >
-                      {item.mobileLabel}
+                      <span className="text-sm font-semibold sm:hidden">{item.mobileLabel}</span>
+                      <span className="hidden text-sm font-semibold sm:block">{item.label}</span>
+                      <span className="mt-1 hidden text-xs font-normal text-white/45 sm:block">{item.description}</span>
                     </button>
                   );
                 })}
               </nav>
-              <p className="w-full text-[11px] text-white/40 sm:ml-auto sm:w-auto">
-                Real media · fictional demo metrics
-              </p>
 
               {role === "host-admin" && (
-                <div className="flex w-full flex-wrap items-center gap-2 pt-1 sm:w-auto sm:pt-0" aria-label="Host or administrator preview">
+                <div className="flex w-full flex-wrap items-center gap-2 pt-3" aria-label="Host or administrator preview">
                   <span className="text-xs text-white/45">View</span>
                   {(["host", "admin"] as const).map((panel) => (
                     <button
@@ -234,7 +270,7 @@ export default function AppDemoPage() {
               )}
 
               {role === "voter" && (
-                <div className="flex w-full flex-wrap items-center gap-2 pt-1 sm:w-auto sm:pt-0" aria-label="Voter preview">
+                <div className="flex w-full flex-wrap items-center gap-2 pt-3" aria-label="Voter preview">
                   <span className="text-xs text-white/45">View</span>
                   {(["competition", "dashboard"] as const).map((panel) => (
                     <button

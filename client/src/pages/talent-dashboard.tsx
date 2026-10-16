@@ -29,7 +29,13 @@ import { useAuth } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 import ContestantTaxSettings from "@/components/contestant-tax-settings";
-import { hasPrizeReadyNonprofitDeclaration } from "@shared/nonprofit-policy";
+import {
+  DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT,
+  declaredNonprofitName,
+  effectiveNonprofitContributionRate,
+  hasPrizeReadyNonprofitDeclaration,
+  nonprofitAllocationCents,
+} from "@shared/nonprofit-policy";
 import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 
@@ -83,6 +89,8 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
   }, [profile?.id, (profile as any)?.nonprofitDeclaration]);
   const savedNonprofitDeclaration = (profile as any)?.nonprofitDeclaration || {};
   const hasSavedNonprofitDeclaration = hasPrizeReadyNonprofitDeclaration(savedNonprofitDeclaration);
+  const savedNonprofitName = declaredNonprofitName(savedNonprofitDeclaration);
+  const savedNonprofitRate = effectiveNonprofitContributionRate(savedNonprofitDeclaration.contributionRate);
 
   const savedPayoutInfo = (profile as any)?.payoutInfo || {};
   const hasSavedPayout = !!savedPayoutInfo.routingNumber;
@@ -177,6 +185,18 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
     queryKey: ["/api/payroll/my-overview"],
     enabled: !!profile,
   });
+  const eligibleEarningsCents = Number(financialOverview?.earnings?.grossCents || 0);
+  const recordedNonprofitCents = Number(financialOverview?.earnings?.nonprofitCents
+    ?? financialOverview?.competitions?.reduce((sum: number, competition: any) =>
+      sum + Number(competition.contestants?.[0]?.nonprofitCents || 0), 0)
+    ?? 0);
+  const currentNonprofitRate = financialOverview?.earnings?.charityPercentage
+    ?? savedNonprofitRate
+    ?? DEFAULT_NONPROFIT_CONTRIBUTION_PERCENT;
+  const estimatedNonprofitCents = Number(financialOverview?.earnings?.estimatedNonprofitCents
+    ?? (eligibleEarningsCents > 0
+      ? nonprofitAllocationCents(eligibleEarningsCents, currentNonprofitRate)
+      : 0));
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({
     queryKey: ["/api/referral/my-code"],
@@ -1264,6 +1284,28 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                 ))}
               </div>
 
+              <div className="grid gap-3 rounded-xl border border-orange-400/20 bg-orange-400/[0.04] p-4 sm:grid-cols-3" data-testid="earnings-nonprofit-summary">
+                <div>
+                  <p className="text-xs text-white/45">Your nonprofit rate</p>
+                  <p className="mt-1 text-lg font-semibold text-orange-200">
+                    {currentNonprofitRate}%{financialOverview?.earnings?.charityRateSource === "default" || !savedNonprofitDeclaration.contributionRate ? " · default" : ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/45">Recorded nonprofit allocation</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-white">${(recordedNonprofitCents / 100).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/45">Estimated at your current rate</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-white">${(estimatedNonprofitCents / 100).toFixed(2)}</p>
+                </div>
+                <p className="text-xs leading-relaxed text-white/45 sm:col-span-3">
+                  {savedNonprofitName
+                    ? `Recipient: ${savedNonprofitName}. Estimates become recorded allocations when a payout is prepared.`
+                    : "No recipient selected. Choose your nonprofit in the declaration below; the 10% default is a rate, not a preselected organization."}
+                </p>
+              </div>
+
               {/* Zero-state — no earnings yet */}
               {(!financialOverview?.competitions || financialOverview.competitions.length === 0 || financialOverview.competitions.every((c: any) => !c.contestants?.length)) && (
                 <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
@@ -1288,8 +1330,15 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                     {financialOverview.competitions.map((competition: any) => {
                       const contestant = competition.contestants?.[0];
                       if (!contestant) return null;
+                      const earningsCents = Number(contestant.earningsCents ?? contestant.grossCents ?? 0);
+                      const contestantRate = effectiveNonprofitContributionRate(
+                        contestant.nonprofitPercentage ?? savedNonprofitDeclaration.contributionRate,
+                      ) ?? currentNonprofitRate;
+                      const recordedCents = Number(contestant.nonprofitCents || 0);
+                      const estimatedCents = Number(contestant.estimatedNonprofitCents
+                        ?? nonprofitAllocationCents(earningsCents, contestantRate));
                       const totalVotes = (contestant.freeVoteCount ?? 0) + (contestant.paidVoteCount ?? 0);
-                      const hasEarnings = Number(contestant.earningsCents || 0) > 0;
+                      const hasEarnings = earningsCents > 0;
                       return (
                         <div key={competition.competitionId} className={`rounded-xl border p-4 ${hasEarnings ? "border-orange-500/25 bg-orange-500/[0.04]" : "border-white/10 bg-black/20"}`}>
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1307,7 +1356,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                             </div>
                             <div className="text-left sm:text-right flex-shrink-0">
                               <p className={`text-lg font-bold tabular-nums ${hasEarnings ? "text-orange-300" : "text-white/40"}`}>
-                                ${((Number(contestant.earningsCents || 0)) / 100).toFixed(2)}
+                                ${(earningsCents / 100).toFixed(2)}
                               </p>
                               <p className="text-[11px] text-white/35 mt-0.5">
                                 {hasEarnings ? "your prize share" : "no prize recorded yet"}
@@ -1342,12 +1391,15 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                           {(!contestant.payoutEntries || contestant.payoutEntries.length === 0) && hasEarnings && (
                             <p className="mt-2 text-[11px] text-white/35">Payout details will appear here once this competition closes and results are finalized.</p>
                           )}
-                          {/* Charity row */}
-                          {Number(contestant.nonprofitCents || 0) > 0 && (
-                            <div className="mt-2 rounded-md bg-white/[0.03] border border-white/[0.07] px-3 py-2 text-xs text-white/45">
-                              💚 <b className="text-white/60">${((Number(contestant.nonprofitCents)) / 100).toFixed(2)}</b> from your share goes to charity
-                            </div>
-                          )}
+                          <div className="mt-3 flex flex-col gap-1 rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+                            <span className="text-white/55">
+                              {recordedCents > 0 ? "Recorded nonprofit allocation" : "Estimated nonprofit contribution"}
+                              {" · "}{contestantRate}%{contestant.nonprofitRateSource === "default" || (!savedNonprofitDeclaration.contributionRate && contestant.nonprofitPercentage == null) ? " default" : ""}
+                            </span>
+                            <b className="tabular-nums text-white">
+                              ${((recordedCents > 0 ? recordedCents : estimatedCents) / 100).toFixed(2)}
+                            </b>
+                          </div>
                         </div>
                       );
                     })}

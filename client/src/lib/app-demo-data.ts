@@ -222,23 +222,77 @@ const demoFinancialOverview = {
     {
       competitionId: 8101,
       competitionTitle: demoCompetition.title,
+      title: demoCompetition.title,
       competitionCategory: demoCompetition.category,
       hostShareCents: 49600,
+      hostNonprofitCents: 0,
+      estimatedHostNonprofitCents: 4960,
       contestantShareCents: 74400,
-      paidVoting: { revenueCents: 124800, voteCount: 2496 },
+      charityShareCents: 0,
+      estimatedContestantNonprofitCents: 7440,
+      estimatedCharityShareCents: 12400,
+      status: "completed",
+      paidVoting: { revenueCents: 124800, voteCount: 2496, purchasedVoteCount: 2496, purchaseCount: 46 },
       contestants: [
-        { contestantId: 501, displayName: "Most Hated Twinz", grossCents: 74400, netCents: 59520, voteCount: 1488 },
+        {
+          contestantId: 501,
+          talentProfileId: 501,
+          displayName: "Most Hated Twinz",
+          name: "Most Hated Twinz",
+          grossCents: 74400,
+          earningsCents: 74400,
+          netCents: 59520,
+          voteCount: 1488,
+          paidVoteCount: 1488,
+          freeVoteCount: 0,
+          status: "completed",
+          voteSharePercentage: 100,
+          nonprofitCents: 0,
+          nonprofitPercentage: 10,
+          nonprofitRateSource: "default",
+          estimatedNonprofitCents: 7440,
+        },
       ],
     },
   ],
-  pendingPayouts: [{ netCents: 28600, status: "pending" }],
+  pendingPayouts: [
+    { profileType: "host", netCents: 28600, status: "pending" },
+    { profileType: "contestant", netCents: 59520, status: "pending" },
+  ],
   summary: {
     totalVoteCount: 2489,
     paidVotingVoteCount: 2496,
     paidVotingRevenueCents: 124800,
   },
   profileEarnings: [
-    { profileId: 501, displayName: "Most Hated Twinz", profileType: "contestant", grossCents: 74400 },
+    {
+      userId: "demo-artist-01",
+      profileId: 501,
+      displayName: "Most Hated Twinz",
+      profileType: "contestant",
+      grossCents: 74400,
+      nextPayoutCents: 59520,
+      pendingCents: 59520,
+      paidCents: 0,
+      nonprofitCents: 0,
+      charityPercentage: 10,
+      charityRateSource: "default",
+      estimatedNonprofitCents: 7440,
+    },
+    {
+      userId: "demo-host-01",
+      profileId: 9001,
+      displayName: "Ouuuuwwwweeeej",
+      profileType: "host",
+      grossCents: 49600,
+      nextPayoutCents: 28600,
+      pendingCents: 28600,
+      paidCents: 16040,
+      nonprofitCents: 0,
+      charityPercentage: 10,
+      charityRateSource: "default",
+      estimatedNonprofitCents: 4960,
+    },
   ],
 };
 
@@ -439,7 +493,29 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
       { id: "demo-photo-02", name: "Most Hated Twinz — profile photo", imageUrl: demoImages.galleryPortrait, fallbackUrl: demoImages.jordan, mimeType: "image/jpeg" },
     ];
   }
-  if (path === "/api/payroll/my-overview" || path === "/api/admin/financial-overview") return demoFinancialOverview;
+  if (path === "/api/payroll/my-overview") {
+    if (analyticsRole === "host") {
+      return {
+        role: "host",
+        competitions: demoFinancialOverview.competitions,
+        earnings: demoFinancialOverview.profileEarnings.find((earning) => earning.profileType === "host") || null,
+        pendingPayouts: demoFinancialOverview.pendingPayouts.filter((payout) => payout.profileType === "host"),
+      };
+    }
+    const competitions = demoFinancialOverview.competitions
+      .map((competition) => ({
+        ...competition,
+        contestants: competition.contestants.filter((contestant) => contestant.talentProfileId === 501),
+      }))
+      .filter((competition) => competition.contestants.length > 0);
+    return {
+      role: "contestant",
+      competitions,
+      earnings: demoFinancialOverview.profileEarnings.find((earning) => earning.profileType === "contestant") || null,
+      pendingPayouts: demoFinancialOverview.pendingPayouts.filter((payout) => payout.profileType === "contestant"),
+    };
+  }
+  if (path === "/api/admin/financial-overview") return demoFinancialOverview;
   if (path === "/api/host/stats") return { ...demoHostStats, totalTalentProfiles: 24 };
   if (path === "/api/admin/stats") {
     return {
