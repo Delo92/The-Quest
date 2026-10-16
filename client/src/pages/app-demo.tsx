@@ -16,12 +16,17 @@ type VoterPanel = "competition" | "dashboard";
 
 const artistUser = {
   uid: "demo-artist-01",
-  email: "jordan.vale@example.com",
-  displayName: "Jordan Vale",
-  stageName: "Jordan Vale",
+  email: "",
+  displayName: "Most Hated Twinz",
+  stageName: null,
   level: 2,
-  profileImageUrl: "/images/template/a2.jpg",
-  socialLinks: {},
+  profileImageUrl: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/talent-images%2FCB%20Publishing%20-%20Music%20Quest%2FMost%20Hated%20Twinz%2F1778105736665-4itkhi.jpeg",
+  socialLinks: {
+    instagram: "https://www.instagram.com/most_hatedtwinz",
+    youtube: "https://youtube.com/@mosthatedtwinz",
+    tiktok: "https://www.tiktok.com/@mosthatedtwinz",
+    facebook: "https://www.facebook.com/share/1bYTcgLDZw/",
+  },
   billingAddress: null,
   hasProfile: true,
   profileRole: "talent",
@@ -30,28 +35,32 @@ const artistUser = {
 const artistProfile = {
   id: 501,
   userId: artistUser.uid,
-  displayName: "Jordan Vale",
-  stageName: "Jordan Vale",
+  displayName: "Most Hated Twinz",
+  stageName: null,
   email: artistUser.email,
   showEmail: false,
-  bio: "Indie soul vocalist blending warm acoustic arrangements with modern R&B. Based in Austin, Texas.",
+  bio: "We are Most Hated Twinz — twin artists, creators, entrepreneurs, and visionaries focused on turning pain, hustle, and creativity into a movement. From music and content creation to custom jewelry and branding, we bring raw talent and real energy into everything we touch. Inspired by the grind and built from experience, our sound blends storytelling, emotion, aggression, and authenticity while creating a lane that stands out from the crowd.\n\nBut we’re bigger than just music. Our mission is to bring artists, creators, vendors, and entrepreneurs together to build a stronger network and open more opportunities for independent talent. Through events, collaborations, performances, and creative platforms, we’re creating spaces where people can connect, grow their fanbase, sharpen their craft, and support each other’s success.\n\nWe believe talent deserves exposure, hard work deserves recognition, and the next generation of creators deserves a platform. Whether it’s through music, live events, content, or business ventures, Most Hated Twinz is about building a community where creativity, ambition, and loyalty come first.",
   category: "Music",
-  location: "Austin, TX",
+  location: "Oklahoma City",
   profileColor: "#FF5A09",
   profileBgImage: null,
-  imageUrls: [artistUser.profileImageUrl],
-  socialLinks: { instagram: "https://instagram.com/", youtube: "https://youtube.com/" },
-  payoutInfo: { method: "ach", accountType: "checking", legalName: "Jordan Vale" },
+  imageUrls: [
+    artistUser.profileImageUrl,
+    "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/talent-images%2FCB%20Publishing%20-%20Music%20Quest%2FMost%20Hated%20Twinz%2F1778105776119-9na6f6.jpeg",
+    "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/talent-images%2FCB%20Publishing%20-%20Music%20Quest%2FMost%20Hated%20Twinz%2F1778105869259-0hnuzp.jpeg",
+  ],
+  socialLinks: artistUser.socialLinks,
+  payoutInfo: {},
   nonprofitDeclaration: {},
 };
 
 const hostUser = {
   uid: "demo-host-01",
-  email: "morgan.ellis@example.com",
-  displayName: "Morgan Ellis",
-  stageName: "Morgan Ellis",
+  email: "",
+  displayName: "Ouuuuwwwweeeej",
+  stageName: null,
   level: 3,
-  profileImageUrl: "/images/template/a7.jpg",
+  profileImageUrl: "",
   socialLinks: {},
   billingAddress: null,
   hasProfile: true,
@@ -166,10 +175,10 @@ export default function AppDemoPage() {
                   <h1 className="text-base font-semibold leading-tight sm:text-lg">Platform demo</h1>
                 </div>
               </div>
-              <div aria-label="Sample data · Demo only" className="flex shrink-0 items-center gap-2 rounded-full border border-orange-300/20 bg-orange-300/[0.06] px-3 py-1.5 text-xs text-orange-100/80">
+              <div aria-label="Real Quest media · fictional demo metrics" className="flex shrink-0 items-center gap-2 rounded-full border border-orange-300/20 bg-orange-300/[0.06] px-3 py-1.5 text-xs text-orange-100/80">
                 <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                <span className="sm:hidden">Sample · Demo</span>
-                <span className="hidden sm:inline">Sample data · Demo only</span>
+                <span className="sm:hidden">Real media · demo metrics</span>
+                <span className="hidden sm:inline">Real Quest media · fictional demo metrics</span>
               </div>
             </div>
 

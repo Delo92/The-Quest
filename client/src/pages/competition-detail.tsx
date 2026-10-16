@@ -203,7 +203,7 @@ function stageVideoEmbedUrl(mediaUrl: string): string {
 export default function CompetitionDetailPage({ demoMode = false }: { demoMode?: boolean } = {}) {
   const params = useParams<{ categorySlug: string; compSlug: string }>();
   const categorySlug = demoMode ? "music" : params?.categorySlug;
-  const compSlug = demoMode ? "acoustic-spotlight-summer-sessions" : params?.compSlug;
+  const compSlug = demoMode ? "cb-publishing-music-quest" : params?.compSlug;
   const { user } = useAuth();
   const { toast } = useToast();
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);
@@ -726,7 +726,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                     <div className="relative overflow-hidden bg-black p-1">
                       <div className={`relative w-full overflow-hidden ${videos[0].height && videos[0].width && videos[0].height > videos[0].width ? "aspect-[9/16]" : "aspect-video"}`}>
                         <DemoVimeoPreview
-                          embedUrl={videos[0].embedUrl}
+                          videoId={videos[0].uri}
                           thumbnail={videos[0].thumbnail}
                           title={`${contestant.talentProfile.displayName} — ${videos[0].name}`}
                           className="absolute inset-0 h-full w-full"

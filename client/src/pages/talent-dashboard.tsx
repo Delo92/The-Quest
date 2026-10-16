@@ -1994,7 +1994,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                                 {demoMode && vid.embedUrl ? (
                                   <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
                                     <DemoVimeoPreview
-                                      embedUrl={vid.embedUrl}
+                                      videoId={vid.uri}
                                       thumbnail={vid.thumbnail}
                                       title={vid.name}
                                       className="absolute inset-0 h-full w-full"

@@ -13,7 +13,7 @@ const demoImages = {
 const demoHost = {
   userId: "demo-host-01",
   displayName: "Ouuuuwwwweeeej",
-  stageName: "Ouuuuwwwweeeej",
+  stageName: null,
   email: "",
   profileImageUrl: demoImages.host,
 };
@@ -54,12 +54,10 @@ const demoCompetition = {
   maxImagesPerContestant: null,
   maxVideosPerContestant: null,
   chronicBrandsPromotionEnabled: false,
-  startDate: "2026-01-01T00:00:00.000Z",
-  endDate: "2026-12-31T00:00:00.000Z",
+  startDate: "2026-01-01",
+  endDate: "2026-12-31",
   votingStartDate: null,
   votingEndDate: null,
-  createdAt: "2026-08-28T15:00:00.000Z",
-  createdBy: demoHost.userId,
   hostedBy: null,
   hostedByProfileSlug: null,
   themeColor: "#FF5A09",
@@ -79,7 +77,7 @@ const demoCompetition = {
         displayName: "Most Hated Twinz",
         stageName: null,
         bio: demoTalentProfile.bio,
-        location: "Oklahoma City, OK",
+        location: "Oklahoma City",
         imageUrls: demoTalentProfile.imageUrls,
       },
     },
@@ -153,8 +151,6 @@ const demoSecondCompetition = {
   endDate: "2026-11-12",
   votingStartDate: null,
   votingEndDate: null,
-  createdAt: "2026-09-21T00:00:00.000Z",
-  createdBy: demoHost.userId,
   hostedBy: "Ouuuuwwwweeeej",
   hostedByProfileSlug: "ouuuuwwwweeeej-20",
   themeColor: "#FF5A09",
@@ -261,6 +257,20 @@ const demoReport = {
   totalVotes: 973,
   totalRevenue: 92100,
   totalContestants: 1,
+  totalPurchases: 46,
+};
+
+const demoPrimaryReport = {
+  competition: demoCompetition,
+  leaderboard: [
+    { rank: 1, contestantId: 501, displayName: "Most Hated Twinz", voteCount: 684, votePercentage: 37.1 },
+    { rank: 2, contestantId: 502, displayName: "Lil Nuggey", voteCount: 571, votePercentage: 31.0 },
+    { rank: 3, contestantId: 503, displayName: "Streets Love Boomin", voteCount: 388, votePercentage: 21.1 },
+    { rank: 4, contestantId: 504, displayName: "$howtime", voteCount: 199, votePercentage: 10.8 },
+  ],
+  totalVotes: 1842,
+  totalRevenue: 92100,
+  totalContestants: 4,
   totalPurchases: 46,
 };
 
@@ -399,6 +409,10 @@ const demoVideoSamplesByContestantId: Record<number, {
   },
 };
 
+const DEMO_VIDEO_IDS = new Set(
+  Object.values(demoVideoSamplesByContestantId).map(({ id }) => id),
+);
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -414,21 +428,31 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/livery") return [];
   if (path === "/api/talent-profiles/me") return demoTalentProfile;
   if (path === "/api/contestants/me") return demoContestEntries;
-  if (path === "/api/host/competitions") return demoCompetitions;
-  if (path === "/api/host/contestants" || path === "/api/admin/contestants") return demoContestants;
+  if (path === "/api/host/competitions") return [demoSecondCompetition];
+  if (path === "/api/host/contestants") {
+    return demoContestants.filter((contestant) => contestant.competitionId === demoSecondCompetition.id);
+  }
+  if (path === "/api/admin/contestants") return demoContestants;
   if (path === "/api/admin/hosts") return demoHostUsers;
   if (path === "/api/admin/users") return demoTalentUsers;
   if (path === "/api/drive/images") {
     return [
-      { id: "demo-photo-01", name: "Jordan Vale — acoustic set", imageUrl: demoImages.gallery, fallbackUrl: demoImages.cover, mimeType: "image/jpeg" },
-      { id: "demo-photo-02", name: "Jordan Vale — portrait", imageUrl: demoImages.galleryPortrait, fallbackUrl: demoImages.jordan, mimeType: "image/jpeg" },
+      { id: "demo-photo-01", name: "Most Hated Twinz — profile photo", imageUrl: demoImages.gallery, fallbackUrl: demoImages.cover, mimeType: "image/jpeg" },
+      { id: "demo-photo-02", name: "Most Hated Twinz — profile photo", imageUrl: demoImages.galleryPortrait, fallbackUrl: demoImages.jordan, mimeType: "image/jpeg" },
     ];
   }
   if (path === "/api/payroll/my-overview" || path === "/api/admin/financial-overview") return demoFinancialOverview;
-  if (path === "/api/host/stats" || path === "/api/admin/stats") {
-    return { ...demoHostStats, totalTalentProfiles: 24 };
+  if (path === "/api/host/stats") return { ...demoHostStats, totalTalentProfiles: 24 };
+  if (path === "/api/admin/stats") {
+    return {
+      totalCompetitions: 2,
+      totalContestants: 5,
+      totalVotes: 2815,
+      pendingApplications: 2,
+      totalTalentProfiles: 24,
+    };
   }
-  if (path === "/api/referral/my-code") return { code: "DEMO-JORDAN", visits: 28, signups: 6 };
+  if (path === "/api/referral/my-code") return { code: "DEMO-MHTWINZ", visits: 28, signups: 6 };
   if (path === "/api/platform-settings") return { maxVotesPerDay: 100, defaultVoteCost: 50, freeVotesPerDay: 3 };
   if (path === "/api/admin/payment-settings") {
     return {
@@ -441,7 +465,16 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/admin/storage") {
     return {
       drive: { usedGB: 2.4, totalGB: 15, usedPercent: 16, folders: [{ name: "Demo competition media", fileCount: 28 }] },
-      vimeo: { totalVideos: 12, usedGB: 8.6, totalGB: 1000, usedPercent: 1, folders: [{ name: "Acoustic Spotlight", videoCount: 12 }] },
+      vimeo: {
+        totalVideos: 5,
+        usedGB: 8.6,
+        totalGB: 1000,
+        usedPercent: 1,
+        folders: [
+          { name: demoCompetition.title, videoCount: 4 },
+          { name: demoSecondCompetition.title, videoCount: 1 },
+        ],
+      },
     };
   }
   if (path === "/api/admin/join/settings" || path === "/api/host/settings") {
@@ -461,16 +494,24 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
       contestantId: contestant.id,
       talentProfileId: contestant.talentProfileId,
       displayName: contestant.talentProfile.displayName,
-      pagePath: `/music/acoustic-spotlight-summer-sessions/${contestant.talentProfile.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      pagePath: `/music/cb-publishing-music-quest/${contestant.talentProfile.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       websiteVisitors: [247, 193, 128][index],
       uniquePlays: [896, 624, 412][index],
     }));
+    const raplahomaEntries = [{
+      contestantId: 601,
+      talentProfileId: 601,
+      displayName: "JUNEOUTSXDE",
+      pagePath: "/music/raplahoma/juneoutsxde",
+      websiteVisitors: 116,
+      uniquePlays: 372,
+    }];
     const competitions = [
       {
         competitionId: demoCompetition.id,
         title: demoCompetition.title,
         category: demoCompetition.category,
-        pagePath: "/music/acoustic-spotlight-summer-sessions",
+        pagePath: "/music/cb-publishing-music-quest",
         websiteVisitors: 428,
         uniquePlays: 1932,
         entries,
@@ -479,21 +520,18 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
         competitionId: demoSecondCompetition.id,
         title: demoSecondCompetition.title,
         category: demoSecondCompetition.category,
-        pagePath: "/music/spotlight-emerging-voices",
+        pagePath: "/music/raplahoma",
         websiteVisitors: 316,
         uniquePlays: 1184,
-        entries: entries.slice(0, 2).map((entry) => ({
-          ...entry,
-          pagePath: "/music/spotlight-emerging-voices",
-        })),
+        entries: raplahomaEntries,
       },
     ];
     const visibleCompetitions = analyticsRole === "talent"
       ? competitions.map((competition) => ({
           ...competition,
           entries: competition.entries.filter((entry) => entry.talentProfileId === 501),
-        }))
-      : competitions;
+        })).filter((competition) => competition.entries.length > 0)
+      : competitions.filter((competition) => competition.competitionId === demoSecondCompetition.id);
     const visibleEntries = visibleCompetitions.reduce((total, competition) => total + competition.entries.length, 0);
 
     return {
@@ -516,7 +554,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/tax/my-deadlines") return [];
 
   if (path.includes("/api/resolve/competition/") && path.endsWith("/videos")) {
-    const selectedCompetition = path.includes("spotlight-emerging-voices")
+    const selectedCompetition = path.includes("/raplahoma")
       ? demoSecondCompetition
       : demoCompetition;
     return selectedCompetition.contestants.map(({ id }) => {
@@ -525,57 +563,98 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
       return {
         contestantId: id,
         videos: [{
-          uri: `https://vimeo.com/${sample.id}`,
+          uri: `/videos/${sample.id}`,
           name: sample.name,
           embedUrl: `https://player.vimeo.com/video/${sample.id}`,
           duration: sample.duration,
           thumbnail: sample.thumbnail,
+          width: sample.width,
+          height: sample.height,
         }],
       };
     });
   }
   if (path.includes("/api/resolve/competition/") && path.endsWith("/tracking")) {
+    const selectedCompetition = path.includes("/raplahoma")
+      ? demoSecondCompetition
+      : demoCompetition;
+    const onlineVotes = Math.round(selectedCompetition.totalVotes * 0.77);
+    const inPersonVotes = selectedCompetition.totalVotes - onlineVotes;
     return {
-      competitionId: demoCompetition.id,
-      totalVotes: demoCompetition.totalVotes,
-      totalPoints: demoCompetition.totalVotes,
-      onlineVotes: 1426,
-      inPersonVotes: 416,
+      competitionId: selectedCompetition.id,
+      totalVotes: selectedCompetition.totalVotes,
+      totalPoints: selectedCompetition.totalVotes,
+      onlineVotes,
+      inPersonVotes,
       updatedAt: "2026-10-13T12:00:00.000Z",
-      contestants: demoCompetition.contestants.map((contestant, index) => ({
+      contestants: selectedCompetition.contestants.map((contestant, index) => ({
         contestantId: contestant.id,
         displayName: contestant.talentProfile.displayName,
         voteCount: contestant.voteCount,
         rank: index + 1,
-        votePercentage: Number(((contestant.voteCount / demoCompetition.totalVotes) * 100).toFixed(1)),
+        votePercentage: Number(((contestant.voteCount / selectedCompetition.totalVotes) * 100).toFixed(1)),
         onlineVotes: Math.round(contestant.voteCount * 0.77),
         inPersonVotes: Math.round(contestant.voteCount * 0.23),
       })),
     };
   }
-  if (path.startsWith("/api/resolve/competition/")) return demoCompetition;
+  if (path.startsWith("/api/resolve/competition/")) {
+    return path.includes("/raplahoma") ? demoSecondCompetition : demoCompetition;
+  }
 
   if (path.includes("/api/vimeo/videos")) {
     const sample = demoVideoSamplesByContestantId[501];
     return [
       {
-        uri: `https://vimeo.com/${sample.id}`,
-        name: `Jordan Vale — sample: ${sample.name}`,
+        uri: `/videos/${sample.id}`,
+        name: `Most Hated Twinz — ${sample.name}`,
         embedUrl: `https://player.vimeo.com/video/${sample.id}`,
         duration: sample.duration,
         thumbnail: sample.thumbnail,
+        width: sample.width,
+        height: sample.height,
         status: "ready",
       },
     ];
   }
-  if (path.includes("/report")) return demoReport;
-  if (path.includes("/vote-breakdown")) return { online: 1426, inPerson: 416, total: 1842, onlineVoteWeight: 100 };
-  if (path.includes("/api/admin/users/") && path.endsWith("/videos")) return [];
+  if (path.includes("/report")) {
+    return path.includes("/8102/") || path.includes("/raplahoma")
+      ? demoReport
+      : demoPrimaryReport;
+  }
+  if (path.includes("/vote-breakdown")) {
+    const isRaplahoma = path.includes("/8102/") || path.includes("/raplahoma");
+    return isRaplahoma
+      ? { online: 749, inPerson: 224, total: 973, onlineVoteWeight: 100 }
+      : { online: 1426, inPerson: 416, total: 1842, onlineVoteWeight: 100 };
+  }
+  if (path.includes("/api/admin/users/") && path.endsWith("/videos")) {
+    const pathSegments = path.split("/");
+    const profileId = Number(pathSegments[pathSegments.length - 2]);
+    const sample = demoVideoSamplesByContestantId[profileId];
+    return {
+      vimeoVideos: sample
+        ? [{
+            uri: `/videos/${sample.id}`,
+            name: sample.name,
+            embedUrl: `https://player.vimeo.com/video/${sample.id}`,
+            duration: sample.duration,
+            thumbnail: sample.thumbnail,
+            width: sample.width,
+            height: sample.height,
+          }]
+        : [],
+    };
+  }
   if (path.includes("/api/admin/users/") && path.endsWith("/access-status")) {
     return { canLogin: true, isDisabled: false, status: "active" };
   }
   if (path.includes("/api/admin/users/") && path.endsWith("/detail")) return demoTalentUsers[0];
-  if (path.includes("/api/admin/hosts/") && path.endsWith("/competitions")) return demoCompetitions;
+  if (path.includes("/api/admin/hosts/") && path.endsWith("/competitions")) {
+    const pathSegments = path.split("/");
+    const hostId = pathSegments[pathSegments.length - 2];
+    return hostId === demoHost.userId ? [demoSecondCompetition] : [];
+  }
   if (path.includes("/api/competitions/") && path.includes("/stages/")) {
     return { competitionId: demoCompetition.id, stage: null, totalVotes: 1842, leaderboard: [] };
   }
@@ -606,6 +685,10 @@ export function installDemoApiGuard(analyticsRole: "host" | "talent" = "talent")
 
     if (method === "HEAD") {
       return new Response(null, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8" } });
+    }
+    const playRequest = url.pathname.match(/^\/api\/vimeo\/(\d+)\/play$/);
+    if (method === "GET" && playRequest && DEMO_VIDEO_IDS.has(Number(playRequest[1]))) {
+      return originalFetch.call(window, input, init);
     }
     return jsonResponse(resolveDemoApi(url, analyticsRole));
   };

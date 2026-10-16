@@ -46,4 +46,4 @@
 - [Firebase media persistence](firebase-media-persistence.md) — media records are database-owned; never run startup seed/synchronization writes that can replace saved URLs
 - [SEO canonical origin](quest-seo-canonical-origin.md) — client hydration must retain the configured production origin instead of replacing it with the Replit preview host
 - [Competition branding scope](competition-branding-scope.md) — sharing Starr Struck's UI/UX does not mean sharing its pink palette; preserve each event's own colors.
-- [Public app demo isolation](public-app-demo.md) — keep it sample-only and read-only; map demo media to explicit, verified Vimeo IDs.
+- [Public app demo](public-app-demo.md) — verified real Quest media must match its identities; keep demo metrics fictional and block data changes.
