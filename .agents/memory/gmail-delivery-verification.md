@@ -14,3 +14,9 @@ SMTP acceptance means the sending service accepted a message, not that the recip
 **Why:** The owner emphasized that silently blocked nominee emails can hurt contestants' chances. Messages accepted for sending later produced asynchronous recipient-provider rejections.
 
 **How to apply:** Distinguish submitted/accepted, confirmed bounced, recipient-server accepted, and unknown inbox status. Report failed account-access messages for follow-up without automatically resetting passwords or repeatedly resending permanent failures. Do not claim all iCloud users are blocked from one iCloud rejection.
+
+Keep the existing owner-controlled Google sender when investigating account-email delivery. Do not treat replacing it with a transactional provider or adding delivery tracking as a prerequisite.
+
+**Why:** The owner explicitly rejected those as necessary changes and wants ordinary account emails to work through their existing Google account.
+
+**How to apply:** Investigate actual rejection diagnostics first and propose narrowly scoped email-content or formatting changes. Explain that recipient-side policy cannot be disabled by the sending app. Ask before test resends; never reset passwords again merely to test delivery. Authentication results on Google's bounce notification describe that notification, not necessarily the original rejected email.
