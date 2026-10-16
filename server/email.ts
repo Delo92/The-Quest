@@ -3,7 +3,7 @@ import { google } from "googleapis";
 import { firestoreLivery } from "./firestore-collections";
 import { getFirebaseAuth } from "./firebase-admin";
 import { buildAccountLoginUrl } from "../shared/account-login-links";
-import { renderAccountEmailAccess } from "./account-email-access";
+import { buildAccountAccessMessage, renderAccountEmailAccess, type AccountAccessOptions } from "./account-email-access";
 
 async function accountResetUrl(siteUrl: string, email: string, level: number, inviteToken?: string): Promise<string> {
   const loginUrl = buildAccountLoginUrl(siteUrl, email, { level, inviteToken });
@@ -403,40 +403,35 @@ export async function sendNominationCongrats(opts: {
   }
 }
 
-export async function sendAccountAccessEmail(opts: {
-  to: string;
-  name: string;
-  level: number;
-  siteUrl: string;
-  temporaryPassword?: string;
-}): Promise<boolean> {
+export function buildAccountAccessEmailMessage(opts: AccountAccessOptions) {
+  const message = buildAccountAccessMessage(opts);
+  return { ...message, html: wrapInTemplate(message.html) };
+}
+
+export async function sendAccountAccessEmailWithReceipt(opts: AccountAccessOptions): Promise<{
+  accepted: boolean;
+  messageId?: string;
+}> {
   try {
     const transporter = await getTransporter();
-    const loginUrl = buildAccountLoginUrl(opts.siteUrl, opts.to, { level: opts.level });
-    const credentials = renderAccountEmailAccess({
-      email: opts.to,
-      accountCreated: !!opts.temporaryPassword,
-      temporaryPassword: opts.temporaryPassword,
-      resetUrl: await accountResetUrl(opts.siteUrl, opts.to, opts.level),
-    });
-    await transporter.sendMail({
+    const message = buildAccountAccessEmailMessage(opts);
+    const result = await transporter.sendMail({
       from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
       to: opts.to,
-      subject: "Your Quest account access instructions",
-      html: wrapInTemplate(`
-        <h2>Your Quest Account Access</h2>
-        <p>Hi ${escapeHtml(opts.name || "there")}, here are your sign-in instructions for The Quest.</p>
-        ${opts.temporaryPassword ? "<p>Your password has been reset by The Quest support team. Sign in now with the temporary password below. You can choose your own password using the reset link.</p>" : ""}
-        ${credentials}
-        <div class="btn-wrap"><a href="${escapeHtml(loginUrl)}" class="btn">Log In to Your Account</a></div>
-        <p>After signing in, open your dashboard to add profile photos and videos. Change your temporary password after login.</p>
-        <p class="fallback-link">Or copy this link: <a href="${escapeHtml(loginUrl)}">${escapeHtml(loginUrl)}</a></p>`),
+      ...message,
     });
-    return true;
+    return {
+      accepted: result.accepted?.length > 0 && !result.rejected?.length,
+      messageId: result.messageId,
+    };
   } catch {
     console.error("[AccountAccessEmail] Email delivery failed.");
-    return false;
+    return { accepted: false };
   }
+}
+
+export async function sendAccountAccessEmail(opts: AccountAccessOptions): Promise<boolean> {
+  return (await sendAccountAccessEmailWithReceipt(opts)).accepted;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

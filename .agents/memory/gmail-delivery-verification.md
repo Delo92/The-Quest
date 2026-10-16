@@ -20,3 +20,9 @@ Keep the existing owner-controlled Google sender when investigating account-emai
 **Why:** The owner explicitly rejected those as necessary changes and wants ordinary account emails to work through their existing Google account.
 
 **How to apply:** Investigate actual rejection diagnostics first and propose narrowly scoped email-content or formatting changes. Explain that recipient-side policy cannot be disabled by the sending app. Ask before test resends; never reset passwords again merely to test delivery. Authentication results on Google's bounce notification describe that notification, not necessarily the original rejected email.
+
+Account-access emails must retain The Quest's branded HTML presentation and proper visuals. A plain-text alternative may accompany it in the same multipart email; it must not replace the visible branded design.
+
+**Why:** The owner explicitly objected when a delivery test was going to remove branding and stated that plain-text-only emails were not appropriate for the product.
+
+**How to apply:** Preserve the established HTML header, palette, credential presentation, and login button. Explain that normal HTML-capable clients display the branded version, while the plain-text part is a compatibility alternative. Do not promise that multipart formatting alone will prevent recipient-side filtering.
