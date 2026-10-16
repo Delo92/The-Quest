@@ -7453,18 +7453,18 @@ export async function registerRoutes(
       const extension = path.extname(req.file.originalname).toLowerCase() || ".jpg";
       const storagePath = `talent-profiles/${uid}/profile-${Date.now()}${extension}`;
       const imageUrl = await uploadToFirebaseStorage(storagePath, req.file.buffer, req.file.mimetype);
-       const currentImages = Array.isArray((profile as any).imageUrls) ? (profile as any).imageUrls : [];
-       const currentPositions = (profile as any).imageCropPositions || [];
-       const existingImageIndex = currentImages.indexOf(imageUrl);
-       const nextImages = [imageUrl, ...currentImages.filter((url: string) => url !== imageUrl)];
-       const nextPositions = [
-         existingImageIndex >= 0 ? currentPositions[existingImageIndex] || { x: 50, y: 50 } : { x: 50, y: 50 },
-         ...currentImages
-           .map((url: string, index: number) => ({ url, position: currentPositions[index] || { x: 50, y: 50 } }))
-           .filter(({ url }: { url: string }) => url !== imageUrl)
-           .map(({ position }: { position: { x: number; y: number } }) => position),
-       ];
-       await storage.updateTalentProfile(uid, { imageUrls: nextImages, imageCropPositions: nextPositions } as any);
+      const currentImages = Array.isArray((profile as any).imageUrls) ? (profile as any).imageUrls : [];
+      const currentPositions = (profile as any).imageCropPositions || [];
+      const existingImageIndex = currentImages.indexOf(imageUrl);
+      const nextImages = [imageUrl, ...currentImages.filter((url: string) => url !== imageUrl)];
+      const nextPositions = [
+        existingImageIndex >= 0 ? currentPositions[existingImageIndex] || { x: 50, y: 50 } : { x: 50, y: 50 },
+        ...currentImages
+          .map((url: string, index: number) => ({ url, position: currentPositions[index] || { x: 50, y: 50 } }))
+          .filter(({ url }: { url: string }) => url !== imageUrl)
+          .map(({ position }: { position: { x: number; y: number } }) => position),
+      ];
+      await storage.updateTalentProfile(uid, { imageUrls: nextImages, imageCropPositions: nextPositions } as any);
       await updateFirestoreUser(uid, { profileImageUrl: imageUrl });
       res.json({ url: imageUrl });
     } catch (error: any) {
