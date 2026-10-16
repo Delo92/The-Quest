@@ -30,13 +30,15 @@ import * as tus from "tus-js-client";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 import ContestantTaxSettings from "@/components/contestant-tax-settings";
 import { hasPrizeReadyNonprofitDeclaration } from "@shared/nonprofit-policy";
+import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 
 interface Props {
   user: any;
   profile: TalentProfile | null;
+  demoMode?: boolean;
 }
 
-export default function TalentDashboard({ user, profile }: Props) {
+export default function TalentDashboard({ user, profile, demoMode = false }: Props) {
   const { logout } = useAuth();
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState(profile?.displayName || user.displayName || "");
@@ -1989,7 +1991,16 @@ export default function TalentDashboard({ user, profile }: Props) {
                           {vimeoVideos.map((vid: any) => {
                             return (
                               <div key={vid.uri} className="rounded-md bg-white/5 border border-white/10 overflow-hidden" data-testid={`card-video-${vid.uri}`}>
-                                {vid.embedUrl ? (
+                                {demoMode && vid.embedUrl ? (
+                                  <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+                                    <DemoVimeoPreview
+                                      embedUrl={vid.embedUrl}
+                                      thumbnail={vid.thumbnail}
+                                      title={vid.name}
+                                      className="absolute inset-0 h-full w-full"
+                                    />
+                                  </div>
+                                ) : vid.embedUrl ? (
                                   <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
                                     <iframe
                                       src={`${vid.embedUrl}?title=0&byline=0&portrait=0&dnt=1`}

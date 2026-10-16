@@ -20,6 +20,7 @@ import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
 import CompetitionSummaryText from "@/components/competition-summary-text";
+import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import {
   CompetitionCountdownPanel,
   formatCompetitionDate,
@@ -721,6 +722,23 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                   className="group cursor-pointer transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]"
                   data-testid={`card-contestant-${contestant.id}`}
                 >
+                  {demoMode && !selectedStage && videos.length > 0 ? (
+                    <div className="relative overflow-hidden bg-black p-1">
+                      <div className={`relative w-full overflow-hidden ${videos[0].height && videos[0].width && videos[0].height > videos[0].width ? "aspect-[9/16]" : "aspect-video"}`}>
+                        <DemoVimeoPreview
+                          embedUrl={videos[0].embedUrl}
+                          thumbnail={videos[0].thumbnail}
+                          title={`${contestant.talentProfile.displayName} — ${videos[0].name}`}
+                          className="absolute inset-0 h-full w-full"
+                        />
+                      </div>
+                      {rankIcon && (
+                        <div className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center bg-black/70">
+                          {rankIcon}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <Link href={contestantHref} className={`block relative overflow-hidden bg-black ${videos.length > 0 ? "p-1 space-y-1" : "h-52"}`}>
                     {selectedStage && stageSubmissionsQuery.isLoading ? (
                       <div
@@ -792,6 +810,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                       </div>
                     )}
                   </Link>
+                  )}
                   <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
                     <Link
                       href={contestantHref}

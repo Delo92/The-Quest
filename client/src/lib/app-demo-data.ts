@@ -1,9 +1,20 @@
+const demoImages = {
+  host: "/images/template/a7.jpg",
+  jordan: "/images/template/a2.jpg",
+  milo: "/images/template/a11.jpg",
+  sienna: "/images/template/b3.jpg",
+  kai: "/images/template/a7.jpg",
+  cover: "/images/template/e1.jpg",
+  gallery: "/images/template/e4.jpg",
+  galleryPortrait: "/images/template/a10.jpg",
+};
+
 const demoHost = {
   userId: "demo-host-01",
   displayName: "Morgan Ellis",
   stageName: "Morgan Ellis",
   email: "morgan.ellis@example.com",
-  profileImageUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=320&q=80",
+  profileImageUrl: demoImages.host,
 };
 
 const demoTalentProfile = {
@@ -18,7 +29,7 @@ const demoTalentProfile = {
   location: "Austin, TX",
   profileColor: "#FF5A09",
   profileBgImage: null,
-  imageUrls: ["https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=640&q=80"],
+  imageUrls: [demoImages.jordan],
   socialLinks: {
     instagram: "https://instagram.com/",
     youtube: "https://youtube.com/",
@@ -32,7 +43,7 @@ const demoCompetition = {
   title: "Acoustic Spotlight: Summer Sessions",
   description: "A community-powered showcase for independent voices. Discover the artists, follow the standings, and see how the season is unfolding.",
   category: "Music",
-  coverImage: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1800&q=85",
+  coverImage: demoImages.cover,
   coverVideo: null,
   status: "voting",
   voteCost: 50,
@@ -40,10 +51,10 @@ const demoCompetition = {
   maxImagesPerContestant: 8,
   maxVideosPerContestant: 3,
   chronicBrandsPromotionEnabled: false,
-  startDate: "2026-09-15T00:00:00.000Z",
-  endDate: "2026-11-20T23:59:59.000Z",
-  votingStartDate: "2026-09-20T00:00:00.000Z",
-  votingEndDate: "2026-11-20T23:59:59.000Z",
+  startDate: "2026-10-02T12:00:00.000Z",
+  endDate: "2026-10-31T23:59:59.000Z",
+  votingStartDate: "2026-10-05T12:00:00.000Z",
+  votingEndDate: "2026-10-31T23:59:59.000Z",
   createdAt: "2026-08-28T15:00:00.000Z",
   createdBy: demoHost.userId,
   hostedBy: demoHost.displayName,
@@ -65,7 +76,7 @@ const demoCompetition = {
         displayName: "Jordan Vale",
         stageName: "Jordan Vale",
         bio: "Indie soul vocalist blending warm acoustic arrangements with modern R&B.",
-        imageUrls: ["https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=640&q=80"],
+        imageUrls: [demoImages.jordan],
       },
     },
     {
@@ -83,7 +94,7 @@ const demoCompetition = {
         bio: "Singer-songwriter bringing thoughtful storytelling to the stage.",
         category: "Music",
         location: "Nashville, TN",
-        imageUrls: ["https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=640&q=80"],
+        imageUrls: [demoImages.milo],
       },
     },
     {
@@ -101,7 +112,7 @@ const demoCompetition = {
         bio: "A rising folk-pop artist with a bright, unmistakable sound.",
         category: "Music",
         location: "Denver, CO",
-        imageUrls: ["https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=640&q=80"],
+        imageUrls: [demoImages.sienna],
       },
     },
     {
@@ -119,7 +130,7 @@ const demoCompetition = {
         bio: "Acoustic performer focused on intimate arrangements and original songs.",
         category: "Music",
         location: "Chicago, IL",
-        imageUrls: ["https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=640&q=80"],
+        imageUrls: [demoImages.kai],
       },
     },
   ],
@@ -130,6 +141,10 @@ const demoSecondCompetition = {
   id: 8102,
   title: "Spotlight: Emerging Voices",
   status: "active",
+  startDate: "2026-10-14T12:00:00.000Z",
+  endDate: "2026-10-28T23:59:59.000Z",
+  votingStartDate: "2026-10-17T12:00:00.000Z",
+  votingEndDate: "2026-10-28T23:59:59.000Z",
   totalVotes: 973,
   createdAt: "2026-07-03T15:00:00.000Z",
   contestants: demoCompetition.contestants.slice(0, 3).map((contestant) => ({
@@ -290,7 +305,7 @@ const demoTalentUsers = [
     role: "talent",
     category: "Music",
     location: "Nashville, TN",
-    imageUrls: ["https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=320&q=80"],
+    imageUrls: [demoImages.milo],
     contestantCount: 1,
   },
 ];
@@ -331,11 +346,36 @@ const demoPurchases = [
   },
 ];
 
-const demoVideoIdsByContestantId: Record<number, number> = {
-  501: 769000501,
-  502: 769000501,
-  503: 769000503,
-  504: 769000504,
+const demoVideoSamplesByContestantId: Record<number, {
+  id: number;
+  name: string;
+  duration: number;
+  thumbnail: string;
+}> = {
+  501: {
+    id: 59395818,
+    name: "Walking on Cars acoustic session",
+    duration: 257,
+    thumbnail: "https://i.vimeocdn.com/video/417376680-a8bab84b5b367e2f67eb1e308c5b4e17a0b31f64f464d9d8073a4b0842b2085a-d_295x166?region=us",
+  },
+  502: {
+    id: 143261961,
+    name: "Coffee Shop Acoustic Session — Get Low Cover",
+    duration: 167,
+    thumbnail: "https://i.vimeocdn.com/video/540792884-6807187bc71145882d65ff50909cf23e73cc6f43802a30fcc04c0cc10dcea1f6-d_640?region=us",
+  },
+  503: {
+    id: 305190021,
+    name: "Blac Rabbit — All Good Acoustic Session",
+    duration: 253,
+    thumbnail: "https://i.vimeocdn.com/video/744627664-cb678a7475a95a05126bb1ac3d932fe7e34854f8e4c07e3cc0f44d0efc2d2c77-d_640?region=us",
+  },
+  504: {
+    id: 5565152,
+    name: 'Modern Guilt Acoustic "Orphans"',
+    duration: 220,
+    thumbnail: "https://i.vimeocdn.com/video/18690669-e2ff59d87eedf419116387907e16340a1e98e920ab3d24d26a3afa30cc12a98b-d_295x166?region=us",
+  },
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -359,8 +399,8 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/admin/users") return demoTalentUsers;
   if (path === "/api/drive/images") {
     return [
-      { id: "demo-photo-01", name: "Jordan Vale — acoustic set", url: demoTalentProfile.imageUrls[0], mimeType: "image/jpeg" },
-      { id: "demo-photo-02", name: "Jordan Vale — portrait", url: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=640&q=80", mimeType: "image/jpeg" },
+      { id: "demo-photo-01", name: "Jordan Vale — acoustic set", imageUrl: demoImages.gallery, fallbackUrl: demoImages.cover, mimeType: "image/jpeg" },
+      { id: "demo-photo-02", name: "Jordan Vale — portrait", imageUrl: demoImages.galleryPortrait, fallbackUrl: demoImages.jordan, mimeType: "image/jpeg" },
     ];
   }
   if (path === "/api/payroll/my-overview" || path === "/api/admin/financial-overview") return demoFinancialOverview;
@@ -455,16 +495,20 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/tax/my-deadlines") return [];
 
   if (path.includes("/api/resolve/competition/") && path.endsWith("/videos")) {
-    return demoCompetition.contestants.map(({ id }) => {
-      const videoId = demoVideoIdsByContestantId[id];
+    const selectedCompetition = path.includes("spotlight-emerging-voices")
+      ? demoSecondCompetition
+      : demoCompetition;
+    return selectedCompetition.contestants.map(({ id }) => {
+      const sample = demoVideoSamplesByContestantId[id];
+      if (!sample) return { contestantId: id, videos: [] };
       return {
         contestantId: id,
         videos: [{
-          uri: `https://vimeo.com/${videoId}`,
-          name: "Demo sample video",
-          embedUrl: `https://player.vimeo.com/video/${videoId}`,
-          duration: 186,
-          thumbnail: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=640&q=80",
+          uri: `https://vimeo.com/${sample.id}`,
+          name: sample.name,
+          embedUrl: `https://player.vimeo.com/video/${sample.id}`,
+          duration: sample.duration,
+          thumbnail: sample.thumbnail,
         }],
       };
     });
@@ -491,13 +535,15 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path.startsWith("/api/resolve/competition/")) return demoCompetition;
 
   if (path.includes("/api/vimeo/videos")) {
+    const sample = demoVideoSamplesByContestantId[501];
     return [
       {
-        uri: "https://vimeo.com/769000501",
-        name: "Jordan Vale — Live acoustic session",
-        embedUrl: "https://player.vimeo.com/video/769000501",
-        duration: 186,
-        thumbnail: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=640&q=80",
+        uri: `https://vimeo.com/${sample.id}`,
+        name: `Jordan Vale — sample: ${sample.name}`,
+        embedUrl: `https://player.vimeo.com/video/${sample.id}`,
+        duration: sample.duration,
+        thumbnail: sample.thumbnail,
+        status: "ready",
       },
     ];
   }
