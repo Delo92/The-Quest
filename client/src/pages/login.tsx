@@ -114,10 +114,19 @@ export default function LoginPage() {
   const [referralCodeTouched, setReferralCodeTouched] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { data: inviteInfo } = useQuery<InviteInfo>({
+  const {
+    data: inviteInfo,
+    error: inviteError,
+    isLoading: isInviteInfoLoading,
+  } = useQuery<InviteInfo>({
     queryKey: ["/api/invitations/token", inviteToken],
     enabled: !!inviteToken,
   });
+  const invitationAlreadyAccepted = Boolean(
+    inviteToken
+    && inviteError instanceof Error
+    && /invitation has already been accepted/i.test(inviteError.message),
+  );
 
   const competitionIdForReferral = params.get("competitionId");
   const contestantIdForReferral = params.get("contestantId");
@@ -192,6 +201,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (inviteToken && isInviteInfoLoading) return;
     setLoading(true);
     const destination = getAuthDestination(search);
 
@@ -334,6 +344,26 @@ export default function LoginPage() {
       </div>
 
       <div className="max-w-md mx-auto px-4 py-16">
+        {invitationAlreadyAccepted && (
+          <div
+            role="alert"
+            className="mb-6 rounded-md border border-orange-500/30 bg-orange-500/[0.08] p-4"
+            data-testid="invite-already-accepted"
+          >
+            <p className="text-sm leading-relaxed text-white">
+              This invitation has already been accepted. Please log in to your account.
+            </p>
+            <Button
+              type="button"
+              onClick={() => setLocation("/login")}
+              className="mt-4 min-h-11 w-full bg-[#FF5A09] font-semibold text-white hover:bg-[#FF5A09]/80"
+              data-testid="button-login-after-accepted-invitation"
+            >
+              Log in
+            </Button>
+          </div>
+        )}
+
         {inviteInfo && mode === "login" && (
           <div className="rounded-md bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 p-4 mb-6" data-testid="invite-banner">
             <div className="flex items-start gap-3">
@@ -366,7 +396,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" hidden={invitationAlreadyAccepted}>
           {mode === "login" && !inviteToken && (
             <div
               className="rounded-md border border-orange-500/20 bg-orange-500/[0.06] px-4 py-3 text-sm text-white/70"
@@ -621,16 +651,24 @@ export default function LoginPage() {
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || (!!inviteToken && isInviteInfoLoading)}
             className="w-full bg-[#FF5A09] hover:bg-[#FF5A09]/80 text-white uppercase tracking-wider font-bold"
             style={{ borderRadius: 0 }}
             data-testid="button-auth-submit"
           >
-            {loading ? "Please wait..." : mode === "login" ? "SIGN IN" : mode === "register" ? "CREATE ACCOUNT" : "SEND RESET EMAIL"}
+            {loading
+              ? "Please wait..."
+              : inviteToken && isInviteInfoLoading
+                ? "Loading invitation..."
+                : mode === "login"
+                  ? "SIGN IN"
+                  : mode === "register"
+                    ? "CREATE ACCOUNT"
+                    : "SEND RESET EMAIL"}
           </Button>
         </form>
 
-        <div className="mt-8 text-center space-y-3">
+        <div className="mt-8 text-center space-y-3" hidden={invitationAlreadyAccepted}>
           {mode === "login" && (
             <>
               <button
