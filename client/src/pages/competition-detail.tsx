@@ -87,6 +87,7 @@ interface ContestantWithProfile {
     category: string | null;
     imageUrls: string[] | null;
     imageBackupUrls?: string[] | null;
+    imageCropPositions?: Array<{ x: number; y: number }> | null;
     location: string | null;
   };
 }
@@ -797,6 +798,9 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                         fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback") || undefined}
                         alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        style={{
+                          objectPosition: `${contestant.talentProfile.imageCropPositions?.[0]?.x ?? 50}% ${contestant.talentProfile.imageCropPositions?.[0]?.y ?? 50}%`,
+                        }}
                       />
                     )}
                     {rankIcon && (

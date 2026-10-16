@@ -7,11 +7,12 @@ interface FallbackImageProps {
   fallbackSrc?: string | null;
   alt: string;
   className?: string;
+  style?: React.CSSProperties;
   loading?: "lazy" | "eager";
   "data-testid"?: string;
 }
 
-export function FallbackImage({ src, fallbackSrc, alt, className, loading, "data-testid": testId }: FallbackImageProps) {
+export function FallbackImage({ src, fallbackSrc, alt, className, style, loading, "data-testid": testId }: FallbackImageProps) {
   const finalFallbackSrc = fallbackSrc || DEFAULT_FALLBACK_SRC;
   const initialSrc = src || finalFallbackSrc;
   const [currentSrc, setCurrentSrc] = useState(initialSrc);
@@ -35,6 +36,7 @@ export function FallbackImage({ src, fallbackSrc, alt, className, loading, "data
         aria-label={alt}
         data-testid={testId}
         style={{
+          ...style,
           backgroundColor: "#101010",
           backgroundImage: `url(${DEFAULT_FALLBACK_SRC})`,
           backgroundPosition: "center",
@@ -49,6 +51,7 @@ export function FallbackImage({ src, fallbackSrc, alt, className, loading, "data
       src={currentSrc}
       alt={alt}
       className={className}
+      style={style}
       loading={loading}
       data-testid={testId}
       onError={() => {

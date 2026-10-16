@@ -60,6 +60,7 @@ interface ResolvedData {
       category: string | null;
       imageUrls: string[] | null;
       imageBackupUrls?: string[] | null;
+      imageCropPositions?: Array<{ x: number; y: number }> | null;
       location: string | null;
       profileColor?: string | null;
       profileBgImage?: string | null;
@@ -548,6 +549,9 @@ export default function ContestantSharePage() {
               fallbackSrc={mainImageFallback}
               alt={profile.stageName || profile.displayName || ""}
               className="absolute inset-0 w-full h-full object-cover"
+              style={{
+                objectPosition: `${profile.imageCropPositions?.[0]?.x ?? 50}% ${profile.imageCropPositions?.[0]?.y ?? 50}%`,
+              }}
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30" />
@@ -664,6 +668,9 @@ export default function ContestantSharePage() {
                       fallbackSrc={getBackupUrl(profile.imageUrls, profile.imageBackupUrls, i)}
                       alt=""
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      style={{
+                        objectPosition: `${profile.imageCropPositions?.[i]?.x ?? 50}% ${profile.imageCropPositions?.[i]?.y ?? 50}%`,
+                      }}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500" />
                   </div>

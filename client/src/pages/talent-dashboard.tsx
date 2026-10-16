@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet, Lock, ShieldCheck, Eye, EyeOff, BarChart3 } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet, Lock, ShieldCheck, Eye, EyeOff, BarChart3, Crop } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
@@ -31,6 +31,7 @@ import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDecl
 import ContestantTaxSettings from "@/components/contestant-tax-settings";
 import { hasPrizeReadyNonprofitDeclaration } from "@shared/nonprofit-policy";
 import DemoVimeoPreview from "@/components/demo-vimeo-preview";
+import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 
 interface Props {
   user: any;
@@ -98,6 +99,8 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
   const bgImageInputRef = useRef<HTMLInputElement>(null);
   const [selectedCompId, setSelectedCompId] = useState<string>("");
   const [imageUploading, setImageUploading] = useState(false);
+  const [editingImageCrop, setEditingImageCrop] = useState<{ index: number; src: string; position: ImageCropPosition } | null>(null);
+  const [savingImageCrop, setSavingImageCrop] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const [videoUploadStep, setVideoUploadStep] = useState<"preparing" | "uploading" | "finalizing" | "done">("preparing");
@@ -332,6 +335,26 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
       toast({ title: "Error", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
     },
   });
+
+  const saveImageCrop = async () => {
+    if (!editingImageCrop || !profile || demoMode) return;
+    setSavingImageCrop(true);
+    try {
+      const positions = Array.from({ length: profile.imageUrls?.length || 0 }, (_, index) =>
+        profile.imageCropPositions?.[index] || { x: 50, y: 50 },
+      );
+      positions[editingImageCrop.index] = editingImageCrop.position;
+      await apiRequest("PATCH", "/api/talent-profiles/me", { imageCropPositions: positions });
+      queryClient.invalidateQueries({ queryKey: ["/api/talent-profiles/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/drive/images"] });
+      setEditingImageCrop(null);
+      toast({ title: "Image framing saved", description: "Your updated crop is now used on your public profile and competition card." });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message || "Could not save image framing.", variant: "destructive" });
+    } finally {
+      setSavingImageCrop(false);
+    }
+  };
 
   const deleteVideoMutation = useMutation({
     mutationFn: async ({ videoUri, competitionId }: { videoUri: string; competitionId: number }) => {
@@ -1821,6 +1844,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                                 src={img.imageUrl}
                                 alt={img.name || "Photo"}
                                 className="w-full h-full object-cover rounded-md"
+                                style={{ objectPosition: `${img.cropPosition?.x ?? 50}% ${img.cropPosition?.y ?? 50}%` }}
                                 loading="lazy"
                                 onError={(e) => {
                                   if (img.fallbackUrl && (e.target as HTMLImageElement).src !== img.fallbackUrl) {
@@ -1828,6 +1852,20 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                                   }
                                 }}
                               />
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="absolute bottom-2 left-2 min-h-9 bg-black/80 text-white hover:bg-black"
+                                onClick={() => !demoMode && setEditingImageCrop({
+                                  index: Number(String(img.id).replace("img-", "")),
+                                  src: img.imageUrl,
+                                  position: { x: img.cropPosition?.x ?? 50, y: img.cropPosition?.y ?? 50 },
+                                })}
+                                disabled={demoMode}
+                                data-testid={`button-adjust-image-crop-${img.id}`}
+                              >
+                                <Crop className="mr-1.5 h-3.5 w-3.5" /> {demoMode ? "Preview only" : "Adjust view"}
+                              </Button>
                               <button
                                 onClick={() => deleteImageMutation.mutate(img.id)}
                                 className="absolute top-1 right-1 bg-red-600/90 text-white rounded-full p-1 invisible group-hover:visible transition-all"
@@ -1844,6 +1882,16 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                           <p className="text-sm text-white/30">No photos uploaded yet for this competition.</p>
                         </div>
                       )}
+                      <ImageCropDialog
+                        open={!!editingImageCrop}
+                        onOpenChange={(open) => { if (!open && !savingImageCrop) setEditingImageCrop(null); }}
+                        src={editingImageCrop?.src || ""}
+                        alt={editingImageCrop ? `Framing preview for ${driveImages?.[editingImageCrop.index]?.name || "photo"}` : "Image framing preview"}
+                        position={editingImageCrop?.position || { x: 50, y: 50 }}
+                        onPositionChange={(position) => setEditingImageCrop((current) => current ? { ...current, position } : current)}
+                        onSave={saveImageCrop}
+                        isSaving={savingImageCrop}
+                      />
                     </div>
 
                     <div className="rounded-md bg-white/[0.06] border border-white/12 p-6 space-y-4">

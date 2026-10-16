@@ -85,6 +85,9 @@ export default function TalentProfilePublic() {
           fallbackSrc={mainImageFallback}
           alt={profile.stageName || profile.displayName || "Talent"}
           className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            objectPosition: `${profile.imageCropPositions?.[0]?.x ?? 50}% ${profile.imageCropPositions?.[0]?.y ?? 50}%`,
+          }}
         />
         <div className="absolute inset-0 bg-black/65" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]" style={{ borderTop: `4px solid ${accentColor}` }}>
@@ -217,6 +220,9 @@ export default function TalentProfilePublic() {
                     fallbackSrc={getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, i)}
                     alt=""
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    style={{
+                      objectPosition: `${profile.imageCropPositions?.[i]?.x ?? 50}% ${profile.imageCropPositions?.[i]?.y ?? 50}%`,
+                    }}
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500" />
                 </div>

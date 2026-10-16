@@ -56,6 +56,7 @@ export interface TalentProfile {
   location: string | null;
   imageUrls: string[];
   imageBackupUrls?: string[];
+  imageCropPositions?: Array<{ x: number; y: number }>;
   videoUrls: string[];
   competitionVideoUris?: Record<string, string>;
   socialLinks: string | null;

@@ -2509,6 +2509,18 @@ export async function registerRoutes(
   app.patch("/api/talent-profiles/me", firebaseAuth, async (req, res) => {
     const uid = req.firebaseUser!.uid;
     const { role, userId: _, ...safeData } = req.body;
+    if (safeData.imageCropPositions !== undefined) {
+      const positions = safeData.imageCropPositions;
+      if (!Array.isArray(positions) || positions.length > 50 || positions.some((position: any) =>
+        !position || !Number.isFinite(position.x) || !Number.isFinite(position.y)
+      )) {
+        return res.status(400).json({ message: "Invalid image framing settings" });
+      }
+      safeData.imageCropPositions = positions.map((position: { x: number; y: number }) => ({
+        x: Math.max(0, Math.min(100, position.x)),
+        y: Math.max(0, Math.min(100, position.y)),
+      }));
+    }
     if (safeData.socialLinks && typeof safeData.socialLinks === "string") {
       try {
         const parsed = JSON.parse(safeData.socialLinks);
@@ -4374,6 +4386,7 @@ export async function registerRoutes(
           category: c.talentProfile.category,
           imageUrls: c.talentProfile.imageUrls,
           imageBackupUrls: (c.talentProfile as any).imageBackupUrls || [],
+          imageCropPositions: (c.talentProfile as any).imageCropPositions || [],
           bio: c.talentProfile.bio,
           email: (c.talentProfile as any).email || null,
           location: (c.talentProfile as any).location || null,
@@ -4529,9 +4542,14 @@ export async function registerRoutes(
       });
 
       const currentBackupUrls = (profile as any).imageBackupUrls || [];
+      const currentCropPositions = Array.from(
+        { length: currentUrls.length },
+        (_, index) => (profile as any).imageCropPositions?.[index] || { x: 50, y: 50 },
+      );
       const updated = await storage.updateTalentProfile(profile.userId, {
         imageUrls: [...currentUrls, primaryUrl],
         imageBackupUrls: [...currentBackupUrls, firebaseUrl],
+        imageCropPositions: [...currentCropPositions, { x: 50, y: 50 }],
       });
 
       res.json({
@@ -4584,6 +4602,7 @@ export async function registerRoutes(
       await storage.updateTalentProfile(profile.userId, {
         imageUrls: currentUrls.filter((_: string, i: number) => i !== imageIndex),
         imageBackupUrls: backupUrls.filter((_: string, i: number) => i !== imageIndex),
+        imageCropPositions: ((profile as any).imageCropPositions || []).filter((_: unknown, i: number) => i !== imageIndex),
       });
 
       res.json({ message: "Image removed" });
@@ -6900,9 +6919,14 @@ export async function registerRoutes(
       });
 
       const currentBackupUrls = (profile as any).imageBackupUrls || [];
+      const currentCropPositions = Array.from(
+        { length: currentUrls.length },
+        (_, index) => (profile as any).imageCropPositions?.[index] || { x: 50, y: 50 },
+      );
       await storage.updateTalentProfile(uid, {
         imageUrls: [...currentUrls, primaryUrl],
         imageBackupUrls: [...currentBackupUrls, firebaseUrl],
+        imageCropPositions: [...currentCropPositions, { x: 50, y: 50 }],
       });
 
       if (stageId && stage) {
@@ -6950,6 +6974,7 @@ export async function registerRoutes(
         imageUrl: url,
         thumbnailUrl: url,
         fallbackUrl: backupUrls[idx] || null,
+        cropPosition: (profile as any).imageCropPositions?.[idx] || { x: 50, y: 50 },
       })));
     } catch (error: any) {
       console.error("Image list error:", error);
@@ -6972,6 +6997,7 @@ export async function registerRoutes(
       await storage.updateTalentProfile(uid, {
         imageUrls: currentUrls.filter((_: string, i: number) => i !== imageIndex),
         imageBackupUrls: currentBackupUrls.filter((_: string, i: number) => i !== imageIndex),
+        imageCropPositions: ((profile as any).imageCropPositions || []).filter((_: unknown, i: number) => i !== imageIndex),
       });
 
       res.json({ message: "Image removed" });
@@ -7427,8 +7453,18 @@ export async function registerRoutes(
       const extension = path.extname(req.file.originalname).toLowerCase() || ".jpg";
       const storagePath = `talent-profiles/${uid}/profile-${Date.now()}${extension}`;
       const imageUrl = await uploadToFirebaseStorage(storagePath, req.file.buffer, req.file.mimetype);
-      const currentImages = Array.isArray((profile as any).imageUrls) ? (profile as any).imageUrls : [];
-      await storage.updateTalentProfile(uid, { imageUrls: [imageUrl, ...currentImages.filter((url: string) => url !== imageUrl)] } as any);
+       const currentImages = Array.isArray((profile as any).imageUrls) ? (profile as any).imageUrls : [];
+       const currentPositions = (profile as any).imageCropPositions || [];
+       const existingImageIndex = currentImages.indexOf(imageUrl);
+       const nextImages = [imageUrl, ...currentImages.filter((url: string) => url !== imageUrl)];
+       const nextPositions = [
+         existingImageIndex >= 0 ? currentPositions[existingImageIndex] || { x: 50, y: 50 } : { x: 50, y: 50 },
+         ...currentImages
+           .map((url: string, index: number) => ({ url, position: currentPositions[index] || { x: 50, y: 50 } }))
+           .filter(({ url }: { url: string }) => url !== imageUrl)
+           .map(({ position }: { position: { x: number; y: number } }) => position),
+       ];
+       await storage.updateTalentProfile(uid, { imageUrls: nextImages, imageCropPositions: nextPositions } as any);
       await updateFirestoreUser(uid, { profileImageUrl: imageUrl });
       res.json({ url: imageUrl });
     } catch (error: any) {
