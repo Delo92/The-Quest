@@ -291,6 +291,10 @@ async function buildFinancialOverview() {
       const contestantPurchases = purchases.filter((purchase: any) => Number(purchase.contestantId) === contestant.id);
       const grossCents = entries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
       const nonprofitCents = entries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
+      const declaredRate = effectiveNonprofitContributionRate(profile?.nonprofitDeclaration?.contributionRate);
+      const recordedRate = grossCents > 0 && nonprofitCents > 0
+        ? Math.round((nonprofitCents / grossCents) * 10000) / 100
+        : null;
       const pendingCents = entries
         .filter((entry: any) => ["pending_approval", "approved", "blocked"].includes(entry.status))
         .reduce((sum, entry: any) => sum + numericCents(entry.netCents), 0);
@@ -312,6 +316,17 @@ async function buildFinancialOverview() {
         voteSharePercentage: totalPaidVoteShare > 0 ? Math.round((contestantPaidVoteCount / totalPaidVoteShare) * 10000) / 100 : 0,
         earningsCents: grossCents,
         nonprofitCents,
+        nonprofitPercentage: recordedRate ?? declaredRate,
+        nonprofitRateSource: declaredRate === null
+          ? "invalid"
+          : profile?.nonprofitDeclaration?.contributionRate === null
+            || profile?.nonprofitDeclaration?.contributionRate === undefined
+            || profile?.nonprofitDeclaration?.contributionRate === ""
+            ? "default"
+            : "selected",
+        estimatedNonprofitCents: declaredRate === null
+          ? 0
+          : nonprofitAllocationCents(grossCents, declaredRate),
         pendingCents,
         paidCents,
         placement: entries[0]?.placement || null,
@@ -328,6 +343,18 @@ async function buildFinancialOverview() {
     });
     const paidVoteRevenueCents = purchases.reduce((sum, purchase: any) => sum + dollarsToCents(purchase.amount), 0);
     const hostShareCents = hostEntries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
+    const hostNonprofitCents = hostEntries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
+    const hostDeclaredRate = effectiveNonprofitContributionRate(hostProfile?.nonprofitDeclaration?.contributionRate);
+    const hostRecordedRate = hostShareCents > 0 && hostNonprofitCents > 0
+      ? Math.round((hostNonprofitCents / hostShareCents) * 10000) / 100
+      : null;
+    const estimatedHostNonprofitCents = hostDeclaredRate === null
+      ? 0
+      : nonprofitAllocationCents(hostShareCents, hostDeclaredRate);
+    const estimatedContestantNonprofitCents = contestantRows.reduce(
+      (sum, row) => sum + Number(row.estimatedNonprofitCents || 0),
+      0,
+    );
     const contestantShareCents = contestantRows.reduce((sum, row) => sum + row.earningsCents, 0);
     const platformShareCents = Math.max(0, paidVoteRevenueCents - hostShareCents - contestantShareCents);
     const platformMatchAllocations = calculatePlatformMatchAllocations(
@@ -368,6 +395,18 @@ async function buildFinancialOverview() {
       hostName: displayName(hostProfile, competition.createdBy ? "Assigned host" : "The Quest"),
       hostShareCents,
       hostSharePercentage: paidVoteRevenueCents > 0 ? Math.round((hostShareCents / paidVoteRevenueCents) * 10000) / 100 : 0,
+      hostNonprofitPercentage: hostRecordedRate ?? hostDeclaredRate,
+      hostNonprofitRateSource: hostDeclaredRate === null
+        ? "invalid"
+        : hostProfile?.nonprofitDeclaration?.contributionRate === null
+          || hostProfile?.nonprofitDeclaration?.contributionRate === undefined
+          || hostProfile?.nonprofitDeclaration?.contributionRate === ""
+          ? "default"
+          : "selected",
+      hostNonprofitCents,
+      estimatedHostNonprofitCents,
+      estimatedContestantNonprofitCents,
+      estimatedCharityShareCents: estimatedHostNonprofitCents + estimatedContestantNonprofitCents,
       charityShareCents,
       contestantShareCents,
       platformShareCents,
@@ -433,8 +472,9 @@ async function buildFinancialOverview() {
       const nonprofitCents = entries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
       const declaration = profile.nonprofitDeclaration;
       const declaredCharity = declaredNonprofitName(declaration);
-      const profileRate = declaration
-        ? effectiveNonprofitContributionRate(declaration.contributionRate)
+      const profileRate = effectiveNonprofitContributionRate(declaration?.contributionRate);
+      const recordedRate = gross > 0 && nonprofitCents > 0
+        ? Math.round((nonprofitCents / gross) * 10000) / 100
         : null;
       return {
         userId: profile.userId,
@@ -445,10 +485,16 @@ async function buildFinancialOverview() {
         nonprofitDeclaration: declaration || null,
         charitySource: declaredCharity || null,
         charitySourceType: declaredCharity ? "declared" : "missing_declaration",
-        charityPercentage: gross > 0
-          ? Math.round((nonprofitCents / gross) * 10000) / 100
-          : profileRate,
+        charityPercentage: recordedRate ?? profileRate,
+        charityRateSource: profileRate === null
+          ? "invalid"
+          : declaration?.contributionRate === null
+            || declaration?.contributionRate === undefined
+            || declaration?.contributionRate === ""
+            ? "default"
+            : "selected",
         grossCents: gross,
+        estimatedNonprofitCents: profileRate === null ? 0 : nonprofitAllocationCents(gross, profileRate),
         pendingCents: pending,
         paidCents: paid,
         nonprofitCents,
