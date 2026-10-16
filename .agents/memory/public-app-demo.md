@@ -15,6 +15,12 @@ When using real Quest competitions, contestants, or video in the demo, show only
 
 **How to apply:** Keep verified real media in an explicit fixture map, check that each video has a playable source, and never attach it to a fictional contestant. Only pass through allowlisted read-only playback requests; keep all other demo reads fixture-backed and all writes blocked.
 
+For the public demo only, autoplay videos muted and inline when their cards are meaningfully visible; stop and unmount them when scrolled away, and honor reduced-motion and background-tab settings. Keep controls available so viewers can pause or unmute.
+
+**Why:** The user clarified that demo contestant videos should autoplay rather than wait for a click.
+
+**How to apply:** Keep autoplay scoped to the demo player component. Do not change the normal contestant-page playback behavior.
+
 Demo contestant media must use explicit Vimeo IDs that have been checked for public playback; never derive IDs from synthetic contestant IDs or treat metadata alone as proof of playback.
 
 **Why:** Numeric ID arithmetic produced a nonexistent player URL, while neighboring generated IDs happened to point at unrelated real videos.

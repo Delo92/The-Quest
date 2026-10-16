@@ -28,12 +28,22 @@ export default function DemoVimeoPreview({
   title,
   className = "",
 }: DemoVimeoPreviewProps) {
-  const [playing, setPlaying] = useState(false);
+  const [playRequested, setPlayRequested] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const [isNearViewport, setIsNearViewport] = useState(false);
   const [playUrls, setPlayUrls] = useState<PlayUrls | null>(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
+    typeof window !== "undefined"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [isDocumentVisible, setIsDocumentVisible] = useState(() =>
+    typeof document === "undefined" || document.visibilityState === "visible",
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const numericVideoId = extractVideoId(videoId);
+  const shouldAutoplay = isVisible && isDocumentVisible && !prefersReducedMotion;
+  const showPlayer = playRequested || (shouldAutoplay && Boolean(playUrls));
   const preloader = useVideoPreloader(
     isNearViewport ? playUrls?.hls ?? null : null,
   );
@@ -54,16 +64,42 @@ export default function DemoVimeoPreview({
     if (!element) return;
     if (!("IntersectionObserver" in window)) {
       setIsNearViewport(true);
+      setIsVisible(true);
       return;
     }
 
-    const observer = new IntersectionObserver(
+    const preloadObserver = new IntersectionObserver(
       ([entry]) => setIsNearViewport(entry.isIntersecting),
       { rootMargin: "350px 0px" },
     );
-    observer.observe(element);
-    return () => observer.disconnect();
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting && entry.intersectionRatio >= 0.15),
+      { threshold: [0, 0.15] },
+    );
+    preloadObserver.observe(element);
+    visibilityObserver.observe(element);
+    return () => {
+      preloadObserver.disconnect();
+      visibilityObserver.disconnect();
+    };
   }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const update = () => setIsDocumentVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) setPlayRequested(false);
+  }, [isVisible]);
 
   useEffect(() => {
     if (!isNearViewport || !numericVideoId || playUrls) return;
@@ -84,14 +120,15 @@ export default function DemoVimeoPreview({
     return () => controller.abort();
   }, [isNearViewport, numericVideoId, playUrls]);
 
-  if (playing) {
+  if (showPlayer) {
     return (
       <div ref={containerRef} className={className}>
         <HlsVideoPlayer
           videoId={numericVideoId}
           className="absolute inset-0 h-full w-full"
           poster={thumbnailFailed ? FALLBACK_POSTER : thumbnail || FALLBACK_POSTER}
-          autoPlay
+          autoPlay={shouldAutoplay || playRequested}
+          muted
           controls
           preloadedUrls={playUrls}
           preloader={preloader}
@@ -110,7 +147,7 @@ export default function DemoVimeoPreview({
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          setPlaying(true);
+          setPlayRequested(true);
         }}
       >
         <img

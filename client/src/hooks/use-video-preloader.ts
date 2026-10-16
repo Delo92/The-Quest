@@ -1,6 +1,6 @@
 /**
- * useVideoPreloader — starts buffering a video in the background the moment
- * an HLS URL is available, before the user taps play.
+ * useVideoPreloader — starts buffering a video in the background as soon as
+ * an HLS URL is available, before the visible player mounts.
  *
  * Strategy:
  * - hls.js (Chrome/Android/Firefox): attaches to a 1px off-screen <video>
