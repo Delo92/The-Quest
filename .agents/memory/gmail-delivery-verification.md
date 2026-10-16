@@ -26,3 +26,9 @@ Account-access emails must retain The Quest's branded HTML presentation and prop
 **Why:** The owner explicitly objected when a delivery test was going to remove branding and stated that plain-text-only emails were not appropriate for the product.
 
 **How to apply:** Preserve the established HTML header, palette, credential presentation, and login button. Explain that normal HTML-capable clients display the branded version, while the plain-text part is a compatibility alternative. Do not promise that multipart formatting alone will prevent recipient-side filtering.
+
+Account onboarding and recovery must remain self-service when a transactional email is rejected. Calls, texts, host intervention, and manually sharing passwords are not acceptable product fallbacks.
+
+**Why:** The owner stated, “we dont send texts or make calls” and that users being locked out “without human assistance” is unacceptable. The concern is platform-wide access reliability, not just assisting one recipient.
+
+**How to apply:** Do not present human-assisted credential delivery or resending the same permanently rejected message as a completed solution. Any independent recovery route must securely verify account ownership; knowing an email address alone is not sufficient. Do not change authentication methods or expose shared temporary credentials publicly to bypass an email-delivery failure.
