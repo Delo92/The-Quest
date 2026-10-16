@@ -43,4 +43,6 @@ Use It Stops Now Foundation and Event Pro Group Foundation as sample nonprofit r
 
 **Why:** The owner explicitly retained participant-selected nonprofits for real accounts and clarified that these two organizations should fill the otherwise empty demo declarations.
 
-**How to apply:** Label recipient choices as sample/demo information, never invent tax IDs or contacts, and never persist demo defaults to real accounts. Demo payout cards must split the balance after the nonprofit deduction into nonoverlapping scheduled, awaiting-approval, and already-paid amounts.
+**How to apply:** Label recipient choices as sample/demo information, never invent tax IDs or contacts, and never persist demo defaults to real accounts. Demo payout cards must split the balance after the nonprofit deduction into nonoverlapping scheduled, awaiting-approval, and already-paid amounts. Show a nonzero example in all three payout categories, including already paid.
+
+**Why all three:** The owner explicitly corrected a demo that showed zero already paid; they want the post-contribution balance distributed across every payout category, not only scheduled and awaiting approval.

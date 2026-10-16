@@ -4,13 +4,16 @@ import { buildDemoEarnings } from "./app-demo-finances";
 import { installDemoApiGuard } from "./app-demo-data";
 
 test("demo earnings split the after-contribution balance into nonoverlapping payout buckets", () => {
-  const earnings = buildDemoEarnings(74400, 33480);
+  const earnings = buildDemoEarnings(74400, 22320, 22320);
   assert.equal(earnings.estimatedNonprofitCents, 7440);
-  assert.equal(earnings.nextPayoutCents, 33480);
-  assert.equal(earnings.pendingCents, 33480);
+  assert.equal(earnings.nextPayoutCents, 22320);
+  assert.equal(earnings.pendingCents, 22320);
+  assert.equal(earnings.paidCents, 22320);
   assert.equal(earnings.grossCents,
     earnings.estimatedNonprofitCents + earnings.nextPayoutCents + earnings.pendingCents + earnings.paidCents);
-  assert.throws(() => buildDemoEarnings(74400, 70000));
+  assert.throws(() => buildDemoEarnings(74400, 70000, 0));
+  assert.throws(() => buildDemoEarnings(74400, 22320, 50000));
+  assert.throws(() => buildDemoEarnings(74400, 22320, -1));
 });
 
 test("both demo roles receive reconciled earnings and sample recipients without allowing writes", async () => {
@@ -23,6 +26,14 @@ test("both demo roles receive reconciled earnings and sample recipients without 
       try {
         const overview = await (await browser.fetch("/api/payroll/my-overview")).json();
         const { earnings } = overview;
+        assert.ok(earnings.nextPayoutCents > 0);
+        assert.ok(earnings.pendingCents > 0);
+        assert.ok(earnings.paidCents > 0);
+        if (role === "talent") {
+          assert.equal(earnings.nextPayoutCents, 22320);
+          assert.equal(earnings.pendingCents, 22320);
+          assert.equal(earnings.paidCents, 22320);
+        }
         assert.equal(earnings.grossCents,
           earnings.estimatedNonprofitCents + earnings.nextPayoutCents + earnings.pendingCents + earnings.paidCents);
         assert.equal(overview.pendingPayouts.filter((p: any) => p.status === "approved")

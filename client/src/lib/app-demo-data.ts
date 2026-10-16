@@ -215,7 +215,7 @@ const demoContestants = [
 
 const demoFinancialOverview = {
   earnings: {
-    ...buildDemoEarnings(124000, 55800),
+    ...buildDemoEarnings(124000, 37200, 37200),
   },
   competitions: [
     {
@@ -241,6 +241,8 @@ const demoFinancialOverview = {
           grossCents: 74400,
           earningsCents: 74400,
           netCents: 66960,
+          pendingCents: 22320,
+          paidCents: 22320,
           voteCount: 1488,
           paidVoteCount: 1488,
           freeVoteCount: 0,
@@ -255,10 +257,10 @@ const demoFinancialOverview = {
     },
   ],
   pendingPayouts: [
-    { profileType: "host", netCents: 22320, status: "approved" },
-    { profileType: "host", netCents: 22320, status: "pending_approval" },
-    { profileType: "contestant", netCents: 33480, status: "approved" },
-    { profileType: "contestant", netCents: 33480, status: "pending_approval" },
+    { profileType: "host", netCents: 14880, status: "approved" },
+    { profileType: "host", netCents: 14880, status: "pending_approval" },
+    { profileType: "contestant", netCents: 22320, status: "approved" },
+    { profileType: "contestant", netCents: 22320, status: "pending_approval" },
   ],
   summary: {
     totalVoteCount: 2489,
@@ -271,14 +273,14 @@ const demoFinancialOverview = {
       profileId: 501,
       displayName: "Most Hated Twinz",
       profileType: "contestant",
-      ...buildDemoEarnings(74400, 33480),
+      ...buildDemoEarnings(74400, 22320, 22320),
     },
     {
       userId: "demo-host-01",
       profileId: 9001,
       displayName: "Ouuuuwwwweeeej",
       profileType: "host",
-      ...buildDemoEarnings(49600, 22320),
+      ...buildDemoEarnings(49600, 14880, 14880),
     },
   ],
 };
