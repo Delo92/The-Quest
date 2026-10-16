@@ -33,8 +33,14 @@ When the host and viewer roles show the same demo competitions, keep their artis
 
 **How to apply:** Keep host competition and contestant endpoints tied to the shared demo fixtures, and derive summary counts from those fixtures rather than maintaining a smaller role-specific roster.
 
-The demo shell should not imitate a second branded site header or lead with a read-only warning. Keep role switching compact and provide direct links to the real Quest routes from the app-demo route.
+The demo shell should not imitate a second branded site header or lead with a read-only warning. Make preview-role controls prominent and place real-site destinations inside one clearly labeled menu that warns visitors they are leaving the demo.
 
-**Why:** The user said the mock header and read-only banners confused visitors and asked for clear buttons to the actual site.
+**Why:** The user clarified that visitors must recognize the app demo, with role previews more prominent than links to the full site.
 
 **How to apply:** Keep real-site links outside the read-only event-capture surface and use the `/thequest/...` route prefix when linking from `/app-demo`.
+
+Use It Stops Now Foundation and Event Pro Group Foundation as sample nonprofit recipients in the demo when no participant choice is available. This is a demo-only exception, not a change to real participant choice or an assertion that the featured people selected those recipients.
+
+**Why:** The owner explicitly retained participant-selected nonprofits for real accounts and clarified that these two organizations should fill the otherwise empty demo declarations.
+
+**How to apply:** Label recipient choices as sample/demo information, never invent tax IDs or contacts, and never persist demo defaults to real accounts. Demo payout cards must split the balance after the nonprofit deduction into nonoverlapping scheduled, awaiting-approval, and already-paid amounts.
