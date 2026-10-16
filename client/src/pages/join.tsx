@@ -99,7 +99,9 @@ export default function JoinPage() {
   const [nominationImageUrl, setNominationImageUrl] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [promoCode, setPromoCode] = useState("");
+  const [promoCode, setPromoCode] = useState(() =>
+    new URLSearchParams(searchString).get("promoCode")?.trim().toUpperCase() || "",
+  );
   const [appliedPromo, setAppliedPromo] = useState<AppliedNominationPromo | null>(null);
   const [promoChecking, setPromoChecking] = useState(false);
   const [nominationFeeAcknowledged, setNominationFeeAcknowledged] = useState(false);

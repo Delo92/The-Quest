@@ -3761,7 +3761,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                   variant="ghost"
                                   className="text-orange-300/80 hover:text-orange-200 gap-1.5"
                                   onClick={async () => {
-                                    const text = `Use promo code ${promo.code} for ${formatNominationPromoDiscount(promo)} on a nomination at ${window.location.origin}/thequest/nominate.`;
+                                    const text = `Use promo code ${promo.code} for ${formatNominationPromoDiscount(promo)} on a nomination at ${window.location.origin}/thequest/nominate?promoCode=${encodeURIComponent(promo.code)}.`;
                                     if (await copyAdminText(text)) {
                                       toast({ title: "Share message copied", description: text });
                                     } else {
