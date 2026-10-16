@@ -1,64 +1,67 @@
 const demoImages = {
-  host: "/images/template/a7.jpg",
-  jordan: "/images/template/a2.jpg",
-  milo: "/images/template/a11.jpg",
+  host: "",
+  jordan: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/talent-images%2FCB%20Publishing%20-%20Music%20Quest%2FMost%20Hated%20Twinz%2F1778105736665-4itkhi.jpeg",
+  milo: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/nominations%2F1778617774608-thqev1.jpg",
   sienna: "/images/template/b3.jpg",
   kai: "/images/template/a7.jpg",
-  cover: "/images/template/e1.jpg",
-  gallery: "/images/template/e4.jpg",
-  galleryPortrait: "/images/template/a10.jpg",
+  cover: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/covers%2F6-1773851175481.jpg",
+  gallery: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/talent-images%2FCB%20Publishing%20-%20Music%20Quest%2FMost%20Hated%20Twinz%2F1778105776119-9na6f6.jpeg",
+  galleryPortrait: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/talent-images%2FCB%20Publishing%20-%20Music%20Quest%2FMost%20Hated%20Twinz%2F1778105869259-0hnuzp.jpeg",
+  raplahomaCover: "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/covers%2F7-1788735731674.jpg",
 };
 
 const demoHost = {
   userId: "demo-host-01",
-  displayName: "Morgan Ellis",
-  stageName: "Morgan Ellis",
-  email: "morgan.ellis@example.com",
+  displayName: "Ouuuuwwwweeeej",
+  stageName: "Ouuuuwwwweeeej",
+  email: "",
   profileImageUrl: demoImages.host,
 };
 
 const demoTalentProfile = {
   id: 501,
   userId: "demo-artist-01",
-  displayName: "Jordan Vale",
-  stageName: "Jordan Vale",
-  email: "jordan.vale@example.com",
+  displayName: "Most Hated Twinz",
+  stageName: null,
+  email: "",
   showEmail: false,
-  bio: "Indie soul vocalist blending warm acoustic arrangements with modern R&B. Based in Austin, Texas.",
+  bio: "We are Most Hated Twinz — twin artists, creators, entrepreneurs, and visionaries focused on turning pain, hustle, and creativity into a movement. From music and content creation to custom jewelry and branding, we bring raw talent and real energy into everything we touch. Inspired by the grind and built from experience, our sound blends storytelling, emotion, aggression, and authenticity while creating a lane that stands out from the crowd.\n\nBut we’re bigger than just music. Our mission is to bring artists, creators, vendors, and entrepreneurs together to build a stronger network and open more opportunities for independent talent. Through events, collaborations, performances, and creative platforms, we’re creating spaces where people can connect, grow their fanbase, sharpen their craft, and support each other’s success.\n\nWe believe talent deserves exposure, hard work deserves recognition, and the next generation of creators deserves a platform. Whether it’s through music, live events, content, or business ventures, Most Hated Twinz is about building a community where creativity, ambition, and loyalty come first.",
   category: "Music",
-  location: "Austin, TX",
+  location: "Oklahoma City",
   profileColor: "#FF5A09",
   profileBgImage: null,
-  imageUrls: [demoImages.jordan],
+  imageUrls: [demoImages.jordan, demoImages.gallery, demoImages.galleryPortrait],
   socialLinks: {
-    instagram: "https://instagram.com/",
-    youtube: "https://youtube.com/",
+    instagram: "https://www.instagram.com/most_hatedtwinz",
+    youtube: "https://youtube.com/@mosthatedtwinz",
+    tiktok: "https://www.tiktok.com/@mosthatedtwinz",
+    facebook: "https://www.facebook.com/share/1bYTcgLDZw/",
   },
-  payoutInfo: { method: "ach", accountType: "checking", legalName: "Jordan Vale" },
+  payoutInfo: {},
   nonprofitDeclaration: {},
 };
 
 const demoCompetition = {
   id: 8101,
-  title: "Acoustic Spotlight: Summer Sessions",
-  description: "A community-powered showcase for independent voices. Discover the artists, follow the standings, and see how the season is unfolding.",
+  title: "CB Publishing - Music Quest",
+  description: "Show off your music prowess",
   category: "Music",
   coverImage: demoImages.cover,
   coverVideo: null,
-  status: "voting",
-  voteCost: 50,
-  maxVotesPerDay: 100,
-  maxImagesPerContestant: 8,
-  maxVideosPerContestant: 3,
+  status: "active",
+  voteCost: 1,
+  maxVotesPerDay: 1,
+  maxImagesPerContestant: null,
+  maxVideosPerContestant: null,
   chronicBrandsPromotionEnabled: false,
-  startDate: "2026-10-02T12:00:00.000Z",
-  endDate: "2026-10-31T23:59:59.000Z",
-  votingStartDate: "2026-10-05T12:00:00.000Z",
-  votingEndDate: "2026-10-31T23:59:59.000Z",
+  startDate: "2026-01-01T00:00:00.000Z",
+  endDate: "2026-12-31T00:00:00.000Z",
+  votingStartDate: null,
+  votingEndDate: null,
   createdAt: "2026-08-28T15:00:00.000Z",
   createdBy: demoHost.userId,
-  hostedBy: demoHost.displayName,
-  hostedByProfileSlug: "morgan-ellis",
+  hostedBy: null,
+  hostedByProfileSlug: null,
   themeColor: "#FF5A09",
   totalVotes: 1842,
   contestants: [
@@ -73,10 +76,11 @@ const demoCompetition = {
       talentProfile: {
         ...demoTalentProfile,
         id: 501,
-        displayName: "Jordan Vale",
-        stageName: "Jordan Vale",
-        bio: "Indie soul vocalist blending warm acoustic arrangements with modern R&B.",
-        imageUrls: [demoImages.jordan],
+        displayName: "Most Hated Twinz",
+        stageName: null,
+        bio: demoTalentProfile.bio,
+        location: "Oklahoma City, OK",
+        imageUrls: demoTalentProfile.imageUrls,
       },
     },
     {
@@ -89,11 +93,11 @@ const demoCompetition = {
       stageResults: {},
       talentProfile: {
         id: 502,
-        displayName: "Milo Hayes",
-        stageName: "Milo Hayes",
-        bio: "Singer-songwriter bringing thoughtful storytelling to the stage.",
+        displayName: "Lil Nuggey",
+        stageName: null,
+        bio: "I have a passion for making and performing music, I'm greatful for this opportunity!",
         category: "Music",
-        location: "Nashville, TN",
+        location: null,
         imageUrls: [demoImages.milo],
       },
     },
@@ -107,12 +111,10 @@ const demoCompetition = {
       stageResults: {},
       talentProfile: {
         id: 503,
-        displayName: "Sienna Brooks",
-        stageName: "Sienna Brooks",
-        bio: "A rising folk-pop artist with a bright, unmistakable sound.",
+        displayName: "Streets Love Boomin",
+        stageName: null,
         category: "Music",
-        location: "Denver, CO",
-        imageUrls: [demoImages.sienna],
+        imageUrls: [],
       },
     },
     {
@@ -125,32 +127,58 @@ const demoCompetition = {
       stageResults: {},
       talentProfile: {
         id: 504,
-        displayName: "Kai Bennett",
-        stageName: "Kai Bennett",
-        bio: "Acoustic performer focused on intimate arrangements and original songs.",
+        displayName: "$howtime",
+        stageName: null,
         category: "Music",
-        location: "Chicago, IL",
-        imageUrls: [demoImages.kai],
+        imageUrls: [],
       },
     },
   ],
 };
 
 const demoSecondCompetition = {
-  ...demoCompetition,
   id: 8102,
-  title: "Spotlight: Emerging Voices",
+  title: "Raplahoma",
+  description: "Raplohoma, put together by one of Oklahoma's biggest up-and-coming music promoters, E.J. Neal, serves as a dynamic platform dedicated to spotlighting regional hip-hop and urban culture. This channel is a living testament to the vast wealth of untapped talent that the state has to offer, bridging the gap between local artists and a broader audience. By providing in-depth coverage, artist features, and industry insights, Raplohoma lays out a clear blueprint for emerging musicians on how to cultivate their brand, navigate the music scene, and effectively get themselves put on the map.",
+  category: "Music",
+  coverImage: demoImages.raplahomaCover,
+  coverVideo: null,
   status: "active",
-  startDate: "2026-10-14T12:00:00.000Z",
-  endDate: "2026-10-28T23:59:59.000Z",
-  votingStartDate: "2026-10-17T12:00:00.000Z",
-  votingEndDate: "2026-10-28T23:59:59.000Z",
+  voteCost: 1,
+  maxVotesPerDay: 1,
+  maxImagesPerContestant: null,
+  maxVideosPerContestant: null,
+  chronicBrandsPromotionEnabled: false,
+  startDate: "2026-09-21",
+  endDate: "2026-11-12",
+  votingStartDate: null,
+  votingEndDate: null,
+  createdAt: "2026-09-21T00:00:00.000Z",
+  createdBy: demoHost.userId,
+  hostedBy: "Ouuuuwwwweeeej",
+  hostedByProfileSlug: "ouuuuwwwweeeej-20",
+  themeColor: "#FF5A09",
   totalVotes: 973,
-  createdAt: "2026-07-03T15:00:00.000Z",
-  contestants: demoCompetition.contestants.slice(0, 3).map((contestant) => ({
-    ...contestant,
-    competitionId: 8102,
-  })),
+  contestants: [
+    {
+      id: 601,
+      competitionId: 8102,
+      talentProfileId: 601,
+      applicationStatus: "approved",
+      voteCount: 973,
+      tournamentPoints: 973,
+      stageResults: {},
+      talentProfile: {
+        id: 601,
+        displayName: "JUNEOUTSXDE",
+        stageName: null,
+        bio: null,
+        category: "Music",
+        location: "OK",
+        imageUrls: [],
+      },
+    },
+  ],
 };
 
 const demoCompetitions = [demoCompetition, demoSecondCompetition];
@@ -170,19 +198,6 @@ const demoContestEntries = [
     chronicBrandsPromotionUrl: null,
     talentProfile: demoTalentProfile,
   },
-  {
-    id: 502,
-    competitionId: 8102,
-    talentProfileId: 501,
-    applicationStatus: "pending",
-    appliedAt: "2026-10-11T14:30:00.000Z",
-    competitionTitle: demoSecondCompetition.title,
-    competitionCategory: demoSecondCompetition.category,
-    competitionStatus: demoSecondCompetition.status,
-    voteCount: 0,
-    chronicBrandsPromotionEnabled: false,
-    talentProfile: demoTalentProfile,
-  },
 ];
 
 const demoContestants = [
@@ -193,20 +208,10 @@ const demoContestants = [
     talentProfile: contestant.talentProfile,
   })),
   {
-    id: 505,
-    competitionId: 8101,
-    talentProfileId: 505,
-    applicationStatus: "pending",
-    appliedAt: "2026-10-12T10:20:00.000Z",
-    competitionTitle: demoCompetition.title,
-    talentProfile: {
-      id: 505,
-      displayName: "Rae Collins",
-      stageName: "Rae Collins",
-      bio: "A new voice with a stripped-back pop sound.",
-      category: "Music",
-      imageUrls: [],
-    },
+    ...demoSecondCompetition.contestants[0],
+    appliedAt: "2026-09-21T00:00:00.000Z",
+    competitionTitle: demoSecondCompetition.title,
+    talentProfile: demoSecondCompetition.contestants[0].talentProfile,
   },
 ];
 
@@ -226,7 +231,7 @@ const demoFinancialOverview = {
       contestantShareCents: 74400,
       paidVoting: { revenueCents: 124800, voteCount: 2496 },
       contestants: [
-        { contestantId: 501, displayName: "Jordan Vale", grossCents: 74400, netCents: 59520, voteCount: 1488 },
+        { contestantId: 501, displayName: "Most Hated Twinz", grossCents: 74400, netCents: 59520, voteCount: 1488 },
       ],
     },
   ],
@@ -237,27 +242,25 @@ const demoFinancialOverview = {
     paidVotingRevenueCents: 124800,
   },
   profileEarnings: [
-    { profileId: 501, displayName: "Jordan Vale", profileType: "contestant", grossCents: 74400 },
+    { profileId: 501, displayName: "Most Hated Twinz", profileType: "contestant", grossCents: 74400 },
   ],
 };
 
 const demoHostStats = {
-  totalCompetitions: 2,
-  totalContestants: 9,
-  totalVotes: 2815,
+  totalCompetitions: 1,
+  totalContestants: 1,
+  totalVotes: 973,
   pendingApplications: 2,
 };
 
 const demoReport = {
-  competition: demoCompetition,
+  competition: demoSecondCompetition,
   leaderboard: [
-    { rank: 1, contestantId: 501, displayName: "Jordan Vale", voteCount: 684, votePercentage: 37.1 },
-    { rank: 2, contestantId: 502, displayName: "Milo Hayes", voteCount: 571, votePercentage: 31.0 },
-    { rank: 3, contestantId: 503, displayName: "Sienna Brooks", voteCount: 388, votePercentage: 21.1 },
+    { rank: 1, contestantId: 601, displayName: "JUNEOUTSXDE", voteCount: 973, votePercentage: 100 },
   ],
-  totalVotes: 1842,
+  totalVotes: 973,
   totalRevenue: 92100,
-  totalContestants: 5,
+  totalContestants: 1,
   totalPurchases: 46,
 };
 
@@ -268,7 +271,7 @@ const demoCategories = [
 ];
 
 const demoHostUsers = [
-  { ...demoHost, competitionsCount: 2, totalContestants: 9, status: "active" },
+  { ...demoHost, competitionsCount: 1, totalContestants: 1, status: "active" },
   {
     userId: "demo-host-02",
     displayName: "Taylor Reed",
@@ -285,26 +288,26 @@ const demoTalentUsers = [
   {
     id: 501,
     userId: "demo-artist-01",
-    displayName: "Jordan Vale",
-    stageName: "Jordan Vale",
-    email: "jordan.vale@example.com",
+    displayName: "Most Hated Twinz",
+    stageName: null,
+    email: "",
     level: 2,
     role: "talent",
     category: "Music",
-    location: "Austin, TX",
+    location: "Oklahoma City",
     imageUrls: demoTalentProfile.imageUrls,
     contestantCount: 1,
   },
   {
     id: 502,
     userId: "demo-artist-02",
-    displayName: "Milo Hayes",
-    stageName: "Milo Hayes",
-    email: "milo.hayes@example.com",
+    displayName: "Lil Nuggey",
+    stageName: null,
+    email: "",
     level: 2,
     role: "talent",
     category: "Music",
-    location: "Nashville, TN",
+    location: null,
     imageUrls: [demoImages.milo],
     contestantCount: 1,
   },
@@ -336,7 +339,7 @@ const demoPurchases = [
   {
     id: 9103,
     competitionId: 8102,
-    contestantId: 503,
+    contestantId: 601,
     voteCount: 50,
     amount: 2500,
     transactionId: "DEMO-ORDER-9103",
@@ -351,30 +354,48 @@ const demoVideoSamplesByContestantId: Record<number, {
   name: string;
   duration: number;
   thumbnail: string;
+  width: number;
+  height: number;
 }> = {
   501: {
-    id: 59395818,
-    name: "Walking on Cars acoustic session",
-    duration: 257,
-    thumbnail: "https://i.vimeocdn.com/video/417376680-a8bab84b5b367e2f67eb1e308c5b4e17a0b31f64f464d9d8073a4b0842b2085a-d_295x166?region=us",
+    id: 1224526005,
+    name: "MHT Summertime Mic Drop",
+    duration: 172,
+    thumbnail: "https://i.vimeocdn.com/video/2198013145-9504260bd72a446cb4706e9f8d3f1ccf63699fab509816c32503e6a979891b2c-d_640x360",
+    width: 2160,
+    height: 3840,
   },
   502: {
-    id: 143261961,
-    name: "Coffee Shop Acoustic Session — Get Low Cover",
-    duration: 167,
-    thumbnail: "https://i.vimeocdn.com/video/540792884-6807187bc71145882d65ff50909cf23e73cc6f43802a30fcc04c0cc10dcea1f6-d_640?region=us",
+    id: 1225122333,
+    name: "Lil Nuggey",
+    duration: 258,
+    thumbnail: "https://i.vimeocdn.com/video/2198759053-8eb9a2e585cc112e43d4d454a0495b3053f3f346942f10e2a96245a5a1ccf395-d_640x360",
+    width: 1920,
+    height: 1080,
   },
   503: {
-    id: 305190021,
-    name: "Blac Rabbit — All Good Acoustic Session",
-    duration: 253,
-    thumbnail: "https://i.vimeocdn.com/video/744627664-cb678a7475a95a05126bb1ac3d932fe7e34854f8e4c07e3cc0f44d0efc2d2c77-d_640?region=us",
+    id: 1224528276,
+    name: "Streets Love boomin sangerous",
+    duration: 124,
+    thumbnail: "https://i.vimeocdn.com/video/2198016328-eaa3f77aa1fc69b1c95c22e3c4a077d80951a9f87942edcadc5c5442a4b55ecd-d_640x360",
+    width: 2160,
+    height: 3840,
   },
   504: {
-    id: 5565152,
-    name: 'Modern Guilt Acoustic "Orphans"',
-    duration: 220,
-    thumbnail: "https://i.vimeocdn.com/video/18690669-e2ff59d87eedf419116387907e16340a1e98e920ab3d24d26a3afa30cc12a98b-d_295x166?region=us",
+    id: 1224528911,
+    name: "$howtime",
+    duration: 155,
+    thumbnail: "https://i.vimeocdn.com/video/2198017124-dc1bea3dce788429798ab2b51f159ba6321c7744be1832921ee1dd14e850bafb-d_640x360",
+    width: 2160,
+    height: 3840,
+  },
+  601: {
+    id: 1227800900,
+    name: "JuneOutside - WYA",
+    duration: 133,
+    thumbnail: "https://i.vimeocdn.com/video/2202109450-f650f0b9a23fdc5c3c95952ba4136b50ab195bade1c5f26aceb60a9b1b3dbd2c-d_640x360",
+    width: 1920,
+    height: 1080,
   },
 };
 
@@ -399,7 +420,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/admin/users") return demoTalentUsers;
   if (path === "/api/drive/images") {
     return [
-      { id: "demo-photo-01", name: "Jordan Vale — mic drop performance", imageUrl: demoImages.gallery, fallbackUrl: demoImages.cover, mimeType: "image/jpeg" },
+      { id: "demo-photo-01", name: "Jordan Vale — acoustic set", imageUrl: demoImages.gallery, fallbackUrl: demoImages.cover, mimeType: "image/jpeg" },
       { id: "demo-photo-02", name: "Jordan Vale — portrait", imageUrl: demoImages.galleryPortrait, fallbackUrl: demoImages.jordan, mimeType: "image/jpeg" },
     ];
   }
@@ -420,7 +441,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/admin/storage") {
     return {
       drive: { usedGB: 2.4, totalGB: 15, usedPercent: 16, folders: [{ name: "Demo competition media", fileCount: 28 }] },
-      vimeo: { totalVideos: 12, usedGB: 8.6, totalGB: 1000, usedPercent: 1, folders: [{ name: "Music Quest: Mic Drop Sessions", videoCount: 12 }] },
+      vimeo: { totalVideos: 12, usedGB: 8.6, totalGB: 1000, usedPercent: 1, folders: [{ name: "Acoustic Spotlight", videoCount: 12 }] },
     };
   }
   if (path === "/api/admin/join/settings" || path === "/api/host/settings") {
@@ -440,7 +461,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
       contestantId: contestant.id,
       talentProfileId: contestant.talentProfileId,
       displayName: contestant.talentProfile.displayName,
-      pagePath: `/music/music-quest-mic-drop-sessions/${contestant.talentProfile.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      pagePath: `/music/acoustic-spotlight-summer-sessions/${contestant.talentProfile.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       websiteVisitors: [247, 193, 128][index],
       uniquePlays: [896, 624, 412][index],
     }));
@@ -449,7 +470,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
         competitionId: demoCompetition.id,
         title: demoCompetition.title,
         category: demoCompetition.category,
-        pagePath: "/music/music-quest-mic-drop-sessions",
+        pagePath: "/music/acoustic-spotlight-summer-sessions",
         websiteVisitors: 428,
         uniquePlays: 1932,
         entries,
@@ -458,12 +479,12 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
         competitionId: demoSecondCompetition.id,
         title: demoSecondCompetition.title,
         category: demoSecondCompetition.category,
-        pagePath: "/music/emerging-voices-mic-drop-showcase",
+        pagePath: "/music/spotlight-emerging-voices",
         websiteVisitors: 316,
         uniquePlays: 1184,
         entries: entries.slice(0, 2).map((entry) => ({
           ...entry,
-          pagePath: "/music/emerging-voices-mic-drop-showcase",
+          pagePath: "/music/spotlight-emerging-voices",
         })),
       },
     ];
@@ -495,12 +516,11 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/tax/my-deadlines") return [];
 
   if (path.includes("/api/resolve/competition/") && path.endsWith("/videos")) {
-    const selectedCompetition = path.includes("emerging-voices")
+    const selectedCompetition = path.includes("spotlight-emerging-voices")
       ? demoSecondCompetition
       : demoCompetition;
-    const samples = demoVideoSamplesByCompetitionId[selectedCompetition.id] || {};
     return selectedCompetition.contestants.map(({ id }) => {
-      const sample = samples[id];
+      const sample = demoVideoSamplesByContestantId[id];
       if (!sample) return { contestantId: id, videos: [] };
       return {
         contestantId: id,
@@ -536,7 +556,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path.startsWith("/api/resolve/competition/")) return demoCompetition;
 
   if (path.includes("/api/vimeo/videos")) {
-    const sample = demoVideoSamplesByCompetitionId[demoCompetition.id][501];
+    const sample = demoVideoSamplesByContestantId[501];
     return [
       {
         uri: `https://vimeo.com/${sample.id}`,
@@ -586,10 +606,6 @@ export function installDemoApiGuard(analyticsRole: "host" | "talent" = "talent")
 
     if (method === "HEAD") {
       return new Response(null, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8" } });
-    }
-    const playUrlMatch = url.pathname.match(/^\/api\/vimeo\/(\d+)\/play$/);
-    if (method === "GET" && playUrlMatch && demoNativeVideoIds.has(Number(playUrlMatch[1]))) {
-      return originalFetch.call(window, input, init);
     }
     return jsonResponse(resolveDemoApi(url, analyticsRole));
   };

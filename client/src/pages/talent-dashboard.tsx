@@ -30,7 +30,7 @@ import * as tus from "tus-js-client";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
 import ContestantTaxSettings from "@/components/contestant-tax-settings";
 import { hasPrizeReadyNonprofitDeclaration } from "@shared/nonprofit-policy";
-import DemoAutoVideo from "@/components/demo-auto-video";
+import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 
 interface Props {
   user: any;
@@ -1993,9 +1993,9 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                               <div key={vid.uri} className="rounded-md bg-white/5 border border-white/10 overflow-hidden" data-testid={`card-video-${vid.uri}`}>
                                 {demoMode && vid.embedUrl ? (
                                   <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-                                    <DemoAutoVideo
-                                      videoId={vid.uri}
-                                      poster={vid.thumbnail}
+                                    <DemoVimeoPreview
+                                      embedUrl={vid.embedUrl}
+                                      thumbnail={vid.thumbnail}
                                       title={vid.name}
                                       className="absolute inset-0 h-full w-full"
                                     />
