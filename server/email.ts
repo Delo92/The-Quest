@@ -74,6 +74,10 @@ export function resetTransporter() {
   cachedTransporter = null;
 }
 
+export async function verifyAccountAccessEmailDelivery(): Promise<void> {
+  await (await getTransporter()).verify();
+}
+
 const brandStyles = `
   <style>
     body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #fff; margin: 0; padding: 0; }
@@ -422,6 +426,7 @@ export async function sendAccountAccessEmail(opts: {
       html: wrapInTemplate(`
         <h2>Your Quest Account Access</h2>
         <p>Hi ${escapeHtml(opts.name || "there")}, here are your sign-in instructions for The Quest.</p>
+        ${opts.temporaryPassword ? "<p>Your password has been reset by The Quest support team. Sign in now with the temporary password below. You can choose your own password using the reset link.</p>" : ""}
         ${credentials}
         <div class="btn-wrap"><a href="${escapeHtml(loginUrl)}" class="btn">Log In to Your Account</a></div>
         <p>After signing in, open your dashboard to add profile photos and videos. Change your temporary password after login.</p>

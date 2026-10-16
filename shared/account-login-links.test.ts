@@ -26,3 +26,11 @@ test("login email prefilling rejects missing and malformed values", () => {
     assert.equal(readLoginEmail(new URLSearchParams({ email })), "");
   }
 });
+
+test("configured bare hostnames are normalized to HTTPS before creating email links", () => {
+  const url = new URL(buildAccountLoginUrl(" quest.example ", "nominee@example.com"));
+  assert.equal(url.origin, "https://quest.example");
+  assert.equal(url.pathname, "/thequest/login");
+  assert.equal(url.searchParams.get("email"), "nominee@example.com");
+  assert.throws(() => buildAccountLoginUrl("javascript:alert(1)", "nominee@example.com"));
+});

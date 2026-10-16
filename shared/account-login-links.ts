@@ -8,7 +8,10 @@ export function buildAccountLoginUrl(siteUrl: string, email: string, options: {
   inviteToken?: string;
   reset?: boolean;
 } = {}): string {
-  const url = new URL("/thequest/login", siteUrl);
+  const input = siteUrl.trim();
+  const base = new URL(/^[a-z][a-z\d+.-]*:/i.test(input) ? input : `https://${input}`);
+  if (base.username || base.password) throw new Error("Invalid site URL");
+  const url = new URL("/thequest/login", base);
   if (!["https:", "http:"].includes(url.protocol)) throw new Error("Invalid site URL");
   url.searchParams.set("email", email.trim().toLowerCase());
   url.searchParams.set("level", String(options.level || 2));

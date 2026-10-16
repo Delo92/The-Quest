@@ -14,3 +14,9 @@ Use the established host admin-reset temporary-password convention for newly pre
 **Why:** The owner explicitly asked to reuse the existing host reset convention instead of introducing a new one, and to make the host password-reset UI available for all users.
 
 **How to apply:** Never claim that the shared temporary credential is an existing user's current password. Include it only when creating an account or explicitly resetting it. Resending access instructions alone must not silently reset existing passwords. Require confirmation before a reset, revoke existing sessions, retain reset/sign-in auditing, and exclude credential-bearing responses from request logs.
+
+Bulk artist/competitor recovery must exclude hosts and admins, even if some records also label them as artists. Competition ownership is another host exclusion signal.
+
+**Why:** The owner repeatedly specified artist/competitor accounts only, not hosts, when authorizing account-wide recovery.
+
+**How to apply:** Give exclusion signals precedence across account levels, authentication claims, profile roles, and competition ownership. Record per-account reset and email outcomes so a failed delivery can be retried without resetting successful accounts again. Do not equate profile-only contestant records with usable login accounts.
