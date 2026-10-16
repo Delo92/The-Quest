@@ -8,7 +8,6 @@ import CompetitionDetail from "./competition-detail";
 import { DemoAuthProvider } from "@/hooks/use-auth";
 import { getQueryFn } from "@/lib/queryClient";
 import { installDemoApiGuard } from "@/lib/app-demo-data";
-import CBLogo from "@/components/cb-logo";
 
 type DemoRole = "artist" | "host-admin" | "voter";
 type HostAdminPanel = "host" | "admin";
@@ -156,34 +155,37 @@ export default function AppDemoPage() {
     };
   }, [demoQueryClient, role]);
 
-  const panelLabel = role === "host-admin"
-    ? hostAdminPanel === "host" ? "Host dashboard" : "Admin dashboard"
-    : role === "voter"
-      ? voterPanel === "competition" ? "Competition preview" : "Voter dashboard"
-      : "Artist dashboard";
-
   return (
     <QueryClientProvider client={demoQueryClient}>
       <DemoAuthProvider>
         <div className="min-h-screen bg-[#080808] text-white">
-          <header className="relative z-[70] border-b border-white/10 bg-[#101010]">
-            <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
-              <div className="flex min-w-0 items-center gap-3">
-                <CBLogo size="sm" showText={false} />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-300/80 sm:text-[10px] sm:tracking-[0.2em]">The Quest</p>
-                  <h1 className="text-base font-semibold leading-tight sm:text-lg">Platform demo</h1>
-                </div>
-              </div>
-              <div aria-label="Real Quest media · fictional demo metrics" className="flex shrink-0 items-center gap-2 rounded-full border border-orange-300/20 bg-orange-300/[0.06] px-3 py-1.5 text-xs text-orange-100/80">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                <span className="sm:hidden">Real media · demo metrics</span>
-                <span className="hidden sm:inline">Real Quest media · fictional demo metrics</span>
-              </div>
-            </div>
+          <header className="sticky top-0 z-[70] border-b border-white/10 bg-[#101010]/95 backdrop-blur">
+            <nav
+              aria-label="The Quest website"
+              className="mx-auto grid max-w-[1600px] grid-cols-2 gap-2 px-3 py-2 sm:grid-cols-5 sm:px-6 lg:px-8"
+            >
+              <a href="/thequest" className="inline-flex min-h-11 items-center justify-center rounded-md bg-orange-500 px-3 text-center text-sm font-semibold text-white transition-colors hover:bg-orange-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
+                Visit The Quest
+              </a>
+              <a href="/thequest/competitions" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
+                Competitions
+              </a>
+              <a href="/thequest/nominate" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
+                Nominate
+              </a>
+              <a href="/thequest/host" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
+                Host an event
+              </a>
+              <a href="/thequest/login" className="inline-flex min-h-11 items-center justify-center rounded-md border border-white/15 px-3 text-sm text-white/80 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300">
+                Log in
+              </a>
+            </nav>
+          </header>
 
-            <div className="mx-auto max-w-[1600px] px-4 pb-3 sm:px-6 sm:pb-4 lg:px-8">
-              <nav aria-label="Choose a demo role" className="grid grid-cols-3 gap-1.5 rounded-xl border border-white/10 bg-black/25 p-1 sm:gap-2 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0">
+          <section className="border-b border-white/10 bg-[#0d0d0d]" aria-label="Demo view controls">
+            <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 px-3 py-2.5 sm:px-6 lg:px-8">
+              <span className="mr-1 text-xs font-medium uppercase tracking-wider text-white/50">Preview</span>
+              <nav aria-label="Choose a demo role" className="grid flex-1 grid-cols-3 gap-1.5 sm:flex sm:flex-none">
                 {roles.map((item) => {
                   const selected = role === item.id;
                   return (
@@ -194,23 +196,24 @@ export default function AppDemoPage() {
                       aria-pressed={selected}
                       aria-label={`${item.label}. ${item.description}`}
                       onClick={() => setRole(item.id)}
-                      className={`min-h-[44px] min-w-0 rounded-lg border px-1.5 text-center font-sans tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 sm:min-h-[58px] sm:px-4 sm:py-2.5 sm:text-left ${
+                      className={`min-h-10 rounded-md border px-2 text-xs font-semibold tracking-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 sm:px-3 sm:text-sm ${
                         selected
-                          ? "border-orange-400/70 bg-orange-400/10"
-                          : "border-white/10 bg-white/[0.025] hover:border-white/25"
+                          ? "border-orange-400/70 bg-orange-400/10 text-orange-100"
+                          : "border-white/10 text-white/60 hover:border-white/25 hover:text-white/90"
                       }`}
                     >
-                      <span className={`block text-[13px] font-semibold leading-tight sm:hidden ${selected ? "text-orange-100" : "text-white/80"}`}>{item.mobileLabel}</span>
-                      <span className={`hidden text-sm font-semibold sm:block ${selected ? "text-orange-100" : "text-white/80"}`}>{item.label}</span>
-                      <span className="mt-0.5 hidden text-xs text-white/45 sm:block">{item.description}</span>
+                      {item.mobileLabel}
                     </button>
                   );
                 })}
               </nav>
+              <p className="w-full text-[11px] text-white/40 sm:ml-auto sm:w-auto">
+                Real media · fictional demo metrics
+              </p>
 
               {role === "host-admin" && (
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:mt-3" aria-label="Host or administrator view">
-                  <span className="mr-1 text-xs font-sans uppercase tracking-[0.1em] text-white/60">View</span>
+                <div className="flex w-full flex-wrap items-center gap-2 pt-1 sm:w-auto sm:pt-0" aria-label="Host or administrator preview">
+                  <span className="text-xs text-white/45">View</span>
                   {(["host", "admin"] as const).map((panel) => (
                     <button
                       key={panel}
@@ -218,21 +221,21 @@ export default function AppDemoPage() {
                       data-demo-navigation="allowed"
                       aria-pressed={hostAdminPanel === panel}
                       onClick={() => setHostAdminPanel(panel)}
-                      className={`min-h-[44px] rounded-full border px-3 py-2 text-[13px] font-sans tracking-normal transition-colors ${
+                      className={`min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors ${
                         hostAdminPanel === panel
                           ? "border-orange-400/60 bg-orange-400/10 text-orange-100"
                           : "border-white/10 text-white/55 hover:border-white/25 hover:text-white/80"
                       }`}
                     >
-                      {panel === "host" ? "Host dashboard" : "Admin dashboard"}
+                      {panel === "host" ? "Host" : "Admin"}
                     </button>
                   ))}
                 </div>
               )}
 
               {role === "voter" && (
-                <div className="mt-2.5 flex flex-wrap items-center gap-2 sm:mt-3" aria-label="Voter experience view">
-                  <span className="mr-1 text-xs font-sans uppercase tracking-[0.1em] text-white/60">View</span>
+                <div className="flex w-full flex-wrap items-center gap-2 pt-1 sm:w-auto sm:pt-0" aria-label="Voter preview">
+                  <span className="text-xs text-white/45">View</span>
                   {(["competition", "dashboard"] as const).map((panel) => (
                     <button
                       key={panel}
@@ -240,7 +243,7 @@ export default function AppDemoPage() {
                       data-demo-navigation="allowed"
                       aria-pressed={voterPanel === panel}
                       onClick={() => setVoterPanel(panel)}
-                      className={`min-h-[44px] rounded-full border px-3 py-2 text-[13px] font-sans tracking-normal transition-colors ${
+                      className={`min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors ${
                         voterPanel === panel
                           ? "border-orange-400/60 bg-orange-400/10 text-orange-100"
                           : "border-white/10 text-white/55 hover:border-white/25 hover:text-white/80"
@@ -252,12 +255,7 @@ export default function AppDemoPage() {
                 </div>
               )}
             </div>
-          </header>
-
-          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-2 text-[13px] leading-5 text-white/70 sm:gap-2 sm:px-6 sm:py-3 sm:text-xs sm:text-white/50 lg:px-8">
-            <p>Viewing: <span className="font-medium text-white/75">{panelLabel}</span></p>
-            <p>Sign-in, voting, uploads, and data changes are disabled.</p>
-          </div>
+          </section>
 
           <main className="pb-10">
             {!apiGuardReady ? (

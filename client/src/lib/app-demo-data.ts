@@ -243,10 +243,10 @@ const demoFinancialOverview = {
 };
 
 const demoHostStats = {
-  totalCompetitions: 1,
-  totalContestants: 1,
-  totalVotes: 973,
-  pendingApplications: 2,
+  totalCompetitions: demoCompetitions.length,
+  totalContestants: new Set(demoContestants.map((contestant) => contestant.talentProfileId)).size,
+  totalVotes: demoCompetitions.reduce((total, competition) => total + competition.totalVotes, 0),
+  pendingApplications: demoContestants.filter((contestant) => contestant.applicationStatus === "pending").length,
 };
 
 const demoReport = {
@@ -281,7 +281,7 @@ const demoCategories = [
 ];
 
 const demoHostUsers = [
-  { ...demoHost, competitionsCount: 1, totalContestants: 1, status: "active" },
+  { ...demoHost, competitionsCount: demoCompetitions.length, totalContestants: new Set(demoContestants.map((contestant) => contestant.talentProfileId)).size, status: "active" },
   {
     userId: "demo-host-02",
     displayName: "Taylor Reed",
@@ -428,10 +428,8 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/livery") return [];
   if (path === "/api/talent-profiles/me") return demoTalentProfile;
   if (path === "/api/contestants/me") return demoContestEntries;
-  if (path === "/api/host/competitions") return [demoSecondCompetition];
-  if (path === "/api/host/contestants") {
-    return demoContestants.filter((contestant) => contestant.competitionId === demoSecondCompetition.id);
-  }
+  if (path === "/api/host/competitions") return demoCompetitions;
+  if (path === "/api/host/contestants") return demoContestants;
   if (path === "/api/admin/contestants") return demoContestants;
   if (path === "/api/admin/hosts") return demoHostUsers;
   if (path === "/api/admin/users") return demoTalentUsers;
@@ -653,7 +651,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path.includes("/api/admin/hosts/") && path.endsWith("/competitions")) {
     const pathSegments = path.split("/");
     const hostId = pathSegments[pathSegments.length - 2];
-    return hostId === demoHost.userId ? [demoSecondCompetition] : [];
+    return hostId === demoHost.userId ? demoCompetitions : [];
   }
   if (path.includes("/api/competitions/") && path.includes("/stages/")) {
     return { competitionId: demoCompetition.id, stage: null, totalVotes: 1842, leaderboard: [] };

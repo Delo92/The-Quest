@@ -168,7 +168,7 @@ export default function ViewerDashboard({ demoMode = false }: { demoMode?: boole
 
   return (
     <div className="quest-dashboard min-h-screen bg-[#090909] text-white">
-      <SiteNavbar />
+      {!demoMode && <SiteNavbar />}
 
       <section className="relative h-[230px] md:h-[290px] overflow-hidden">
         {(() => { const m = getMedia("breadcrumb_bg"); return m.type === "video" && m.url ? (

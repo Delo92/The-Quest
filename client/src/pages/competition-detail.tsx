@@ -288,7 +288,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black">
-        <SiteNavbar />
+        {!demoMode && <SiteNavbar />}
         <div className="max-w-5xl mx-auto px-4 py-32">
           <Skeleton className="h-64 mb-6 bg-white/5" />
           <Skeleton className="h-8 w-1/2 mb-4 bg-white/10" />
@@ -301,7 +301,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   if (!competition) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white">
-        <SiteNavbar />
+        {!demoMode && <SiteNavbar />}
         <div className="text-center">
           <Trophy className="h-12 w-12 text-white/20 mx-auto mb-4" />
           <h3 className="text-lg font-semibold">Competition not found</h3>
@@ -391,7 +391,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <SiteNavbar />
+      {!demoMode && <SiteNavbar />}
 
       <section className="relative overflow-hidden">
         {(() => {

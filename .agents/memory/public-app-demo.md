@@ -26,3 +26,15 @@ Demo contestant media must use explicit Vimeo IDs that have been checked for pub
 **Why:** Numeric ID arithmetic produced a nonexistent player URL, while neighboring generated IDs happened to point at unrelated real videos.
 
 **How to apply:** Maintain deliberate sample-media mappings and verify each Vimeo video through the public demo playback path.
+
+When the host and viewer roles show the same demo competitions, keep their artist rosters and aggregate counts consistent by deriving both roles from the shared competition and contestant fixtures.
+
+**Why:** The user explicitly asked for the host demo to show the same artists the viewer demo sees so the role views match.
+
+**How to apply:** Keep host competition and contestant endpoints tied to the shared demo fixtures, and derive summary counts from those fixtures rather than maintaining a smaller role-specific roster.
+
+The demo shell should not imitate a second branded site header or lead with a read-only warning. Keep role switching compact and provide direct links to the real Quest routes from the app-demo route.
+
+**Why:** The user said the mock header and read-only banners confused visitors and asked for clear buttons to the actual site.
+
+**How to apply:** Keep real-site links outside the read-only event-capture surface and use the `/thequest/...` route prefix when linking from `/app-demo`.
