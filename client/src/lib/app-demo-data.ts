@@ -399,7 +399,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/admin/users") return demoTalentUsers;
   if (path === "/api/drive/images") {
     return [
-      { id: "demo-photo-01", name: "Jordan Vale — acoustic set", imageUrl: demoImages.gallery, fallbackUrl: demoImages.cover, mimeType: "image/jpeg" },
+      { id: "demo-photo-01", name: "Jordan Vale — mic drop performance", imageUrl: demoImages.gallery, fallbackUrl: demoImages.cover, mimeType: "image/jpeg" },
       { id: "demo-photo-02", name: "Jordan Vale — portrait", imageUrl: demoImages.galleryPortrait, fallbackUrl: demoImages.jordan, mimeType: "image/jpeg" },
     ];
   }
@@ -420,7 +420,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/admin/storage") {
     return {
       drive: { usedGB: 2.4, totalGB: 15, usedPercent: 16, folders: [{ name: "Demo competition media", fileCount: 28 }] },
-      vimeo: { totalVideos: 12, usedGB: 8.6, totalGB: 1000, usedPercent: 1, folders: [{ name: "Acoustic Spotlight", videoCount: 12 }] },
+      vimeo: { totalVideos: 12, usedGB: 8.6, totalGB: 1000, usedPercent: 1, folders: [{ name: "Music Quest: Mic Drop Sessions", videoCount: 12 }] },
     };
   }
   if (path === "/api/admin/join/settings" || path === "/api/host/settings") {
@@ -440,7 +440,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
       contestantId: contestant.id,
       talentProfileId: contestant.talentProfileId,
       displayName: contestant.talentProfile.displayName,
-      pagePath: `/music/acoustic-spotlight-summer-sessions/${contestant.talentProfile.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      pagePath: `/music/music-quest-mic-drop-sessions/${contestant.talentProfile.displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       websiteVisitors: [247, 193, 128][index],
       uniquePlays: [896, 624, 412][index],
     }));
@@ -449,7 +449,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
         competitionId: demoCompetition.id,
         title: demoCompetition.title,
         category: demoCompetition.category,
-        pagePath: "/music/acoustic-spotlight-summer-sessions",
+        pagePath: "/music/music-quest-mic-drop-sessions",
         websiteVisitors: 428,
         uniquePlays: 1932,
         entries,
@@ -458,12 +458,12 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
         competitionId: demoSecondCompetition.id,
         title: demoSecondCompetition.title,
         category: demoSecondCompetition.category,
-        pagePath: "/music/spotlight-emerging-voices",
+        pagePath: "/music/emerging-voices-mic-drop-showcase",
         websiteVisitors: 316,
         uniquePlays: 1184,
         entries: entries.slice(0, 2).map((entry) => ({
           ...entry,
-          pagePath: "/music/spotlight-emerging-voices",
+          pagePath: "/music/emerging-voices-mic-drop-showcase",
         })),
       },
     ];
@@ -495,11 +495,12 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path === "/api/tax/my-deadlines") return [];
 
   if (path.includes("/api/resolve/competition/") && path.endsWith("/videos")) {
-    const selectedCompetition = path.includes("spotlight-emerging-voices")
+    const selectedCompetition = path.includes("emerging-voices")
       ? demoSecondCompetition
       : demoCompetition;
+    const samples = demoVideoSamplesByCompetitionId[selectedCompetition.id] || {};
     return selectedCompetition.contestants.map(({ id }) => {
-      const sample = demoVideoSamplesByContestantId[id];
+      const sample = samples[id];
       if (!sample) return { contestantId: id, videos: [] };
       return {
         contestantId: id,
@@ -535,7 +536,7 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   if (path.startsWith("/api/resolve/competition/")) return demoCompetition;
 
   if (path.includes("/api/vimeo/videos")) {
-    const sample = demoVideoSamplesByContestantId[501];
+    const sample = demoVideoSamplesByCompetitionId[demoCompetition.id][501];
     return [
       {
         uri: `https://vimeo.com/${sample.id}`,
@@ -585,6 +586,10 @@ export function installDemoApiGuard(analyticsRole: "host" | "talent" = "talent")
 
     if (method === "HEAD") {
       return new Response(null, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8" } });
+    }
+    const playUrlMatch = url.pathname.match(/^\/api\/vimeo\/(\d+)\/play$/);
+    if (method === "GET" && playUrlMatch && demoNativeVideoIds.has(Number(playUrlMatch[1]))) {
+      return originalFetch.call(window, input, init);
     }
     return jsonResponse(resolveDemoApi(url, analyticsRole));
   };

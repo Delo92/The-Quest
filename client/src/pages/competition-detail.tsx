@@ -20,7 +20,7 @@ import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
 import CompetitionSummaryText from "@/components/competition-summary-text";
-import DemoVimeoPreview from "@/components/demo-vimeo-preview";
+import DemoAutoVideo from "@/components/demo-auto-video";
 import {
   CompetitionCountdownPanel,
   formatCompetitionDate,
@@ -203,7 +203,7 @@ function stageVideoEmbedUrl(mediaUrl: string): string {
 export default function CompetitionDetailPage({ demoMode = false }: { demoMode?: boolean } = {}) {
   const params = useParams<{ categorySlug: string; compSlug: string }>();
   const categorySlug = demoMode ? "music" : params?.categorySlug;
-  const compSlug = demoMode ? "acoustic-spotlight-summer-sessions" : params?.compSlug;
+  const compSlug = demoMode ? "music-quest-mic-drop-sessions" : params?.compSlug;
   const { user } = useAuth();
   const { toast } = useToast();
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);
@@ -725,9 +725,9 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                   {demoMode && !selectedStage && videos.length > 0 ? (
                     <div className="relative overflow-hidden bg-black p-1">
                       <div className={`relative w-full overflow-hidden ${videos[0].height && videos[0].width && videos[0].height > videos[0].width ? "aspect-[9/16]" : "aspect-video"}`}>
-                        <DemoVimeoPreview
-                          embedUrl={videos[0].embedUrl}
-                          thumbnail={videos[0].thumbnail}
+                        <DemoAutoVideo
+                          videoId={videos[0].uri}
+                          poster={videos[0].thumbnail}
                           title={`${contestant.talentProfile.displayName} — ${videos[0].name}`}
                           className="absolute inset-0 h-full w-full"
                         />

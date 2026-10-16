@@ -82,7 +82,7 @@ function DemoReadOnlySurface({ children }: { children: ReactNode }) {
   const blockAction = (event: SyntheticEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
-    if (target.closest('[role="tab"], [data-demo-navigation="allowed"], [data-demo-safe-action="true"]')) return;
+    if (target.closest('[role="tab"], [data-demo-navigation="allowed"]')) return;
     const control = target.closest("a, button, input, textarea, select, [role='button'], [role='switch']");
     if (control) {
       event.preventDefault();
@@ -94,6 +94,7 @@ function DemoReadOnlySurface({ children }: { children: ReactNode }) {
     <div
       className="demo-read-only-surface"
       aria-label="Read-only sample dashboard"
+      aria-disabled="true"
       data-demo-read-only="true"
       onClickCapture={blockAction}
       onSubmitCapture={(event) => {
