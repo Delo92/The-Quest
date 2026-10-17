@@ -13,6 +13,12 @@ The Quest owners want both incoming Stripe payments and the funding of outgoing 
 
 **How to apply:** Scope both direct checkout and approved recipient disbursements from Quest-owned funds. Check actual routing and credential precedence rather than assuming a key replacement changes the merchant. Distinguish the existing embedded PaymentIntent flow from Stripe-hosted Checkout. Historical payments and refunds remain tied to the account that originally processed them. Distinguish settlement into Quest's own bank account from paying third-party hosts or talent: recipient payments require an eligible third-party payout product, not treating recipient bank accounts as Quest-owned external accounts.
 
+Do not present a publishable key as a universal Stripe requirement. Server-created, Stripe-hosted Checkout can redirect to the returned session URL using only server-side Stripe credentials; webhook signatures use a separate signing secret. Embedded Stripe.js payment confirmation does require a publishable key.
+
+**Why:** The owner reported that OC takes Stripe payments with a secret key and webhook signing secret without a separate publishable-key setting. Stripe's hosted Checkout documentation confirms that server-only session creation and redirect are supported. A missing publishable key in Quest's current configuration does not establish that OC or Quest has never processed Stripe payments historically.
+
+**How to apply:** Determine the actual checkout flow before stating key requirements. For the requested owner-account cutover, explain hosted Checkout as an alternative to requiring another key for the existing embedded form. Do not claim to have inspected OC's implementation when only Quest's bridge has been read.
+
 ## Original bridge architecture (reference; inspect current code before changes)
 
 Quest never holds Stripe/PayPal secrets. All payment execution lives in OC.
