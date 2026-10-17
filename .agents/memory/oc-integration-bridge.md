@@ -5,7 +5,15 @@ description: Architecture and confirmed endpoint map for the Quest↔OC server-t
 
 # Quest ↔ Original Concepts Integration Bridge
 
-## Architecture
+## Owner decision: Quest-owned Stripe
+
+The Quest owners want to use their own Stripe account rather than Original Concepts' Stripe account. Preserve existing sign-in and unrelated OC integrations; changing the Stripe merchant does not authorize removing OC social synchronization, PayPal, or payroll integrations wholesale.
+
+**Why:** The owner stated that Quest will no longer use Original Concepts for Stripe and has supplied credentials for Quest's own account.
+
+**How to apply:** Treat direct Quest-owned Stripe as the required merchant for a Stripe cutover. Check actual routing and credential precedence rather than assuming a key replacement changes the merchant. Distinguish the existing embedded PaymentIntent flow from Stripe-hosted Checkout. Historical payments and refunds remain tied to the account that originally processed them.
+
+## Original bridge architecture (reference; inspect current code before changes)
 
 Quest never holds Stripe/PayPal secrets. All payment execution lives in OC.
 
