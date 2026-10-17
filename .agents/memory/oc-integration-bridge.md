@@ -7,11 +7,11 @@ description: Architecture and confirmed endpoint map for the Quest↔OC server-t
 
 ## Owner decision: Quest-owned Stripe
 
-The Quest owners want to use their own Stripe account rather than Original Concepts' Stripe account. Preserve existing sign-in and unrelated OC integrations; changing the Stripe merchant does not authorize removing OC social synchronization, PayPal, or payroll integrations wholesale.
+The Quest owners want both incoming Stripe payments and the funding of outgoing payouts to use their own Stripe account rather than Original Concepts' Stripe account. Preserve existing sign-in and unrelated OC integrations; changing Stripe ownership does not authorize removing OC social synchronization or PayPal integrations wholesale.
 
-**Why:** The owner stated that Quest will no longer use Original Concepts for Stripe and has supplied credentials for Quest's own account.
+**Why:** The owner stated that Quest will no longer use Original Concepts for Stripe, has supplied credentials for Quest's own account, and clarified that their account must be “where payments go and payouts come from.”
 
-**How to apply:** Treat direct Quest-owned Stripe as the required merchant for a Stripe cutover. Check actual routing and credential precedence rather than assuming a key replacement changes the merchant. Distinguish the existing embedded PaymentIntent flow from Stripe-hosted Checkout. Historical payments and refunds remain tied to the account that originally processed them.
+**How to apply:** Scope both direct checkout and approved recipient disbursements from Quest-owned funds. Check actual routing and credential precedence rather than assuming a key replacement changes the merchant. Distinguish the existing embedded PaymentIntent flow from Stripe-hosted Checkout. Historical payments and refunds remain tied to the account that originally processed them. Distinguish settlement into Quest's own bank account from paying third-party hosts or talent: recipient payments require an eligible third-party payout product, not treating recipient bank accounts as Quest-owned external accounts.
 
 ## Original bridge architecture (reference; inspect current code before changes)
 
