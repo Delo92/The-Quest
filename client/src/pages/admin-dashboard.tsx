@@ -1458,7 +1458,7 @@ export default function AdminDashboard({ user }: { user: any }) {
   const [calendarSelectedComp, setCalendarSelectedComp] = useState<number | null>(null);
   const [settingsForm, setSettingsForm] = useState<any>(null);
   const [paymentForm, setPaymentForm] = useState({
-    paymentProvider: "authorize" as "authorize" | "stripe" | "paypal",
+    paymentProvider: "stripe" as "authorize" | "stripe" | "paypal",
     paypalEnvironment: "sandbox" as "sandbox" | "live",
   });
   const [compSearch, setCompSearch] = useState("");
@@ -1626,7 +1626,7 @@ export default function AdminDashboard({ user }: { user: any }) {
     if (paymentSettings) {
       setPaymentForm((current) => ({
         ...current,
-        paymentProvider: paymentSettings.provider || "authorize",
+        paymentProvider: "stripe",
         paypalEnvironment: paymentSettings.paypalEnvironment || "sandbox",
       }));
     }
@@ -4996,81 +4996,33 @@ export default function AdminDashboard({ user }: { user: any }) {
 
                     <div className="rounded-md bg-white/5 border border-orange-500/20 p-5 space-y-5">
                      <div>
-                       <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Buyer Payment Provider</h4>
+                       <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Quest Stripe Payments</h4>
                        <p className="text-[11px] text-white/40 mt-2 max-w-2xl">
-                          Select the buyer checkout route. When the Original Concepts bridge is connected, Stripe and PayPal checkouts are routed through OC.
+                          All new payments go directly to Quest’s Stripe account. No other checkout provider is offered.
                        </p>
                      </div>
-                      {(() => {
-                        const oc = paymentSettings?.ocIntegration;
-                        const ocConnected = Boolean(oc?.configured && oc?.reachable && oc?.authorized);
-                        const selectedProvider = paymentSettings?.provider;
-                        const ocCheckoutProvider = ocConnected && (selectedProvider === "stripe" || selectedProvider === "paypal")
-                          ? selectedProvider
-                          : null;
-                        const ocStatus = !oc?.configured
-                          ? "Not configured"
-                          : !oc.reachable
-                            ? "Gateway unavailable"
-                            : !oc.authorized
-                              ? "Token rejected"
-                              : "Connected";
-                        return (
-                          <div className={`rounded-md border p-4 ${ocConnected ? "border-emerald-500/30 bg-emerald-500/[0.08]" : "border-amber-500/30 bg-amber-500/[0.06]"}`}>
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
-                                <h5 className="text-sm font-semibold text-white">Original Concepts payment bridge</h5>
-                                <p className="mt-1 text-[11px] text-white/45">
-                                  {ocCheckoutProvider
-                                    ? `Buyer ${ocCheckoutProvider === "stripe" ? "Stripe" : "PayPal"} checkout is currently routed through OC.`
-                                    : ocConnected
-                                      ? "OC is connected. Select Stripe or PayPal below to use OC for buyer checkout."
-                                    : "OC is not currently confirmed. No OC checkout route is active."}
-                                </p>
-                              </div>
-                              <span className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${ocConnected ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-300"}`}>
-                                {ocStatus}
-                              </span>
-                            </div>
-                            <p className="mt-3 text-[10px] text-white/30">
-                              OC endpoint: {oc?.baseUrl || "not configured"} · Selected route: {ocCheckoutProvider ? `OC ${ocCheckoutProvider}` : selectedProvider === "authorize" ? "Authorize.Net" : "not selected"} · Provider values are managed through Replit Secrets, not this browser form.
-                            </p>
-                          </div>
-                        );
-                      })()}
                      <div className="grid grid-cols-1 gap-4">
                        <div>
                           <Label className="text-white/50 text-xs">Buyer checkout provider</Label>
                           <p className="mt-1 text-[10px] text-white/30">
-                             When OC is connected, Stripe or PayPal here selects the OC payment route. Authorize.Net remains active until you explicitly change this selection and save.
+                             Quest-owned Stripe is fixed for checkout. Missing Stripe credentials stop checkout rather than switching processors.
                           </p>
-                         <Select
-                           value={paymentForm.paymentProvider}
-                           onValueChange={(value: "authorize" | "stripe" | "paypal") => setPaymentForm((current) => ({ ...current, paymentProvider: value }))}
-                         >
-                           <SelectTrigger className="bg-white/[0.08] border-white/20 text-white mt-2" data-testid="select-buyer-payment-provider">
-                             <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent className="bg-[#222] border-white/20 text-white">
-                             <SelectItem value="authorize">Authorize.Net</SelectItem>
-                             <SelectItem value="stripe">Stripe</SelectItem>
-                             <SelectItem value="paypal">PayPal</SelectItem>
-                           </SelectContent>
-                         </Select>
+                         <p className="mt-2 rounded-md border border-white/20 bg-white/[0.08] px-3 py-3 text-sm text-white" data-testid="quest-stripe-only-provider">
+                           Quest Stripe
+                         </p>
                        </div>
                      </div>
                       <div className="rounded-md border border-white/10 bg-black/20 p-4 space-y-3">
                         <div>
                           <h5 className="text-xs font-bold uppercase tracking-wider text-white/70">Server-side credential status</h5>
                           <p className="mt-1 text-[10px] text-white/35">
-                            These are the Original Concepts variable names. Values are read from Replit Secrets only and are never displayed or entered in this dashboard.
+                            Credential values are never displayed here. Stripe uses Quest’s own account.
                           </p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
                           {[
-                            ["PAYPAL_CLIENT_ID", envSecretStatus.paypalClientId],
-                            ["PAYPAL_CLIENT_SECRET", envSecretStatus.paypalClientSecret],
-                            ["PAYPAL_USE_LIVE", envSecretStatus.paypalUseLive],
+                            ["STRIPE_SECRET_KEY", envSecretStatus.stripeSecretKey],
+                            ["STRIPE_PUBLISHABLE_KEY", envSecretStatus.stripePublishableKey],
                             ["STRIPE_WEBHOOK_SECRET", envSecretStatus.stripeWebhookSecret],
                           ].map(([name, configured]) => (
                             <div key={name as string} className="flex items-center justify-between gap-3 border border-white/10 px-3 py-2">
@@ -5087,7 +5039,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                       </div>
                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                          <p className="text-[10px] text-white/30">
-                           Active route: {paymentSettings?.provider === "paypal" ? "OC PayPal" : paymentSettings?.provider === "stripe" ? "OC Stripe" : "Authorize.Net"} · OC PayPal variables: {envSecretStatus.paypalClientId && envSecretStatus.paypalClientSecret && envSecretStatus.paypalUseLive ? "set" : "incomplete"}
+                           Only checkout route: Quest Stripe · {paymentSettings?.stripeConfigured ? "Credentials configured" : "Credentials incomplete"}
                        </p>
                        <Button
                          onClick={() => savePaymentMutation.mutate()}
@@ -5095,7 +5047,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                          className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
                          data-testid="button-save-payment-provider"
                        >
-                         {savePaymentMutation.isPending ? "Saving..." : "Save Payment Provider"}
+                         {savePaymentMutation.isPending ? "Saving..." : "Save Stripe Settings"}
                        </Button>
                      </div>
                    </div>

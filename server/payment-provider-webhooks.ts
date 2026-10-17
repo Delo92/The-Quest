@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import Stripe from "stripe";
 import type { Express, Request, Response } from "express";
 import { getFirestore } from "./firebase-admin";
 import { failPayment } from "./payment-security";
@@ -8,18 +9,10 @@ import {
   getPayPalApiBase,
 } from "./buyer-payment-providers";
 
-function verifyStripeSignature(rawBody: Buffer, header: string, secret: string): boolean {
+export function verifyStripeSignature(rawBody: Buffer, header: string, secret: string): boolean {
   try {
-    const values = Object.fromEntries(header.split(",").map((part) => {
-      const index = part.indexOf("=");
-      return index === -1 ? [part, ""] : [part.slice(0, index), part.slice(index + 1)];
-    }));
-    const timestamp = Number(values.t);
-    const signature = values.v1;
-    if (!timestamp || !signature || Math.abs(Date.now() / 1000 - timestamp) > 300) return false;
-    const expected = crypto.createHmac("sha256", secret).update(`${timestamp}.${rawBody.toString("utf8")}`).digest("hex");
-    return signature.length === expected.length
-      && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    Stripe.webhooks.constructEvent(rawBody, header, secret);
+    return true;
   } catch {
     return false;
   }
@@ -116,15 +109,35 @@ export function registerPaymentProviderWebhooks(app: Express) {
     } catch {
       return res.status(400).json({ message: "Invalid Stripe webhook body" });
     }
-    const isNew = await recordEvent("stripe", String(event.id || ""), event);
-    res.json({ received: true, duplicate: !isNew });
-    if (!isNew) return;
+    if (typeof event.id !== "string" || !/^evt_[A-Za-z0-9_]+$/.test(event.id) || typeof event.type !== "string") {
+      return res.status(400).json({ message: "Invalid Stripe webhook event" });
+    }
+    const existing = await getFirestore().collection("paymentProviderWebhookEvents").doc(`stripe_${event.id}`).get();
+    if (existing.exists) return res.json({ received: true, duplicate: true });
 
     const object = event.data?.object || {};
     const transactionId = event.type.startsWith("payment_intent.")
       ? String(object.id || "")
       : String(object.payment_intent || "");
     const idempotencyKey = object.metadata?.idempotencyKey;
+    if (event.type.startsWith("payment_intent.") && object.metadata?.source === "the-quest-direct"
+      && typeof idempotencyKey === "string") {
+      const checkoutId = crypto.createHash("sha256").update(idempotencyKey).digest("hex");
+      const ref = getFirestore().collection("questStripeCheckouts").doc(checkoutId);
+      await getFirestore().runTransaction(async (tx) => {
+        const snapshot = await tx.get(ref);
+        if (!snapshot.exists || (snapshot.data()?.intentId && snapshot.data()?.intentId !== transactionId)) return;
+        // Persist successful payment even if the buyer never returns to submit
+        // the application/votes. Do not mark the order fulfilled here.
+        if (snapshot.data()?.stripeStatus === "succeeded" && object.status !== "succeeded") return;
+        tx.update(ref, {
+          intentId: transactionId,
+          stripeStatus: object.status || "unknown",
+          latestWebhookEvent: event.type,
+          webhookConfirmedAt: new Date().toISOString(),
+        });
+      });
+    }
     if (event.type === "payment_intent.succeeded" || event.type === "checkout.session.completed") {
       await markWebhookConfirmed({
         provider: "stripe",
@@ -142,6 +155,10 @@ export function registerPaymentProviderWebhooks(app: Express) {
         status: "failed",
       });
     }
+    // Acknowledge and deduplicate only AFTER persistence. A failed write must
+    // leave Stripe free to retry, rather than permanently losing the event.
+    const isNew = await recordEvent("stripe", event.id, event);
+    res.json({ received: true, duplicate: !isNew });
   });
 
   app.post("/api/webhooks/paypal", async (req: Request, res: Response) => {

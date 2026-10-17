@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { confirmStripeCardPayment, createPayPalRedirect, loadStripeScript, type BuyerPaymentConfig } from "@/lib/buyer-payment";
+import type { StripeCardHandle } from "@/lib/buyer-payment";
+import { StripeCardField } from "@/components/stripe-card-field";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
@@ -78,6 +80,7 @@ export default function JoinPage() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [nominatorForm, setNominatorForm] = useState<Record<string, string>>({});
   const [cardNumber, setCardNumber] = useState("");
+  const [stripeCard, setStripeCard] = useState<StripeCardHandle | null>(null);
   const [expMonth, setExpMonth] = useState("");
   const [expYear, setExpYear] = useState("");
   const [cvv, setCvv] = useState("");
@@ -290,7 +293,7 @@ export default function JoinPage() {
       return false;
     }
     if (needsPayment) {
-      if (!cardNumber || !expMonth || !expYear || !cvv) {
+      if (paymentConfig?.provider === "stripe" ? !stripeCard?.complete : paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv)) {
         toast({ title: "Please enter your card details", variant: "destructive" });
         return false;
       }
@@ -309,7 +312,7 @@ export default function JoinPage() {
       }
     }
     return true;
-  }, [settings, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
+  }, [settings, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -365,10 +368,7 @@ export default function JoinPage() {
             competitionId: selectedCompetitionId,
             promoCode: promoValidated ? promoCode : undefined,
           },
-          cardNumber,
-          expMonth,
-          expYear,
-          cvv,
+          cardHandle: stripeCard,
           name: "Anonymous",
           email: nominatorForm.email?.trim() || "",
           billingAddress,
@@ -436,7 +436,7 @@ export default function JoinPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged]);
+  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, stripeCard, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -1019,6 +1019,9 @@ export default function JoinPage() {
                   </div>
                 </div>
               </div>
+              {paymentConfig?.provider === "stripe" ? (
+                <StripeCardField publishableKey={paymentConfig.stripePublishableKey || ""} onChange={setStripeCard} />
+              ) : paymentConfig?.provider !== "paypal" ? (<>
               <div>
                 <Label htmlFor="join-card" className="text-white/60 uppercase text-xs tracking-wider">Card Number</Label>
                 <Input id="join-card" name="cardnumber" autoComplete="cc-number" type="text" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, ""))}
@@ -1041,6 +1044,7 @@ export default function JoinPage() {
                     className="bg-white/[0.08] border-white/20 text-white mt-2" placeholder="123" maxLength={4} data-testid="input-cvv" />
                 </div>
               </div>
+              </>) : null}
             </div>
           </div>
         )}
@@ -1169,7 +1173,7 @@ export default function JoinPage() {
         {needsPayment && (
           <div className="mt-4 space-y-1 text-center">
             <p className="text-white/30 text-xs">
-              Payments are processed securely by Authorize.Net, Stripe, or PayPal.
+              Payments are processed securely by Quest’s Stripe account.
             </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}

@@ -120,7 +120,7 @@ export default function PaymentConfirmationModal({
 
         <div className="flex items-center gap-2 text-white/30 text-xs mt-1 justify-center">
           <ShieldCheck className="h-3.5 w-3.5" />
-          <span>Processed securely via Authorize.Net</span>
+          <span>Processed securely via Quest Stripe</span>
         </div>
 
         <div className="flex flex-col gap-3 mt-2">

@@ -13,20 +13,12 @@ import { useLivery } from "@/hooks/use-livery";
 import { ShoppingCart, CreditCard, CheckCircle, ArrowLeft, Heart, Package } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import { slugify } from "@shared/slugify";
+import { confirmStripeCardPayment, type StripeInstance, type StripeCardHandle } from "@/lib/buyer-payment";
+import { StripeCardField } from "@/components/stripe-card-field";
 
 declare global {
   interface Window {
-    Stripe?: (publishableKey: string) => {
-      confirmCardPayment: (
-        clientSecret: string,
-        data: {
-          payment_method: {
-            card: { number: string; exp_month: number; exp_year: number; cvc: string };
-            billing_details: { name: string; email?: string; address?: { line1?: string; city?: string; state?: string; postal_code?: string; country?: string } };
-          };
-        },
-      ) => Promise<{ paymentIntent?: { id: string; status: string }; error?: { message?: string } }>;
-    };
+    Stripe?: (publishableKey: string) => StripeInstance;
     Accept?: {
       dispatchData: (
         secureData: {
@@ -90,6 +82,7 @@ export default function CheckoutPage() {
   const [individualVoteCount, setIndividualVoteCount] = useState<number>(1);
   const [createAccount, setCreateAccount] = useState(true);
   const [cardNumber, setCardNumber] = useState("");
+  const [stripeCard, setStripeCard] = useState<StripeCardHandle | null>(null);
   const [expMonth, setExpMonth] = useState("");
   const [expYear, setExpYear] = useState("");
   const [cvv, setCvv] = useState("");
@@ -187,7 +180,7 @@ export default function CheckoutPage() {
       toast({ title: "Please enter a valid number of votes (1-10,000)", variant: "destructive" });
       return false;
     }
-    if (paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv)) {
+    if (paymentConfig?.provider === "stripe" ? !stripeCard?.complete : paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv)) {
       toast({ title: "Please enter your card details", variant: "destructive" });
       return false;
     }
@@ -205,7 +198,7 @@ export default function CheckoutPage() {
       return false;
     }
     return true;
-  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, toast]);
+  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
 
   const processCheckout = useCallback(async () => {
     setShowConfirmModal(false);
@@ -244,38 +237,17 @@ export default function CheckoutPage() {
 
     if (paymentConfig?.provider === "stripe") {
       try {
-        const intentResponse = await apiRequest("POST", "/api/guest/checkout/stripe-intent", checkoutBody);
-        const intent = await intentResponse.json();
-        if (!window.Stripe || !paymentConfig.stripePublishableKey || !intent.clientSecret) {
-          throw new Error("Stripe is not ready.");
-        }
-        const stripe = window.Stripe(paymentConfig.stripePublishableKey);
-        const result = await stripe.confirmCardPayment(intent.clientSecret, {
-          payment_method: {
-            card: {
-              number: cardNumber.replace(/\s/g, ""),
-              exp_month: parseInt(expMonth, 10),
-              exp_year: parseInt(expYear.length === 2 ? `20${expYear}` : expYear, 10),
-              cvc: cvv,
-            },
-            billing_details: {
-              name: name.trim(),
-              email: email.trim(),
-              address: {
-                line1: billingAddress.address,
-                city: billingAddress.city,
-                state: billingAddress.state,
-                postal_code: billingAddress.zip,
-              },
-            },
-          },
+        const result = await confirmStripeCardPayment({
+          publishableKey: paymentConfig.stripePublishableKey!,
+          purpose: "vote",
+          intentPath: "/api/guest/checkout/stripe-intent",
+          intentPayload: checkoutBody,
+          cardHandle: stripeCard,
+          name, email, billingAddress,
         });
-        if (result.error || !result.paymentIntent || result.paymentIntent.status !== "succeeded") {
-          throw new Error(result.error?.message || "Stripe payment was not completed.");
-        }
         const resultResponse = await apiRequest("POST", "/api/guest/checkout", {
           ...checkoutBody,
-          stripePaymentIntentId: result.paymentIntent.id,
+          stripePaymentIntentId: result.paymentIntentId,
         });
         const data = await resultResponse.json();
         setSuccess(true);
@@ -334,7 +306,7 @@ export default function CheckoutPage() {
         setProcessing(false);
       }
     });
-  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode, stageId, stripeLoaded]);
+  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode, stageId, stripeLoaded, stripeCard]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -722,6 +694,9 @@ export default function CheckoutPage() {
           </h3>
 
           <div className="space-y-4">
+            {paymentConfig?.provider === "stripe" ? (
+              <StripeCardField publishableKey={paymentConfig.stripePublishableKey || ""} onChange={setStripeCard} />
+            ) : paymentConfig?.provider !== "paypal" ? (<>
             <div>
               <Label htmlFor="card-number" className="text-white/60 uppercase text-xs tracking-wider">
                 Card Number
@@ -797,6 +772,7 @@ export default function CheckoutPage() {
                 />
               </div>
             </div>
+            </>) : null}
           </div>
         </div>
 
@@ -852,7 +828,7 @@ export default function CheckoutPage() {
         </button>
 
         <p className="text-white/30 text-xs text-center mt-4">
-          Payments processed securely via {paymentConfig?.provider === "stripe" ? "Stripe" : paymentConfig?.provider === "paypal" ? "PayPal" : "Authorize.Net"}. Your card info never touches our servers.
+          Payments processed securely via Quest’s Stripe account. Your card info never touches our servers.
         </p>
 
         {showConfirmModal && (() => {

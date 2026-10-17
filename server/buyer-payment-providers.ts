@@ -6,6 +6,7 @@ export type BuyerPaymentProvider = "authorize" | "stripe" | "paypal";
 
 type BuyerPaymentSettings = {
   paymentProvider?: BuyerPaymentProvider;
+  questBuyerPaymentProvider?: BuyerPaymentProvider;
   stripePublishableKey?: string;
   stripeSecretKeyEncrypted?: string;
   stripeWebhookSecretEncrypted?: string;
@@ -40,6 +41,8 @@ export async function getBuyerPaymentConfig() {
     ? decrypt(settings.stripeWebhookSecretEncrypted)
     : envValue("STRIPE_WEBHOOK_SECRET");
   const envSecretStatus = {
+    stripeSecretKey: Boolean(envValue("STRIPE_SECRET_KEY")),
+    stripePublishableKey: Boolean(envValue("STRIPE_PUBLISHABLE_KEY")),
     paypalClientId: Boolean(envValue("PAYPAL_CLIENT_ID")),
     paypalClientSecret: Boolean(envValue("PAYPAL_CLIENT_SECRET", "PAYPAL_SECRET")),
     paypalUseLive: Boolean(envValue("PAYPAL_USE_LIVE")),
@@ -47,20 +50,17 @@ export async function getBuyerPaymentConfig() {
   };
   const stripeLocalConfigured = Boolean(stripeSecretKey && stripePublishableKey);
   const paypalLocalConfigured = Boolean(paypalClientId && paypalSecret);
-  const requestedProvider = settings.paymentProvider || "authorize";
+  // Quest-owned Stripe is the ONLY buyer processor. Do not fall back to OC,
+  // Authorize.Net, or PayPal if credentials are missing.
+  const requestedProvider: BuyerPaymentProvider = "stripe";
   const ocManaged = Boolean(process.env.QUEST_OC_API_TOKEN);
-  // OC owns the processor secrets. Quest only needs Stripe's public key for
-  // Stripe.js; PayPal returns an approval URL from OC and needs no client-side
-  // PayPal credential.
-  const stripeConfigured = stripeLocalConfigured
-    || Boolean(ocManaged && requestedProvider === "stripe" && stripePublishableKey);
-  const paypalConfigured = paypalLocalConfigured
-    || Boolean(ocManaged && requestedProvider === "paypal");
-  const provider = requestedProvider === "stripe" && stripeConfigured
-    ? "stripe"
-    : requestedProvider === "paypal" && paypalConfigured
-      ? "paypal"
-      : "authorize";
+  // Quest owns Stripe credentials. OC PayPal returns an approval URL and
+  // needs no client-side PayPal credential.
+  // New Stripe payments belong to Quest, never to the OC bridge. Keep OC
+  // available for PayPal, historical payment verification, and refunds.
+  const stripeConfigured = stripeLocalConfigured;
+  const paypalConfigured = false;
+  const provider: BuyerPaymentProvider = "stripe";
 
   return {
     provider: provider as BuyerPaymentProvider,
@@ -93,9 +93,12 @@ export async function saveBuyerPaymentSettings(input: {
   paypalEnvironment?: "sandbox" | "live";
 }) {
   const update: BuyerPaymentSettings = {
-    paymentProvider: input.paymentProvider,
+    questBuyerPaymentProvider: input.paymentProvider,
     paypalEnvironment: input.paypalEnvironment || "sandbox",
   };
+  if (input.paymentProvider !== "stripe") {
+    throw Object.assign(new Error("Quest Stripe is the only supported checkout provider."), { status: 400 });
+  }
 
   if (input.stripePublishableKey?.trim()) update.stripePublishableKey = input.stripePublishableKey.trim();
   if (input.paypalClientId?.trim()) update.paypalClientId = input.paypalClientId.trim();

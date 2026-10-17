@@ -31,6 +31,7 @@ import {
   deleteFromFirebaseStorage,
   listFirebaseStorageFiles,
 } from "./firebase-admin";
+import { createQuestStripeIntent, assertQuestStripePayment } from "./quest-stripe-checkout";
 import {
   getWeeklyConsentStatus,
   getWeeklyConsentWeekStart,
@@ -62,7 +63,7 @@ import {
   firestoreChronicBrandsTicketPurchases,
   firestoreStageSubmissions,
 } from "./firestore-collections";
-import { chargePaymentNonce, getPublicConfig, type BillingAddress } from "./authorize-net";
+import { chargePaymentNonce, type BillingAddress } from "./authorize-net";
 import {
   getBuyerPaymentConfig,
   saveBuyerPaymentSettings,
@@ -611,9 +612,11 @@ async function secureAuthorizeCharge(
     const stripe = await getStripeBuyerClient();
     const intent = await stripe.paymentIntents.retrieve(details.stripePaymentIntentId);
     const expectedAmount = Math.round(details.amountDollars * 100);
-    if (intent.status !== "succeeded" || intent.amount !== expectedAmount) {
-      throw Object.assign(new Error("Stripe payment has not completed for this order"), { status: 400 });
-    }
+    assertQuestStripePayment(intent, {
+      idempotencyKey: String(req.body?.idempotencyKey || req.headers["idempotency-key"] || ""),
+      amountCents: expectedAmount,
+      order: { ...req.body, purpose: details.route === "/api/host/submit" ? "host" : details.route === "/api/join/nominate" ? "nominate" : "join" },
+    });
     const reservation = await reserveExternalPayment(req, details);
     if (reservation.replay) return reservation;
     await markPaymentCharged(reservation.paymentId, intent.id, {
@@ -5151,6 +5154,7 @@ export async function registerRoutes(
           competitionId: Number(competitionId), dataDescriptor, dataValue,
           stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId,
           description: "Join competition application", customerEmail: email, customerName: fullName,
+          billingAddress: req.body.billingAddress,
         });
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
         paymentId = secured.paymentId;
@@ -5906,21 +5910,14 @@ export async function registerRoutes(
 
   app.get("/api/payment-config", (_req, res) => {
     void (async () => {
-      const config = getPublicConfig();
       const buyerConfig = await getBuyerPaymentConfig();
       res.json({
-        ...config,
         provider: buyerConfig.provider,
         requestedProvider: buyerConfig.requestedProvider,
         stripeConfigured: buyerConfig.stripeConfigured,
         stripeLocalConfigured: buyerConfig.stripeLocalConfigured,
         stripePublishableKey: buyerConfig.stripePublishableKey,
-        paypalConfigured: buyerConfig.paypalConfigured,
-        paypalLocalConfigured: buyerConfig.paypalLocalConfigured,
-        paypalClientId: buyerConfig.paypalClientId,
-        paypalEnvironment: buyerConfig.paypalEnvironment,
-        ocPaypalEnvironment: buyerConfig.ocPaypalEnvironment,
-        ocManaged: buyerConfig.ocManaged,
+        paypalConfigured: false,
       });
     })().catch((error) => {
       console.error("Payment config error:", error);
@@ -5955,18 +5952,14 @@ export async function registerRoutes(
   app.put("/api/admin/payment-settings", firebaseAuth, requireAdmin, async (req, res) => {
     try {
       const provider = req.body?.paymentProvider;
-      if (!["authorize", "stripe", "paypal"].includes(provider)) {
-        return res.status(400).json({ message: "Choose Authorize.Net, Stripe, or PayPal." });
+      if (provider !== "stripe") {
+        return res.status(400).json({ message: "Quest Stripe is the only supported checkout provider." });
       }
       const settings = await saveBuyerPaymentSettings({
         paymentProvider: provider,
         stripePublishableKey: req.body?.stripePublishableKey,
         stripeSecretKey: req.body?.stripeSecretKey,
-        paypalClientId: req.body?.paypalClientId,
-        paypalSecret: req.body?.paypalSecret,
         stripeWebhookSecret: req.body?.stripeWebhookSecret,
-        paypalWebhookId: req.body?.paypalWebhookId,
-        paypalEnvironment: req.body?.paypalEnvironment === "live" ? "live" : "sandbox",
       });
       res.json({
         provider: settings.provider,
@@ -6235,43 +6228,33 @@ export async function registerRoutes(
       if (!["join", "nominate", "host", "vote"].includes(purpose)) return res.status(400).json({ message: "Invalid payment purpose" });
       const charge = await resolveProviderPaymentAmount({ ...input, purpose });
 
-      // ── Route through OC when integration token is configured ──────────────
-      if (isOCAdapterConfigured()) {
-        const questOrderId = String(input.idempotencyKey || `${purpose}-${Date.now()}`);
-        const ocPayment = await createOCPayment({
-          provider: "stripe",
-          amountCents: charge.amountCents,
-          questOrderId,
-          description: charge.description,
-          idempotencyKey: String(input.idempotencyKey || questOrderId),
-        });
-        return res.json({
-          clientSecret: ocPayment.clientSecret,
-          ocPaymentId: ocPayment.ocPaymentId,
-          provider: "oc-stripe",
-        });
-      }
-
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
       const stripe = await getStripeBuyerClient();
-      const intent = await stripe.paymentIntents.create({
-        amount: charge.amountCents,
-        currency: "usd",
-        automatic_payment_methods: { enabled: true },
-        receipt_email: typeof input.email === "string" && input.email.trim() ? input.email.trim() : undefined,
+      const intent = await createQuestStripeIntent(stripe, {
+        idempotencyKey: String(input.idempotencyKey || ""),
+        order: { ...input, purpose },
+        amountCents: charge.amountCents,
+        email: typeof input.email === "string" ? input.email : undefined,
+        billingAddress: input.billingAddress,
+        ip: req.ip || "unknown",
         description: charge.description,
-        metadata: {
-          idempotencyKey: String(input.idempotencyKey || ""),
-          purpose,
-          route: String(input.route || ""),
-        },
-      }, { idempotencyKey: String(input.idempotencyKey || "") || undefined });
-      res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id });
+      });
+      res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id, provider: "stripe" });
     } catch (error: any) {
       console.error("Provider Stripe intent creation error:", error);
       res.status(error.status || 500).json({ message: error.message || "Unable to start Stripe checkout" });
     }
+  });
+
+  // Block all legacy new-payment/capture entry points, including stale clients.
+  // Historical records, webhooks, and admin refund routes remain available.
+  app.post([
+    "/api/payment-provider/paypal-order",
+    "/api/guest/checkout/paypal-order",
+    "/api/oc/paypal-capture",
+  ], (_req, res) => {
+    res.status(410).json({ message: "Quest Stripe is the only supported checkout provider." });
   });
 
   app.post("/api/payment-provider/paypal-order", async (req, res) => {
@@ -6339,38 +6322,19 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid checkout data" });
       const charge = await resolveGuestVoteCharge(parsed.data);
 
-      // ── Route through OC when integration token is configured ──────────────
-      if (isOCAdapterConfigured()) {
-        const ocPayment = await createOCPayment({
-          provider: "stripe",
-          amountCents: Math.round(charge.amountInDollars * 100),
-          questOrderId: parsed.data.idempotencyKey,
-          description: `${charge.totalVotes} votes for ${charge.comp.title}`,
-          idempotencyKey: parsed.data.idempotencyKey,
-        });
-        return res.json({
-          clientSecret: ocPayment.clientSecret,
-          ocPaymentId: ocPayment.ocPaymentId,
-          provider: "oc-stripe",
-        });
-      }
-
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
       const stripe = await getStripeBuyerClient();
-      const intent = await stripe.paymentIntents.create({
-        amount: Math.round(charge.amountInDollars * 100),
-        currency: "usd",
-        automatic_payment_methods: { enabled: true },
-        receipt_email: parsed.data.email,
+      const intent = await createQuestStripeIntent(stripe, {
+        idempotencyKey: parsed.data.idempotencyKey,
+        order: { ...parsed.data, purpose: "vote" },
+        amountCents: Math.round(charge.amountInDollars * 100),
+        email: parsed.data.email,
+        billingAddress: req.body.billingAddress,
+        ip: req.ip || "unknown",
         description: `${charge.totalVotes} votes for ${charge.comp.title}`,
-        metadata: {
-          idempotencyKey: parsed.data.idempotencyKey,
-          competitionId: String(parsed.data.competitionId),
-          contestantId: String(parsed.data.contestantId),
-        },
-      }, { idempotencyKey: parsed.data.idempotencyKey });
-      res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id });
+      });
+      res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id, provider: "stripe" });
     } catch (error: any) {
       console.error("Stripe intent creation error:", error);
       res.status(error.status || 500).json({ message: error.message || "Unable to start Stripe checkout" });
@@ -6530,9 +6494,11 @@ export async function registerRoutes(
       } else if (activeProvider === "stripe" && parsed.data.stripePaymentIntentId) {
         const stripe = await getStripeBuyerClient();
         const intent = await stripe.paymentIntents.retrieve(parsed.data.stripePaymentIntentId);
-        if (intent.status !== "succeeded" || intent.amount !== Math.round(amountInDollars * 100)) {
-          return res.status(400).json({ message: "Stripe payment has not completed for this order." });
-        }
+        assertQuestStripePayment(intent, {
+          idempotencyKey: parsed.data.idempotencyKey,
+          amountCents: Math.round(amountInDollars * 100),
+          order: { ...parsed.data, purpose: "vote" },
+        });
         const reservation = await reservePayment({
           idempotencyKey: parsed.data.idempotencyKey,
           route: "/api/guest/checkout",

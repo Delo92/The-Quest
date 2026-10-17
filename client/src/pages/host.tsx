@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { confirmStripeCardPayment, createPayPalRedirect, loadStripeScript, type BuyerPaymentConfig } from "@/lib/buyer-payment";
+import type { StripeCardHandle } from "@/lib/buyer-payment";
+import { StripeCardField } from "@/components/stripe-card-field";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
@@ -119,6 +121,7 @@ export default function HostPage() {
   }, [inviteDetails]);
   const [referralCode, setReferralCode] = useState("");
   const [cardNumber, setCardNumber] = useState("");
+  const [stripeCard, setStripeCard] = useState<StripeCardHandle | null>(null);
   const [expMonth, setExpMonth] = useState("");
   const [expYear, setExpYear] = useState("");
   const [cvv, setCvv] = useState("");
@@ -196,7 +199,7 @@ export default function HostPage() {
       return false;
     }
     if (selectedPrice > 0) {
-      if (!cardNumber || !expMonth || !expYear || !cvv) {
+      if (paymentConfig?.provider === "stripe" ? !stripeCard?.complete : paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv)) {
         toast({ title: "Please enter your card details", variant: "destructive" });
         return false;
       }
@@ -215,7 +218,7 @@ export default function HostPage() {
       }
     }
     return true;
-  }, [settings, form, selectedPrice, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast]);
+  }, [settings, form, selectedPrice, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -257,10 +260,7 @@ export default function HostPage() {
             idempotencyKey: paymentIdempotencyKey.current,
             selectedPackageName: selectedPackage?.name,
           },
-          cardNumber,
-          expMonth,
-          expYear,
-          cvv,
+          cardHandle: stripeCard,
           name: form.fullName || "",
           email: form.email || "",
           billingAddress,
@@ -320,7 +320,7 @@ export default function HostPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, billingAddress, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId, inviteToken, referralCode, stripeLoaded]);
+  }, [settings, form, billingAddress, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId, inviteToken, referralCode, stripeLoaded, stripeCard]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -700,6 +700,9 @@ export default function HostPage() {
                   </div>
                 </div>
               </div>
+              {paymentConfig?.provider === "stripe" ? (
+                <StripeCardField publishableKey={paymentConfig.stripePublishableKey || ""} onChange={setStripeCard} />
+              ) : paymentConfig?.provider !== "paypal" ? (<>
               <div>
                 <Label className="text-white/60 uppercase text-xs tracking-wider">Card Number</Label>
                 <Input name="cardnumber" autoComplete="cc-number" type="text" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, ""))}
@@ -722,6 +725,7 @@ export default function HostPage() {
                     className="bg-white/[0.08] border-white/20 text-white mt-2" placeholder="123" maxLength={4} data-testid="input-cvv" />
                 </div>
               </div>
+              </>) : null}
             </div>
           </div>
         )}
@@ -761,7 +765,7 @@ export default function HostPage() {
         {selectedPrice > 0 && (
           <div className="mt-4 space-y-1 text-center">
             <p className="text-white/30 text-xs">
-              Payments are processed securely by Authorize.Net, Stripe, or PayPal.
+              Payments are processed securely by Quest’s Stripe account.
             </p>
             <p className="text-white/40 text-xs">
               All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}

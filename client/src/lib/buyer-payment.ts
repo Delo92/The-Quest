@@ -12,12 +12,18 @@ export interface BuyerPaymentConfig {
   environment?: string;
 }
 
-type StripeInstance = {
+export type StripeCardElement = {
+  mount: (container: HTMLElement) => void;
+  destroy: () => void;
+  on: (event: "change", callback: (event: { complete: boolean; error?: { message?: string } }) => void) => void;
+};
+export type StripeInstance = {
+  elements: () => { create: (type: "card", options: unknown) => StripeCardElement };
   confirmCardPayment: (
     clientSecret: string,
     data: {
       payment_method: {
-        card: { number: string; exp_month: number; exp_year: number; cvc: string };
+        card: StripeCardElement;
         billing_details: {
           name: string;
           email?: string;
@@ -27,6 +33,7 @@ type StripeInstance = {
     },
   ) => Promise<{ paymentIntent?: { id: string; status: string }; error?: { message?: string } }>;
 };
+export type StripeCardHandle = { stripe: StripeInstance; card: StripeCardElement; complete: boolean };
 
 export function loadStripeScript(): Promise<boolean> {
   if (window.Stripe) return Promise.resolve(true);
@@ -49,35 +56,28 @@ export async function confirmStripeCardPayment(input: {
   publishableKey: string;
   purpose: "join" | "nominate" | "host" | "vote";
   intentPayload: Record<string, unknown>;
-  cardNumber: string;
-  expMonth: string;
-  expYear: string;
-  cvv: string;
+  cardHandle: StripeCardHandle | null;
   name: string;
   email: string;
   billingAddress: { address: string; city: string; state: string; zip: string };
   /** Path for the intent endpoint — defaults to /api/payment-provider/stripe-intent */
   intentPath?: string;
 }): Promise<{ paymentIntentId: string; ocPaymentId?: string }> {
-  if (!window.Stripe) throw new Error("Stripe is not ready.");
+  if (!input.cardHandle?.complete) throw new Error("Please complete your secure card details.");
   const intentPath = input.intentPath || "/api/payment-provider/stripe-intent";
   const intentResponse = await apiRequest("POST", intentPath, {
     ...input.intentPayload,
     purpose: input.purpose,
     email: input.email,
+    billingAddress: input.billingAddress,
   });
   const intent = await intentResponse.json();
   if (!intentResponse.ok) throw new Error(intent.message || "Unable to start Stripe checkout.");
   if (!intent.clientSecret) throw new Error("Stripe did not return a payment secret.");
-  const stripe = window.Stripe(input.publishableKey);
+  const { stripe, card } = input.cardHandle;
   const result = await stripe.confirmCardPayment(intent.clientSecret, {
     payment_method: {
-      card: {
-        number: input.cardNumber.replace(/\s/g, ""),
-        exp_month: parseInt(input.expMonth, 10),
-        exp_year: parseInt(input.expYear.length === 2 ? `20${input.expYear}` : input.expYear, 10),
-        cvc: input.cvv,
-      },
+      card,
       billing_details: {
         name: input.name.trim(),
           ...(input.email.trim() ? { email: input.email.trim() } : {}),

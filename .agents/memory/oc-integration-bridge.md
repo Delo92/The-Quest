@@ -7,11 +7,17 @@ description: Architecture and confirmed endpoint map for the Quest↔OC server-t
 
 ## Owner decision: Quest-owned Stripe
 
-The Quest owners want both incoming Stripe payments and the funding of outgoing payouts to use their own Stripe account rather than Original Concepts' Stripe account. Preserve existing sign-in and unrelated OC integrations; changing Stripe ownership does not authorize removing OC social synchronization or PayPal integrations wholesale.
+The Quest owners want both incoming Stripe payments and the funding of outgoing payouts to use their own Stripe account rather than Original Concepts' Stripe account. For NEW buyer payments, Quest-owned Stripe is the ONLY allowed provider: no PayPal or Authorize.Net options or automatic fallback. Preserve existing sign-in, unrelated OC social synchronization, historical payment records and refund access. Recipient payout migration is separate from checkout activation and must not send money merely to verify configuration.
 
-**Why:** The owner stated that Quest will no longer use Original Concepts for Stripe, has supplied credentials for Quest's own account, and clarified that their account must be “where payments go and payouts come from.”
+**Why:** The owner stated that Quest will no longer use Original Concepts for Stripe, supplied credentials for Quest's own account, and clarified that their account must be “where payments go and payouts come from.” They further specified: “we need no paypal or authorize options only the quest stripe.”
 
 **How to apply:** Scope both direct checkout and approved recipient disbursements from Quest-owned funds. Check actual routing and credential precedence rather than assuming a key replacement changes the merchant. Distinguish the existing embedded PaymentIntent flow from Stripe-hosted Checkout. Historical payments and refunds remain tied to the account that originally processed them. Distinguish settlement into Quest's own bank account from paying third-party hosts or talent: recipient payments require an eligible third-party payout product, not treating recipient bank accounts as Quest-owned external accounts.
+
+Do not flip a shared legacy provider setting before deployment when older code interprets Stripe as OC-owned. Keep the Stripe-only decision in the new code so the code and processor routing take effect together.
+
+**Why:** Older builds can read the same Firestore settings while still creating OC PaymentIntents; switching the shared field early can pair Quest's publishable key with an OC payment.
+
+**How to apply:** Preserve the old setting during rollout and verify the running build’s actual public configuration and intent routing. Missing credentials must fail closed, not enable another processor.
 
 Do not present a publishable key as a universal Stripe requirement. Server-created, Stripe-hosted Checkout can redirect to the returned session URL using only server-side Stripe credentials; webhook signatures use a separate signing secret. Embedded Stripe.js payment confirmation does require a publishable key.
 
