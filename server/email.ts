@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { randomUUID } from "node:crypto";
 import { firestoreLivery } from "./firestore-collections";
 import { getFirebaseAuth } from "./firebase-admin";
+import { getMicrosoftEmailSettings } from "./microsoft-email-oauth";
 import { buildAccountLoginUrl } from "../shared/account-login-links";
 import { buildAccountAccessMessage, renderAccountEmailAccess, type AccountAccessOptions } from "./account-email-access";
 import { logEmailDiagnostic } from "./email-diagnostics";
@@ -52,34 +53,108 @@ function applyPlaceholders(template: string, vars: Record<string, string>): stri
 }
 
 let cachedTransporter: nodemailer.Transporter | null = null;
+let cachedTransporterProvider: "gmail" | "microsoft365" | null = null;
 
-async function getTransporter(): Promise<nodemailer.Transporter> {
-  if (cachedTransporter) return cachedTransporter;
+type ActiveEmailConfig =
+  | {
+      provider: "gmail";
+      senderAddress: string;
+      clientId: string;
+      clientSecret: string;
+      refreshToken: string;
+    }
+  | {
+      provider: "microsoft365";
+      senderAddress: string;
+      tenantId: string;
+      clientId: string;
+      refreshToken: string;
+    };
+
+async function getActiveEmailConfig(): Promise<ActiveEmailConfig | null> {
+  const microsoft = await getMicrosoftEmailSettings();
+  if (microsoft?.activeProvider === "microsoft365") {
+    if (!microsoft.clientId || !microsoft.tenantId || !microsoft.refreshToken) {
+      throw new Error("Microsoft 365 email is selected but its OAuth connection is incomplete. Reconnect the mailbox in Admin → Email Templates.");
+    }
+    return {
+      provider: "microsoft365",
+      senderAddress: microsoft.mailboxAddress,
+      tenantId: microsoft.tenantId,
+      clientId: microsoft.clientId,
+      refreshToken: microsoft.refreshToken,
+    };
+  }
 
   const clientId = process.env.GMAIL_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
 
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Gmail OAuth credentials not configured. Set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.");
-  }
+  if (!clientId || !clientSecret || !refreshToken) return null;
+  return {
+    provider: "gmail",
+    senderAddress: GMAIL_ADDRESS,
+    clientId,
+    clientSecret,
+    refreshToken,
+  };
+}
 
-  cachedTransporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      type: "OAuth2",
-      user: GMAIL_ADDRESS,
-      clientId,
-      clientSecret,
-      refreshToken,
-    },
-  });
+async function getTransporter(): Promise<nodemailer.Transporter> {
+  const config = await getActiveEmailConfig();
+  if (!config) {
+    throw new Error("Email OAuth credentials are not configured. Connect Microsoft 365 in Admin → Email Templates.");
+  }
+  if (cachedTransporter && cachedTransporterProvider === config.provider) return cachedTransporter;
+
+  resetTransporter();
+
+  if (config.provider === "microsoft365") {
+    cachedTransporter = nodemailer.createTransport({
+      host: "smtp.office365.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        type: "OAuth2",
+        user: config.senderAddress,
+        clientId: config.clientId,
+        refreshToken: config.refreshToken,
+        accessUrl: `https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}/oauth2/v2.0/token`,
+        customParams: {
+          scope: "offline_access https://outlook.office.com/SMTP.Send",
+        },
+      },
+    });
+    cachedTransporterProvider = "microsoft365";
+  } else {
+    cachedTransporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        type: "OAuth2",
+        user: config.senderAddress,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        refreshToken: config.refreshToken,
+      },
+    });
+    cachedTransporterProvider = "gmail";
+  }
 
   return cachedTransporter;
 }
 
 export function resetTransporter() {
   cachedTransporter = null;
+  cachedTransporterProvider = null;
+}
+
+async function getEmailSenderAddress(): Promise<string> {
+  const config = await getActiveEmailConfig();
+  if (!config) {
+    throw new Error("Email OAuth credentials are not configured. Connect Microsoft 365 in Admin → Email Templates.");
+  }
+  return config.senderAddress;
 }
 
 export async function verifyAccountAccessEmailDelivery(): Promise<void> {
@@ -298,7 +373,7 @@ export async function sendInviteEmail(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: (opts.isReminder
@@ -406,7 +481,7 @@ export async function sendNominationCongrats(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: `🏆 You've Been Nominated — ${opts.competitionName} | The Quest`,
       html,
@@ -440,7 +515,7 @@ export async function sendAccountAccessEmailWithReceipt(opts: AccountAccessOptio
     const transporter = await getTransporter();
     const message = buildAccountAccessEmailMessage(opts);
     const result = await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       ...message,
     });
@@ -521,7 +596,7 @@ export async function sendNominationReceipt(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: `Nomination Active — ${opts.nomineeName} | The Quest`,
       html,
@@ -609,7 +684,7 @@ export async function sendPurchaseReceipt(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: applyPlaceholders(subject, vars).replace(/<br\/>/g, ""),
       html,
@@ -670,7 +745,7 @@ export async function sendVoteThankYou(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: `Your vote for ${opts.contestantName} is live! — The Quest`,
       html,
@@ -728,7 +803,7 @@ export async function sendApplicationApproved(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: `✅ You're approved for ${opts.competitionName} — The Quest`,
       html,
@@ -792,7 +867,7 @@ export async function sendCodeUsedNotification(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: `Your code ${opts.code} was just used — The Quest`,
       html,
@@ -847,7 +922,7 @@ export async function sendTestEmail(to: string): Promise<boolean> {
     `);
 
     await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${GMAIL_ADDRESS}>`,
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to,
       subject: "The Quest — Email System Test",
       html,
@@ -883,8 +958,8 @@ export async function sendContactEmail(opts: {
       <p style="background:#1a1a1a;padding:16px;border-left:4px solid #FF5A09;">${opts.message.replace(/\n/g, "<br/>")}</p>
     `);
     await transporter.sendMail({
-      from: `"CB Publishing" <${GMAIL_ADDRESS}>`,
-      to: GMAIL_ADDRESS,
+      from: `"CB Publishing" <${await getEmailSenderAddress()}>`,
+      to: await getEmailSenderAddress(),
       replyTo: opts.email,
       subject: `New Contact Message from ${opts.name}`,
       html,
@@ -946,7 +1021,7 @@ export async function sendLaunchpadWelcomeEmail(opts: {
     `);
 
     await transporter.sendMail({
-      from: `"The Quest" <${GMAIL_ADDRESS}>`,
+      from: `"The Quest" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: `Welcome to The Quest — ${opts.competitionName} enrollment confirmed`,
       html,
@@ -961,7 +1036,11 @@ export async function sendLaunchpadWelcomeEmail(opts: {
   }
 }
 
-export function isEmailConfigured(): boolean {
+export async function isEmailConfigured(): Promise<boolean> {
+  const microsoft = await getMicrosoftEmailSettings();
+  if (microsoft?.activeProvider === "microsoft365") {
+    return Boolean(microsoft.clientId && microsoft.tenantId && microsoft.refreshToken);
+  }
   const clientId = process.env.GMAIL_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   return !!(clientId && clientSecret && process.env.GMAIL_REFRESH_TOKEN);
