@@ -131,7 +131,6 @@ export default function CheckoutPage() {
   const [codeApplying, setCodeApplying] = useState(false);
   const [codeError, setCodeError] = useState("");
   const [acceptLoaded, setAcceptLoaded] = useState(false);
-  const [stripeLoaded, setStripeLoaded] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const codeValidationRequestId = useRef(0);
   const pendingSavedReferralCode = useRef<string | null>(null);
@@ -204,20 +203,6 @@ export default function CheckoutPage() {
     }
   }, [paymentConfig, acceptLoaded]);
 
-  useEffect(() => {
-    if (paymentConfig?.provider !== "stripe" || stripeLoaded) return;
-    const existing = document.querySelector('script[src="https://js.stripe.com/v3/"]');
-    if (existing && window.Stripe) {
-      setStripeLoaded(true);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://js.stripe.com/v3/";
-    script.async = true;
-    script.onload = () => setStripeLoaded(Boolean(window.Stripe));
-    document.head.appendChild(script);
-  }, [paymentConfig, stripeLoaded]);
-
   const contestant = competition?.contestants?.find((c) => c.id === contestantId);
   const selectedPkg = packages?.find((p) => p.id === selectedPackage);
   const isIndividual = selectedPackage === "individual";
@@ -244,7 +229,7 @@ export default function CheckoutPage() {
   const paymentSystemReady = noPaymentDue
     ? Boolean(paymentConfig?.provider === "stripe" && paymentConfig.stripeConfigured)
     : paymentConfig?.provider === "stripe"
-      ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe && stripeCard?.complete)
+      ? Boolean(paymentConfig.stripeConfigured && stripeCard?.complete)
       : paymentConfig?.provider === "paypal"
         ? Boolean(paymentConfig.paypalConfigured)
         : Boolean(paymentConfig && window.Accept && acceptLoaded);
@@ -366,14 +351,14 @@ export default function CheckoutPage() {
       : paymentConfig?.provider === "paypal"
       ? Boolean(paymentConfig.paypalConfigured)
       : paymentConfig?.provider === "stripe"
-        ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe)
+        ? Boolean(paymentConfig.stripeConfigured && stripeCard?.stripe)
         : Boolean(paymentConfig && window.Accept);
     if (!paymentReady) {
       toast({ title: "Payment system not ready. Please try again.", variant: "destructive" });
       return false;
     }
     return true;
-  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, noPaymentDue, codePending, toast]);
+  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeCard, noPaymentDue, codePending, toast]);
 
   const processCheckout = useCallback(async () => {
     setShowConfirmModal(false);
@@ -486,7 +471,7 @@ export default function CheckoutPage() {
         setProcessing(false);
       }
     });
-  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, activeAppliedCode, noPaymentDue, stageId, stripeLoaded, stripeCard]);
+  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, activeAppliedCode, noPaymentDue, stageId, stripeCard]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
