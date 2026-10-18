@@ -64,12 +64,6 @@ async function getTransporter(): Promise<nodemailer.Transporter> {
     throw new Error("Gmail OAuth credentials not configured. Set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.");
   }
 
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, "https://developers.google.com/oauthplayground");
-  oauth2Client.setCredentials({ refresh_token: refreshToken });
-
-  const { token } = await oauth2Client.getAccessToken();
-  if (!token) throw new Error("Failed to get Gmail access token");
-
   cachedTransporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -78,7 +72,6 @@ async function getTransporter(): Promise<nodemailer.Transporter> {
       clientId,
       clientSecret,
       refreshToken,
-      accessToken: token,
     },
   });
 
