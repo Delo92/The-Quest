@@ -67,6 +67,23 @@ interface PaymentConfig {
   paypalConfigured?: boolean;
 }
 
+function CheckoutStepHeading({ number, title, hint }: { number: number; title: string; hint?: string }) {
+  return (
+    <div className="mb-5 flex items-center gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#FF5A09]/70 bg-[#FF5A09]/10 font-['Bebas_Neue'] text-lg text-[#ff9a6d]">
+        {number}
+      </span>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff9a6d]">Step {number}</p>
+        <h3 className="text-lg font-normal uppercase text-white" style={{ letterSpacing: "5px" }}>
+          {title}
+        </h3>
+      </div>
+      {hint && <p className="ml-auto hidden text-right text-xs text-white/55 sm:block">{hint}</p>}
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const paymentIdempotencyKey = useRef(crypto.randomUUID());
   const params = useParams<{ competitionId: string; contestantId: string }>();
@@ -461,12 +478,12 @@ export default function CheckoutPage() {
       </section>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-        <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`} className="inline-flex items-center gap-2 text-white/40 text-sm mb-8 hover:text-white/60 transition-colors" data-testid="link-back">
+        <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`} className="inline-flex min-h-10 items-center gap-2 text-white/65 text-sm mb-8 underline decoration-white/30 underline-offset-4 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]" data-testid="link-back">
           <ArrowLeft className="h-4 w-4" />
           Back to competition
         </Link>
 
-        <div className="flex items-center gap-4 mb-10 p-4 border border-white/10">
+        <div className="flex items-center gap-4 mb-10 p-4 border border-white/20 border-l-4 border-l-[#FF5A09] bg-white/[0.025]">
           <div className="w-16 h-16 overflow-hidden flex-shrink-0">
             <img
               src={contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback") || undefined}
@@ -484,40 +501,57 @@ export default function CheckoutPage() {
         </div>
 
         <div className="mb-10">
-          <p className="text-[#5f5f5f] text-sm mb-1">Step 1</p>
-          <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
-            SELECT PACKAGE
-          </h3>
+          <CheckoutStepHeading number={1} title="Select package" hint="Choose one option" />
 
           <div
-            onClick={() => setSelectedPackage("individual")}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedPackage("individual"); }}
-            className={`w-full p-5 border text-left transition-all duration-300 cursor-pointer mb-4 ${
+            className={`mb-4 overflow-hidden border transition-colors ${
               isIndividual
-                ? "border-[#FF5A09] bg-[#FF5A09]/10"
-                : "border-white/10 hover:border-white/30"
+                ? "border-[#FF5A09] bg-[#FF5A09]/[0.09] shadow-[inset_0_0_0_1px_rgba(255,90,9,0.42)]"
+                : "border-white/30 bg-[#171918] hover:border-[#ff9a6d]/80"
             }`}
-            data-testid="button-individual-votes"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <Heart className={`h-5 w-5 ${isIndividual ? "text-[#FF5A09]" : "text-white/40"}`} />
-              <span className="text-white font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
-                Buy Individual Votes
+            <button
+              type="button"
+              aria-pressed={isIndividual}
+              onClick={() => setSelectedPackage("individual")}
+              className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#FF5A09]"
+              data-testid="button-individual-votes"
+            >
+              <span
+                aria-hidden="true"
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                  isIndividual ? "border-[#FF5A09] bg-[#FF5A09]" : "border-white/55"
+                }`}
+              >
+                {isIndividual && <CheckCircle className="h-4 w-4 text-white" />}
               </span>
-              <span className="text-white/40 text-xs ml-auto">${perVotePrice.toFixed(2)} each</span>
-            </div>
+              <span className={`flex h-9 w-9 items-center justify-center rounded-sm ${
+                isIndividual ? "bg-[#FF5A09]/15 text-[#ff9a6d]" : "bg-white/[0.07] text-white/70"
+              }`}>
+                <Heart className="h-5 w-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-white font-bold uppercase text-sm tracking-[0.12em]">
+                  Buy Individual Votes
+                </span>
+                <span className="mt-0.5 block text-xs text-white/60">Add as many as you need</span>
+              </span>
+              <span className="ml-auto whitespace-nowrap rounded-sm border border-white/25 px-2.5 py-1 text-sm font-semibold text-white">
+                ${perVotePrice.toFixed(2)} each
+              </span>
+            </button>
             {isIndividual && (
-              <div className="flex items-center gap-4 mt-2" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-3 border-t border-[#FF5A09]/35 bg-black/20 px-4 py-3">
+                <span className="text-xs uppercase tracking-wider text-white/65">Number of votes</span>
+                <div className="ml-auto flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setIndividualVoteCount(Math.max(1, individualVoteCount - 1)); }}
-                    className="w-8 h-8 border border-white/20 text-white flex items-center justify-center hover:border-[#FF5A09] transition-colors"
+                    aria-label="Decrease vote count"
+                    onClick={() => setIndividualVoteCount(Math.max(1, individualVoteCount - 1))}
+                    className="flex h-10 w-10 items-center justify-center border border-white/35 bg-white/[0.05] text-white transition-colors hover:border-[#FF5A09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]"
                     data-testid="button-decrease-votes"
                   >
-                    -
+                    −
                   </button>
                   <Input
                     type="number"
@@ -525,47 +559,71 @@ export default function CheckoutPage() {
                     max={10000}
                     value={individualVoteCount}
                     onChange={(e) => setIndividualVoteCount(Math.max(1, Math.min(10000, parseInt(e.target.value) || 1)))}
-                    className="w-20 bg-white/[0.08] border-white/20 text-white text-center"
+                    className="h-10 w-20 border-white/30 bg-[#111] text-center text-white focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                     data-testid="input-individual-vote-count"
                   />
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); setIndividualVoteCount(Math.min(10000, individualVoteCount + 1)); }}
-                    className="w-8 h-8 border border-white/20 text-white flex items-center justify-center hover:border-[#FF5A09] transition-colors"
+                    aria-label="Increase vote count"
+                    onClick={() => setIndividualVoteCount(Math.min(10000, individualVoteCount + 1))}
+                    className="flex h-10 w-10 items-center justify-center border border-white/35 bg-white/[0.05] text-white transition-colors hover:border-[#FF5A09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]"
                     data-testid="button-increase-votes"
                   >
                     +
                   </button>
                 </div>
-                <span className="text-white font-bold text-lg ml-auto">
+                <span className="min-w-16 text-right text-white font-bold text-lg">
                   ${(individualVoteCount * perVotePrice).toFixed(2)}
                 </span>
               </div>
             )}
           </div>
 
-          <p className="text-white/30 text-xs uppercase tracking-wider mb-3" style={{ letterSpacing: "2px" }}>Or choose a package</p>
+          <p className="pt-2 text-white/65 text-xs font-semibold uppercase tracking-[0.16em] mb-3">Or choose a vote package</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {packages?.map((pkg) => (
               <button
                 key={pkg.id}
+                type="button"
+                aria-pressed={selectedPackage === pkg.id}
                 onClick={() => setSelectedPackage(pkg.id)}
-                className={`p-5 border text-left transition-all duration-300 cursor-pointer ${
+                className={`group relative min-h-36 p-4 sm:p-5 border-2 text-left transition-all duration-200 cursor-pointer hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111] ${
                   selectedPackage === pkg.id
-                    ? "border-[#FF5A09] bg-[#FF5A09]/10"
-                    : "border-white/10 hover:border-white/30"
+                    ? "border-[#FF5A09] bg-[#FF5A09]/[0.1] shadow-[inset_0_0_0_1px_rgba(255,90,9,0.38)]"
+                    : "border-white/30 bg-[#171918] hover:border-[#ff9a6d] hover:bg-[#211b18]"
                 }`}
                 data-testid={`button-package-${pkg.id}`}
               >
-                <div className="flex items-center gap-3 mb-2">
-                  <Package className={`h-5 w-5 ${selectedPackage === pkg.id ? "text-[#FF5A09]" : "text-white/40"}`} />
-                  <span className="text-white font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
-                    {pkg.name}
+                <span className="flex items-start justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                        selectedPackage === pkg.id ? "border-[#FF5A09] bg-[#FF5A09]" : "border-white/55"
+                      }`}
+                    >
+                      {selectedPackage === pkg.id && <CheckCircle className="h-4 w-4 text-white" />}
+                    </span>
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-sm ${
+                      selectedPackage === pkg.id ? "bg-[#FF5A09]/15 text-[#ff9a6d]" : "bg-white/[0.07] text-white/70"
+                    }`}>
+                      <Package className="h-4 w-4" />
+                    </span>
+                    <span className="text-white font-bold uppercase text-sm tracking-[0.1em]">
+                      {pkg.name}
+                    </span>
                   </span>
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-white/60 text-sm">
+                  <span className={`shrink-0 rounded-sm px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                    selectedPackage === pkg.id
+                      ? "bg-[#FF5A09] text-white"
+                      : "border border-white/25 text-white/70 group-hover:border-[#ff9a6d]/70 group-hover:text-[#ffb28b]"
+                  }`}>
+                    {selectedPackage === pkg.id ? "Selected" : "Choose"}
+                  </span>
+                </span>
+                <span className="mt-4 flex items-end justify-between gap-2">
+                  <span className="text-white/80 text-sm">
                     <Heart className="inline h-3.5 w-3.5 mr-1 text-[#FF5A09]" />
                     {pkg.voteCount.toLocaleString()} votes
                     {pkg.bonusVotes > 0 && (
@@ -575,25 +633,22 @@ export default function CheckoutPage() {
                   <span className="text-white font-bold text-lg">
                     ${(pkg.price / 100).toFixed(2)}
                   </span>
-                </div>
+                </span>
                 {pkg.description && (
-                  <p className="text-white/30 text-xs mt-2">{pkg.description}</p>
+                  <span className="mt-2 block text-xs text-white/55">{pkg.description}</span>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="mb-10">
-          <p className="text-[#5f5f5f] text-sm mb-1">Step 2</p>
-          <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
-            YOUR INFO
-          </h3>
+        <div className="mb-10 border-t border-white/15 pt-8">
+          <CheckoutStepHeading number={2} title="Your info" hint="Required fields marked *" />
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-white/60 uppercase text-xs tracking-wider">
-                Full Name
+              <Label htmlFor="name" className="text-white/80 uppercase text-xs tracking-wider">
+                Full Name <span className="text-[#ff9a6d]">*</span>
               </Label>
               <Input
                 id="name"
@@ -601,15 +656,15 @@ export default function CheckoutPage() {
                 autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="bg-white/[0.08] border-white/20 text-white mt-2"
+                className="mt-2 min-h-11 border-white/30 bg-[#171918] text-white transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                 placeholder="Your full name"
                 required
                 data-testid="input-name"
               />
             </div>
             <div>
-              <Label htmlFor="checkout-email" className="text-white/60 uppercase text-xs tracking-wider">
-                Email
+              <Label htmlFor="checkout-email" className="text-white/80 uppercase text-xs tracking-wider">
+                Email <span className="text-[#ff9a6d]">*</span>
               </Label>
               <Input
                 id="checkout-email"
@@ -617,21 +672,24 @@ export default function CheckoutPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-white/[0.08] border-white/20 text-white mt-2"
+                className="mt-2 min-h-11 border-white/30 bg-[#171918] text-white transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                 placeholder="your@email.com"
                 required
                 data-testid="input-email"
               />
             </div>
-            <div className="border-t border-white/10 pt-4 mt-5">
-              <p className="text-white/60 uppercase text-xs tracking-wider mb-3">Billing Address</p>
+            <div className="border-t border-white/15 pt-4 mt-5">
+              <p className="mb-3 flex items-center justify-between text-white/80 uppercase text-xs tracking-wider">
+                Billing Address
+                <span className="rounded-sm border border-white/20 px-2 py-1 text-[10px] text-white/55">Optional</span>
+              </p>
               <div className="space-y-3">
                 <Input
                   aria-label="Billing street address"
                   autoComplete="billing street-address"
                   value={billingAddress.address}
                   onChange={(e) => setBillingAddress((current) => ({ ...current, address: e.target.value }))}
-                  className="bg-white/[0.08] border-white/20 text-white"
+                  className="min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                   placeholder="Street address"
                   data-testid="input-billing-address"
                 />
@@ -641,7 +699,7 @@ export default function CheckoutPage() {
                     autoComplete="billing address-level2"
                     value={billingAddress.city}
                     onChange={(e) => setBillingAddress((current) => ({ ...current, city: e.target.value }))}
-                    className="bg-white/[0.08] border-white/20 text-white"
+                    className="min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                     placeholder="City"
                     data-testid="input-billing-city"
                   />
@@ -650,7 +708,7 @@ export default function CheckoutPage() {
                     autoComplete="billing address-level1"
                     value={billingAddress.state}
                     onChange={(e) => setBillingAddress((current) => ({ ...current, state: e.target.value }))}
-                    className="bg-white/[0.08] border-white/20 text-white"
+                    className="min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                     placeholder="State"
                     data-testid="input-billing-state"
                   />
@@ -659,7 +717,7 @@ export default function CheckoutPage() {
                     autoComplete="billing postal-code"
                     value={billingAddress.zip}
                     onChange={(e) => setBillingAddress((current) => ({ ...current, zip: e.target.value }))}
-                    className="bg-white/[0.08] border-white/20 text-white"
+                    className="min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                     placeholder="ZIP code"
                     data-testid="input-billing-zip"
                   />
@@ -672,10 +730,10 @@ export default function CheckoutPage() {
                 type="checkbox"
                 checked={createAccount}
                 onChange={(e) => setCreateAccount(e.target.checked)}
-                className="w-4 h-4 accent-[#FF5A09]"
+                className="h-5 w-5 accent-[#FF5A09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111]"
                 data-testid="checkbox-create-account"
               />
-              <span className="text-white/60 text-sm">
+              <span className="text-white/80 text-sm">
                 Save my info to track purchases and vote history
               </span>
             </label>
@@ -693,7 +751,7 @@ export default function CheckoutPage() {
                     if (val) localStorage.setItem("hfc_ref", val);
                     else localStorage.removeItem("hfc_ref");
                   }}
-                  className="bg-white/[0.08] border-white/20 text-white"
+                  className="min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                   placeholder="Enter code (optional)"
                   data-testid="input-checkout-referral-code"
                 />
@@ -707,19 +765,16 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <div className="mb-10">
-          <p className="text-[#5f5f5f] text-sm mb-1">Step 3</p>
-          <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
-            PAYMENT
-          </h3>
+        <div className="mb-10 border-t border-white/15 pt-8">
+          <CheckoutStepHeading number={3} title="Payment" hint="Your card details stay secure" />
 
           <div className="space-y-4">
             {paymentConfig?.provider === "stripe" ? (
               <StripeCardField publishableKey={paymentConfig.stripePublishableKey || ""} onChange={setStripeCard} />
             ) : paymentConfig?.provider !== "paypal" ? (<>
             <div>
-              <Label htmlFor="card-number" className="text-white/60 uppercase text-xs tracking-wider">
-                Card Number
+              <Label htmlFor="card-number" className="text-white/80 uppercase text-xs tracking-wider">
+                Card Number <span className="text-[#ff9a6d]">*</span>
               </Label>
               <Input
                 id="card-number"
@@ -729,7 +784,7 @@ export default function CheckoutPage() {
                 inputMode="numeric"
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, ""))}
-                className="bg-white/[0.08] border-white/20 text-white mt-2"
+                className="mt-2 min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                 placeholder="4111 1111 1111 1111"
                 maxLength={19}
                 data-testid="input-card-number"
@@ -738,8 +793,8 @@ export default function CheckoutPage() {
 
             <div className="grid grid-cols-3 gap-2 sm:gap-4">
               <div>
-                <Label htmlFor="exp-month" className="text-white/60 uppercase text-xs tracking-wider">
-                  Month
+                <Label htmlFor="exp-month" className="text-white/80 uppercase text-xs tracking-wider">
+                  Month <span className="text-[#ff9a6d]">*</span>
                 </Label>
                 <Input
                   id="exp-month"
@@ -749,15 +804,15 @@ export default function CheckoutPage() {
                   inputMode="numeric"
                   value={expMonth}
                   onChange={(e) => setExpMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                  className="bg-white/[0.08] border-white/20 text-white mt-2"
+                  className="mt-2 min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                   placeholder="MM"
                   maxLength={2}
                   data-testid="input-exp-month"
                 />
               </div>
               <div>
-                <Label htmlFor="exp-year" className="text-white/60 uppercase text-xs tracking-wider">
-                  Year
+                <Label htmlFor="exp-year" className="text-white/80 uppercase text-xs tracking-wider">
+                  Year <span className="text-[#ff9a6d]">*</span>
                 </Label>
                 <Input
                   id="exp-year"
@@ -767,15 +822,15 @@ export default function CheckoutPage() {
                   inputMode="numeric"
                   value={expYear}
                   onChange={(e) => setExpYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className="bg-white/[0.08] border-white/20 text-white mt-2"
+                  className="mt-2 min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                   placeholder="YY"
                   maxLength={4}
                   data-testid="input-exp-year"
                 />
               </div>
               <div>
-                <Label htmlFor="cvv" className="text-white/60 uppercase text-xs tracking-wider">
-                  CVV
+                <Label htmlFor="cvv" className="text-white/80 uppercase text-xs tracking-wider">
+                  CVV <span className="text-[#ff9a6d]">*</span>
                 </Label>
                 <Input
                   id="cvv"
@@ -785,7 +840,7 @@ export default function CheckoutPage() {
                   inputMode="numeric"
                   value={cvv}
                   onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  className="bg-white/[0.08] border-white/20 text-white mt-2"
+                  className="mt-2 min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                   placeholder="123"
                   maxLength={4}
                   data-testid="input-cvv"
@@ -805,7 +860,7 @@ export default function CheckoutPage() {
           const taxAmount = subtotal * (taxRate / 100);
           const total = subtotal + taxAmount;
           return (
-            <div className="border border-white/10 p-5 mb-8">
+            <div className="border border-white/20 border-l-4 border-l-[#FF5A09] bg-white/[0.025] p-5 mb-8">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-white/60 text-sm uppercase tracking-wider">Order Summary</span>
               </div>
@@ -840,12 +895,18 @@ export default function CheckoutPage() {
         <button
           onClick={handlePayClick}
           disabled={processing || !selectedPackage || !acceptLoaded}
-          className="w-full bg-[#FF5A09] text-white font-bold text-base uppercase px-8 leading-[52px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full min-h-14 bg-[#FF5A09] text-white font-bold text-base uppercase px-8 border border-[#FF5A09] transition-all duration-200 hover:bg-[#ff7434] active:scale-[0.99] cursor-pointer disabled:opacity-100 disabled:cursor-not-allowed disabled:border-white/20 disabled:bg-white/10 disabled:text-white/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111] flex items-center justify-center gap-2 motion-reduce:transform-none motion-reduce:transition-none"
           data-testid="button-checkout"
         >
           <CreditCard className="h-5 w-5" />
           {processing ? "PROCESSING..." : (selectedPkg || isIndividual) ? `PAY $${(((isIndividual ? individualVoteCount * perVotePrice : selectedPkg!.price / 100) * (1 + (platformSettings?.salesTaxPercent || 0) / 100))).toFixed(2)}` : "SELECT A VOTE OPTION"}
         </button>
+
+        {!selectedPackage && (
+          <p className="text-white/55 text-xs text-center mt-2">
+            Choose a vote option above to see your total and continue.
+          </p>
+        )}
 
         <p className="text-white/30 text-xs text-center mt-4">
           Payments processed securely via Quest’s Stripe account. Your card info never touches our servers.
