@@ -140,3 +140,45 @@ mtime_ms = 1786996363579
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/8e405e49-7540-4750-a475-b458e188c50e/be578f71-de4c-45fc-a591-3633da625c65"
 storage_version_token = "1792305934973772"
 content_type = "image/png"
+
+[[outputs]]
+id = "vBqw942Ja0i1GximrPM7v"
+uri = "file://generated-artifacts/cb-the-quest-logo-component-preview.html"
+type = "html"
+title = "The actual CB The Quest logo and animated copy"
+description = "Side-by-side preview rendered from the app’s CBLogo component and its separate The Quest wordmark."
+logical_id = "9a94091f-e771-45ac-8789-73b7e61cef4a"
+content_hash = "sha256:27269bcddb75a3b3ba5fd58755119b1552f1b39f53028594cd65b23d0c51b3b8"
+size = 184052
+mtime_ms = 1792306447591
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/9a94091f-e771-45ac-8789-73b7e61cef4a/fa2ee74d-5364-406e-82d9-df964816fe80"
+storage_version_token = "1792306495496337"
+content_type = "text/html"
+
+[[outputs]]
+id = "DOtGd2ceyC6AJottWUSjk"
+uri = "file://generated-artifacts/cb-the-quest-lockup-copy.png"
+type = "image"
+title = "Copy of the actual CB The Quest lockup"
+description = "PNG render of the current dashboard lockup, created from the app’s logo component—not the uploaded screenshots."
+logical_id = "5b0c8e2a-395d-48b4-8e2c-c5b63a5d2a59"
+content_hash = "sha256:8746370e844d3fea270c0632c2d21c8d1fb26bdb59241f328bb5d12b3332f573"
+size = 20758
+mtime_ms = 1792306402093
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/5b0c8e2a-395d-48b4-8e2c-c5b63a5d2a59/9103bfa1-ed1e-4eda-95e7-f12e9dcde4b6"
+storage_version_token = "1792306496072494"
+content_type = "image/png"
+
+[[outputs]]
+id = "tNortfD4f-CrqGTXu7bmP"
+uri = "file://generated-artifacts/cb-the-quest-lockup-animated.gif"
+type = "image"
+title = "Animated copy of the actual CB The Quest logo"
+description = "GIF copy of the app-rendered lockup with a gentle green pulse behind the CB mark."
+logical_id = "6d19f3dd-79e3-4de1-b1ce-dcab62d4aea9"
+content_hash = "sha256:cf7e020d64854ac614547f9226a978307ab0ca2b722fea1aaf8c111c4505b6ed"
+size = 115867
+mtime_ms = 1792306447197
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/6d19f3dd-79e3-4de1-b1ce-dcab62d4aea9/6fcff659-cb58-40ee-83f1-b528b2769449"
+storage_version_token = "1792306496687023"
+content_type = "image/gif"
