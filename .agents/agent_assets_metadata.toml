@@ -126,3 +126,17 @@ mtime_ms = 1792305237133
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/319e29d3-449e-437b-80bb-e2b9af583c51/1ba3987a-4051-434f-8bfd-17c82d41249e"
 storage_version_token = "1792305263403113"
 content_type = "image/png"
+
+[[outputs]]
+id = "_nLlTEbyLSNgd6kdVpfPf"
+uri = "file://client/public/cb-logo-transparent.png"
+type = "image"
+title = "The Quest CB logo"
+description = "The saved transparent CB logo image used by the site."
+logical_id = "8e405e49-7540-4750-a475-b458e188c50e"
+content_hash = "sha256:9f1a5734e741b1b0cedb725fc9e13fd16540c29ec2ee78c93b8fe10b2092f106"
+size = 2900
+mtime_ms = 1786996363579
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/8e405e49-7540-4750-a475-b458e188c50e/be578f71-de4c-45fc-a591-3633da625c65"
+storage_version_token = "1792305934973772"
+content_type = "image/png"
