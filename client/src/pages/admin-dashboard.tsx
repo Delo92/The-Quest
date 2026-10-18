@@ -34,6 +34,7 @@ import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 import AdminPayrollSettings from "@/components/admin-payroll-settings";
 import AdminFinancialOverview, { type FinancialView } from "@/components/admin-financial-overview";
+import AdminMicrosoftEmail from "@/components/admin-microsoft-email";
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
@@ -3434,6 +3435,7 @@ export default function AdminDashboard({ user }: { user: any }) {
 
                         {actualActiveLabel === "Email Templates" && (
                           <div className="mb-6 space-y-4">
+                            <AdminMicrosoftEmail />
                             <GmailStatusPanel />
                             <div className="p-4 rounded-lg bg-zinc-900 border border-white/10">
                               <p className="text-xs text-white/50 mb-3 leading-relaxed">

@@ -88,7 +88,12 @@ import { registerQuestForms } from "./quest-forms";
 import { registerOCSocialProfileRoutes } from "./oc-social-profile-routes";
 import { queueOCSocialProfileSyncForUser } from "./services/ocSocialProfileSync";
 import { getOwnerAnalytics } from "./services/ownerAnalytics";
-import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
+import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail, verifyAccountAccessEmailDelivery } from "./email";
+import {
+  getMicrosoftEmailOAuthStatus,
+  pollMicrosoftEmailDeviceAuthorization,
+  startMicrosoftEmailDeviceAuthorization,
+} from "./microsoft-email-oauth";
 import { logEmailDiagnostic } from "./email-diagnostics";
 import {
   uploadImageToDrive,
@@ -1173,7 +1178,7 @@ export async function registerRoutes(
 
       // 6. Send welcome email (non-blocking if email not yet configured)
       if (isNewAccount && tempPassword) {
-        if (isEmailConfigured()) {
+        if (await isEmailConfigured()) {
           const steps: string[] = Array.isArray(nextSteps) && nextSteps.length > 0
             ? nextSteps
             : [
@@ -1326,7 +1331,7 @@ export async function registerRoutes(
       }
 
       // Notify referral code owner when their code was used during sign-up (non-blocking)
-      if (referralCode?.trim() && isEmailConfigured()) {
+      if (referralCode?.trim() && await isEmailConfigured()) {
         (async () => {
           try {
             const resolvedRef = referralCode.trim().toUpperCase();
@@ -2803,7 +2808,7 @@ export async function registerRoutes(
           ]).catch((err: any) => console.error("ChronicTV contestant sync error (non-blocking):", err.message));
 
           // Send approval email to the talent (non-blocking)
-          if (isEmailConfigured() && profile.email) {
+          if (await isEmailConfigured() && profile.email) {
             const siteUrl = process.env.SITE_URL || "https://cbpublishing.live";
             sendApplicationApproved({
               to: profile.email,
@@ -3196,7 +3201,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/admin/gmail-status", firebaseAuth, requireAdmin, async (_req, res) => {
-    const configured = isEmailConfigured();
+    const configured = await isEmailConfigured();
     let working = false;
     if (configured) {
       try {
@@ -3212,6 +3217,50 @@ export async function registerRoutes(
       } catch {}
     }
     res.json({ configured, working });
+  });
+
+  app.get("/api/admin/microsoft-email/status", firebaseAuth, requireAdmin, async (_req, res) => {
+    try {
+      res.json(await getMicrosoftEmailOAuthStatus());
+    } catch {
+      res.status(500).json({ error: "Could not read Microsoft email connection status." });
+    }
+  });
+
+  app.post("/api/admin/microsoft-email/connect/start", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const flow = await startMicrosoftEmailDeviceAuthorization({
+        clientId: typeof req.body?.clientId === "string" ? req.body.clientId : "",
+        tenantId: typeof req.body?.tenantId === "string" ? req.body.tenantId : "",
+      });
+      res.json(flow);
+    } catch (err: any) {
+      res.status(400).json({ error: err instanceof Error ? err.message : "Could not start Microsoft authorization." });
+    }
+  });
+
+  app.post("/api/admin/microsoft-email/connect/poll", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const flowId = typeof req.body?.flowId === "string" ? req.body.flowId : "";
+      res.json(await pollMicrosoftEmailDeviceAuthorization(flowId));
+    } catch {
+      res.status(500).json({ error: "Could not check Microsoft authorization status." });
+    }
+  });
+
+  app.post("/api/admin/microsoft-email/verify", firebaseAuth, requireAdmin, async (_req, res) => {
+    try {
+      const status = await getMicrosoftEmailOAuthStatus();
+      if (!status.active) {
+        return res.status(409).json({ error: "Connect the Microsoft mailbox before verifying it." });
+      }
+      await verifyAccountAccessEmailDelivery();
+      res.json({ working: true, mailboxAddress: status.mailboxAddress });
+    } catch {
+      res.status(502).json({
+        error: "Microsoft SMTP verification failed. Check SMTP Authentication and reconnect while signed in as info@cbpublishing.live.",
+      });
+    }
   });
 
   app.get("/api/admin/contestants", firebaseAuth, requireAdmin, async (_req, res) => {
@@ -4078,7 +4127,7 @@ export async function registerRoutes(
       }
 
       let emailSent = false;
-      if (isEmailConfigured()) {
+      if (await isEmailConfigured()) {
         emailSent = await sendInviteEmail({
           to: inviteeEmail,
           inviterName,
@@ -5498,7 +5547,7 @@ export async function registerRoutes(
       await firestoreJoinSubmissions.recordAccessEmail(submission.id, emailSent);
 
       // Send receipt to the nominator (non-blocking)
-      if (isEmailConfigured() && normalizedNominatorEmail && firebaseUid && talentProfileId !== null && contestantId !== null && contestantIsActive) {
+      if (await isEmailConfigured() && normalizedNominatorEmail && firebaseUid && talentProfileId !== null && contestantId !== null && contestantIsActive) {
         const compNameForReceipt = competitionId
           ? (await storage.getCompetition(Number(competitionId)))?.title || "The Quest"
           : "The Quest";
@@ -5546,7 +5595,7 @@ export async function registerRoutes(
         }).catch((err: any) => console.warn("[ChronicBrands] Nomination referral tracking failed (non-blocking):", err.message));
 
         // Notify the code owner by email (non-blocking)
-        if (isEmailConfigured()) {
+        if (await isEmailConfigured()) {
           (async () => {
             try {
               const codeDoc = await firestoreReferrals.getCodeByCode(resolvedRef);
@@ -5629,7 +5678,7 @@ export async function registerRoutes(
       if (submission.status === "rejected" || submission.nominationStatus === "not_interested") {
         return res.status(409).json({ message: "This nomination is rejected or opted out of participation." });
       }
-      if (!isEmailConfigured()) {
+      if (!await isEmailConfigured()) {
         return res.status(503).json({ message: "Email delivery is not configured. No email was sent." });
       }
       if (submission.accessEmailLastAttemptAt
@@ -6628,7 +6677,7 @@ export async function registerRoutes(
       }
 
 
-      if (isEmailConfigured() && email) {
+      if (await isEmailConfigured() && email) {
         const contestant = (await storage.getContestantsByCompetition(competitionId))
           .find((entry) => entry.id === contestantId);
         const contestantName = contestant?.talentProfile?.displayName || undefined;
