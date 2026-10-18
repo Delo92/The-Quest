@@ -27,6 +27,7 @@
 - [Firestore REST index deployment](firestore-index-deployment.md) — composite index creates are asynchronous and live listings must be filtered by collection group
 - [Chronic Brands promotion rules](chronic-brands-promotion.md) — per-event ticket URLs override the global fallback; preserve contestant tracking and separate host referrals
 - [Nomination promo visibility](nomination-promo-visibility.md) — show the nomination promo field whenever fees apply, independently of whether a redeemable code is configured
+- [Quest promo-code sources](promo-code-sources.md) — check app-managed sources first; Stripe's code list does not establish Quest promo/referral availability
 - [Firebase Storage access](firebase-storage-access.md) — restore project storage access before changing UI media rendering; disabled billing makes stored media URLs fail
 - [Stage voting isolation](stage-voting-isolation.md) — stage vote records and legacy cumulative totals use separate count keys and query paths
 - [Competition share links](competition-share-links.md) — guest join CTAs go to the selected competition’s nomination form and preserve referral attribution
