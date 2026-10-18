@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import type { VideoPreloaderState } from "@/hooks/use-video-preloader";
+import { logClientError } from "@/lib/client-error-logger";
 
 interface HlsVideoPlayerProps {
   videoId: string;       // Vimeo URI like /videos/123 or bare numeric ID
@@ -93,6 +94,27 @@ export function HlsVideoPlayer({
     const video = videoRef.current;
     if (!video) return;
 
+    const showPlaybackError = (
+      message: string,
+      cause?: unknown,
+      details?: Record<string, unknown>,
+    ) => {
+      setError(message);
+      const errorStack = cause && typeof cause === "object" && "stack" in cause
+        && typeof cause.stack === "string"
+        ? cause.stack
+        : new Error(`Video playback error: ${message}`).stack;
+      void logClientError({
+        errorType: "video_consultation",
+        severity: "warning",
+        message: `Video playback error: ${message}`,
+        error: cause,
+        stackTrace: errorStack,
+        wasShownToUser: true,
+        context: { source: "hls-video-player", videoId: id, ...details },
+      });
+    };
+
     setLoading(true);
     setError(null);
 
@@ -140,7 +162,10 @@ export function HlsVideoPlayer({
           if (data.fatal) {
             if (data.type === "networkError") hls.startLoad();
             else if (data.type === "mediaError") hls.recoverMediaError();
-            else setError("Playback failed");
+            else showPlaybackError("Playback failed", undefined, {
+              hlsErrorType: data.type,
+              hlsErrorDetails: data.details,
+            });
           }
         });
 
@@ -207,7 +232,10 @@ export function HlsVideoPlayer({
                 } else {
                   const best = [...(urls.progressive ?? [])].reverse()[0];
                   if (best) { video.src = best.link; if (autoPlay) video.play().catch(() => {}); }
-                  else setError("Playback failed");
+                  else showPlaybackError("Playback failed", undefined, {
+                    hlsErrorType: data.type,
+                    hlsErrorDetails: data.details,
+                  });
                 }
               }
             });
@@ -217,7 +245,10 @@ export function HlsVideoPlayer({
             if (cancelled) return;
             const best = [...(urls.progressive ?? [])].reverse()[0];
             if (best) { video.src = best.link; if (autoPlay) video.play().catch(() => {}); setLoading(false); }
-            else { setError("Could not start playback"); setLoading(false); }
+            else {
+              showPlaybackError("Could not start playback", err);
+              setLoading(false);
+            }
           }
           return;
         }
@@ -229,14 +260,14 @@ export function HlsVideoPlayer({
           if (autoPlay) video.play().catch(() => {});
           setLoading(false);
         } else {
-          setError("No playable source");
+          showPlaybackError("No playable source");
           setLoading(false);
         }
       })
       .catch((err) => {
         if (!cancelled) {
           console.error("HlsVideoPlayer:", err);
-          setError("Could not load video");
+          showPlaybackError("Could not load video", err);
           setLoading(false);
         }
       });

@@ -15,13 +15,63 @@ export type ClientErrorInput = {
 };
 
 let handlersInstalled = false;
+const recentReactQueryErrors: Array<{
+  message: string;
+  route: string;
+  expiresAt: number;
+}> = [];
 
 function getErrorDetails(error: unknown): { message?: string; stackTrace?: string } {
   if (error instanceof Error) {
     return { message: error.message, stackTrace: error.stack };
   }
   if (typeof error === "string") return { message: error };
+  if (error && typeof error === "object") {
+    const candidate = error as { message?: unknown; stack?: unknown };
+    return {
+      message: typeof candidate.message === "string" ? candidate.message : undefined,
+      stackTrace: typeof candidate.stack === "string" ? candidate.stack : undefined,
+    };
+  }
   return {};
+}
+
+function normalizeErrorMessage(message: string): string {
+  let normalized = message.trim().replace(/^\d{3}:\s*/, "");
+  try {
+    const parsed = JSON.parse(normalized);
+    if (parsed && typeof parsed.message === "string") normalized = parsed.message;
+  } catch {
+    // Most API errors are plain text; keep the original when not JSON.
+  }
+  return normalized.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Query/mutation cache handlers record the underlying exception first. Avoid
+ * adding a second, lower-detail toast record when that same failure is shown.
+ */
+export function wasRecentlyLoggedReactQueryError(message: string): boolean {
+  if (typeof window === "undefined") return false;
+  const now = Date.now();
+  const route = window.location.pathname;
+  const visibleMessage = normalizeErrorMessage(message);
+  if (visibleMessage.length < 4) return false;
+  for (let index = recentReactQueryErrors.length - 1; index >= 0; index -= 1) {
+    const item = recentReactQueryErrors[index];
+    if (item.expiresAt <= now) {
+      recentReactQueryErrors.splice(index, 1);
+      continue;
+    }
+    if (
+      item.route === route
+      && item.message.length >= 8
+      && (visibleMessage.includes(item.message) || item.message.includes(visibleMessage))
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function getDeviceInfo() {
@@ -101,6 +151,16 @@ function getDeviceInfo() {
 
 export async function logClientError(input: ClientErrorInput): Promise<void> {
   if (typeof window === "undefined" || !input.message?.trim()) return;
+
+  const source = typeof input.context?.source === "string" ? input.context.source : "";
+  if (source.startsWith("react-query-") && input.wasShownToUser) {
+    recentReactQueryErrors.push({
+      message: normalizeErrorMessage(input.message),
+      route: window.location.pathname,
+      expiresAt: Date.now() + 10_000,
+    });
+    if (recentReactQueryErrors.length > 100) recentReactQueryErrors.splice(0, recentReactQueryErrors.length - 100);
+  }
 
   try {
     const auth = getFirebaseAuth();

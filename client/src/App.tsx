@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorTelemetryBoundary } from "@/components/error-telemetry-boundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useLivery } from "@/hooks/use-livery";
 import { useGATracking } from "@/hooks/use-ga-tracking";
@@ -116,18 +117,20 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <DynamicFavicon />
-        <Toaster />
-        <Switch>
-          <Route path="/" component={RootEntryPage} />
-          <Route path="/app-demo" component={AppDemoPage} />
-          <Route path="/talent/:id" component={TalentProfileRedirect} />
-          <Route path="/thequest" nest component={QuestApplication} />
-          <Route path="/:slug" component={CodeLandingPage} />
-          <Route component={NotFound} />
-        </Switch>
-      </TooltipProvider>
+      <ErrorTelemetryBoundary>
+        <TooltipProvider>
+          <DynamicFavicon />
+          <Toaster />
+          <Switch>
+            <Route path="/" component={RootEntryPage} />
+            <Route path="/app-demo" component={AppDemoPage} />
+            <Route path="/talent/:id" component={TalentProfileRedirect} />
+            <Route path="/thequest" nest component={QuestApplication} />
+            <Route path="/:slug" component={CodeLandingPage} />
+            <Route component={NotFound} />
+          </Switch>
+        </TooltipProvider>
+      </ErrorTelemetryBoundary>
     </QueryClientProvider>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { loadStripeScript, type StripeCardHandle } from "@/lib/buyer-payment";
+import { logClientError } from "@/lib/client-error-logger";
 
 /** Stripe owns the iframe; card numbers and CVC never enter Quest's state. */
 export function StripeCardField({ publishableKey, onChange }: {
@@ -11,11 +12,40 @@ export function StripeCardField({ publishableKey, onChange }: {
   useEffect(() => {
     let cancelled = false;
     let card: StripeCardHandle["card"] | undefined;
+    const lastReportedError = { current: "" };
+    const showFieldError = (message: string, cause?: unknown) => {
+      setError(message);
+      if (!message) {
+        lastReportedError.current = "";
+        return;
+      }
+      if (lastReportedError.current === message) return;
+      lastReportedError.current = message;
+      const stripeCode = cause && typeof cause === "object" && "code" in cause
+        && typeof cause.code === "string"
+        ? cause.code
+        : undefined;
+      void logClientError({
+        errorType: "payment",
+        severity: "warning",
+        message: `Payment card field error: ${message}`,
+        error: cause,
+        stackTrace: cause && typeof cause === "object" && "stack" in cause
+          && typeof cause.stack === "string"
+          ? cause.stack
+          : new Error("Payment card field error").stack,
+        wasShownToUser: true,
+        context: { source: "stripe-card-field", stripeCode },
+      });
+    };
     onChange(null);
     loadStripeScript().then((loaded) => {
       if (cancelled) return;
       if (!loaded || !window.Stripe) {
-        setError("Secure card entry could not load. Refresh to try again.");
+        showFieldError(
+          "Secure card entry could not load. Refresh to try again.",
+          new Error("Stripe.js did not load or expose window.Stripe"),
+        );
         return;
       }
       const stripe = window.Stripe(publishableKey);
@@ -24,12 +54,14 @@ export function StripeCardField({ publishableKey, onChange }: {
         style: { base: { color: "#ffffff", fontSize: "16px", "::placeholder": { color: "#aaaaaa" } }, invalid: { color: "#fca5a5" } },
       });
       card.on("change", (event) => {
-        setError(event.error?.message || "");
+        showFieldError(event.error?.message || "", event.error);
         onChange({ stripe, card: card!, complete: event.complete });
       });
       card.mount(container.current!);
-    }).catch(() => {
-      if (!cancelled) setError("Secure card entry could not load. Refresh to try again.");
+    }).catch((loadError: unknown) => {
+      if (!cancelled) {
+        showFieldError("Secure card entry could not load. Refresh to try again.", loadError);
+      }
     });
     return () => { cancelled = true; onChange(null); card?.destroy(); };
   }, [publishableKey, onChange]);

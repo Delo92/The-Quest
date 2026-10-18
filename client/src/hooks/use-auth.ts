@@ -11,6 +11,7 @@ import {
   getFirebaseAuth,
 } from "@/lib/firebase";
 import { queryClient as globalQueryClient } from "@/lib/queryClient";
+import { logClientError } from "@/lib/client-error-logger";
 
 export interface AuthUser {
   uid: string;
@@ -60,6 +61,30 @@ function setCachedUser(user: AuthUser | null) {
 let globalToken: string | null = null;
 let hasInvalidatedAfterRestore = false;
 
+function reportAuthFailure(
+  action: string,
+  message: string,
+  error: unknown,
+  severity: "error" | "warning" = "error",
+) {
+  const code = error && typeof error === "object" && "code" in error
+    && typeof error.code === "string"
+    ? error.code
+    : undefined;
+  void logClientError({
+    errorType: "authentication",
+    severity,
+    message: `${action} failed: ${message}`,
+    error,
+    stackTrace: error && typeof error === "object" && "stack" in error
+      && typeof error.stack === "string"
+      ? error.stack
+      : new Error(`Authentication failure: ${action}`).stack,
+    wasShownToUser: true,
+    context: { source: "auth", action, code },
+  });
+}
+
 export function getAuthToken(): string | null {
   return globalToken;
 }
@@ -85,7 +110,8 @@ export function useAuth() {
         return syncRes.json();
       }
       return res.json();
-    } catch {
+    } catch (error) {
+      reportAuthFailure("user-sync", "Could not synchronize the signed-in user", error, "warning");
       return null;
     }
   }, []);
@@ -179,6 +205,7 @@ export function useAuth() {
             }
           } catch (err) {
             console.warn("Token refresh failed, clearing session:", err);
+            reportAuthFailure("token-refresh", "The session could not be refreshed", err, "warning");
             if (
               !cancelled
               && eventGeneration === authStateGeneration
@@ -212,8 +239,9 @@ export function useAuth() {
           try {
             const freshToken = await auth.currentUser.getIdToken(true);
             globalToken = freshToken;
-          } catch {
+          } catch (error) {
             console.warn("Background token refresh failed, logging out");
+            reportAuthFailure("background-token-refresh", "The session could not be refreshed", error, "warning");
             await firebaseLogout().catch(() => {});
             setUser(null);
             setCachedUser(null);
@@ -349,6 +377,15 @@ export function useAuth() {
       const authCode = typeof err?.code === "string" && /^auth\/[a-z0-9-]+$/.test(err.code)
         ? err.code
         : undefined;
+      const expectedLoginCodes = new Set([
+        "auth/account-type-mismatch",
+        "auth/account-type-check-failed",
+        "auth/user-not-found",
+        "auth/wrong-password",
+        "auth/invalid-credential",
+        "auth/too-many-requests",
+      ]);
+      reportAuthFailure("login", msg, err, authCode && expectedLoginCodes.has(authCode) ? "warning" : "error");
       throw Object.assign(new Error(msg), authCode ? { code: authCode } : {});
     }
   }, [demoMode]);
@@ -406,6 +443,17 @@ export function useAuth() {
         : err.code === "auth/invalid-email" ? "Invalid email address"
         : err.message || "Registration failed";
       setError(msg);
+      const expectedRegistrationCodes = new Set([
+        "auth/email-already-in-use",
+        "auth/weak-password",
+        "auth/invalid-email",
+      ]);
+      reportAuthFailure(
+        "registration",
+        msg,
+        err,
+        typeof err?.code === "string" && expectedRegistrationCodes.has(err.code) ? "warning" : "error",
+      );
       throw new Error(msg);
     }
   }, [syncUserWithBackend, demoMode]);
@@ -429,6 +477,12 @@ export function useAuth() {
       const msg = err.code === "auth/user-not-found" ? "No account found with this email"
         : "Password reset failed";
       setError(msg);
+      reportAuthFailure(
+        "password-reset",
+        msg,
+        err,
+        err.code === "auth/user-not-found" ? "warning" : "error",
+      );
       throw new Error(msg);
     }
   }, [demoMode]);

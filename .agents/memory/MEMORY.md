@@ -31,7 +31,7 @@
 - [Stage voting isolation](stage-voting-isolation.md) — stage vote records and legacy cumulative totals use separate count keys and query paths
 - [Competition share links](competition-share-links.md) — guest join CTAs go to the selected competition’s nomination form and preserve referral attribution
 - [Host platform referral codes](host-platform-referral-codes.md) — every host should have a global `?ref=CODE` link separate from competition-specific codes
-- [Centralized error logging](chronicdocs-error-logging.md) — ChronicDocs logging behavior is ported onto The Quest's own Firestore helper and identity model
+- [Centralized error logging](chronicdocs-error-logging.md) — install API capture before routes; cover JSON and non-JSON errors without persisting request values or response bodies
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
 - [OC Integration Bridge](oc-integration-bridge.md) — owners want Quest-owned Stripe; inspect existing OC routing and preserve unrelated integrations during cutover
 - [OC social profile sync](oc-social-profile-sync.md) — social links determine scan eligibility; email is optional and missing links must come from an account-linked source

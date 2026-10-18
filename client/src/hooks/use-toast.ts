@@ -4,7 +4,10 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast"
-import { logClientError } from "@/lib/client-error-logger"
+import {
+  logClientError,
+  wasRecentlyLoggedReactQueryError,
+} from "@/lib/client-error-logger"
 
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
@@ -140,21 +143,28 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, "id"> & {
   diagnosticContext?: Record<string, unknown>
+  error?: unknown
+  stackTrace?: string
 }
 
-function toast({ diagnosticContext, ...props }: Toast) {
+function toast({ diagnosticContext, error, stackTrace, ...props }: Toast) {
   const id = genId()
 
   if (props.variant === "destructive") {
     const title = typeof props.title === "string" ? props.title : ""
     const description = typeof props.description === "string" ? props.description : ""
-    void logClientError({
-      errorType: "client",
-      severity: "error",
-      message: [title, description].filter(Boolean).join(": ") || "User-facing toast error",
-      wasShownToUser: true,
-      context: { ...diagnosticContext, source: "toast" },
-    })
+    const message = [title, description].filter(Boolean).join(": ") || "User-facing toast error"
+    if (!wasRecentlyLoggedReactQueryError(message)) {
+      void logClientError({
+        errorType: "client",
+        severity: "error",
+        message,
+        error,
+        stackTrace: stackTrace || new Error(`User-facing error toast: ${title || "Untitled"}`).stack,
+        wasShownToUser: true,
+        context: { ...diagnosticContext, source: "toast" },
+      })
+    }
   }
 
   const update = (props: ToasterToast) =>

@@ -129,6 +129,17 @@ function sanitizeContext(context: Record<string, unknown> | undefined): Record<s
     : {};
 }
 
+function sanitizeStackTrace(stackTrace: string | undefined): string | undefined {
+  if (typeof stackTrace !== "string" || !stackTrace.trim()) return undefined;
+  return stackTrace
+    .slice(0, 12_000)
+    .replace(/(bearer\s+)[a-z0-9._~+/-]+/gi, "$1[REDACTED]")
+    .replace(
+      /\b(password|token|secret|authorization|api[_-]?key|private[_-]?key)\b(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,&]+)/gi,
+      "$1$2[REDACTED]",
+    );
+}
+
 function inferUserLevel(errorData: ErrorLogData): 1 | 2 | 3 | 4 | null {
   if (errorData.userLevel !== undefined) return errorData.userLevel;
 
@@ -202,6 +213,7 @@ export async function logError(errorData: ErrorLogData): Promise<void> {
     const context = sanitizeContext(errorData.context);
     const normalized: ErrorLogData = {
       ...errorData,
+      stackTrace: sanitizeStackTrace(errorData.stackTrace),
       userLevel: inferUserLevel({ ...errorData, context }),
       context,
     };

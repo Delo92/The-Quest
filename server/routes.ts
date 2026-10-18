@@ -824,10 +824,95 @@ function normalizeNonprofitDeclaration(value: any) {
   };
 }
 
+function installApiErrorTelemetry(app: Express): void {
+  app.use((req, res, next) => {
+    const originalJson = res.json.bind(res);
+    const originalSend = res.send.bind(res);
+    let captured = false;
+
+    const captureErrorResponse = (body: unknown) => {
+      const status = res.statusCode;
+      if (captured || status < 400 || !req.path.startsWith("/api")) return;
+
+      const isSessionCheck = (
+        req.path === "/api/admin/session" ||
+        req.path === "/api/portal/session"
+      ) && status === 401;
+      const isCartMiss = req.path.startsWith("/api/cart") && status === 404;
+      if (isSessionCheck || isCartMiss) return;
+      captured = true;
+
+      const pathname = req.path.toLowerCase();
+      let errorType: ErrorType = "api";
+      if (pathname.includes("/login") || pathname.includes("/logout") || pathname.includes("/session")
+        || pathname.includes("/auth") || pathname.includes("/register")) errorType = "authentication";
+      else if (pathname.includes("/payment") || pathname.includes("/paypal")
+        || pathname.includes("/subscribe") || pathname.includes("/checkout")) errorType = "payment";
+      else if (pathname.includes("/email") || pathname.includes("/contact")
+        || pathname.includes("/send")) errorType = "email";
+      else if (pathname.includes("/upload") || pathname.includes("/image")
+        || pathname.includes("/vimeo") || pathname.includes("/photo")
+        || pathname.includes("/cover")) errorType = "form_upload";
+      else if (pathname.includes("/admin")) errorType = "admin_operation_error";
+      else if (status >= 500) errorType = "system";
+
+      const severity: ErrorSeverity = status >= 500
+        ? "error"
+        : status === 401 || status === 403 ? "warning" : "info";
+      const responseMessage = body && typeof body === "object" && !Buffer.isBuffer(body)
+        && "message" in body && typeof body.message === "string"
+        ? body.message
+        : undefined;
+      const responseStack = new Error(
+        `API error response: ${req.method} ${req.path} (${status})`,
+      ).stack;
+
+      void logError({
+        errorType,
+        severity,
+        message: responseMessage || `HTTP ${status} ${req.method} ${req.path}`,
+        stackTrace: responseStack?.slice(0, 12_000),
+        endpoint: req.path,
+        method: req.method,
+        statusCode: status,
+        wasShownToUser: status < 500,
+        context: createErrorContext({
+          ip: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip,
+          userAgent: req.headers["user-agent"]?.substring(0, 250),
+          referer: req.headers.referer,
+          responseType: res.getHeader("content-type"),
+          bodyFields: req.method !== "GET" && req.body && typeof req.body === "object"
+            ? Object.keys(req.body).slice(0, 40)
+            : undefined,
+          userUid: req.firebaseUser?.uid,
+          userEmail: req.firebaseUser?.email,
+          userLevel: req.firebaseUser?.level,
+          role: req.firebaseUser?.level === 4 ? "admin"
+            : req.firebaseUser?.level === 3 ? "host"
+            : req.firebaseUser?.level === 2 ? "talent"
+            : req.firebaseUser?.level === 1 ? "viewer"
+            : undefined,
+        }),
+      }).catch(() => {});
+    };
+
+    res.json = ((body: any) => {
+      captureErrorResponse(body);
+      return originalJson(body);
+    }) as Response["json"];
+    res.send = ((body?: any) => {
+      captureErrorResponse(body);
+      return originalSend(body);
+    }) as Response["send"];
+    next();
+  });
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  installApiErrorTelemetry(app);
   registerQuestPayrollAdmin(app);
   registerQuestTaxAndDonations(app);
   registerQuestForms(app);
@@ -951,58 +1036,6 @@ export async function registerRoutes(
   });
 
   registerPaymentProviderWebhooks(app);
-
-  app.use(async (req, res, next) => {
-    const originalJson = (res.json as Function).bind(res);
-    (res as any).json = function (data: any) {
-      const status = res.statusCode;
-      if (status >= 400 && req.path.startsWith('/api')) {
-        const isSessionCheck = (
-          req.path === '/api/admin/session' ||
-          req.path === '/api/portal/session'
-        ) && status === 401;
-        const isCartMiss = req.path.startsWith('/api/cart') && status === 404;
-        if (!isSessionCheck && !isCartMiss) {
-          const p = req.path.toLowerCase();
-          let errorType: any = 'api';
-          if (p.includes('/login') || p.includes('/logout') || p.includes('/session') || p.includes('/auth') || p.includes('/register')) errorType = 'authentication';
-          else if (p.includes('/payment') || p.includes('/paypal') || p.includes('/subscribe') || p.includes('/checkout')) errorType = 'payment';
-          else if (p.includes('/email') || p.includes('/contact') || p.includes('/send')) errorType = 'email';
-          else if (p.includes('/upload') || p.includes('/image') || p.includes('/vimeo') || p.includes('/photo') || p.includes('/cover')) errorType = 'form_upload';
-          else if (p.includes('/admin')) errorType = 'admin_operation_error';
-          else if (status >= 500) errorType = 'system';
-          const severity: any = status >= 500 ? 'error' : (status === 401 || status === 403) ? 'warning' : 'info';
-          import('./services/errorLogger').then(({ logError, createErrorContext }) => {
-            logError({
-              errorType,
-              severity,
-              message: data?.message || `HTTP ${status} ${req.method} ${req.path}`,
-              endpoint: req.path,
-              method: req.method,
-              statusCode: status,
-              wasShownToUser: status < 500,
-              context: createErrorContext({
-                ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip,
-                userAgent: req.headers['user-agent']?.substring(0, 250),
-                referer: req.headers['referer'],
-                body: req.method !== 'GET' ? JSON.stringify(req.body || {}).substring(0, 400) : undefined,
-               userUid: req.firebaseUser?.uid,
-               userEmail: req.firebaseUser?.email,
-               userLevel: req.firebaseUser?.level,
-               role: req.firebaseUser?.level === 4 ? "admin"
-                 : req.firebaseUser?.level === 3 ? "host"
-                 : req.firebaseUser?.level === 2 ? "talent"
-                 : req.firebaseUser?.level === 1 ? "viewer"
-                 : undefined,
-              }),
-            }).catch(() => {});
-          }).catch(() => {});
-        }
-      }
-      return originalJson(data);
-    };
-    next();
-  });
 
   app.get("/api/firebase-config", (_req, res) => {
     res.json({
