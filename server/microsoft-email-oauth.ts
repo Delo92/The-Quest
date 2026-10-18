@@ -6,6 +6,8 @@ const MAILBOX_ADDRESS = "info@cbpublishing.live";
 const SETTINGS_COLLECTION = "serverEmailAuth";
 const FLOW_COLLECTION = "serverEmailAuthFlows";
 const SMTP_SCOPE = "https://outlook.office.com/SMTP.Send";
+const MICROSOFT_CLIENT_ID_ENV = "MICROSOFT_EMAIL_CLIENT_ID";
+const MICROSOFT_TENANT_ID_ENV = "MICROSOFT_EMAIL_TENANT_ID";
 
 type MicrosoftEmailSettingsDocument = {
   tenantId: string;
@@ -45,6 +47,7 @@ type MicrosoftOAuthTestDependencies = Partial<{
   decrypt: typeof decrypt;
   encryptionKeyReady: typeof isEncryptionKeySet;
   createId: typeof randomUUID;
+  environment: Record<string, string | undefined>;
   now: () => number;
 }>;
 
@@ -67,6 +70,17 @@ function isSafeTenantId(value: string): boolean {
 
 function isClientId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function readEnvironmentConfig(environment: Record<string, string | undefined> = process.env) {
+  const clientId = environment[MICROSOFT_CLIENT_ID_ENV]?.trim() || "";
+  const tenantId = environment[MICROSOFT_TENANT_ID_ENV]?.trim() || "";
+  return {
+    clientId,
+    tenantId,
+    hasAny: Boolean(clientId || tenantId),
+    hasBoth: Boolean(clientId && tenantId),
+  };
 }
 
 function oauthEndpoint(tenantId: string, endpoint: "devicecode" | "token"): string {
@@ -131,12 +145,29 @@ export async function getMicrosoftEmailSettings(): Promise<MicrosoftEmailSetting
 
 export async function getMicrosoftEmailOAuthStatus() {
   const settings = await getMicrosoftEmailSettings();
+  const environmentConfig = readEnvironmentConfig();
+  const usingEnvironmentConfig = environmentConfig.hasAny;
+  const clientId = usingEnvironmentConfig ? environmentConfig.clientId : settings?.clientId || "";
+  const tenantId = usingEnvironmentConfig ? environmentConfig.tenantId : settings?.tenantId || "";
+  let configurationError: string | null = null;
+  if (usingEnvironmentConfig && !environmentConfig.hasBoth) {
+    configurationError = `Set both ${MICROSOFT_CLIENT_ID_ENV} and ${MICROSOFT_TENANT_ID_ENV}.`;
+  } else if (usingEnvironmentConfig && !isClientId(clientId)) {
+    configurationError = `${MICROSOFT_CLIENT_ID_ENV} must be a valid application client ID.`;
+  } else if (usingEnvironmentConfig && !isSafeTenantId(tenantId)) {
+    configurationError = `${MICROSOFT_TENANT_ID_ENV} must be a tenant ID or verified tenant domain.`;
+  }
+  const configured = usingEnvironmentConfig
+    ? !configurationError
+    : Boolean(clientId && tenantId);
   const connected = Boolean(settings?.refreshToken);
   return {
     mailboxAddress: MAILBOX_ADDRESS,
-    clientId: settings?.clientId || "",
-    tenantId: settings?.tenantId || "",
-    configured: Boolean(settings?.clientId && settings?.tenantId),
+    clientId: usingEnvironmentConfig ? "" : clientId,
+    tenantId: usingEnvironmentConfig ? "" : tenantId,
+    configured,
+    configurationSource: usingEnvironmentConfig ? "environment" as const : configured ? "admin" as const : "missing" as const,
+    configurationError,
     connected,
     active: settings?.activeProvider === "microsoft365" && connected,
     connectedAt: settings?.connectedAt || null,
@@ -145,8 +176,8 @@ export async function getMicrosoftEmailOAuthStatus() {
 }
 
 export async function startMicrosoftEmailDeviceAuthorization(input: {
-  clientId: string;
-  tenantId: string;
+  clientId?: string;
+  tenantId?: string;
 }, dependencies: MicrosoftOAuthTestDependencies = {}) {
   const firestore = dependencies.firestore ?? getFirestore();
   const fetcher = dependencies.fetch ?? fetch;
@@ -154,8 +185,12 @@ export async function startMicrosoftEmailDeviceAuthorization(input: {
   const encryptionKeyReady = dependencies.encryptionKeyReady ?? isEncryptionKeySet;
   const createId = dependencies.createId ?? randomUUID;
   const now = dependencies.now ?? Date.now;
-  const clientId = input.clientId.trim();
-  const tenantId = input.tenantId.trim();
+  const environmentConfig = readEnvironmentConfig(dependencies.environment);
+  if (environmentConfig.hasAny && !environmentConfig.hasBoth) {
+    throw new Error(`Set both ${MICROSOFT_CLIENT_ID_ENV} and ${MICROSOFT_TENANT_ID_ENV} before connecting Microsoft 365.`);
+  }
+  const clientId = (environmentConfig.hasBoth ? environmentConfig.clientId : input.clientId || "").trim();
+  const tenantId = (environmentConfig.hasBoth ? environmentConfig.tenantId : input.tenantId || "").trim();
   if (!isClientId(clientId)) {
     throw new Error("Enter the Microsoft Application (client) ID from the app registration.");
   }

@@ -11,6 +11,8 @@ type MicrosoftEmailStatus = {
   clientId: string;
   tenantId: string;
   configured: boolean;
+  configurationSource: "environment" | "admin" | "missing";
+  configurationError: string | null;
   connected: boolean;
   active: boolean;
   connectedAt: string | null;
@@ -103,14 +105,18 @@ export default function AdminMicrosoftEmail() {
   }, [flow, refetch, toast]);
 
   const startConnection = async () => {
-    if (!clientId.trim() || !tenantId.trim()) return;
+    const environmentConfigured = status?.configurationSource === "environment";
+    if (!environmentConfigured && (!clientId.trim() || !tenantId.trim())) return;
+    if (environmentConfigured && !status?.configured) return;
     setStarting(true);
     setVerified(false);
     try {
       const response = await apiRequest(
         "POST",
         "/api/admin/microsoft-email/connect/start",
-        { clientId: clientId.trim(), tenantId: tenantId.trim() },
+        environmentConfigured
+          ? {}
+          : { clientId: clientId.trim(), tenantId: tenantId.trim() },
       );
       const result = await response.json() as AuthorizationFlow;
       setFlow(result);
@@ -206,42 +212,61 @@ export default function AdminMicrosoftEmail() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="min-w-0 space-y-1.5 text-xs text-white/70">
-          <span>Application (client) ID</span>
-          <Input
-            value={clientId}
-            onChange={(event) => setClientId(event.target.value)}
-            placeholder="Microsoft app client ID"
-            autoComplete="off"
-            className="h-10 border-white/20 bg-zinc-800 text-sm text-white"
-            aria-label="Microsoft Application client ID"
-            data-testid="input-microsoft-email-client-id"
-          />
-        </label>
-        <label className="min-w-0 space-y-1.5 text-xs text-white/70">
-          <span>Directory (tenant) ID</span>
-          <Input
-            value={tenantId}
-            onChange={(event) => setTenantId(event.target.value)}
-            placeholder="Microsoft tenant ID"
-            autoComplete="off"
-            className="h-10 border-white/20 bg-zinc-800 text-sm text-white"
-            aria-label="Microsoft Directory tenant ID"
-            data-testid="input-microsoft-email-tenant-id"
-          />
-        </label>
-      </div>
+      {status?.configurationSource === "environment" ? (
+        <div className="space-y-2">
+          <p className="rounded border border-white/10 bg-black/20 p-3 text-xs leading-relaxed text-white/65">
+            The Microsoft application and tenant IDs are loaded from server-side environment variables and are not displayed here.
+          </p>
+          {status.configurationError && (
+            <p role="alert" className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
+              {status.configurationError}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="min-w-0 space-y-1.5 text-xs text-white/70">
+            <span>Application (client) ID</span>
+            <Input
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+              placeholder="Microsoft app client ID"
+              autoComplete="off"
+              className="h-10 border-white/20 bg-zinc-800 text-sm text-white"
+              aria-label="Microsoft Application client ID"
+              data-testid="input-microsoft-email-client-id"
+            />
+          </label>
+          <label className="min-w-0 space-y-1.5 text-xs text-white/70">
+            <span>Directory (tenant) ID</span>
+            <Input
+              value={tenantId}
+              onChange={(event) => setTenantId(event.target.value)}
+              placeholder="Microsoft tenant ID"
+              autoComplete="off"
+              className="h-10 border-white/20 bg-zinc-800 text-sm text-white"
+              aria-label="Microsoft Directory tenant ID"
+              data-testid="input-microsoft-email-tenant-id"
+            />
+          </label>
+        </div>
+      )}
 
       <p className="text-xs leading-relaxed text-white/50">
-        The Microsoft app needs delegated <code className="text-orange-300">SMTP.Send</code> permission and public-client sign-in enabled. No client secret is needed. When prompted, sign in as <strong className="text-white/75">info@cbpublishing.live</strong>.
+        Microsoft OAuth requests the delegated <code className="text-orange-300">SMTP.Send</code> scope during sign-in. Public-client sign-in must be enabled; no client secret is needed. When prompted, sign in as <strong className="text-white/75">info@cbpublishing.live</strong>.
       </p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Button
           type="button"
           onClick={startConnection}
-          disabled={starting || !clientId.trim() || !tenantId.trim() || !status?.encryptionReady}
+          disabled={
+            starting ||
+            (status?.configurationSource === "environment"
+              ? !status.configured
+              : !clientId.trim() || !tenantId.trim()) ||
+            !status?.encryptionReady
+          }
           className="min-h-10 w-full bg-orange-500 text-white hover:bg-orange-400 sm:w-auto"
           data-testid="button-connect-microsoft-email"
         >

@@ -153,3 +153,61 @@ test("invalid Microsoft app IDs are rejected before contacting Microsoft", async
   assert.equal(requested, false);
   assert.equal(fixture.read("serverEmailAuthFlows", FLOW_ID), undefined);
 });
+
+test("Microsoft device authorization uses server environment IDs without requiring them in the request", async () => {
+  const fixture = firestoreFixture();
+  let sentClientId = "";
+  let requestedScope = "";
+
+  const flow = await startMicrosoftEmailDeviceAuthorization({}, {
+    firestore: fixture.firestore,
+    environment: {
+      MICROSOFT_EMAIL_CLIENT_ID: CLIENT_ID,
+      MICROSOFT_EMAIL_TENANT_ID: TENANT_ID,
+    },
+    fetch: (async (_input, init) => {
+      const form = new URLSearchParams(String(init?.body || ""));
+      sentClientId = form.get("client_id") || "";
+      requestedScope = form.get("scope") || "";
+      return new Response(JSON.stringify({
+        device_code: "private-device-code",
+        user_code: "ABCD-EFGH",
+        verification_uri: "https://microsoft.com/devicelogin",
+        expires_in: 900,
+        interval: 5,
+      }), { status: 200 });
+    }) as typeof globalThis.fetch,
+    encrypt: (value: string) => `encrypted:${value}`,
+    encryptionKeyReady: () => true,
+    createId: () => FLOW_ID,
+    now: () => 1_000,
+  });
+
+  assert.equal(sentClientId, CLIENT_ID);
+  assert.equal(requestedScope, "offline_access https://outlook.office.com/SMTP.Send");
+  assert.equal(flow.flowId, FLOW_ID);
+  assert.equal(fixture.read("serverEmailAuthFlows", FLOW_ID)?.tenantId, TENANT_ID);
+});
+
+test("partial Microsoft environment configuration fails instead of using request IDs", async () => {
+  const fixture = firestoreFixture();
+  let requested = false;
+
+  await assert.rejects(
+    startMicrosoftEmailDeviceAuthorization(
+      { clientId: CLIENT_ID, tenantId: TENANT_ID },
+      {
+        firestore: fixture.firestore,
+        environment: { MICROSOFT_EMAIL_CLIENT_ID: CLIENT_ID },
+        fetch: (async () => {
+          requested = true;
+          return new Response("{}");
+        }) as typeof globalThis.fetch,
+        encryptionKeyReady: () => true,
+      },
+    ),
+    /Set both MICROSOFT_EMAIL_CLIENT_ID and MICROSOFT_EMAIL_TENANT_ID/,
+  );
+  assert.equal(requested, false);
+  assert.equal(fixture.read("serverEmailAuthFlows", FLOW_ID), undefined);
+});
