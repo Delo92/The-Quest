@@ -123,6 +123,23 @@ test("fingerprints tolerate form number strings and omitted optional fields", ()
     stripeOrderFingerprint({ purpose: "host", selectedPackageName: "Pro", competitionId: 21 }));
 });
 
+test("vote promo codes and their server quote are bound to the Stripe intent", () => {
+  const discountedOrder: StripeOrder = {
+    ...order,
+    promoCode: "SAVE20",
+    promoDiscountAmountCents: 300,
+  };
+  assert.notEqual(stripeOrderFingerprint(order), stripeOrderFingerprint(discountedOrder));
+  assert.notEqual(
+    stripeOrderFingerprint(discountedOrder),
+    stripeOrderFingerprint({ ...discountedOrder, promoDiscountAmountCents: 200 }),
+  );
+  assert.notEqual(
+    stripeOrderFingerprint(discountedOrder),
+    stripeOrderFingerprint({ ...discountedOrder, promoCode: "SAVE10" }),
+  );
+});
+
 test("webhooks accept valid rotated signatures and reject wrong, stale, or altered payloads", () => {
   const secret = "whsec_unit_test_not_real";
   const payload = JSON.stringify({ id: "evt_unit_test", type: "payment_intent.succeeded" });

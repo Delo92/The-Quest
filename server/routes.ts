@@ -32,6 +32,7 @@ import {
   listFirebaseStorageFiles,
 } from "./firebase-admin";
 import { createQuestStripeIntent, assertQuestStripePayment } from "./quest-stripe-checkout";
+import { resolveStripeVotePromoDiscount, VotePromoCodeError } from "./vote-promo-codes";
 import {
   getWeeklyConsentStatus,
   getWeeklyConsentWeekStart,
@@ -6206,6 +6207,7 @@ export async function registerRoutes(
     stripePaymentIntentId: z.string().min(1).optional(),
     paypalOrderId: z.string().min(1).optional(),
     referralCode: z.string().optional().nullable(),
+    promoCode: z.string().trim().min(1).max(100).optional().nullable(),
     idempotencyKey: z.string().min(16).max(128),
     billingAddress: z.object({
       address: z.string().trim().min(1, "Billing street address is required").max(60),
@@ -6223,6 +6225,49 @@ export async function registerRoutes(
     paypalOrderId: true,
   });
 
+  const guestCodeValidationSchema = z.object({
+    code: z.string().trim().min(1).max(100),
+    competitionId: z.number().int().positive(),
+    contestantId: z.number().int().positive(),
+    stageId: z.string().trim().min(1).optional(),
+    packageId: z.string().min(1),
+    packageIndex: z.number().int().min(0).optional(),
+    individualVoteCount: z.number().int().min(1).max(10000).optional(),
+  });
+
+  function applyGuestVoteDiscount(
+    base: {
+      comp: any;
+      stage: any;
+      pkg: { voteCount: number; bonusVotes: number; price: number; name: string };
+      totalVotes: number;
+      subtotalCents: number;
+      salesTaxPercent: number;
+    },
+    promo?: { code: string; discountAmountCents: number; discountLabel?: string } | null,
+  ) {
+    const discountAmountCents = Math.min(
+      base.subtotalCents,
+      Math.max(0, Math.round(promo?.discountAmountCents || 0)),
+    );
+    const discountedSubtotalCents = base.subtotalCents - discountAmountCents;
+    const taxAmountCents = Math.round(discountedSubtotalCents * (base.salesTaxPercent / 100));
+    const amountCents = discountedSubtotalCents + taxAmountCents;
+    return {
+      ...base,
+      promoCode: promo?.code || null,
+      discountLabel: promo?.discountLabel || null,
+      discountAmountCents,
+      discountedSubtotalCents,
+      taxAmountCents,
+      amountCents,
+      subtotalDollars: base.subtotalCents / 100,
+      discountedSubtotalDollars: discountedSubtotalCents / 100,
+      taxAmount: taxAmountCents / 100,
+      amountInDollars: amountCents / 100,
+    };
+  }
+
   async function resolveGuestVoteCharge(input: {
     competitionId: number;
     contestantId: number;
@@ -6230,6 +6275,7 @@ export async function registerRoutes(
     packageId: string;
     packageIndex?: number;
     individualVoteCount?: number;
+    promoCode?: string | null;
   }) {
     const { competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount } = input;
     const comp = await storage.getCompetition(competitionId);
@@ -6281,11 +6327,21 @@ export async function registerRoutes(
     if (!pkg) throw Object.assign(new Error("Vote package not found"), { status: 404 });
 
     const totalVotes = pkg.voteCount + (pkg.bonusVotes || 0);
-    const subtotalDollars = pkg.price / 100;
     const salesTaxPercent = settings?.salesTaxPercent || 0;
-    const taxAmount = subtotalDollars * (salesTaxPercent / 100);
-    const amountInDollars = Math.round((subtotalDollars + taxAmount) * 100) / 100;
-    return { comp, stage, pkg, totalVotes, subtotalDollars, salesTaxPercent, taxAmount, amountInDollars };
+    const base = {
+      comp,
+      stage,
+      pkg,
+      totalVotes,
+      subtotalCents: Math.max(0, Math.round(pkg.price)),
+      salesTaxPercent,
+    };
+    if (!input.promoCode?.trim()) return applyGuestVoteDiscount(base);
+
+    const stripe = await getStripeBuyerClient();
+    const promo = await resolveStripeVotePromoDiscount(stripe, input.promoCode, base.subtotalCents);
+    if (!promo) throw new VotePromoCodeError("This Stripe promo code is invalid or inactive.");
+    return applyGuestVoteDiscount(base, promo);
   }
 
   async function resolveProviderPaymentAmount(input: {
@@ -6310,9 +6366,11 @@ export async function registerRoutes(
         packageId: input.packageId,
         packageIndex: input.packageIndex,
         individualVoteCount: input.individualVoteCount,
+        promoCode: input.promoCode,
       });
       return {
-        amountCents: Math.round(charge.amountInDollars * 100),
+        amountCents: charge.amountCents,
+        discountAmountCents: charge.discountAmountCents,
         description: `${charge.totalVotes} votes for ${charge.comp.title}`,
       };
     }
@@ -6353,10 +6411,22 @@ export async function registerRoutes(
 
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
+      if (purpose === "vote" && charge.amountCents === 0) {
+        return res.status(409).json({ message: "This vote purchase is fully discounted and does not need a Stripe payment intent." });
+      }
+      if (purpose === "vote" && charge.amountCents < 50) {
+        return res.status(400).json({ message: "The discounted total is below Stripe’s minimum card payment of $0.50." });
+      }
       const stripe = await getStripeBuyerClient();
       const intent = await createQuestStripeIntent(stripe, {
         idempotencyKey: String(input.idempotencyKey || ""),
-        order: { ...input, purpose },
+        order: {
+          ...input,
+          purpose,
+          ...(purpose === "vote" && input.promoCode
+            ? { promoDiscountAmountCents: charge.discountAmountCents }
+            : {}),
+        },
         amountCents: charge.amountCents,
         email: typeof input.email === "string" ? input.email : undefined,
         billingAddress: input.billingAddress,
@@ -6447,11 +6517,21 @@ export async function registerRoutes(
 
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
+      if (charge.amountCents === 0) {
+        return res.status(409).json({ message: "This purchase is fully discounted and does not need a Stripe payment intent." });
+      }
+      if (charge.amountCents < 50) {
+        return res.status(400).json({ message: "The discounted total is below Stripe’s minimum card payment of $0.50." });
+      }
       const stripe = await getStripeBuyerClient();
       const intent = await createQuestStripeIntent(stripe, {
         idempotencyKey: parsed.data.idempotencyKey,
-        order: { ...parsed.data, purpose: "vote" },
-        amountCents: Math.round(charge.amountInDollars * 100),
+        order: {
+          ...parsed.data,
+          purpose: "vote",
+          ...(charge.promoCode ? { promoDiscountAmountCents: charge.discountAmountCents } : {}),
+        },
+        amountCents: charge.amountCents,
         email: parsed.data.email,
         billingAddress: req.body.billingAddress,
         ip: req.ip || "unknown",
@@ -6461,6 +6541,69 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Stripe intent creation error:", error);
       res.status(error.status || 500).json({ message: error.message || "Unable to start Stripe checkout" });
+    }
+  });
+
+  app.post("/api/guest/checkout/validate-code", async (req, res) => {
+    try {
+      const parsed = guestCodeValidationSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid code validation data" });
+      }
+      const { code: rawCode, ...order } = parsed.data;
+      const code = rawCode.trim().toUpperCase();
+      const baseCharge = await resolveGuestVoteCharge(order);
+
+      const config = await getBuyerPaymentConfig();
+      const stripePromo = config.provider === "stripe"
+        ? await resolveStripeVotePromoDiscount(await getStripeBuyerClient(), code, baseCharge.subtotalCents)
+        : null;
+      if (stripePromo) {
+        const quote = applyGuestVoteDiscount(baseCharge, stripePromo);
+        if (quote.amountCents > 0 && quote.amountCents < 50) {
+          return res.json({
+            valid: false,
+            message: "This discount leaves less than Stripe’s $0.50 minimum payment due for this vote package.",
+          });
+        }
+        return res.json({
+          valid: true,
+          kind: "discount",
+          code: stripePromo.code,
+          discountLabel: stripePromo.discountLabel,
+          ...{
+            subtotalCents: quote.subtotalCents,
+            discountAmountCents: quote.discountAmountCents,
+            discountedSubtotalCents: quote.discountedSubtotalCents,
+            taxAmountCents: quote.taxAmountCents,
+            totalAmountCents: quote.amountCents,
+          },
+        });
+      }
+
+      const internalReferral = await firestoreReferrals.resolveCode(code);
+      const externalReferral = internalReferral ? null : await lookupCodeRegistry(code);
+      const referralCode = internalReferral?.code || (
+        externalReferral?.found ? externalReferral.code?.trim().toUpperCase() || code : null
+      );
+      if (!referralCode) {
+        return res.json({ valid: false, message: "That code is not an active discount or referral code." });
+      }
+
+      return res.json({
+        valid: true,
+        kind: "referral",
+        code: referralCode,
+        discountAmountCents: 0,
+        subtotalCents: baseCharge.subtotalCents,
+        discountedSubtotalCents: baseCharge.subtotalCents,
+        taxAmountCents: baseCharge.taxAmountCents,
+        totalAmountCents: baseCharge.amountCents,
+      });
+    } catch (error: any) {
+      console.error("Vote checkout code validation error:", error);
+      if (error.status) return res.status(error.status).json({ message: error.message });
+      res.status(500).json({ message: "Unable to validate this code right now." });
     }
   });
 
@@ -6564,7 +6707,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
       }
 
-      const { name, email, competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, referralCode, billingAddress } = parsed.data;
+      const { name, email, competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount, createAccount, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, referralCode, promoCode, billingAddress } = parsed.data;
       const checkoutOcPaymentId = typeof req.body?.ocPaymentId === "string" ? req.body.ocPaymentId : undefined;
 
       let resolvedRefCode: string | null = referralCode || null;
@@ -6579,7 +6722,10 @@ export async function registerRoutes(
 
       const providerConfig = await getBuyerPaymentConfig();
       const activeProvider = providerConfig.provider;
-      const chargeData = await resolveGuestVoteCharge({
+      if (promoCode && (checkoutOcPaymentId || activeProvider !== "stripe")) {
+        return res.status(409).json({ message: "Stripe discount codes can only be used with direct Stripe checkout." });
+      }
+      let chargeData = await resolveGuestVoteCharge({
         competitionId,
         contestantId,
         stageId,
@@ -6587,7 +6733,11 @@ export async function registerRoutes(
         packageIndex,
         individualVoteCount,
       });
-      const { comp, stage, pkg, totalVotes, subtotalDollars, salesTaxPercent, taxAmount, amountInDollars } = chargeData;
+      let { comp, stage, pkg, totalVotes, subtotalDollars, discountedSubtotalDollars, salesTaxPercent, taxAmount, amountInDollars } = chargeData;
+      const useChargeData = (nextChargeData: typeof chargeData) => {
+        chargeData = nextChargeData;
+        ({ comp, stage, pkg, totalVotes, subtotalDollars, discountedSubtotalDollars, salesTaxPercent, taxAmount, amountInDollars } = chargeData);
+      };
       const packageKey = `${packageId}:${packageIndex ?? ""}:${individualVoteCount ?? ""}:stage:${stageId || "overall"}`;
 
       let secured: any;
@@ -6617,15 +6767,29 @@ export async function registerRoutes(
       } else if (activeProvider === "stripe" && parsed.data.stripePaymentIntentId) {
         const stripe = await getStripeBuyerClient();
         const intent = await stripe.paymentIntents.retrieve(parsed.data.stripePaymentIntentId);
+        const promoDiscountAmountCents = intent.metadata.promoDiscountAmountCents
+          ? Number(intent.metadata.promoDiscountAmountCents)
+          : 0;
+        if (!Number.isSafeInteger(promoDiscountAmountCents) || promoDiscountAmountCents < 0) {
+          throw Object.assign(new Error("Stripe payment has invalid promo discount metadata."), { status: 400 });
+        }
+        const normalizedPromoCode = promoCode?.trim().toUpperCase() || "";
+        useChargeData(applyGuestVoteDiscount(chargeData, normalizedPromoCode
+          ? { code: normalizedPromoCode, discountAmountCents: promoDiscountAmountCents }
+          : null));
         assertQuestStripePayment(intent, {
           idempotencyKey: parsed.data.idempotencyKey,
-          amountCents: Math.round(amountInDollars * 100),
-          order: { ...parsed.data, purpose: "vote" },
+          amountCents: chargeData.amountCents,
+          order: {
+            ...parsed.data,
+            purpose: "vote",
+            ...(normalizedPromoCode ? { promoDiscountAmountCents } : {}),
+          },
         });
         const reservation = await reservePayment({
           idempotencyKey: parsed.data.idempotencyKey,
           route: "/api/guest/checkout",
-          amountCents: Math.round(amountInDollars * 100),
+          amountCents: chargeData.amountCents,
           ownerKey: `email:${email.toLowerCase().trim()}`,
           packageKey,
           competitionId,
@@ -6637,6 +6801,29 @@ export async function registerRoutes(
         if (reservation.state !== "reserved") throw Object.assign(new Error("This payment request is already processing"), { status: 409 });
         await markPaymentCharged(reservation.paymentId, intent.id, { provider: "stripe", paymentIntentId: intent.id });
         secured = { replay: false, paymentId: reservation.paymentId, charge: { transactionId: intent.id } };
+      } else if (activeProvider === "stripe" && promoCode) {
+        useChargeData(await resolveGuestVoteCharge({ ...parsed.data }));
+        if (chargeData.amountCents !== 0) {
+          return res.status(400).json({ message: "A Stripe payment intent is required for a purchase with an amount due." });
+        }
+        const reservation = await reservePayment({
+          idempotencyKey: parsed.data.idempotencyKey,
+          route: "/api/guest/checkout",
+          amountCents: 0,
+          ownerKey: `email:${email.toLowerCase().trim()}`,
+          packageKey,
+          competitionId,
+          contestantId,
+          customerEmail: email,
+          customerName: name,
+        });
+        if (reservation.state === "completed") return res.status(200).json({ ...(reservation.response as object), idempotentReplay: true });
+        if (reservation.state !== "reserved") throw Object.assign(new Error("This payment request is already processing"), { status: 409 });
+        secured = {
+          replay: false,
+          paymentId: reservation.paymentId,
+          charge: { transactionId: `discount_${reservation.paymentId}` },
+        };
       } else if (activeProvider === "paypal" && parsed.data.paypalOrderId) {
         const token = await getPayPalAccessToken(providerConfig);
         const captureResponse = await fetch(`${getPayPalApiBase(providerConfig.paypalEnvironment)}/v2/checkout/orders/${encodeURIComponent(parsed.data.paypalOrderId)}/capture`, {
@@ -6647,7 +6834,7 @@ export async function registerRoutes(
         const capture = await captureResponse.json() as any;
         const captureUnit = capture.purchase_units?.[0];
         const capturedAmount = captureUnit?.payments?.captures?.[0]?.amount?.value;
-        if (capture.status !== "COMPLETED" || Number(capturedAmount) !== amountInDollars) {
+          if (capture.status !== "COMPLETED" || Number(capturedAmount) !== amountInDollars) {
           return res.status(400).json({ message: "PayPal payment amount could not be verified." });
         }
         const reservation = await reservePayment({
@@ -6685,7 +6872,7 @@ export async function registerRoutes(
       if (createAccount) {
         const viewer = await firestoreViewerProfiles.getOrCreate(email, name);
         viewerId = viewer.id;
-        await firestoreViewerProfiles.recordPurchase(viewer.id, totalVotes, pkg.price);
+        await firestoreViewerProfiles.recordPurchase(viewer.id, totalVotes, chargeData.discountedSubtotalCents);
       }
 
       const purchase = await firestoreVotePurchases.create({
@@ -6700,6 +6887,8 @@ export async function registerRoutes(
         amount: Math.round(amountInDollars * 100),
         transactionId: chargeResult.transactionId,
         refCode: resolvedRefCode,
+        promoCode: chargeData.promoCode,
+        promoDiscountAmount: chargeData.discountAmountCents,
       });
 
       await storage.castBulkVotes({
@@ -6739,7 +6928,12 @@ export async function registerRoutes(
         sendPurchaseReceipt({
           to: email,
           buyerName: name,
-          items: [{ description: pkg.name, amount: `$${subtotalDollars.toFixed(2)}` }],
+          items: [
+            { description: pkg.name, amount: `$${subtotalDollars.toFixed(2)}` },
+            ...(chargeData.discountAmountCents > 0
+              ? [{ description: `Promo discount (${chargeData.promoCode})`, amount: `−$${(chargeData.discountAmountCents / 100).toFixed(2)}` }]
+              : []),
+          ],
           total: `$${amountInDollars.toFixed(2)}`,
           tax: salesTaxPercent > 0 ? `$${taxAmount.toFixed(2)}` : undefined,
           transactionId: chargeResult.transactionId,
@@ -6757,28 +6951,30 @@ export async function registerRoutes(
         viewerId,
       };
       await completePayment(paymentId, response);
-      void queueOCPurchase({
-        eventId: `vote_${purchase.id}:paid:${chargeResult.transactionId}`,
-        purchaseId: `vote_${purchase.id}`,
-        orderId: chargeResult.transactionId,
-        amountCents: purchase.amount,
-        taxCents: Math.round(taxAmount * 100),
-        customer: { email: email.toLowerCase().trim(), name: name.trim() },
-        items: [{
-          sku: `vote-package-${packageId}`,
-          name: pkg.name,
-          quantity: 1,
-          amountCents: pkg.price,
-        }],
-        paymentMethod: "card",
-        occurredAt: new Date().toISOString(),
-        externalReferences: {
-          sourcePaymentId: paymentId,
-          sourcePath: "/api/guest/checkout",
-          competitionId: String(competitionId),
-          contestantId: String(contestantId),
-        },
-      }).catch((error) => console.warn("[OCPurchaseFeed] Vote purchase enqueue failed:", error instanceof Error ? error.message : String(error)));
+      if (purchase.amount > 0) {
+        void queueOCPurchase({
+          eventId: `vote_${purchase.id}:paid:${chargeResult.transactionId}`,
+          purchaseId: `vote_${purchase.id}`,
+          orderId: chargeResult.transactionId,
+          amountCents: purchase.amount,
+          taxCents: chargeData.taxAmountCents,
+          customer: { email: email.toLowerCase().trim(), name: name.trim() },
+          items: [{
+            sku: `vote-package-${packageId}`,
+            name: pkg.name,
+            quantity: 1,
+            amountCents: chargeData.discountedSubtotalCents,
+          }],
+          paymentMethod: "card",
+          occurredAt: new Date().toISOString(),
+          externalReferences: {
+            sourcePaymentId: paymentId,
+            sourcePath: "/api/guest/checkout",
+            competitionId: String(competitionId),
+            contestantId: String(contestantId),
+          },
+        }).catch((error) => console.warn("[OCPurchaseFeed] Vote purchase enqueue failed:", error instanceof Error ? error.message : String(error)));
+      }
       res.status(201).json(response);
     } catch (error: any) {
       console.error("Guest checkout error:", error);

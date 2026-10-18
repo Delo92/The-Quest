@@ -241,6 +241,8 @@ export interface FirestoreVotePurchase {
   amount: number;
   transactionId: string | null;
   refCode?: string | null;
+  promoCode?: string | null;
+  promoDiscountAmount?: number;
   purchasedAt: string | null;
 }
 

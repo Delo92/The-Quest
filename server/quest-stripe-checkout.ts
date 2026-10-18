@@ -13,14 +13,18 @@ export type StripeOrder = {
   individualVoteCount?: unknown;
   selectedPackageName?: unknown;
   promoCode?: unknown;
+  promoDiscountAmountCents?: unknown;
 };
 
 export function stripeOrderFingerprint(order: StripeOrder): string {
-  const fields: (keyof StripeOrder)[] = order.purpose === "host"
+  let fields: (keyof StripeOrder)[] = order.purpose === "host"
     ? ["purpose", "selectedPackageName"]
     : order.purpose === "nominate" ? ["purpose", "competitionId", "promoCode"]
     : order.purpose === "join" ? ["purpose", "competitionId"]
     : ["purpose", "competitionId", "contestantId", "stageId", "packageId", "packageIndex", "individualVoteCount"];
+  if (order.purpose === "vote" && (order.promoCode || Number(order.promoDiscountAmountCents) > 0)) {
+    fields = [...fields, "promoCode", "promoDiscountAmountCents"];
+  }
   return crypto.createHash("sha256").update(JSON.stringify(fields.map((field) =>
     order[field] == null || order[field] === "" ? null : String(order[field]).trim(),
   ))).digest("hex");
@@ -88,6 +92,10 @@ export async function createQuestStripeIntent(stripe: Stripe, input: {
       idempotencyKey: input.idempotencyKey,
       orderFingerprint: fingerprint,
       purpose: input.order.purpose,
+      ...(input.order.promoCode ? { promoCode: String(input.order.promoCode).trim().toUpperCase() } : {}),
+      ...(input.order.promoDiscountAmountCents !== undefined
+        ? { promoDiscountAmountCents: String(input.order.promoDiscountAmountCents) }
+        : {}),
     },
   }, { idempotencyKey: `quest-direct:${input.idempotencyKey}` });
   await ref.set({ intentId: intent.id }, { merge: true });

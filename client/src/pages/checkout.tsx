@@ -67,6 +67,18 @@ interface PaymentConfig {
   paypalConfigured?: boolean;
 }
 
+interface AppliedCheckoutCode {
+  kind: "discount" | "referral";
+  code: string;
+  orderKey: string;
+  discountLabel?: string;
+  discountAmountCents: number;
+  subtotalCents: number;
+  discountedSubtotalCents: number;
+  taxAmountCents: number;
+  totalAmountCents: number;
+}
+
 function CheckoutStepHeading({ number, title, hint }: { number: number; title: string; hint?: string }) {
   return (
     <div className="mb-5 flex items-center gap-3">
@@ -115,9 +127,14 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState<{ transactionId: string; votesAdded: number } | null>(null);
   const [referralCode, setReferralCode] = useState("");
+  const [appliedCheckoutCode, setAppliedCheckoutCode] = useState<AppliedCheckoutCode | null>(null);
+  const [codeApplying, setCodeApplying] = useState(false);
+  const [codeError, setCodeError] = useState("");
   const [acceptLoaded, setAcceptLoaded] = useState(false);
   const [stripeLoaded, setStripeLoaded] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const codeValidationRequestId = useRef(0);
+  const pendingSavedReferralCode = useRef<string | null>(null);
 
   const { data: competition, isLoading: compLoading } = useQuery<CompetitionDetail>({
     queryKey: ["/api/competitions", competitionId?.toString()],
@@ -161,7 +178,10 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const savedRef = localStorage.getItem("hfc_ref");
-    if (savedRef) setReferralCode(savedRef);
+    if (savedRef) {
+      setReferralCode(savedRef);
+      pendingSavedReferralCode.current = savedRef;
+    }
   }, []);
 
   useEffect(() => {
@@ -201,6 +221,120 @@ export default function CheckoutPage() {
   const contestant = competition?.contestants?.find((c) => c.id === contestantId);
   const selectedPkg = packages?.find((p) => p.id === selectedPackage);
   const isIndividual = selectedPackage === "individual";
+  const currentCodeOrderKey = [
+    competitionId || "",
+    contestantId || "",
+    stageId || "",
+    selectedPackage,
+    isIndividual ? individualVoteCount : "",
+  ].join(":");
+  const currentCodeOrderKeyRef = useRef(currentCodeOrderKey);
+  currentCodeOrderKeyRef.current = currentCodeOrderKey;
+  const activeAppliedCode = appliedCheckoutCode?.orderKey === currentCodeOrderKey ? appliedCheckoutCode : null;
+  const codePending = codeApplying || Boolean(pendingSavedReferralCode.current && selectedPackage);
+  const subtotalCents = isIndividual
+    ? Math.max(0, Math.round(individualVoteCount * perVotePrice * 100))
+    : selectedPkg?.price || 0;
+  const taxRate = Number(platformSettings?.salesTaxPercent || 0);
+  const calculatedTaxCents = Math.round(subtotalCents * (taxRate / 100));
+  const discountedSubtotalCents = activeAppliedCode?.discountedSubtotalCents ?? subtotalCents;
+  const taxAmountCents = activeAppliedCode?.taxAmountCents ?? calculatedTaxCents;
+  const totalAmountCents = activeAppliedCode?.totalAmountCents ?? subtotalCents + calculatedTaxCents;
+  const noPaymentDue = activeAppliedCode?.kind === "discount" && totalAmountCents === 0;
+  const paymentSystemReady = noPaymentDue
+    ? Boolean(paymentConfig?.provider === "stripe" && paymentConfig.stripeConfigured)
+    : paymentConfig?.provider === "stripe"
+      ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe && stripeCard?.complete)
+      : paymentConfig?.provider === "paypal"
+        ? Boolean(paymentConfig.paypalConfigured)
+        : Boolean(paymentConfig && window.Accept && acceptLoaded);
+  const previousCodeOrderKey = useRef(currentCodeOrderKey);
+
+  useEffect(() => {
+    const previousOrderKey = previousCodeOrderKey.current;
+    if (previousOrderKey !== currentCodeOrderKey) {
+      previousCodeOrderKey.current = currentCodeOrderKey;
+      codeValidationRequestId.current += 1;
+      setAppliedCheckoutCode(null);
+      setCodeApplying(false);
+      setCodeError("");
+      paymentIdempotencyKey.current = crypto.randomUUID();
+      pendingSavedReferralCode.current = selectedPackage ? localStorage.getItem("hfc_ref") : null;
+    }
+  }, [currentCodeOrderKey]);
+
+  const applyCheckoutCode = async (codeOverride?: string) => {
+    const codeToApply = codeOverride ?? referralCode;
+    if (!codeToApply.trim()) {
+      setAppliedCheckoutCode(null);
+      setCodeError("");
+      localStorage.removeItem("hfc_ref");
+      return;
+    }
+    if (!selectedPackage) {
+      setCodeError("Choose a vote option before applying a code.");
+      return;
+    }
+
+    const requestId = ++codeValidationRequestId.current;
+    const orderKey = currentCodeOrderKey;
+    setCodeApplying(true);
+    setCodeError("");
+    try {
+      const pkgIndex = selectedPackage.startsWith("pkg_")
+        ? Number.parseInt(selectedPackage.replace("pkg_", ""), 10)
+        : undefined;
+      const response = await apiRequest("POST", "/api/guest/checkout/validate-code", {
+        code: codeToApply.trim(),
+        competitionId,
+        contestantId,
+        stageId: stageId || undefined,
+        packageId: selectedPackage,
+        packageIndex: isIndividual ? undefined : pkgIndex,
+        individualVoteCount: isIndividual ? individualVoteCount : undefined,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not validate this code.");
+      if (requestId !== codeValidationRequestId.current || orderKey !== currentCodeOrderKeyRef.current) return;
+      if (!data.valid) {
+        setAppliedCheckoutCode(null);
+        setCodeError(data.message || "That code is not an active discount or referral code.");
+        localStorage.removeItem("hfc_ref");
+        return;
+      }
+
+      const applied: AppliedCheckoutCode = {
+        kind: data.kind,
+        code: data.code,
+        orderKey,
+        discountLabel: data.discountLabel,
+        discountAmountCents: data.discountAmountCents,
+        subtotalCents: data.subtotalCents,
+        discountedSubtotalCents: data.discountedSubtotalCents,
+        taxAmountCents: data.taxAmountCents,
+        totalAmountCents: data.totalAmountCents,
+      };
+      setAppliedCheckoutCode(applied);
+      setReferralCode(data.code);
+      paymentIdempotencyKey.current = crypto.randomUUID();
+      if (data.kind === "referral") localStorage.setItem("hfc_ref", data.code);
+      else localStorage.removeItem("hfc_ref");
+    } catch (error: any) {
+      if (requestId === codeValidationRequestId.current && orderKey === currentCodeOrderKeyRef.current) {
+        setAppliedCheckoutCode(null);
+        setCodeError(error.message?.replace(/^\d+:\s*/, "") || "Could not validate this code.");
+      }
+    } finally {
+      if (requestId === codeValidationRequestId.current) setCodeApplying(false);
+    }
+  };
+
+  useEffect(() => {
+    const savedCode = pendingSavedReferralCode.current;
+    if (!savedCode || !selectedPackage) return;
+    pendingSavedReferralCode.current = null;
+    void applyCheckoutCode(savedCode);
+  }, [currentCodeOrderKey]);
 
   const validateCheckout = useCallback(() => {
     if (!name.trim() || !email.trim()) {
@@ -211,11 +345,15 @@ export default function CheckoutPage() {
       toast({ title: "Please select a vote option", variant: "destructive" });
       return false;
     }
+    if (codePending) {
+      toast({ title: "Please wait while your code is checked", variant: "destructive" });
+      return false;
+    }
     if (isIndividual && (individualVoteCount < 1 || individualVoteCount > 10000)) {
       toast({ title: "Please enter a valid number of votes (1-10,000)", variant: "destructive" });
       return false;
     }
-    if (paymentConfig?.provider === "stripe" ? !stripeCard?.complete : paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv)) {
+    if (!noPaymentDue && (paymentConfig?.provider === "stripe" ? !stripeCard?.complete : paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv))) {
       toast({ title: "Please enter your card details", variant: "destructive" });
       return false;
     }
@@ -223,7 +361,9 @@ export default function CheckoutPage() {
       toast({ title: "Please enter your billing address", variant: "destructive" });
       return false;
     }
-    const paymentReady = paymentConfig?.provider === "paypal"
+    const paymentReady = noPaymentDue
+      ? Boolean(paymentConfig?.provider === "stripe" && paymentConfig.stripeConfigured)
+      : paymentConfig?.provider === "paypal"
       ? Boolean(paymentConfig.paypalConfigured)
       : paymentConfig?.provider === "stripe"
         ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe)
@@ -233,7 +373,7 @@ export default function CheckoutPage() {
       return false;
     }
     return true;
-  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
+  }, [name, email, selectedPackage, isIndividual, individualVoteCount, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, noPaymentDue, codePending, toast]);
 
   const processCheckout = useCallback(async () => {
     setShowConfirmModal(false);
@@ -250,7 +390,8 @@ export default function CheckoutPage() {
       packageId: selectedPackage,
       packageIndex: isIndividual ? undefined : pkgIndex,
       createAccount,
-      referralCode: referralCode || undefined,
+      referralCode: activeAppliedCode?.kind === "referral" ? activeAppliedCode.code : undefined,
+      promoCode: activeAppliedCode?.kind === "discount" ? activeAppliedCode.code : undefined,
       billingAddress,
       paymentProvider: paymentConfig?.provider || "authorize",
     };
@@ -272,17 +413,21 @@ export default function CheckoutPage() {
 
     if (paymentConfig?.provider === "stripe") {
       try {
-        const result = await confirmStripeCardPayment({
-          publishableKey: paymentConfig.stripePublishableKey!,
-          purpose: "vote",
-          intentPath: "/api/guest/checkout/stripe-intent",
-          intentPayload: checkoutBody,
-          cardHandle: stripeCard,
-          name, email, billingAddress,
-        });
+        let stripePaymentIntentId: string | undefined;
+        if (!noPaymentDue) {
+          const result = await confirmStripeCardPayment({
+            publishableKey: paymentConfig.stripePublishableKey!,
+            purpose: "vote",
+            intentPath: "/api/guest/checkout/stripe-intent",
+            intentPayload: checkoutBody,
+            cardHandle: stripeCard,
+            name, email, billingAddress,
+          });
+          stripePaymentIntentId = result.paymentIntentId;
+        }
         const resultResponse = await apiRequest("POST", "/api/guest/checkout", {
           ...checkoutBody,
-          stripePaymentIntentId: result.paymentIntentId,
+          ...(stripePaymentIntentId ? { stripePaymentIntentId } : {}),
         });
         const data = await resultResponse.json();
         setSuccess(true);
@@ -341,7 +486,7 @@ export default function CheckoutPage() {
         setProcessing(false);
       }
     });
-  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, referralCode, stageId, stripeLoaded, stripeCard]);
+  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, activeAppliedCode, noPaymentDue, stageId, stripeLoaded, stripeCard]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -739,38 +884,66 @@ export default function CheckoutPage() {
             </label>
 
             <div className="mt-4">
-              <Label className="text-white/60 uppercase text-xs tracking-wider">
-                Referral / Promo Code
+              <Label htmlFor="input-checkout-referral-code" className="text-white/80 uppercase text-xs tracking-wider">
+                Promo or Referral Code
               </Label>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                 <Input
+                  id="input-checkout-referral-code"
                   value={referralCode}
                   onChange={(e) => {
-                    const val = e.target.value.trim();
+                    const val = e.target.value;
+                    codeValidationRequestId.current += 1;
+                    pendingSavedReferralCode.current = null;
                     setReferralCode(val);
-                    if (val) localStorage.setItem("hfc_ref", val);
-                    else localStorage.removeItem("hfc_ref");
+                    setAppliedCheckoutCode(null);
+                    setCodeApplying(false);
+                    setCodeError("");
+                    paymentIdempotencyKey.current = crypto.randomUUID();
+                    localStorage.removeItem("hfc_ref");
                   }}
-                  className="min-h-11 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
+                  className="min-h-11 min-w-0 flex-1 border-white/30 bg-[#171918] text-white placeholder:text-white/40 transition-colors hover:border-white/50 focus-visible:border-[#FF5A09] focus-visible:ring-2 focus-visible:ring-[#FF5A09]/50"
                   placeholder="Enter code (optional)"
                   data-testid="input-checkout-referral-code"
                 />
-                {referralCode && (
-                  <span className="text-green-400 text-xs uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
-                    <CheckCircle className="h-3.5 w-3.5" /> Applied
-                  </span>
-                )}
+                <Button
+                  type="button"
+                  onClick={() => applyCheckoutCode()}
+                  disabled={codePending || !referralCode.trim() || !selectedPackage}
+                  className="min-h-11 w-full bg-white/10 text-white hover:bg-white/15 disabled:opacity-50 sm:w-auto"
+                  data-testid="button-apply-checkout-code"
+                >
+                  {codeApplying ? "Checking…" : "Apply code"}
+                </Button>
               </div>
+              {activeAppliedCode && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-green-400" role="status" aria-live="polite">
+                  <CheckCircle className="h-3.5 w-3.5 shrink-0" />
+                  {activeAppliedCode.kind === "discount"
+                    ? `Discount applied: ${activeAppliedCode.discountLabel} ($${(activeAppliedCode.discountAmountCents / 100).toFixed(2)} off)`
+                    : "Referral applied"}
+                </p>
+              )}
+              {codeError && <p className="mt-2 text-xs text-red-300" role="alert">{codeError}</p>}
+              <p className="mt-2 text-xs text-white/45">
+                Stripe promo codes reduce the total; referral codes track where votes came from.
+              </p>
             </div>
           </div>
         </div>
 
         <div className="mb-10 border-t border-white/15 pt-8">
-          <CheckoutStepHeading number={3} title="Payment" hint="Your card details stay secure" />
+          <CheckoutStepHeading number={3} title="Payment" hint={noPaymentDue ? "No card charge is due" : "Your card details stay secure"} />
 
           <div className="space-y-4">
             {paymentConfig?.provider === "stripe" ? (
-              <StripeCardField publishableKey={paymentConfig.stripePublishableKey || ""} onChange={setStripeCard} />
+              noPaymentDue ? (
+                <p className="border border-green-400/25 bg-green-400/[0.06] px-4 py-3 text-sm text-green-200" role="status">
+                  Your discount covers this vote package. No card payment is needed.
+                </p>
+              ) : (
+                <StripeCardField publishableKey={paymentConfig.stripePublishableKey || ""} onChange={setStripeCard} />
+              )
             ) : paymentConfig?.provider !== "paypal" ? (<>
             <div>
               <Label htmlFor="card-number" className="text-white/80 uppercase text-xs tracking-wider">
@@ -852,13 +1025,11 @@ export default function CheckoutPage() {
         </div>
 
         {(selectedPkg || isIndividual) && (() => {
-          const subtotal = isIndividual ? (individualVoteCount * perVotePrice) : (selectedPkg!.price / 100);
           const voteLabel = isIndividual
             ? `${individualVoteCount.toLocaleString()} vote${individualVoteCount !== 1 ? "s" : ""}`
             : `${selectedPkg!.name} (${selectedPkg!.voteCount.toLocaleString()}${selectedPkg!.bonusVotes > 0 ? ` + ${selectedPkg!.bonusVotes.toLocaleString()} bonus` : ""} votes)`;
-          const taxRate = platformSettings?.salesTaxPercent || 0;
-          const taxAmount = subtotal * (taxRate / 100);
-          const total = subtotal + taxAmount;
+          const discountAmount = activeAppliedCode?.kind === "discount" ? activeAppliedCode.discountAmountCents / 100 : 0;
+          const total = totalAmountCents / 100;
           return (
             <div className="border border-white/20 border-l-4 border-l-[#FF5A09] bg-white/[0.025] p-5 mb-8">
               <div className="flex items-center justify-between mb-2">
@@ -866,12 +1037,18 @@ export default function CheckoutPage() {
               </div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-white">{voteLabel}</span>
-                <span className="text-white">${subtotal.toFixed(2)}</span>
+                <span className="text-white">${(subtotalCents / 100).toFixed(2)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex items-center justify-between mb-1 text-green-300 text-sm">
+                  <span>Discount ({activeAppliedCode?.code})</span>
+                  <span>−${discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               {taxRate > 0 && (
                 <div className="flex items-center justify-between mb-1 text-white/50 text-sm">
                   <span>Sales Tax ({taxRate}%)</span>
-                  <span>${taxAmount.toFixed(2)}</span>
+                  <span>${(taxAmountCents / 100).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/10">
@@ -882,10 +1059,16 @@ export default function CheckoutPage() {
                 <span>For: {contestant.talentProfile.displayName}</span>
                 <span>in {competition.title}</span>
               </div>
-              {referralCode && (
+              {activeAppliedCode?.kind === "discount" && (
                 <div className="flex items-center gap-1.5 text-green-400 text-xs mt-2 pt-2 border-t border-white/10">
                   <CheckCircle className="h-3 w-3" />
-                  <span>Referral code applied: {referralCode}</span>
+                  <span>Discount applied: {activeAppliedCode.code}</span>
+                </div>
+              )}
+              {activeAppliedCode?.kind === "referral" && (
+                <div className="flex items-center gap-1.5 text-green-400 text-xs mt-2 pt-2 border-t border-white/10">
+                  <CheckCircle className="h-3 w-3" />
+                  <span>Referral applied: {activeAppliedCode.code}</span>
                 </div>
               )}
             </div>
@@ -894,12 +1077,16 @@ export default function CheckoutPage() {
 
         <button
           onClick={handlePayClick}
-          disabled={processing || !selectedPackage || !acceptLoaded}
+          disabled={processing || !selectedPackage || !paymentSystemReady || codePending}
           className="w-full min-h-14 bg-[#FF5A09] text-white font-bold text-base uppercase px-8 border border-[#FF5A09] transition-all duration-200 hover:bg-[#ff7434] active:scale-[0.99] cursor-pointer disabled:opacity-100 disabled:cursor-not-allowed disabled:border-white/20 disabled:bg-white/10 disabled:text-white/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#111] flex items-center justify-center gap-2 motion-reduce:transform-none motion-reduce:transition-none"
           data-testid="button-checkout"
         >
-          <CreditCard className="h-5 w-5" />
-          {processing ? "PROCESSING..." : (selectedPkg || isIndividual) ? `PAY $${(((isIndividual ? individualVoteCount * perVotePrice : selectedPkg!.price / 100) * (1 + (platformSettings?.salesTaxPercent || 0) / 100))).toFixed(2)}` : "SELECT A VOTE OPTION"}
+          {noPaymentDue ? <CheckCircle className="h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
+          {processing
+            ? "PROCESSING..."
+            : (selectedPkg || isIndividual)
+              ? noPaymentDue ? "COMPLETE FREE CHECKOUT" : `PAY $${(totalAmountCents / 100).toFixed(2)}`
+              : "SELECT A VOTE OPTION"}
         </button>
 
         {!selectedPackage && (
@@ -909,26 +1096,29 @@ export default function CheckoutPage() {
         )}
 
         <p className="text-white/30 text-xs text-center mt-4">
-          Payments processed securely via Quest’s Stripe account. Your card info never touches our servers.
+          {noPaymentDue
+            ? "Your promo code covers the order; no card will be charged."
+            : "Payments processed securely via Quest’s Stripe account. Your card info never touches our servers."}
         </p>
 
         {showConfirmModal && (() => {
-          const subtotal = isIndividual ? (individualVoteCount * perVotePrice) : (selectedPkg ? selectedPkg.price / 100 : 0);
           const voteLabel = isIndividual
             ? `${individualVoteCount.toLocaleString()} vote${individualVoteCount !== 1 ? "s" : ""}`
             : selectedPkg ? `${selectedPkg.name} (${selectedPkg.voteCount.toLocaleString()}${selectedPkg.bonusVotes > 0 ? ` + ${selectedPkg.bonusVotes.toLocaleString()} bonus` : ""} votes)` : "";
-          const taxRate = platformSettings?.salesTaxPercent || 0;
-          const taxAmount = subtotal * (taxRate / 100);
-          const total = subtotal + taxAmount;
+          const discountAmount = activeAppliedCode?.kind === "discount" ? activeAppliedCode.discountAmountCents / 100 : 0;
+          const total = totalAmountCents / 100;
           const lineItems: Array<{ label: string; value: string; highlight?: boolean }> = [
             { label: "Contestant", value: contestant?.talentProfile?.displayName || "" },
             { label: "Competition", value: competition?.title || "" },
             { label: "Package", value: voteLabel },
-            { label: "Subtotal", value: `$${subtotal.toFixed(2)}` },
-            ...(taxRate > 0 ? [{ label: `Sales Tax (${taxRate}%)`, value: `$${taxAmount.toFixed(2)}` }] : []),
+            { label: "Subtotal", value: `$${(subtotalCents / 100).toFixed(2)}` },
+            ...(discountAmount > 0 ? [{ label: `Discount (${activeAppliedCode?.code})`, value: `−$${discountAmount.toFixed(2)}`, highlight: true }] : []),
+            ...(taxRate > 0 ? [{ label: `Sales Tax (${taxRate}%)`, value: `$${(taxAmountCents / 100).toFixed(2)}` }] : []),
           ];
-          if (referralCode) {
-            lineItems.push({ label: "Referral Code", value: referralCode, highlight: true });
+          if (activeAppliedCode?.kind === "referral") {
+            lineItems.push({ label: "Referral applied", value: activeAppliedCode.code, highlight: true });
+          } else if (activeAppliedCode?.kind === "discount") {
+            lineItems.push({ label: "Discount applied", value: activeAppliedCode.code, highlight: true });
           }
           return (
             <PaymentConfirmationModal
@@ -937,10 +1127,10 @@ export default function CheckoutPage() {
               onConfirm={processCheckout}
               processing={processing}
               title="Confirm Vote Purchase"
-              description="Please review your order before proceeding."
+              description={noPaymentDue ? "Your promo code covers this order; no payment is due." : "Please review your order before proceeding."}
               lineItems={lineItems}
               totalAmount={`$${total.toFixed(2)}`}
-              confirmText={`PAY $${total.toFixed(2)}`}
+              confirmText={noPaymentDue ? "COMPLETE FREE CHECKOUT" : `PAY $${total.toFixed(2)}`}
               termsSummary={platformSettings?.termsSummary}
               termsFinePrint={platformSettings?.termsFinePrint}
             />
