@@ -90,6 +90,7 @@ test("Microsoft device authorization does not replace the current sender before 
 
   const dependencies = {
     firestore: fixture.firestore,
+    environment: {},
     fetch: fetch as typeof globalThis.fetch,
     encrypt: (value: string) => `encrypted:${value}`,
     decrypt: (value: string) => value.replace(/^encrypted:/, ""),
@@ -141,6 +142,7 @@ test("invalid Microsoft app IDs are rejected before contacting Microsoft", async
       { clientId: "not-a-guid", tenantId: TENANT_ID },
       {
         firestore: fixture.firestore,
+        environment: {},
         fetch: (async () => {
           requested = true;
           return new Response("{}");

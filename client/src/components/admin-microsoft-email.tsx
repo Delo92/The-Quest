@@ -35,6 +35,8 @@ export default function AdminMicrosoftEmail() {
   const [flow, setFlow] = useState<AuthorizationFlow | null>(null);
   const [starting, setStarting] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [testRecipient, setTestRecipient] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
   const [verified, setVerified] = useState(false);
 
   const { data: status, isLoading, refetch } = useQuery<MicrosoftEmailStatus>({
@@ -150,6 +152,28 @@ export default function AdminMicrosoftEmail() {
       });
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const sendOutlookTestEmail = async () => {
+    const to = testRecipient.trim();
+    if (!status?.active || !to.includes("@")) return;
+    setSendingTest(true);
+    try {
+      const response = await apiRequest("POST", "/api/admin/microsoft-email/test", { to });
+      const result = await response.json() as { message?: string };
+      toast({
+        title: "Outlook test email sent",
+        description: result.message || `Sent to ${to}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Outlook test email failed",
+        description: error.message || "The test message could not be sent.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -286,6 +310,41 @@ export default function AdminMicrosoftEmail() {
             {verifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : verified ? <Check className="mr-2 h-4 w-4 text-green-400" /> : null}
             {verifying ? "Checking…" : verified ? "Verified" : "Verify connection"}
           </Button>
+        )}
+      </div>
+
+      <div className="rounded-md border border-white/10 bg-black/20 p-3 sm:p-4">
+        <h4 className="text-sm font-medium text-white">Send an Outlook test email</h4>
+        {status?.active ? (
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="min-w-0 flex-1 space-y-1.5 text-xs text-white/70">
+              <span>Recipient email address</span>
+              <Input
+                type="email"
+                value={testRecipient}
+                onChange={(event) => setTestRecipient(event.target.value)}
+                placeholder="name@example.com"
+                autoComplete="email"
+                className="h-10 border-white/20 bg-zinc-800 text-sm text-white"
+                aria-label="Outlook test email recipient"
+                data-testid="input-outlook-test-recipient"
+              />
+            </label>
+            <Button
+              type="button"
+              onClick={sendOutlookTestEmail}
+              disabled={sendingTest || !testRecipient.trim().includes("@")}
+              className="min-h-10 w-full bg-orange-500 text-white hover:bg-orange-400 sm:w-auto"
+              data-testid="button-send-outlook-test-email"
+            >
+              {sendingTest ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+              {sendingTest ? "Sending…" : "Send test email"}
+            </Button>
+          </div>
+        ) : (
+          <p className="mt-1 text-xs leading-relaxed text-white/55" data-testid="text-outlook-test-email-unavailable">
+            Connect Microsoft 365 and make it the active sender to enable this test. It will not send through Gmail.
+          </p>
         )}
       </div>
 

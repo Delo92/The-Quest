@@ -3248,6 +3248,28 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/microsoft-email/test", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const status = await getMicrosoftEmailOAuthStatus();
+      if (!status.active) {
+        res.status(409).json({ error: "Microsoft 365 must be connected and active before sending this test." });
+        return;
+      }
+      const to = typeof req.body?.to === "string" ? req.body.to.trim() : "";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+        res.status(400).json({ error: "Enter a valid recipient email address." });
+        return;
+      }
+      await sendTestEmail(to);
+      res.json({
+        success: true,
+        message: `Test email sent from ${status.mailboxAddress} to ${to}.`,
+      });
+    } catch {
+      res.status(502).json({ error: "Could not send the Outlook test email. Check the Microsoft mailbox connection and SMTP Authentication." });
+    }
+  });
+
   app.post("/api/admin/microsoft-email/verify", firebaseAuth, requireAdmin, async (_req, res) => {
     try {
       const status = await getMicrosoftEmailOAuthStatus();

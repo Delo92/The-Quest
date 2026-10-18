@@ -2266,6 +2266,9 @@ export default function AdminDashboard({ user }: { user: any }) {
             <TabsTrigger value="competitions" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none">
               <Trophy className="h-4 w-4 mr-3 shrink-0" /> Competitions
             </TabsTrigger>
+            <TabsTrigger value="email" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-email">
+              <Mail className="h-4 w-4 mr-3 shrink-0" /> Email
+            </TabsTrigger>
             <TabsTrigger value="livery" className="justify-start px-3 py-2.5 h-auto text-sm data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white hover:bg-white/5 transition-colors rounded-md border-0 ring-0 focus:ring-0 w-full font-medium shadow-none" data-testid="tab-livery">
               <Image className="h-4 w-4 mr-3 shrink-0" /> Site Livery
             </TabsTrigger>
@@ -2311,6 +2314,9 @@ export default function AdminDashboard({ user }: { user: any }) {
             <TabsList className="bg-transparent border-0 flex flex-row p-0 gap-2 h-auto justify-start w-max">
               <TabsTrigger value="competitions" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none">
                 Competitions
+              </TabsTrigger>
+              <TabsTrigger value="email" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-email-mobile">
+                Email
               </TabsTrigger>
               <TabsTrigger value="livery" className="px-4 py-2 h-auto text-xs font-medium data-[state=active]:bg-orange-500/10 data-[state=active]:text-orange-400 text-white/60 hover:text-white transition-colors rounded-full border border-white/5 data-[state=active]:border-orange-500/20 shadow-none" data-testid="tab-livery-mobile">
                 Livery
@@ -2892,6 +2898,19 @@ export default function AdminDashboard({ user }: { user: any }) {
             )}
           </TabsContent>
 
+          <TabsContent value="email" className="mt-0 outline-none">
+            <div className="max-w-4xl space-y-5">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Email</h2>
+                <p className="mt-1 text-sm text-white/50">
+                  Connect the outgoing mailbox and send a test only after Microsoft 365 is active.
+                </p>
+              </div>
+              <AdminMicrosoftEmail />
+              <GmailStatusPanel />
+            </div>
+          </TabsContent>
+
           <TabsContent value="livery">
             {/* Top Workspace Controls */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-white/10 pb-0">
@@ -3443,8 +3462,6 @@ export default function AdminDashboard({ user }: { user: any }) {
 
                         {actualActiveLabel === "Email Templates" && (
                           <div className="mb-6 space-y-4">
-                            <AdminMicrosoftEmail />
-                            <GmailStatusPanel />
                             <div className="p-4 rounded-lg bg-zinc-900 border border-white/10">
                               <p className="text-xs text-white/50 mb-3 leading-relaxed">
                                 Welcome email placeholders: <code className="text-orange-400">{"{inviterName}"}</code>, <code className="text-orange-400">{"{role}"}</code>, <code className="text-orange-400">{"{nomineeName}"}</code>, <code className="text-orange-400">{"{nominatorName}"}</code>, <code className="text-orange-400">{"{competitionName}"}</code>, <code className="text-orange-400">{"{email}"}</code>, <code className="text-orange-400">{"{defaultPassword}"}</code>.<br/>
