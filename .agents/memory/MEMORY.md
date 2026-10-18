@@ -13,6 +13,7 @@
 - [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing
 - [Admin account credentials](host-account-credentials.md) — reuse the owner-approved host reset convention for nominees and main Users; never guess existing passwords
 - [Gmail delivery verification](gmail-delivery-verification.md) — IMAP can verify bounces when the Gmail API is disabled; SMTP acceptance is not inbox delivery.
+- [Nodemailer OAuth refresh](nodemailer-oauth-refresh.md) — do not cache a manually fetched access token without its expiry; let Nodemailer manage Gmail refresh tokens.
 - [Host voting POS scope](host-voting-pos-scope.md) — describe The Quest as an on-site voting POS; don't imply general event sales without verified flows
 - [Public page performance](public-performance.md) — public listings must render from Firestore first and load Vimeo media separately
 - [Competition-scoped contestant videos](contestant-video-storage.md) — competitionVideoUris is authoritative; never apply flat videoUrls to every competition
