@@ -42,3 +42,45 @@ mtime_ms = 1790964214505
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/97407b5f-9fff-4ecb-bc4a-bd6eb504fafe/c65b3273-6b40-45f8-a3ee-aa221b40dec6"
 storage_version_token = "1790964444744695"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "V4gpkVl-C0OKw5YBXrzsF"
+uri = "file://generated-artifacts/cb-the-quest-email-preview.html"
+type = "html"
+title = "The Quest animated logo in an email"
+description = "Self-contained email preview showing the animated CB mark in the sender avatar and message header."
+logical_id = "aa3891a7-1ebb-4252-8e03-99740e2a78b3"
+content_hash = "sha256:02a680a4d5f5b3274511967106f460d1f7766fda34b58775e4dde43e87df2dfd"
+size = 227974
+mtime_ms = 1792304933884
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/aa3891a7-1ebb-4252-8e03-99740e2a78b3/41493d2a-584a-4e45-847b-416034cb8fd0"
+storage_version_token = "1792304996976657"
+content_type = "text/html"
+
+[[outputs]]
+id = "SXzUK_WcW8kFOpo_h-WOa"
+uri = "file://generated-artifacts/cb-the-quest-animated-profile.gif"
+type = "image"
+title = "Animated CB profile logo"
+description = "192×192 looping GIF with a subtle green glow pulse, built from The Quest’s saved transparent CB mark."
+logical_id = "a72afa02-94bd-40f6-bdc2-8d799efba0cf"
+content_hash = "sha256:1197a3641e01aa918ff3f31416adedebfbe5ca7f60fae1bf90492d67860ae388"
+size = 84445
+mtime_ms = 1792304933521
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/a72afa02-94bd-40f6-bdc2-8d799efba0cf/3390ecad-9370-45e5-ac98-1333d59efb2d"
+storage_version_token = "1792304997716669"
+content_type = "image/gif"
+
+[[outputs]]
+id = "sQ9Juu3ecOF1tfcN3qYjA"
+uri = "file://generated-artifacts/cb-the-quest-profile-still.png"
+type = "image"
+title = "Static CB profile logo"
+description = "Still PNG companion for mail apps that do not animate profile photos."
+logical_id = "658d3a54-daf7-449d-a851-4178d7c55e38"
+content_hash = "sha256:28e486d00d2fd1e4d51eeac3895a1cd83bdaee2830572d6576d008e5ab0ac4b8"
+size = 58544
+mtime_ms = 1792304933569
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/658d3a54-daf7-449d-a851-4178d7c55e38/3bef9ee0-fc7f-4b21-8bbf-2faec2525b5e"
+storage_version_token = "1792304998278205"
+content_type = "image/png"
