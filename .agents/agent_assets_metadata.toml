@@ -84,3 +84,45 @@ mtime_ms = 1792304933569
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/658d3a54-daf7-449d-a851-4178d7c55e38/3bef9ee0-fc7f-4b21-8bbf-2faec2525b5e"
 storage_version_token = "1792304998278205"
 content_type = "image/png"
+
+[[outputs]]
+id = "DGXwaqVDObQioyJorkHzM"
+uri = "file://generated-artifacts/cb-logo-source-and-animation.html"
+type = "html"
+title = "Original CB logo and animated copy"
+description = "Side-by-side preview. The source image copy is unchanged; the adjacent copy has a gentle animated green glow."
+logical_id = "7845d2f8-16e0-4756-aebf-74fe7a096069"
+content_hash = "sha256:c1a43d2f7b45dccda59a97d17086cf3f77a50d3feddf385c3f267923d6e7bea2"
+size = 107441
+mtime_ms = 1792305241633
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/7845d2f8-16e0-4756-aebf-74fe7a096069/3d0ea05b-d56d-44b1-8c46-728efba5309d"
+storage_version_token = "1792305262153540"
+content_type = "text/html"
+
+[[outputs]]
+id = "FipXOgrf0E5djWqqNui7k"
+uri = "file://generated-artifacts/cb-logo-animated-copy.gif"
+type = "image"
+title = "Animated copy of the saved CB logo"
+description = "192×192 looping GIF (24 frames, about 1.9 seconds per loop), built from the exact copied image asset."
+logical_id = "11399c22-a2bd-4ad8-93bb-0470c1e0438a"
+content_hash = "sha256:76951856489d35f6de2eea1b50275d66429113e45e73c44d0e84382e49944249"
+size = 76084
+mtime_ms = 1792305241289
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/11399c22-a2bd-4ad8-93bb-0470c1e0438a/607e0c3c-afc3-4a51-bb86-c65cbf35e832"
+storage_version_token = "1792305262827181"
+content_type = "image/gif"
+
+[[outputs]]
+id = "TZ73RGAKSEKWbFSzYKMZa"
+uri = "file://generated-artifacts/cb-logo-source-copy.png"
+type = "image"
+title = "Copy of the saved CB logo"
+description = "Byte-for-byte copy of the existing transparent CB logo image. The original was left untouched."
+logical_id = "319e29d3-449e-437b-80bb-e2b9af583c51"
+content_hash = "sha256:9f1a5734e741b1b0cedb725fc9e13fd16540c29ec2ee78c93b8fe10b2092f106"
+size = 2900
+mtime_ms = 1792305237133
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/319e29d3-449e-437b-80bb-e2b9af583c51/1ba3987a-4051-434f-8bfd-17c82d41249e"
+storage_version_token = "1792305263403113"
+content_type = "image/png"
