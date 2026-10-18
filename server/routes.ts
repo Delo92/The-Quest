@@ -89,6 +89,7 @@ import { registerOCSocialProfileRoutes } from "./oc-social-profile-routes";
 import { queueOCSocialProfileSyncForUser } from "./services/ocSocialProfileSync";
 import { getOwnerAnalytics } from "./services/ownerAnalytics";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail } from "./email";
+import { logEmailDiagnostic } from "./email-diagnostics";
 import {
   uploadImageToDrive,
   uploadFileToDriveFolder,
@@ -3069,6 +3070,7 @@ export async function registerRoutes(
           to, nomineeName: "Sample Talent", nominatorName: "Jordan Smith",
           competitionName: "CB Publishing Music 2026", siteUrl,
           defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
+          endpoint: "/api/admin/test-email",
         });
 
         // 3. Nomination Receipt (for the nominator)
@@ -3118,6 +3120,7 @@ export async function registerRoutes(
           to, nomineeName: "Sample Talent", nominatorName: "Jordan Smith",
           competitionName: "CB Publishing Music 2026", siteUrl,
           defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
+          endpoint: "/api/admin/test-email",
         });
       } else if (template === "nomination_receipt") {
         await sendNominationReceipt({
@@ -5348,6 +5351,7 @@ export async function registerRoutes(
       }
 
       const DEFAULT_PASSWORD = getTemporaryAccountPassword();
+      const emailDiagnosticId = crypto.randomUUID();
 
       let firebaseUid: string | null = null;
       let talentProfileId: number | null = null;
@@ -5439,10 +5443,18 @@ export async function registerRoutes(
             ...(existingUser ? {} : { defaultPassword: DEFAULT_PASSWORD }),
             accountCreated: !existingUser,
             accountLevel,
+            diagnosticId: emailDiagnosticId,
+            endpoint: "/api/join/nominate",
           });
         }
       } catch (autoCreateErr: any) {
-        console.error("Auto-create nominee account error (non-fatal):", autoCreateErr.message);
+        await logEmailDiagnostic({
+          stage: "nominee_account_setup",
+          error: autoCreateErr,
+          diagnosticId: emailDiagnosticId,
+          endpoint: "/api/join/nominate",
+        });
+        console.error(`[Nomination] Account setup failed before access email (diagnosticId=${emailDiagnosticId}).`);
       }
 
       const submission = await firestoreJoinSubmissions.create({
@@ -5574,6 +5586,7 @@ export async function registerRoutes(
         talentProfileId,
         contestantId,
         emailSent,
+        ...(!emailSent ? { emailDiagnosticId } : {}),
       };
       if (paymentId) await completePayment(paymentId, response);
       if (amountPaid > 0 && transactionId) {
@@ -5669,15 +5682,21 @@ export async function registerRoutes(
           applicationStatus: "approved", appliedAt: new Date().toISOString(),
         });
       }
+      const emailDiagnosticId = crypto.randomUUID();
       const emailSent = await sendNominationCongrats({
         to: email, nomineeName: submission.fullName,
         competitionName: competition?.title || "The Quest",
         siteUrl: process.env.SITE_URL || `${req.protocol}://${req.get("host")}`,
         accountCreated: !!temporaryPassword, defaultPassword: temporaryPassword,
         accountLevel,
+        diagnosticId: emailDiagnosticId,
+        endpoint: "/api/admin/join/submissions/:id/send-access-email",
       });
       await firestoreJoinSubmissions.recordAccessEmail(submission.id, emailSent);
-      if (!emailSent) return res.status(502).json({ message: "Email delivery failed. No password was changed for an existing account. Please retry or check email diagnostics." });
+      if (!emailSent) return res.status(502).json({
+        message: "Email delivery failed. No password was changed for an existing account. Please retry or check email diagnostics.",
+        emailDiagnosticId,
+      });
       res.json({ emailSent: true, message: "Access email sent with login and password setup instructions." });
     } catch (error) {
       console.error("[NomineeAccessEmail] Failed:", error instanceof Error ? error.message : "Unknown error");

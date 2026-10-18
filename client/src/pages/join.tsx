@@ -350,6 +350,9 @@ export default function JoinPage() {
           title: nominationResult.emailSent === false ? "Nomination saved; email needs attention" : "Nomination submitted!",
           description: nominationResult.emailSent === false ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions." : "The nominee was emailed login and account access instructions.",
           variant: nominationResult.emailSent === false ? "destructive" : "default",
+          diagnosticContext: nominationResult.emailDiagnosticId
+            ? { diagnosticId: nominationResult.emailDiagnosticId }
+            : undefined,
         });
       } catch (error: any) {
         toast({ title: "Submission Failed", description: error.message?.replace(/^\d+:\s*/, "") || "Something went wrong", variant: "destructive" });
@@ -455,6 +458,9 @@ export default function JoinPage() {
           title: data.emailSent === false ? "Nomination saved; email needs attention" : "Nomination submitted!",
           description: data.emailSent === false ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions." : "The nominee was emailed login and account access instructions.",
           variant: data.emailSent === false ? "destructive" : "default",
+          diagnosticContext: data.emailDiagnosticId
+            ? { diagnosticId: data.emailDiagnosticId }
+            : undefined,
         });
       })
       .catch((error: any) => toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" }))

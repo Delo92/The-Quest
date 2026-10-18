@@ -346,7 +346,10 @@ export function useAuth() {
         : err.code === "auth/too-many-requests" ? "Too many attempts. Try again later."
         : "Login failed";
       setError(msg);
-      throw new Error(msg);
+      const authCode = typeof err?.code === "string" && /^auth\/[a-z0-9-]+$/.test(err.code)
+        ? err.code
+        : undefined;
+      throw Object.assign(new Error(msg), authCode ? { code: authCode } : {});
     }
   }, [demoMode]);
 

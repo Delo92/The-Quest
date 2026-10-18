@@ -1,17 +1,32 @@
 import nodemailer from "nodemailer";
 import { google } from "googleapis";
+import { randomUUID } from "node:crypto";
 import { firestoreLivery } from "./firestore-collections";
 import { getFirebaseAuth } from "./firebase-admin";
 import { buildAccountLoginUrl } from "../shared/account-login-links";
 import { buildAccountAccessMessage, renderAccountEmailAccess, type AccountAccessOptions } from "./account-email-access";
+import { logEmailDiagnostic } from "./email-diagnostics";
 
-async function accountResetUrl(siteUrl: string, email: string, level: number, inviteToken?: string): Promise<string> {
+async function accountResetUrl(
+  siteUrl: string,
+  email: string,
+  level: number,
+  inviteToken?: string,
+  diagnosticId?: string,
+  endpoint?: string,
+): Promise<string> {
   const loginUrl = buildAccountLoginUrl(siteUrl, email, { level, inviteToken });
   try {
     return await getFirebaseAuth().generatePasswordResetLink(email, { url: loginUrl });
-  } catch {
+  } catch (error) {
     // An authorized-domain or provider failure must not leave recipients without recovery.
-    console.warn("[Email] Direct password-reset link unavailable; using the prefilled reset form.");
+    const loggedDiagnosticId = await logEmailDiagnostic({
+      stage: "password_reset_link",
+      error,
+      diagnosticId,
+      endpoint,
+    });
+    console.warn(`[Email] Direct password-reset link unavailable; using the prefilled reset form (diagnosticId=${loggedDiagnosticId}).`);
     return buildAccountLoginUrl(siteUrl, email, { level, inviteToken, reset: true });
   }
 }
@@ -325,7 +340,10 @@ export async function sendNominationCongrats(opts: {
   defaultPassword?: string;
   accountCreated?: boolean;
   accountLevel?: number;
+  diagnosticId?: string;
+  endpoint?: string;
 }): Promise<boolean> {
+  const diagnosticId = opts.diagnosticId || randomUUID();
   try {
     const transporter = await getTransporter();
     const loginUrl = buildAccountLoginUrl(opts.siteUrl, opts.to, { level: opts.accountLevel || 2 });
@@ -360,7 +378,14 @@ export async function sendNominationCongrats(opts: {
       email: opts.to,
       accountCreated: opts.accountCreated,
       temporaryPassword: opts.defaultPassword,
-      resetUrl: await accountResetUrl(opts.siteUrl, opts.to, opts.accountLevel || 2),
+      resetUrl: await accountResetUrl(
+        opts.siteUrl,
+        opts.to,
+        opts.accountLevel || 2,
+        undefined,
+        diagnosticId,
+        opts.endpoint,
+      ),
     });
 
     const html = wrapInTemplate(`
@@ -396,8 +421,14 @@ export async function sendNominationCongrats(opts: {
 
     console.log(`Nomination congrats email sent to ${opts.to}`);
     return true;
-  } catch (err: any) {
-    console.error("Failed to send nomination congrats email:", err.message);
+  } catch (error: any) {
+    await logEmailDiagnostic({
+      stage: "nominee_access_send",
+      error,
+      diagnosticId,
+      endpoint: opts.endpoint,
+    });
+    console.error(`[Email] Failed to send nomination congrats email (diagnosticId=${diagnosticId}).`);
     resetTransporter();
     return false;
   }

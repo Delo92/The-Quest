@@ -138,9 +138,11 @@ function dispatch(action: Action) {
   })
 }
 
-type Toast = Omit<ToasterToast, "id">
+type Toast = Omit<ToasterToast, "id"> & {
+  diagnosticContext?: Record<string, unknown>
+}
 
-function toast({ ...props }: Toast) {
+function toast({ diagnosticContext, ...props }: Toast) {
   const id = genId()
 
   if (props.variant === "destructive") {
@@ -151,7 +153,7 @@ function toast({ ...props }: Toast) {
       severity: "error",
       message: [title, description].filter(Boolean).join(": ") || "User-facing toast error",
       wasShownToUser: true,
-      context: { source: "toast" },
+      context: { ...diagnosticContext, source: "toast" },
     })
   }
 

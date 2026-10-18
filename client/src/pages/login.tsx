@@ -304,6 +304,9 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       const isAlreadyExists = err.message?.toLowerCase().includes("already in use") || err.message?.toLowerCase().includes("already exists");
+      const authCode = typeof err?.code === "string" && /^auth\/[a-z0-9-]+$/.test(err.code)
+        ? err.code
+        : undefined;
       if (mode === "register" && isAlreadyExists) {
         toast({
           title: "Account already exists",
@@ -311,11 +314,17 @@ export default function LoginPage() {
             ? "Your account was pre-created. Log in below — check your invitation email for your temporary password."
             : "An account with this email already exists. Please log in instead.",
           variant: "destructive",
+          diagnosticContext: authCode ? { authCode } : undefined,
         });
         setMode("login");
       } else {
         const msg = err.message?.replace(/^\d+:\s*/, "") || "Something went wrong";
-        toast({ title: "Error", description: msg, variant: "destructive" });
+        toast({
+          title: "Error",
+          description: msg,
+          variant: "destructive",
+          diagnosticContext: authCode ? { authCode } : undefined,
+        });
       }
     } finally {
       setLoading(false);
