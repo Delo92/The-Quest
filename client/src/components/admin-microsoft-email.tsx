@@ -53,17 +53,23 @@ export default function AdminMicrosoftEmail() {
 
     const poll = async () => {
       try {
-        const result = await apiRequest(
+        const response = await apiRequest(
           "POST",
           "/api/admin/microsoft-email/connect/poll",
           { flowId: flow.flowId },
-        ) as { status: "pending" | "connected" | "failed"; retryAfterSeconds?: number; message?: string };
+        );
+        const result = await response.json() as {
+          status: "pending" | "connected" | "failed";
+          retryAfterSeconds?: number;
+          message?: string;
+        };
         if (cancelled) return;
 
         if (result.status === "connected") {
           setFlow(null);
           setVerified(false);
           await queryClient.invalidateQueries({ queryKey: ["/api/admin/microsoft-email/status"] });
+          await queryClient.invalidateQueries({ queryKey: ["/api/admin/gmail-status"] });
           await refetch();
           toast({
             title: "Microsoft mailbox connected",
@@ -101,11 +107,12 @@ export default function AdminMicrosoftEmail() {
     setStarting(true);
     setVerified(false);
     try {
-      const result = await apiRequest(
+      const response = await apiRequest(
         "POST",
         "/api/admin/microsoft-email/connect/start",
         { clientId: clientId.trim(), tenantId: tenantId.trim() },
-      ) as AuthorizationFlow;
+      );
+      const result = await response.json() as AuthorizationFlow;
       setFlow(result);
       await refetch();
     } catch (error: any) {

@@ -38,14 +38,24 @@ type MicrosoftTokenResponse = {
   expires_in?: number;
 };
 
+type MicrosoftOAuthTestDependencies = Partial<{
+  firestore: ReturnType<typeof getFirestore>;
+  fetch: typeof fetch;
+  encrypt: typeof encrypt;
+  decrypt: typeof decrypt;
+  encryptionKeyReady: typeof isEncryptionKeySet;
+  createId: typeof randomUUID;
+  now: () => number;
+}>;
+
 let settingsCache: { value: MicrosoftEmailSettings | null; expiresAt: number } | null = null;
 
-function settingsRef() {
-  return getFirestore().collection(SETTINGS_COLLECTION).doc("microsoft365");
+function settingsRef(firestore = getFirestore()) {
+  return firestore.collection(SETTINGS_COLLECTION).doc("microsoft365");
 }
 
-function flowRef(flowId: string) {
-  return getFirestore().collection(FLOW_COLLECTION).doc(flowId);
+function flowRef(flowId: string, firestore = getFirestore()) {
+  return firestore.collection(FLOW_COLLECTION).doc(flowId);
 }
 
 function isSafeTenantId(value: string): boolean {
@@ -137,7 +147,13 @@ export async function getMicrosoftEmailOAuthStatus() {
 export async function startMicrosoftEmailDeviceAuthorization(input: {
   clientId: string;
   tenantId: string;
-}) {
+}, dependencies: MicrosoftOAuthTestDependencies = {}) {
+  const firestore = dependencies.firestore ?? getFirestore();
+  const fetcher = dependencies.fetch ?? fetch;
+  const encryptValue = dependencies.encrypt ?? encrypt;
+  const encryptionKeyReady = dependencies.encryptionKeyReady ?? isEncryptionKeySet;
+  const createId = dependencies.createId ?? randomUUID;
+  const now = dependencies.now ?? Date.now;
   const clientId = input.clientId.trim();
   const tenantId = input.tenantId.trim();
   if (!isClientId(clientId)) {
@@ -146,24 +162,11 @@ export async function startMicrosoftEmailDeviceAuthorization(input: {
   if (!isSafeTenantId(tenantId)) {
     throw new Error("Enter the Microsoft Directory (tenant) ID or verified tenant domain.");
   }
-  if (!isEncryptionKeySet()) {
+  if (!encryptionKeyReady()) {
     throw new Error("Email authorization cannot be stored securely because ENCRYPTION_KEY is not configured.");
   }
 
-  const existing = await settingsRef().get();
-  const current = existing.exists ? existing.data() as Partial<MicrosoftEmailSettingsDocument> : null;
-  const sameApp = current?.clientId === clientId && current?.tenantId === tenantId;
-  await settingsRef().set({
-    tenantId,
-    clientId,
-    mailboxAddress: MAILBOX_ADDRESS,
-    activeProvider: sameApp ? (current?.activeProvider || "gmail") : "gmail",
-    encryptedRefreshToken: sameApp ? (current?.encryptedRefreshToken || null) : null,
-    connectedAt: sameApp ? (current?.connectedAt || null) : null,
-  }, { merge: true });
-  invalidateMicrosoftEmailSettingsCache();
-
-  const response = await fetch(oauthEndpoint(tenantId, "devicecode"), {
+  const response = await fetcher(oauthEndpoint(tenantId, "devicecode"), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: formBody({
@@ -182,19 +185,19 @@ export async function startMicrosoftEmailDeviceAuthorization(input: {
     throw new Error(explainMicrosoftOAuthError(result.error));
   }
 
-  const flowId = randomUUID();
+  const flowId = createId();
   const intervalSeconds = Math.max(5, Number(result.interval) || 5);
   const expiresIn = Math.max(60, Number(result.expires_in) || 900);
-  const now = Date.now();
+  const currentTime = now();
   const flow: DeviceFlowDocument = {
     tenantId,
     clientId,
-    encryptedDeviceCode: encrypt(result.device_code),
-    expiresAtMs: now + expiresIn * 1000,
+    encryptedDeviceCode: encryptValue(result.device_code),
+    expiresAtMs: currentTime + expiresIn * 1000,
     intervalSeconds,
-    nextPollAtMs: now + intervalSeconds * 1000,
+    nextPollAtMs: currentTime + intervalSeconds * 1000,
   };
-  await flowRef(flowId).set(flow);
+  await flowRef(flowId, firestore).set(flow);
 
   return {
     flowId,
@@ -206,58 +209,67 @@ export async function startMicrosoftEmailDeviceAuthorization(input: {
   };
 }
 
-export async function pollMicrosoftEmailDeviceAuthorization(flowId: string) {
+export async function pollMicrosoftEmailDeviceAuthorization(
+  flowId: string,
+  dependencies: MicrosoftOAuthTestDependencies = {},
+) {
+  const firestore = dependencies.firestore ?? getFirestore();
+  const fetcher = dependencies.fetch ?? fetch;
+  const encryptValue = dependencies.encrypt ?? encrypt;
+  const decryptValue = dependencies.decrypt ?? decrypt;
+  const encryptionKeyReady = dependencies.encryptionKeyReady ?? isEncryptionKeySet;
+  const now = dependencies.now ?? Date.now;
   if (!/^[0-9a-f-]{36}$/i.test(flowId)) {
     throw new Error("Invalid Microsoft authorization session.");
   }
 
-  const ref = flowRef(flowId);
+  const ref = flowRef(flowId, firestore);
   const snapshot = await ref.get();
   if (!snapshot.exists) {
     return { status: "failed" as const, message: "This Microsoft sign-in session is no longer active. Start again." };
   }
 
   const flow = snapshot.data() as DeviceFlowDocument;
-  const now = Date.now();
-  if (flow.expiresAtMs <= now) {
+  const currentTime = now();
+  if (flow.expiresAtMs <= currentTime) {
     await ref.delete();
     return { status: "failed" as const, message: "The Microsoft sign-in code expired. Start again." };
   }
-  if (flow.nextPollAtMs > now) {
+  if (flow.nextPollAtMs > currentTime) {
     return {
       status: "pending" as const,
-      retryAfterSeconds: Math.max(1, Math.ceil((flow.nextPollAtMs - now) / 1000)),
+      retryAfterSeconds: Math.max(1, Math.ceil((flow.nextPollAtMs - currentTime) / 1000)),
     };
   }
 
   const intervalSeconds = Math.max(5, flow.intervalSeconds || 5);
   await ref.update({
-    nextPollAtMs: now + intervalSeconds * 1000,
+    nextPollAtMs: currentTime + intervalSeconds * 1000,
   });
 
-  const response = await fetch(oauthEndpoint(flow.tenantId, "token"), {
+  const response = await fetcher(oauthEndpoint(flow.tenantId, "token"), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: formBody({
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
       client_id: flow.clientId,
-      device_code: decrypt(flow.encryptedDeviceCode),
+      device_code: decryptValue(flow.encryptedDeviceCode),
     }),
   });
   const result = await response.json() as MicrosoftTokenResponse;
 
   if (response.ok && result.access_token && result.refresh_token) {
-    if (!isEncryptionKeySet()) {
+    if (!encryptionKeyReady()) {
       await ref.delete();
       return { status: "failed" as const, message: "The Microsoft token could not be stored securely. Ask the site administrator to check the encryption setting." };
     }
-    await settingsRef().set({
+    await settingsRef(firestore).set({
       tenantId: flow.tenantId,
       clientId: flow.clientId,
       mailboxAddress: MAILBOX_ADDRESS,
       activeProvider: "microsoft365",
-      encryptedRefreshToken: encrypt(result.refresh_token),
-      connectedAt: new Date().toISOString(),
+      encryptedRefreshToken: encryptValue(result.refresh_token),
+      connectedAt: new Date(now()).toISOString(),
     }, { merge: true });
     await ref.delete();
     invalidateMicrosoftEmailSettingsCache();
@@ -271,7 +283,7 @@ export async function pollMicrosoftEmailDeviceAuthorization(flowId: string) {
     const slowerInterval = intervalSeconds + 5;
     await ref.update({
       intervalSeconds: slowerInterval,
-      nextPollAtMs: Date.now() + slowerInterval * 1000,
+      nextPollAtMs: now() + slowerInterval * 1000,
     });
     return { status: "pending" as const, retryAfterSeconds: slowerInterval };
   }

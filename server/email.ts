@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { google } from "googleapis";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { firestoreLivery } from "./firestore-collections";
 import { getFirebaseAuth } from "./firebase-admin";
 import { getMicrosoftEmailSettings } from "./microsoft-email-oauth";
@@ -53,7 +54,7 @@ function applyPlaceholders(template: string, vars: Record<string, string>): stri
 }
 
 let cachedTransporter: nodemailer.Transporter | null = null;
-let cachedTransporterProvider: "gmail" | "microsoft365" | null = null;
+let cachedTransporterConfigKey: string | null = null;
 
 type ActiveEmailConfig =
   | {
@@ -105,7 +106,8 @@ async function getTransporter(): Promise<nodemailer.Transporter> {
   if (!config) {
     throw new Error("Email OAuth credentials are not configured. Connect Microsoft 365 in Admin → Email Templates.");
   }
-  if (cachedTransporter && cachedTransporterProvider === config.provider) return cachedTransporter;
+  const configKey = createHash("sha256").update(JSON.stringify(config)).digest("hex");
+  if (cachedTransporter && cachedTransporterConfigKey === configKey) return cachedTransporter;
 
   resetTransporter();
 
@@ -125,8 +127,7 @@ async function getTransporter(): Promise<nodemailer.Transporter> {
           scope: "offline_access https://outlook.office.com/SMTP.Send",
         },
       },
-    });
-    cachedTransporterProvider = "microsoft365";
+    } as SMTPTransport.Options);
   } else {
     cachedTransporter = nodemailer.createTransport({
       service: "gmail",
@@ -138,15 +139,15 @@ async function getTransporter(): Promise<nodemailer.Transporter> {
         refreshToken: config.refreshToken,
       },
     });
-    cachedTransporterProvider = "gmail";
   }
 
+  cachedTransporterConfigKey = configKey;
   return cachedTransporter;
 }
 
 export function resetTransporter() {
   cachedTransporter = null;
-  cachedTransporterProvider = null;
+  cachedTransporterConfigKey = null;
 }
 
 async function getEmailSenderAddress(): Promise<string> {
@@ -1041,6 +1042,10 @@ export async function isEmailConfigured(): Promise<boolean> {
   if (microsoft?.activeProvider === "microsoft365") {
     return Boolean(microsoft.clientId && microsoft.tenantId && microsoft.refreshToken);
   }
+  return isGmailEmailConfigured();
+}
+
+export function isGmailEmailConfigured(): boolean {
   const clientId = process.env.GMAIL_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   return !!(clientId && clientSecret && process.env.GMAIL_REFRESH_TOKEN);

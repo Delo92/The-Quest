@@ -88,7 +88,7 @@ import { registerQuestForms } from "./quest-forms";
 import { registerOCSocialProfileRoutes } from "./oc-social-profile-routes";
 import { queueOCSocialProfileSyncForUser } from "./services/ocSocialProfileSync";
 import { getOwnerAnalytics } from "./services/ownerAnalytics";
-import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail, verifyAccountAccessEmailDelivery } from "./email";
+import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, isGmailEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail, verifyAccountAccessEmailDelivery } from "./email";
 import {
   getMicrosoftEmailOAuthStatus,
   pollMicrosoftEmailDeviceAuthorization,
@@ -3201,7 +3201,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/admin/gmail-status", firebaseAuth, requireAdmin, async (_req, res) => {
-    const configured = await isEmailConfigured();
+    const configured = isGmailEmailConfigured();
     let working = false;
     if (configured) {
       try {

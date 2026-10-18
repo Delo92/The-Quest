@@ -15,12 +15,6 @@ SMTP acceptance means the sending service accepted a message, not that the recip
 
 **How to apply:** Distinguish submitted/accepted, confirmed bounced, recipient-server accepted, and unknown inbox status. Report failed account-access messages for follow-up without automatically resetting passwords or repeatedly resending permanent failures. Do not claim all iCloud users are blocked from one iCloud rejection.
 
-Keep the existing owner-controlled Google sender and existing email/password sign-in when investigating account-email delivery. Do not treat replacing the sender, adding delivery tracking, or adding Apple/Google sign-in as a prerequisite.
-
-**Why:** The owner explicitly rejected changing the email provider or adding tracking and wants ordinary account emails to work through their existing Google account. When offered independent Apple/Google authentication as a backup, the owner selected “Keep the existing sign-in and focus only on email delivery.”
-
-**How to apply:** Keep work scoped to email delivery rather than proposing authentication changes again. Investigate actual rejection diagnostics first and propose narrowly scoped email-content or formatting changes. Explain that recipient-side policy cannot be disabled by the sending app. Ask before test resends; never reset passwords again merely to test delivery. Authentication results on Google's bounce notification describe that notification, not necessarily the original rejected email.
-
 Account-access emails must retain The Quest's branded HTML presentation and proper visuals. A plain-text alternative may accompany it in the same multipart email; it must not replace the visible branded design.
 
 **Why:** The owner explicitly objected when a delivery test was going to remove branding and stated that plain-text-only emails were not appropriate for the product.

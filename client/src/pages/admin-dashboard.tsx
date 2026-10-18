@@ -1336,10 +1336,15 @@ function GmailStatusPanel() {
     queryKey: ["/api/admin/gmail-status"],
     refetchOnWindowFocus: false,
   });
+  const { data: microsoftStatus } = useQuery<{ active: boolean }>({
+    queryKey: ["/api/admin/microsoft-email/status"],
+    refetchOnWindowFocus: false,
+  });
 
   const openAuthUrl = async () => {
     try {
-      const data = await apiRequest("GET", "/api/admin/gmail-auth-url") as any;
+      const response = await apiRequest("GET", "/api/admin/gmail-auth-url");
+      const data = await response.json() as { url: string };
       window.open(data.url, "_blank", "noopener,noreferrer");
     } catch (err: any) {
       toast({ title: "Failed to get auth URL", description: err.message, variant: "destructive" });
@@ -1350,7 +1355,8 @@ function GmailStatusPanel() {
     if (!authCode.trim()) return;
     setExchanging(true);
     try {
-      const data = await apiRequest("POST", "/api/admin/gmail-exchange-code", { code: authCode.trim() }) as any;
+      const response = await apiRequest("POST", "/api/admin/gmail-exchange-code", { code: authCode.trim() });
+      const data = await response.json() as { token: string };
       setNewToken(data.token);
       setAuthCode("");
       toast({ title: "Token refreshed!", description: "Email is working again. Copy the token below and save it as GMAIL_REFRESH_TOKEN in Replit Secrets." });
@@ -1370,12 +1376,14 @@ function GmailStatusPanel() {
   const statusColor = isLoading ? "bg-zinc-600" : status?.working ? "bg-green-500" : status?.configured ? "bg-yellow-500" : "bg-red-500";
   const statusText = isLoading ? "Checking…" : status?.working ? "Gmail Connected" : status?.configured ? "Token Expired" : "Not Configured";
 
+  if (microsoftStatus?.active) return null;
+
   return (
     <div className="p-3 rounded bg-zinc-900 border border-white/15 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Mail className="h-3.5 w-3.5 text-orange-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-orange-400">Gmail Status</span>
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-orange-400">Current Gmail sender</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full ${statusColor}`} />
@@ -1387,7 +1395,7 @@ function GmailStatusPanel() {
       {!status?.working && (
         <div className="space-y-2">
           <p className="text-[10px] text-white/50 leading-relaxed">
-            The Gmail refresh token has expired. Click <strong className="text-orange-400">Get Auth URL</strong>, sign in with <code className="text-orange-300">chronicstudios2021@gmail.com</code>, then paste the authorization code below.
+            Gmail remains the sender until Microsoft authorization completes. If Gmail needs repair, click <strong className="text-orange-400">Get Auth URL</strong>, sign in with <code className="text-orange-300">chronicstudios2021@gmail.com</code>, then paste the authorization code below.
           </p>
           <div className="flex items-center gap-2">
             <Button size="sm" onClick={openAuthUrl} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white text-[10px] h-7 px-3" data-testid="button-get-gmail-auth-url">
