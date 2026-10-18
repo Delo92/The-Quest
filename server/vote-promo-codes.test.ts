@@ -1,7 +1,42 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type Stripe from "stripe";
-import { resolveStripeVotePromoDiscount } from "./vote-promo-codes";
+import { resolveQuestVotePromoDiscount, resolveStripeVotePromoDiscount } from "./vote-promo-codes";
+
+test("resolves an app-managed free promo as a full vote discount", () => {
+  const result = resolveQuestVotePromoDiscount(" inhouse2026 ", 1500, {
+    nominationPromoCodes: [
+      { id: "free", code: "INHOUSE2026", discountType: "free", discountValue: 0, isActive: true },
+    ],
+  });
+  assert.deepEqual(result, { code: "INHOUSE2026", discountAmountCents: 1500, discountLabel: "100% off" });
+});
+
+test("applies app-managed percentage and fixed discounts to the vote subtotal", () => {
+  const percentage = resolveQuestVotePromoDiscount("half", 1500, {
+    nominationPromoCodes: [
+      { id: "half", code: "HALF", discountType: "percentage", discountValue: 50, isActive: true },
+    ],
+  });
+  assert.deepEqual(percentage, { code: "HALF", discountAmountCents: 750, discountLabel: "50% off" });
+
+  const fixed = resolveQuestVotePromoDiscount("five", 300, {
+    nominationPromoCodes: [
+      { id: "five", code: "FIVE", discountType: "fixed", discountValue: 500, isActive: true },
+    ],
+  });
+  assert.deepEqual(fixed, { code: "FIVE", discountAmountCents: 300, discountLabel: "$3.00 off" });
+});
+
+test("ignores inactive or unknown app-managed promo codes", () => {
+  const settings = {
+    nominationPromoCodes: [
+      { id: "off", code: "OFF", discountType: "free", discountValue: 0, isActive: false },
+    ],
+  };
+  assert.equal(resolveQuestVotePromoDiscount("OFF", 1000, settings), null);
+  assert.equal(resolveQuestVotePromoDiscount("UNKNOWN", 1000, settings), null);
+});
 
 function fakeStripe(promotionCode: Record<string, any> | null) {
   return {

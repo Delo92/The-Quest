@@ -32,7 +32,11 @@ import {
   listFirebaseStorageFiles,
 } from "./firebase-admin";
 import { createQuestStripeIntent, assertQuestStripePayment } from "./quest-stripe-checkout";
-import { resolveStripeVotePromoDiscount, VotePromoCodeError } from "./vote-promo-codes";
+import {
+  resolveQuestVotePromoDiscount,
+  resolveStripeVotePromoDiscount,
+  VotePromoCodeError,
+} from "./vote-promo-codes";
 import {
   getWeeklyConsentStatus,
   getWeeklyConsentWeekStart,
@@ -6268,6 +6272,11 @@ export async function registerRoutes(
     };
   }
 
+  async function resolveAppManagedVotePromoDiscount(code: unknown, subtotalCents: number) {
+    const settingsDoc = await getFirestore().collection("joinSettings").doc("global").get();
+    return resolveQuestVotePromoDiscount(code, subtotalCents, settingsDoc.data() || {});
+  }
+
   async function resolveGuestVoteCharge(input: {
     competitionId: number;
     contestantId: number;
@@ -6338,9 +6347,13 @@ export async function registerRoutes(
     };
     if (!input.promoCode?.trim()) return applyGuestVoteDiscount(base);
 
-    const stripe = await getStripeBuyerClient();
-    const promo = await resolveStripeVotePromoDiscount(stripe, input.promoCode, base.subtotalCents);
-    if (!promo) throw new VotePromoCodeError("This Stripe promo code is invalid or inactive.");
+    const appPromo = await resolveAppManagedVotePromoDiscount(input.promoCode, base.subtotalCents);
+    const promo = appPromo ?? await resolveStripeVotePromoDiscount(
+      await getStripeBuyerClient(),
+      input.promoCode,
+      base.subtotalCents,
+    );
+    if (!promo) throw new VotePromoCodeError("This promo code is invalid or inactive.");
     return applyGuestVoteDiscount(base, promo);
   }
 
@@ -6555,11 +6568,13 @@ export async function registerRoutes(
       const baseCharge = await resolveGuestVoteCharge(order);
 
       const config = await getBuyerPaymentConfig();
-      const stripePromo = config.provider === "stripe"
+      const questPromo = await resolveAppManagedVotePromoDiscount(code, baseCharge.subtotalCents);
+      const stripePromo = !questPromo && config.provider === "stripe"
         ? await resolveStripeVotePromoDiscount(await getStripeBuyerClient(), code, baseCharge.subtotalCents)
         : null;
-      if (stripePromo) {
-        const quote = applyGuestVoteDiscount(baseCharge, stripePromo);
+      const discountPromo = questPromo ?? stripePromo;
+      if (discountPromo) {
+        const quote = applyGuestVoteDiscount(baseCharge, discountPromo);
         if (quote.amountCents > 0 && quote.amountCents < 50) {
           return res.json({
             valid: false,
@@ -6569,8 +6584,8 @@ export async function registerRoutes(
         return res.json({
           valid: true,
           kind: "discount",
-          code: stripePromo.code,
-          discountLabel: stripePromo.discountLabel,
+          code: discountPromo.code,
+          discountLabel: discountPromo.discountLabel,
           ...{
             subtotalCents: quote.subtotalCents,
             discountAmountCents: quote.discountAmountCents,

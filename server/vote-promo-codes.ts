@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { calculateNominationPromoQuote } from "./nomination-promos";
 
 export class VotePromoCodeError extends Error {
   status = 400;
@@ -10,10 +11,36 @@ export interface VotePromoDiscount {
   discountLabel: string;
 }
 
+export function resolveQuestVotePromoDiscount(
+  rawCode: unknown,
+  subtotalCents: number,
+  settings: {
+    nominationPromoCodes?: unknown;
+    freeNominationPromoCode?: unknown;
+  },
+): VotePromoDiscount | null {
+  const code = typeof rawCode === "string" ? rawCode.trim().replace(/\s+/g, "").toUpperCase() : "";
+  if (!code) return null;
+
+  const quote = calculateNominationPromoQuote(subtotalCents, code, settings);
+  if (!quote.valid || !quote.promoCode || quote.discountAmountCents <= 0) return null;
+
+  const discountLabel = quote.promoCode.discountType === "free"
+    ? "100% off"
+    : quote.promoCode.discountType === "percentage"
+      ? `${quote.promoCode.discountValue}% off`
+      : `$${(quote.discountAmountCents / 100).toFixed(2)} off`;
+
+  return {
+    code: quote.promoCode.code,
+    discountAmountCents: quote.discountAmountCents,
+    discountLabel,
+  };
+}
+
 /**
  * Resolves Stripe Dashboard promotion codes for one-time vote payments.
- * The current checkout uses PaymentIntents, so this applies the coupon value
- * to the server-calculated subtotal instead of relying on Stripe Checkout.
+ * This remains as a fallback; Quest-managed promotion codes are resolved first.
  */
 export async function resolveStripeVotePromoDiscount(
   stripe: Stripe,

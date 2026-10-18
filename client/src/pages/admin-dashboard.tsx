@@ -3556,13 +3556,13 @@ export default function AdminDashboard({ user }: { user: any }) {
                   <section className="mb-6 space-y-4 rounded-md border border-white/10 bg-black/20 p-4" data-testid="nomination-promo-manager">
                     <div>
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label className="text-white/80 font-semibold">Nomination Promo Codes</Label>
+                         <Label className="text-white/80 font-semibold">Nomination &amp; Vote Promo Codes</Label>
                         <span className="text-xs text-white/40">
                           {(joinSettings.nominationPromoCodes || []).length} configured
                         </span>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-white/45">
-                        Create multiple codes for free, percentage-off, or fixed-amount discounts. Active codes have no redemption limit.
+                         Create free, percentage-off, or fixed-amount codes for nominations and vote checkout. Active codes have no redemption limit.
                       </p>
                     </div>
 
@@ -3759,7 +3759,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                   variant="ghost"
                                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
                                   onClick={() => {
-                                    if (!window.confirm(`Remove promo code ${promo.code}? It will no longer be accepted for new nominations.`)) return;
+                                     if (!window.confirm(`Remove promo code ${promo.code}? It will no longer be accepted for new nominations or vote purchases.`)) return;
                                     updateJoinSettingsMutation.mutate({
                                       nominationPromoCodes: (joinSettings.nominationPromoCodes || []).filter((item) => item.id !== promo.id),
                                     });
