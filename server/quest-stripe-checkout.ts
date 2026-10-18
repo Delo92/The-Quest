@@ -14,6 +14,7 @@ export type StripeOrder = {
   selectedPackageName?: unknown;
   promoCode?: unknown;
   promoDiscountAmountCents?: unknown;
+  referralCode?: unknown;
 };
 
 export function stripeOrderFingerprint(order: StripeOrder): string {
@@ -22,8 +23,13 @@ export function stripeOrderFingerprint(order: StripeOrder): string {
     : order.purpose === "nominate" ? ["purpose", "competitionId", "promoCode"]
     : order.purpose === "join" ? ["purpose", "competitionId"]
     : ["purpose", "competitionId", "contestantId", "stageId", "packageId", "packageIndex", "individualVoteCount"];
-  if (order.purpose === "vote" && (order.promoCode || Number(order.promoDiscountAmountCents) > 0)) {
-    fields = [...fields, "promoCode", "promoDiscountAmountCents"];
+  if (order.promoCode || Number(order.promoDiscountAmountCents) > 0) {
+    for (const field of ["promoCode", "promoDiscountAmountCents"] as const) {
+      if (!fields.includes(field)) fields.push(field);
+    }
+  }
+  if (order.referralCode && !fields.includes("referralCode")) {
+    fields = [...fields, "referralCode"];
   }
   return crypto.createHash("sha256").update(JSON.stringify(fields.map((field) =>
     order[field] == null || order[field] === "" ? null : String(order[field]).trim(),
@@ -96,6 +102,7 @@ export async function createQuestStripeIntent(stripe: Stripe, input: {
       ...(input.order.promoDiscountAmountCents !== undefined
         ? { promoDiscountAmountCents: String(input.order.promoDiscountAmountCents) }
         : {}),
+      ...(input.order.referralCode ? { referralCode: String(input.order.referralCode).trim().toUpperCase() } : {}),
     },
   }, { idempotencyKey: `quest-direct:${input.idempotencyKey}` });
   await ref.set({ intentId: intent.id }, { merge: true });

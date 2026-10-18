@@ -906,12 +906,12 @@ export default function CheckoutPage() {
                   <CheckCircle className="h-3.5 w-3.5 shrink-0" />
                   {activeAppliedCode.kind === "discount"
                     ? `Discount applied: ${activeAppliedCode.discountLabel} ($${(activeAppliedCode.discountAmountCents / 100).toFixed(2)} off)`
-                    : "Referral applied"}
+                    : `Referral tracked: ${activeAppliedCode.code}`}
                 </p>
               )}
               {codeError && <p className="mt-2 text-xs text-red-300" role="alert">{codeError}</p>}
               <p className="mt-2 text-xs text-white/45">
-                Stripe promo codes reduce the total; referral codes track where votes came from.
+                Discounts are deducted before payment; referrals track where votes came from without changing the total.
               </p>
             </div>
           </div>
@@ -1053,7 +1053,7 @@ export default function CheckoutPage() {
               {activeAppliedCode?.kind === "referral" && (
                 <div className="flex items-center gap-1.5 text-green-400 text-xs mt-2 pt-2 border-t border-white/10">
                   <CheckCircle className="h-3 w-3" />
-                  <span>Referral applied: {activeAppliedCode.code}</span>
+                  <span>Referral tracked: {activeAppliedCode.code}</span>
                 </div>
               )}
             </div>
@@ -1101,7 +1101,7 @@ export default function CheckoutPage() {
             ...(taxRate > 0 ? [{ label: `Sales Tax (${taxRate}%)`, value: `$${(taxAmountCents / 100).toFixed(2)}` }] : []),
           ];
           if (activeAppliedCode?.kind === "referral") {
-            lineItems.push({ label: "Referral applied", value: activeAppliedCode.code, highlight: true });
+            lineItems.push({ label: "Referral tracked", value: activeAppliedCode.code, highlight: true });
           } else if (activeAppliedCode?.kind === "discount") {
             lineItems.push({ label: "Discount applied", value: activeAppliedCode.code, highlight: true });
           }

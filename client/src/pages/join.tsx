@@ -19,10 +19,6 @@ import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
 import {
-  formatNominationPromoDiscount,
-  type NominationPromoDiscountType,
-} from "@shared/nomination-promos";
-import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT,
 } from "@shared/weekly-consent";
@@ -46,9 +42,9 @@ type PaymentConfig = BuyerPaymentConfig & {
 };
 
 interface AppliedNominationPromo {
+  kind: "discount" | "referral";
   code: string;
-  discountType: NominationPromoDiscountType;
-  discountValue: number;
+  discountLabel?: string | null;
   discountAmountCents: number;
   finalAmountCents: number;
 }
@@ -99,6 +95,7 @@ export default function JoinPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [compSearch, setCompSearch] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const [referralChecking, setReferralChecking] = useState(false);
   const [nominationImageUrl, setNominationImageUrl] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -106,7 +103,6 @@ export default function JoinPage() {
     new URLSearchParams(searchString).get("promoCode")?.trim().toUpperCase() || "",
   );
   const [appliedPromo, setAppliedPromo] = useState<AppliedNominationPromo | null>(null);
-  const [promoChecking, setPromoChecking] = useState(false);
   const [nominationFeeAcknowledged, setNominationFeeAcknowledged] = useState(false);
   const [marketingGuidelinesAcknowledged, setMarketingGuidelinesAcknowledged] = useState(false);
   const [votedArtistReminderAcknowledged, setVotedArtistReminderAcknowledged] = useState(false);
@@ -199,9 +195,10 @@ export default function JoinPage() {
     }, 100);
   }, []);
 
-  const promoValidated = appliedPromo !== null;
+  const promoValidated = appliedPromo?.kind === "discount";
   const originalPaymentAmount = settings?.nominationFee || 0;
-  const paymentAmount = appliedPromo?.finalAmountCents ?? originalPaymentAmount;
+  const appliedReferralCode = appliedPromo?.kind === "referral" ? appliedPromo.code : referralCode;
+  const paymentAmount = promoValidated ? appliedPromo!.finalAmountCents : originalPaymentAmount;
   const needsPayment = paymentAmount > 0;
 
   useEffect(() => {
@@ -259,6 +256,10 @@ export default function JoinPage() {
 
   const validateForm = useCallback(() => {
     if (!settings) return false;
+    if (promoCode.trim() && !appliedPromo) {
+      toast({ title: "Apply or clear the promo or referral code before submitting", variant: "destructive" });
+      return false;
+    }
     if (!nominationFeeAcknowledged) {
       toast({ title: "Please acknowledge that nomination or competition fees may apply", variant: "destructive" });
       return false;
@@ -312,7 +313,7 @@ export default function JoinPage() {
       }
     }
     return true;
-  }, [settings, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
+  }, [settings, promoCode, appliedPromo, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -330,7 +331,7 @@ export default function JoinPage() {
           competitionId: selectedCompetitionId,
           nominatorEmail: nominatorForm.email?.trim() || undefined,
           suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
-          referralCode: referralCode || undefined,
+          referralCode: appliedReferralCode || undefined,
           mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
           promoCode: promoValidated ? promoCode : undefined,
           dataDescriptor,
@@ -348,7 +349,9 @@ export default function JoinPage() {
         const nominationResult = await nominationResponse.json();
         toast({
           title: nominationResult.emailSent === false ? "Nomination saved; email needs attention" : "Nomination submitted!",
-          description: nominationResult.emailSent === false ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions." : "The nominee was emailed login and account access instructions.",
+          description: nominationResult.emailSent === false
+            ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions."
+            : `The nominee was emailed login and account access instructions.${appliedReferralCode ? ` Referral tracked: ${appliedReferralCode}.` : ""}`,
           variant: nominationResult.emailSent === false ? "destructive" : "default",
           diagnosticContext: nominationResult.emailDiagnosticId
             ? { diagnosticId: nominationResult.emailDiagnosticId }
@@ -370,6 +373,7 @@ export default function JoinPage() {
             idempotencyKey: paymentIdempotencyKey.current,
             competitionId: selectedCompetitionId,
             promoCode: promoValidated ? promoCode : undefined,
+            referralCode: appliedReferralCode || undefined,
           },
           cardHandle: stripeCard,
           name: "Anonymous",
@@ -396,7 +400,7 @@ export default function JoinPage() {
         competitionId: selectedCompetitionId,
         nominatorEmail: nominatorForm.email?.trim() || undefined,
         suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
-        referralCode: referralCode || undefined,
+        referralCode: appliedReferralCode || undefined,
         mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
         promoCode: promoValidated ? promoCode : undefined,
         billingAddress,
@@ -439,7 +443,7 @@ export default function JoinPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, referralCode, stripeLoaded, stripeCard, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged]);
+  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, appliedReferralCode, stripeLoaded, stripeCard, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -686,28 +690,83 @@ export default function JoinPage() {
               />
             </div>
             <div>
-              <Label className="text-white/60 uppercase text-xs tracking-wider">
-                Referral Code
+              <Label htmlFor="input-payment-code" className="text-white/60 uppercase text-xs tracking-wider">
+                Promo or Referral Code
               </Label>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex flex-col gap-2 mt-2 sm:flex-row">
                 <Input
-                  value={referralCode}
+                  id="input-payment-code"
+                  value={referralCode || promoCode}
                   onChange={(e) => {
-                    const val = e.target.value.trim();
+                    const val = e.target.value.trim().toUpperCase();
                     setReferralCode(val);
-                    if (val) localStorage.setItem("hfc_ref", val);
-                    else localStorage.removeItem("hfc_ref");
+                    setPromoCode(val);
+                    setAppliedPromo(null);
+                    localStorage.removeItem("hfc_ref");
+                    paymentIdempotencyKey.current = crypto.randomUUID();
                   }}
-                  className="bg-white/[0.08] border-white/20 text-white"
-                  placeholder="Enter referral code (optional)"
-                  data-testid="input-referral-code"
+                  className="min-w-0 flex-1 bg-white/[0.08] border-white/20 text-white"
+                  placeholder="Enter a promo or referral code"
+                  autoComplete="off"
+                  maxLength={40}
+                  data-testid="input-payment-code"
                 />
-                {referralCode && (
-                  <span className="text-green-400 text-xs uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
-                    <CheckCircle className="h-3.5 w-3.5" /> Applied
-                  </span>
-                )}
+                <button
+                  type="button"
+                  disabled={referralChecking || !(referralCode || promoCode).trim()}
+                  onClick={async () => {
+                    const codeToApply = (referralCode || promoCode).trim();
+                    if (!codeToApply) return;
+                    setReferralChecking(true);
+                    try {
+                      const response = await apiRequest("POST", "/api/payment/validate-code", {
+                        purpose: "nominate",
+                        code: codeToApply,
+                      });
+                      const data = await response.json();
+                      if (!response.ok || !data.valid) throw new Error(data.message || "Invalid code.");
+                      const applied = {
+                        kind: data.kind as "discount" | "referral",
+                        code: data.code as string,
+                        discountLabel: data.discountLabel || null,
+                        discountAmountCents: Number(data.discountAmountCents || 0),
+                        finalAmountCents: Number(data.totalAmountCents ?? originalPaymentAmount),
+                      };
+                      setAppliedPromo(applied);
+                      setPromoCode(applied.kind === "discount" ? applied.code : "");
+                      setReferralCode(applied.kind === "referral" ? applied.code : "");
+                      if (applied.kind === "referral") localStorage.setItem("hfc_ref", applied.code);
+                      else localStorage.removeItem("hfc_ref");
+                      toast({
+                        title: applied.kind === "discount" ? "Discount applied" : "Referral tracked",
+                        description: applied.kind === "discount"
+                          ? `${applied.discountLabel || "Discount"}; $${(applied.finalAmountCents / 100).toFixed(2)} is due.`
+                          : "The referral is recorded without changing the nomination fee.",
+                      });
+                    } catch (error: any) {
+                      toast({
+                        title: "Code not applied",
+                        description: error.message?.replace(/^\d+:\s*/, "") || "Could not validate the code.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setReferralChecking(false);
+                    }
+                  }}
+                  className="min-h-11 border border-[#FF5A09]/40 bg-[#FF5A09]/10 px-5 text-xs uppercase tracking-wider text-[#FF5A09] disabled:opacity-40"
+                  data-testid="button-apply-referral-code"
+                >
+                  {referralChecking ? "Checking..." : "Apply code"}
+                </button>
               </div>
+              {appliedPromo && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-green-400" role="status" aria-live="polite">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  {appliedPromo.kind === "discount"
+                    ? `Discount applied: ${appliedPromo.discountLabel || "Promo discount"}`
+                    : `Referral tracked: ${appliedPromo.code}`}
+                </p>
+              )}
             </div>
           </div>
 
@@ -1055,10 +1114,10 @@ export default function JoinPage() {
           </div>
         )}
 
-        {settings.hasPromoCode && (originalPaymentAmount > 0 || appliedPromo) && (
+        {(originalPaymentAmount > 0 || appliedPromo) && (
           <section
             className="mb-5 border border-white/10 bg-white/[0.03] p-4 sm:p-5"
-            aria-label="Checkout promo code and total"
+            aria-label="Checkout total and applied code"
             data-testid="nomination-checkout-promo"
           >
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-3">
@@ -1070,9 +1129,15 @@ export default function JoinPage() {
               </div>
               {appliedPromo && (
                 <div className="text-right">
-                  <p className="text-green-400 text-sm font-semibold">Code {appliedPromo.code} applied</p>
+                  <p className="text-green-400 text-sm font-semibold">
+                    {appliedPromo.kind === "discount"
+                      ? `Discount applied: ${appliedPromo.discountLabel || "Promo discount"}`
+                      : `Referral tracked: ${appliedPromo.code}`}
+                  </p>
                   <p className="mt-1 text-xs text-white/50">
-                    {formatNominationPromoDiscount(appliedPromo)} · save ${(appliedPromo.discountAmountCents / 100).toFixed(2)}
+                    {appliedPromo.kind === "discount"
+                      ? `Save $${(appliedPromo.discountAmountCents / 100).toFixed(2)}`
+                      : "This code tracks the referral source and does not change the amount due."}
                   </p>
                 </div>
               )}
@@ -1081,16 +1146,20 @@ export default function JoinPage() {
             {appliedPromo ? (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-white/50">
-                  Original fee ${(originalPaymentAmount / 100).toFixed(2)}
-                  <span className="mx-2 text-white/25">·</span>
-                  Discount -${(appliedPromo.discountAmountCents / 100).toFixed(2)}
-                  {paymentAmount === 0 && <span className="ml-2 text-green-300">No payment required.</span>}
+                  {appliedPromo.kind === "discount"
+                    ? <>Original fee ${(originalPaymentAmount / 100).toFixed(2)}<span className="mx-2 text-white/25">·</span>Discount -${(appliedPromo.discountAmountCents / 100).toFixed(2)}{paymentAmount === 0 && <span className="ml-2 text-green-300">No payment required.</span>}</>
+                    : "Referral tracked; nomination fee is unchanged."}
                 </p>
                 <button
                   type="button"
                   onClick={() => {
                     setAppliedPromo(null);
                     setPromoCode("");
+                    if (appliedPromo.kind === "referral") {
+                      setReferralCode("");
+                      localStorage.removeItem("hfc_ref");
+                    }
+                    paymentIdempotencyKey.current = crypto.randomUUID();
                   }}
                   className="min-h-11 px-2 text-xs text-white/50 underline underline-offset-2 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A09]"
                   data-testid="button-remove-applied-promo"
@@ -1099,60 +1168,9 @@ export default function JoinPage() {
                 </button>
               </div>
             ) : (
-              <div className="mt-3 space-y-2">
-                <Label htmlFor="input-promo-code" className="text-white/55 text-xs">Promo code</Label>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    id="input-promo-code"
-                    placeholder="Enter promo code"
-                    value={promoCode}
-                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
-                    autoComplete="off"
-                    maxLength={40}
-                    className="h-11 w-full bg-white/5 border-white/10 text-white uppercase sm:max-w-xs"
-                    data-testid="input-promo-code"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!promoCode.trim()) return;
-                      setPromoChecking(true);
-                      try {
-                        const response = await apiRequest("POST", "/api/join/validate-promo", { code: promoCode });
-                        const data = await response.json();
-                        if (data.valid && data.code && Number.isFinite(data.finalAmountCents) && Number.isFinite(data.discountAmountCents)) {
-                          const applied = {
-                            code: data.code as string,
-                            discountType: data.discountType as NominationPromoDiscountType,
-                            discountValue: Number(data.discountValue),
-                            discountAmountCents: Number(data.discountAmountCents),
-                            finalAmountCents: Number(data.finalAmountCents),
-                          };
-                          setAppliedPromo(applied);
-                          setPromoCode(applied.code);
-                          toast({
-                            title: "Promo code applied!",
-                            description: applied.finalAmountCents === 0
-                              ? "The nomination fee has been waived."
-                              : `${formatNominationPromoDiscount(applied)}. You save $${(applied.discountAmountCents / 100).toFixed(2)}; $${(applied.finalAmountCents / 100).toFixed(2)} is due.`,
-                          });
-                        } else {
-                          toast({ title: "Invalid promo code", variant: "destructive" });
-                        }
-                      } catch {
-                        toast({ title: "Failed to validate promo code", variant: "destructive" });
-                      } finally {
-                        setPromoChecking(false);
-                      }
-                    }}
-                    disabled={promoChecking || !promoCode.trim()}
-                    className="h-11 w-full border border-[#FF5A09]/40 bg-[#FF5A09]/10 px-5 text-xs uppercase tracking-wider text-[#FF5A09] transition-colors hover:bg-[#FF5A09]/20 disabled:opacity-40 sm:w-auto"
-                    data-testid="button-apply-promo"
-                  >
-                    {promoChecking ? "Checking..." : "Apply code"}
-                  </button>
-                </div>
-              </div>
+              <p className="mt-3 text-xs text-white/50">
+                Enter a promo or referral code above to apply it.
+              </p>
             )}
           </section>
         )}
@@ -1199,14 +1217,17 @@ export default function JoinPage() {
             lineItems={[
               { label: "Nominee", value: form.fullName || "" },
               { label: "Update email", value: nominatorForm.email?.trim() || "Anonymous submission" },
-              { label: appliedPromo ? "Original nomination fee" : "Nomination Fee", value: `$${(originalPaymentAmount / 100).toFixed(2)}` },
-              ...(appliedPromo ? [
+              { label: promoValidated ? "Original nomination fee" : "Nomination Fee", value: `$${(originalPaymentAmount / 100).toFixed(2)}` },
+              ...(promoValidated ? [
                 { label: `Promo code (${appliedPromo.code})`, value: `-$${(appliedPromo.discountAmountCents / 100).toFixed(2)}` },
                 { label: "Amount due", value: `$${(paymentAmount / 100).toFixed(2)}` },
               ] : []),
+              ...(appliedPromo?.kind === "referral" ? [
+                { label: "Referral", value: `Tracked: ${appliedPromo.code}` },
+              ] : []),
             ]}
             totalAmount={`$${(paymentAmount / 100).toFixed(2)}`}
-            confirmText={`PAY $${(paymentAmount / 100).toFixed(2)} & NOMINATE`}
+            confirmText={paymentAmount > 0 ? `PAY $${(paymentAmount / 100).toFixed(2)} & NOMINATE` : "SUBMIT NOMINATION"}
             termsSummary={platformSettings?.termsSummary}
             termsFinePrint={platformSettings?.termsFinePrint}
           />

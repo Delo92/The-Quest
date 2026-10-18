@@ -33,8 +33,8 @@ import {
 } from "./firebase-admin";
 import { createQuestStripeIntent, assertQuestStripePayment } from "./quest-stripe-checkout";
 import {
-  resolveQuestVotePromoDiscount,
-  resolveStripeVotePromoDiscount,
+  resolveAppManagedPromoDiscount as resolveAppManagedPromoDiscountFromSettings,
+  resolveStripePromoDiscount,
   VotePromoCodeError,
 } from "./vote-promo-codes";
 import {
@@ -577,6 +577,8 @@ async function secureAuthorizeCharge(
     dataDescriptor?: string;
     dataValue?: string;
     stripePaymentIntentId?: string;
+    promoDiscountAmountCents?: number;
+    referralCode?: string | null;
     /** OC payment ID returned by OC's /api/integrations/quest/payments endpoint */
     ocPaymentId?: string;
     paypalOrderId?: string;
@@ -626,7 +628,13 @@ async function secureAuthorizeCharge(
     assertQuestStripePayment(intent, {
       idempotencyKey: String(req.body?.idempotencyKey || req.headers["idempotency-key"] || ""),
       amountCents: expectedAmount,
-      order: { ...req.body, purpose: details.route === "/api/host/submit" ? "host" : details.route === "/api/join/nominate" ? "nominate" : "join" },
+      order: {
+        ...req.body,
+        purpose: details.route === "/api/host/submit" ? "host" : details.route === "/api/join/nominate" ? "nominate" : "join",
+        ...(details.promoDiscountAmountCents !== undefined
+          ? { promoDiscountAmountCents: details.promoDiscountAmountCents }
+          : {}),
+      },
     });
     const reservation = await reserveExternalPayment(req, details);
     if (reservation.replay) return reservation;
@@ -5242,7 +5250,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Join applications are currently closed" });
       }
 
-      const { fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls, competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId } = req.body;
+      const {
+        fullName, email, phone, address, city, state, zip, bio, category, socialLinks, mediaUrls,
+        competitionId, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId,
+        ocPaymentId: joinOcPaymentId, promoCode, referralCode,
+      } = req.body;
       if (!fullName || !email) {
         return res.status(400).json({ message: "Name and email are required" });
       }
@@ -5256,25 +5268,37 @@ export async function registerRoutes(
       let transactionId: string | null = null;
       let amountPaid = 0;
       let paymentId: string | null = null;
-      if (settings.mode === "purchase" && settings.price > 0) {
+      const paidJoin = settings.mode === "purchase" && settings.price > 0;
+      const joinQuote = paidJoin
+        ? await resolveProviderPaymentAmount({ purpose: "join", promoCode })
+        : { amountCents: 0, discountAmountCents: 0, promoCode: null, description: "Join competition application" };
+      const resolvedReferralCode = referralCode
+        ? await resolveReferralTrackingCode(referralCode)
+        : null;
+      if (referralCode && !resolvedReferralCode) {
+        return res.status(400).json({ message: "This referral code is invalid or inactive." });
+      }
+      if (joinQuote.amountCents > 0) {
         if (!dataDescriptor && !dataValue && !stripePaymentIntentId && !paypalOrderId && !joinOcPaymentId) {
           return res.status(400).json({ message: "Payment is required to join" });
         }
         const secured = await secureAuthorizeCharge(req, {
-          route: "/api/join/submit", amountDollars: settings.price / 100,
+          route: "/api/join/submit", amountDollars: joinQuote.amountCents / 100,
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `join:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
           stripePaymentIntentId, paypalOrderId, ocPaymentId: joinOcPaymentId,
+          promoDiscountAmountCents: joinQuote.discountAmountCents,
+          referralCode: resolvedReferralCode,
           description: "Join competition application", customerEmail: email, customerName: fullName,
           billingAddress: req.body.billingAddress,
         });
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
         paymentId = secured.paymentId;
         transactionId = secured.charge.transactionId;
-        amountPaid = settings.price;
+        amountPaid = joinQuote.amountCents;
       }
 
-      const autoApproved = settings.mode === "purchase" && amountPaid > 0;
+      const autoApproved = paidJoin && (amountPaid > 0 || joinQuote.discountAmountCents > 0);
       const submission = await firestoreJoinSubmissions.create({
         competitionId: competitionId || null,
         fullName: fullName.trim(),
@@ -5290,6 +5314,9 @@ export async function registerRoutes(
         mediaUrls: mediaUrls || [],
         transactionId,
         amountPaid,
+        promoCode: joinQuote.promoCode,
+        promoDiscountAmount: joinQuote.discountAmountCents,
+        referralCode: resolvedReferralCode,
         type: "application",
         chosenNonprofit: null,
         nominatorName: null,
@@ -5297,6 +5324,32 @@ export async function registerRoutes(
         nominatorPhone: null,
         nominationStatus: null,
       });
+
+      if (resolvedReferralCode) {
+        const amountInDollars = (amountPaid / 100).toFixed(2);
+        firestoreReferrals.trackReferralVote(resolvedReferralCode, email.toLowerCase().trim(), 1)
+          .catch((error: any) => console.warn("[Referral] Join application tracking failed (non-blocking):", error.message));
+        trackChronicBrandsPromo({
+          code: resolvedReferralCode,
+          orderNumber: paymentId || submission.id,
+          orderValue: amountInDollars,
+          discountAmount: "0.00",
+          customerName: fullName.trim(),
+          customerEmail: email.toLowerCase().trim(),
+          notes: `Join application for ${targetCompetition.title}`,
+        }).catch((error: any) => console.warn("[ChronicBrands] Join referral tracking failed (non-blocking):", error.message));
+      }
+      if (joinQuote.discountAmountCents > 0 && joinQuote.promoCode) {
+        trackChronicBrandsPromo({
+          code: joinQuote.promoCode,
+          orderNumber: paymentId || submission.id,
+          orderValue: (amountPaid / 100).toFixed(2),
+          discountAmount: (joinQuote.discountAmountCents / 100).toFixed(2),
+          customerName: fullName.trim(),
+          customerEmail: email.toLowerCase().trim(),
+          notes: `${joinQuote.discountLabel || "Discount"} join application for ${targetCompetition.title}`,
+        }).catch((error: any) => console.warn("[ChronicBrands] Join promo tracking failed (non-blocking):", error.message));
+      }
 
       if (autoApproved) {
         await firestoreJoinSubmissions.updateStatus(submission.id, "approved");
@@ -5432,23 +5485,31 @@ export async function registerRoutes(
       if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
         return res.status(400).json({ message: "This competition is not accepting nominations" });
       }
-      const promoQuote = calculateNominationPromoQuote(settings.nominationFee, promoCode, settings);
+      const nominationQuote = await resolveProviderPaymentAmount({ purpose: "nominate", promoCode });
+      const resolvedReferralCode = referralCode
+        ? await resolveReferralTrackingCode(referralCode)
+        : null;
+      if (referralCode && !resolvedReferralCode) {
+        return res.status(400).json({ message: "This referral code is invalid or inactive." });
+      }
 
       let transactionId: string | null = null;
       let amountPaid = 0;
       let paymentId: string | null = null;
-      if (promoQuote.finalAmountCents > 0) {
+      if (nominationQuote.amountCents > 0) {
         if (!dataDescriptor && !dataValue && !stripePaymentIntentId && !paypalOrderId && !nominateOcPaymentId) {
           return res.status(400).json({ message: "Payment is required for nominations" });
         }
         const secured = await secureAuthorizeCharge(req, {
-          route: "/api/join/nominate", amountDollars: promoQuote.finalAmountCents / 100,
+          route: "/api/join/nominate", amountDollars: nominationQuote.amountCents / 100,
           ownerKey: normalizedNominatorEmail
             ? `email:${normalizedNominatorEmail}`
             : `anonymous:${req.ip || req.socket.remoteAddress || "unknown"}:${nomineeEmail}`,
           packageKey: `nomination:${competitionId}`,
           competitionId: Number(competitionId), dataDescriptor, dataValue,
           stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
+          promoDiscountAmountCents: nominationQuote.discountAmountCents,
+          referralCode: resolvedReferralCode,
           description: `Nomination fee for ${nomineeName}`,
           customerEmail: normalizedNominatorEmail || undefined,
           billingAddress,
@@ -5456,7 +5517,7 @@ export async function registerRoutes(
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
         paymentId = secured.paymentId;
         transactionId = secured.charge.transactionId;
-        amountPaid = promoQuote.finalAmountCents;
+        amountPaid = nominationQuote.amountCents;
       }
 
       const DEFAULT_PASSWORD = getTemporaryAccountPassword();
@@ -5597,9 +5658,9 @@ export async function registerRoutes(
         nominatorName: null,
         nominatorEmail: normalizedNominatorEmail || null,
         nominatorPhone: null,
-        referralCode: referralCode?.trim().toUpperCase() || null,
-        promoCode: promoQuote.promoCode?.code || null,
-        promoDiscountAmount: promoQuote.discountAmountCents,
+        referralCode: resolvedReferralCode,
+        promoCode: nominationQuote.promoCode,
+        promoDiscountAmount: nominationQuote.discountAmountCents,
         nominationStatus: "joined",
       });
 
@@ -5622,21 +5683,21 @@ export async function registerRoutes(
       }
 
       // Track free nomination promo code redemption with Chronic Brands USA
-      if (promoQuote.valid && promoQuote.promoCode) {
+      if (nominationQuote.discountAmountCents > 0 && nominationQuote.promoCode) {
         const compTitle = competitionId ? (await storage.getCompetition(Number(competitionId)))?.title : null;
         trackChronicBrandsPromo({
-          code: promoQuote.promoCode.code,
+          code: nominationQuote.promoCode,
           orderNumber: submission.id,
           orderValue: (amountPaid / 100).toFixed(2),
-          discountAmount: (promoQuote.discountAmountCents / 100).toFixed(2),
+          discountAmount: (nominationQuote.discountAmountCents / 100).toFixed(2),
           customerEmail: normalizedNominatorEmail || undefined,
-          notes: `${formatNominationPromoDiscount(promoQuote.promoCode)} nomination for ${nomineeName}${compTitle ? ` in ${compTitle}` : ""}`,
+          notes: `${nominationQuote.discountLabel || "Discount"} nomination for ${nomineeName}${compTitle ? ` in ${compTitle}` : ""}`,
         }).catch((err: any) => console.warn("[ChronicBrands] Nomination promo tracking failed (non-blocking):", err.message));
       }
 
       // Track referral code (recruit link) nomination with Chronic Brands USA + internal stats
-      if (referralCode?.trim()) {
-        const resolvedRef = referralCode.trim().toUpperCase();
+      if (resolvedReferralCode) {
+        const resolvedRef = resolvedReferralCode;
         const compTitle = competitionId ? (await storage.getCompetition(Number(competitionId)))?.title : null;
         const amountInDollars = amountPaid ? (amountPaid / 100).toFixed(2) : "0.00";
 
@@ -5880,7 +5941,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Host applications are currently closed" });
       }
 
-      const { fullName, email, phone, preferredNonprofit, organization, address, city, state, zip, eventName, eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: hostOcPaymentId, selectedPackageName, selectedPackagePrice, inviteToken, referralCode, billingAddress } = req.body;
+      const {
+        fullName, email, phone, preferredNonprofit, organization, address, city, state, zip, eventName,
+        eventDescription, eventCategory, eventDate, socialLinks, mediaUrls, dataDescriptor, dataValue,
+        stripePaymentIntentId, paypalOrderId, ocPaymentId: hostOcPaymentId, selectedPackageName,
+        selectedPackagePrice, inviteToken, promoCode, referralCode, billingAddress,
+      } = req.body;
       const normalizedPreferredNonprofit = typeof preferredNonprofit === "string" ? preferredNonprofit.trim() : "";
       if (!fullName || !email || !eventName) {
         return res.status(400).json({ message: "Name, email, and event name are required" });
@@ -5912,14 +5978,26 @@ export async function registerRoutes(
         verifiedPackagePrice = matchedPkg.price;
       }
 
-      if (verifiedPackagePrice > 0) {
+      const hostQuote = verifiedPackagePrice > 0
+        ? await resolveProviderPaymentAmount({ purpose: "host", selectedPackageName: verifiedPackageName || undefined, promoCode })
+        : { amountCents: 0, discountAmountCents: 0, promoCode: null, discountLabel: null, description: "Host application" };
+      const resolvedReferralCode = referralCode
+        ? await resolveReferralTrackingCode(referralCode)
+        : null;
+      if (referralCode && !resolvedReferralCode) {
+        return res.status(400).json({ message: "This referral code is invalid or inactive." });
+      }
+
+      if (hostQuote.amountCents > 0) {
         if (!dataDescriptor && !dataValue && !stripePaymentIntentId && !paypalOrderId && !hostOcPaymentId) {
           return res.status(400).json({ message: "Payment is required for the selected hosting package" });
         }
         const secured = await secureAuthorizeCharge(req, {
-          route: "/api/host/submit", amountDollars: verifiedPackagePrice,
+          route: "/api/host/submit", amountDollars: hostQuote.amountCents / 100,
           ownerKey: `email:${email.toLowerCase().trim()}`, packageKey: `host:${verifiedPackageName}`,
           dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: hostOcPaymentId,
+          promoDiscountAmountCents: hostQuote.discountAmountCents,
+          referralCode: resolvedReferralCode,
           description: `Host package (${verifiedPackageName}): ${eventName}`,
           customerEmail: email, customerName: fullName,
           billingAddress,
@@ -5927,7 +6005,7 @@ export async function registerRoutes(
         if (secured.replay) return res.status(200).json({ ...(secured.response as object), idempotentReplay: true });
         paymentId = secured.paymentId;
         transactionId = secured.charge.transactionId;
-        amountPaid = Math.round(verifiedPackagePrice * 100);
+        amountPaid = hostQuote.amountCents;
       }
 
       const submission = await firestoreHostSubmissions.create({
@@ -5948,9 +6026,28 @@ export async function registerRoutes(
         mediaUrls: mediaUrls || [],
         transactionId,
         amountPaid,
-         selectedPackageName: verifiedPackageName || null,
+        promoCode: hostQuote.promoCode,
+        promoDiscountAmount: hostQuote.discountAmountCents,
+        referralCode: resolvedReferralCode,
+        selectedPackageName: verifiedPackageName || null,
         selectedPackagePrice: verifiedPackagePrice || 0,
       });
+
+      if (resolvedReferralCode) {
+        firestoreReferrals.trackReferralVote(resolvedReferralCode, email.toLowerCase().trim(), 1)
+          .catch((error: any) => console.warn("[Referral] Host application tracking failed (non-blocking):", error.message));
+      }
+      if (hostQuote.discountAmountCents > 0 && hostQuote.promoCode) {
+        trackChronicBrandsPromo({
+          code: hostQuote.promoCode,
+          orderNumber: paymentId || submission.id,
+          orderValue: (amountPaid / 100).toFixed(2),
+          discountAmount: (hostQuote.discountAmountCents / 100).toFixed(2),
+          customerName: fullName.trim(),
+          customerEmail: email.toLowerCase().trim(),
+          notes: `${hostQuote.discountLabel || "Discount"} host package: ${verifiedPackageName}`,
+        }).catch((error: any) => console.warn("[ChronicBrands] Host promo tracking failed (non-blocking):", error.message));
+      }
 
       if (inviteToken) {
         try {
@@ -5965,12 +6062,12 @@ export async function registerRoutes(
       }
 
       // Track referral code with Chronic Brands USA if one was provided and payment was made
-      if (referralCode?.trim() && verifiedPackagePrice > 0 && transactionId) {
+      if (resolvedReferralCode) {
         trackChronicBrandsPromo({
-          code: referralCode.trim().toUpperCase(),
-          orderNumber: transactionId,
-          orderValue: String(verifiedPackagePrice),
-          discountAmount: "0.00",
+          code: resolvedReferralCode,
+          orderNumber: transactionId || submission.id,
+          orderValue: (amountPaid / 100).toFixed(2),
+          discountAmount: (hostQuote.discountAmountCents / 100).toFixed(2),
           customerName: fullName?.trim(),
           customerEmail: email?.toLowerCase().trim(),
           customerPhone: phone || null,
@@ -6239,6 +6336,18 @@ export async function registerRoutes(
     individualVoteCount: z.number().int().min(1).max(10000).optional(),
   });
 
+  const paymentCodeValidationSchema = z.object({
+    purpose: z.enum(["join", "nominate", "host", "vote"]),
+    code: z.string().trim().min(1).max(100),
+    competitionId: z.number().int().positive().optional(),
+    contestantId: z.number().int().positive().optional(),
+    stageId: z.string().trim().min(1).optional(),
+    packageId: z.string().min(1).optional(),
+    packageIndex: z.number().int().min(0).optional(),
+    individualVoteCount: z.number().int().min(1).max(10000).optional(),
+    selectedPackageName: z.string().trim().min(1).optional(),
+  });
+
   function applyGuestVoteDiscount(
     base: {
       comp: any;
@@ -6272,9 +6381,26 @@ export async function registerRoutes(
     };
   }
 
-  async function resolveAppManagedVotePromoDiscount(code: unknown, subtotalCents: number) {
+  async function resolveAppManagedPromoDiscountForCheckout(code: unknown, subtotalCents: number) {
     const settingsDoc = await getFirestore().collection("joinSettings").doc("global").get();
-    return resolveQuestVotePromoDiscount(code, subtotalCents, settingsDoc.data() || {});
+    return resolveAppManagedPromoDiscountFromSettings(code, subtotalCents, settingsDoc.data() || {});
+  }
+
+  async function resolveCheckoutPromoDiscount(code: unknown, subtotalCents: number) {
+    const appPromo = await resolveAppManagedPromoDiscountForCheckout(code, subtotalCents);
+    if (appPromo) return appPromo;
+    const paymentConfig = await getBuyerPaymentConfig();
+    if (paymentConfig.provider !== "stripe") return null;
+    return resolveStripePromoDiscount(await getStripeBuyerClient(), code, subtotalCents);
+  }
+
+  async function resolveReferralTrackingCode(rawCode: unknown): Promise<string | null> {
+    const code = typeof rawCode === "string" ? rawCode.trim().toUpperCase() : "";
+    if (!code) return null;
+    const internal = await firestoreReferrals.resolveCode(code);
+    if (internal) return internal.code.trim().toUpperCase();
+    const external = await lookupCodeRegistry(code);
+    return external.found ? external.code?.trim().toUpperCase() || code : null;
   }
 
   async function resolveGuestVoteCharge(input: {
@@ -6347,12 +6473,7 @@ export async function registerRoutes(
     };
     if (!input.promoCode?.trim()) return applyGuestVoteDiscount(base);
 
-    const appPromo = await resolveAppManagedVotePromoDiscount(input.promoCode, base.subtotalCents);
-    const promo = appPromo ?? await resolveStripeVotePromoDiscount(
-      await getStripeBuyerClient(),
-      input.promoCode,
-      base.subtotalCents,
-    );
+    const promo = await resolveCheckoutPromoDiscount(input.promoCode, base.subtotalCents);
     if (!promo) throw new VotePromoCodeError("This promo code is invalid or inactive.");
     return applyGuestVoteDiscount(base, promo);
   }
@@ -6384,6 +6505,8 @@ export async function registerRoutes(
       return {
         amountCents: charge.amountCents,
         discountAmountCents: charge.discountAmountCents,
+        promoCode: charge.promoCode,
+        discountLabel: charge.discountLabel,
         description: `${charge.totalVotes} votes for ${charge.comp.title}`,
       };
     }
@@ -6392,15 +6515,31 @@ export async function registerRoutes(
       if (settings.mode !== "purchase" || settings.price <= 0) {
         throw Object.assign(new Error("This join application does not require payment"), { status: 400 });
       }
-      return { amountCents: settings.price, description: "Join competition application" };
+      const promo = input.promoCode
+        ? await resolveCheckoutPromoDiscount(input.promoCode, settings.price)
+        : null;
+      if (input.promoCode && !promo) throw new VotePromoCodeError("This promo code is invalid or inactive.");
+      return {
+        amountCents: Math.max(0, settings.price - (promo?.discountAmountCents || 0)),
+        discountAmountCents: promo?.discountAmountCents || 0,
+        promoCode: promo?.code || null,
+        discountLabel: promo?.discountLabel || null,
+        description: "Join competition application",
+      };
     }
     if (input.purpose === "nominate") {
       const settings = await firestoreJoinSettings.get();
-      const quote = calculateNominationPromoQuote(settings.nominationFee, input.promoCode, settings);
-      if (quote.finalAmountCents <= 0) {
-        throw Object.assign(new Error("This nomination does not require payment"), { status: 400 });
-      }
-      return { amountCents: quote.finalAmountCents, description: "Competition nomination fee" };
+      const promo = input.promoCode
+        ? await resolveCheckoutPromoDiscount(input.promoCode, settings.nominationFee)
+        : null;
+      if (input.promoCode && !promo) throw new VotePromoCodeError("This promo code is invalid or inactive.");
+      return {
+        amountCents: Math.max(0, settings.nominationFee - (promo?.discountAmountCents || 0)),
+        discountAmountCents: promo?.discountAmountCents || 0,
+        promoCode: promo?.code || null,
+        discountLabel: promo?.discountLabel || null,
+        description: "Competition nomination fee",
+      };
     }
     const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
     const packages = settingsDoc.data()?.hostingPackages || [
@@ -6412,8 +6551,110 @@ export async function registerRoutes(
     if (!selected || Number(selected.price) <= 0) {
       throw Object.assign(new Error("Invalid paid hosting package"), { status: 400 });
     }
-    return { amountCents: Math.round(Number(selected.price) * 100), description: `Host package: ${selected.name}` };
+    const baseAmountCents = Math.round(Number(selected.price) * 100);
+    const promo = input.promoCode
+      ? await resolveCheckoutPromoDiscount(input.promoCode, baseAmountCents)
+      : null;
+    if (input.promoCode && !promo) throw new VotePromoCodeError("This promo code is invalid or inactive.");
+    return {
+      amountCents: Math.max(0, baseAmountCents - (promo?.discountAmountCents || 0)),
+      discountAmountCents: promo?.discountAmountCents || 0,
+      promoCode: promo?.code || null,
+      discountLabel: promo?.discountLabel || null,
+      description: `Host package: ${selected.name}`,
+    };
   }
+
+  async function validateCheckoutCode(input: z.infer<typeof paymentCodeValidationSchema>) {
+    const code = input.code.trim().toUpperCase();
+    const baseCharge: any = input.purpose === "vote"
+      ? await resolveGuestVoteCharge({ ...input, promoCode: undefined })
+      : await resolveProviderPaymentAmount({ ...input, promoCode: undefined });
+    const subtotalCents = input.purpose === "vote"
+      ? baseCharge.subtotalCents
+      : baseCharge.amountCents;
+
+    const appPromo = await resolveAppManagedPromoDiscountForCheckout(code, subtotalCents);
+    if (appPromo) {
+      const quote = input.purpose === "vote"
+        ? applyGuestVoteDiscount(baseCharge, appPromo)
+        : null;
+      const discountAmountCents = Math.min(subtotalCents, appPromo.discountAmountCents);
+      const totalAmountCents = quote?.amountCents ?? subtotalCents - discountAmountCents;
+      return {
+        valid: true,
+        kind: "discount" as const,
+        code: appPromo.code,
+        discountLabel: appPromo.discountLabel,
+        subtotalCents,
+        discountAmountCents,
+        discountedSubtotalCents: subtotalCents - discountAmountCents,
+        taxAmountCents: quote?.taxAmountCents ?? 0,
+        totalAmountCents,
+      };
+    }
+
+    const referralCode = await resolveReferralTrackingCode(code);
+    if (referralCode) {
+      return {
+        valid: true,
+        kind: "referral" as const,
+        code: referralCode,
+        discountLabel: null,
+        subtotalCents,
+        discountAmountCents: 0,
+        discountedSubtotalCents: subtotalCents,
+        taxAmountCents: input.purpose === "vote" ? baseCharge.taxAmountCents : 0,
+        totalAmountCents: baseCharge.amountCents,
+      };
+    }
+
+    const paymentConfig = await getBuyerPaymentConfig();
+    const stripePromo = paymentConfig.provider === "stripe"
+      ? await resolveStripePromoDiscount(await getStripeBuyerClient(), code, subtotalCents)
+      : null;
+    if (!stripePromo) {
+      return { valid: false, message: "This promo or referral code is invalid or inactive." };
+    }
+
+    const quote = input.purpose === "vote"
+      ? applyGuestVoteDiscount(baseCharge, stripePromo)
+      : null;
+    const discountAmountCents = Math.min(subtotalCents, stripePromo.discountAmountCents);
+    return {
+      valid: true,
+      kind: "discount" as const,
+      code: stripePromo.code,
+      discountLabel: stripePromo.discountLabel,
+      subtotalCents,
+      discountAmountCents,
+      discountedSubtotalCents: subtotalCents - discountAmountCents,
+      taxAmountCents: quote?.taxAmountCents ?? 0,
+      totalAmountCents: quote?.amountCents ?? subtotalCents - discountAmountCents,
+    };
+  }
+
+  app.post("/api/payment/validate-code", async (req, res) => {
+    const parsed = paymentCodeValidationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Invalid payment code request" });
+    }
+    try {
+      const quote = await validateCheckoutCode(parsed.data);
+      if (quote.valid && quote.kind === "discount" && quote.totalAmountCents > 0 && quote.totalAmountCents < 50) {
+        return res.json({
+          valid: false,
+          message: "This discount leaves less than Stripe’s $0.50 minimum payment due.",
+        });
+      }
+      return res.json(quote);
+    } catch (error: any) {
+      return res.status(error.status || 500).json({
+        valid: false,
+        message: error.message || "Could not validate the code.",
+      });
+    }
+  });
 
   app.post("/api/payment-provider/stripe-intent", async (req, res) => {
     try {
@@ -6424,10 +6665,10 @@ export async function registerRoutes(
 
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "stripe") return res.status(409).json({ message: "Stripe is not the active payment provider." });
-      if (purpose === "vote" && charge.amountCents === 0) {
-        return res.status(409).json({ message: "This vote purchase is fully discounted and does not need a Stripe payment intent." });
+      if (charge.amountCents === 0) {
+        return res.status(409).json({ message: "This purchase is fully discounted and does not need a Stripe payment intent." });
       }
-      if (purpose === "vote" && charge.amountCents < 50) {
+      if (charge.amountCents > 0 && charge.amountCents < 50) {
         return res.status(400).json({ message: "The discounted total is below Stripe’s minimum card payment of $0.50." });
       }
       const stripe = await getStripeBuyerClient();
@@ -6436,7 +6677,7 @@ export async function registerRoutes(
         order: {
           ...input,
           purpose,
-          ...(purpose === "vote" && input.promoCode
+          ...(input.promoCode
             ? { promoDiscountAmountCents: charge.discountAmountCents }
             : {}),
         },
@@ -6563,58 +6804,14 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid code validation data" });
       }
-      const { code: rawCode, ...order } = parsed.data;
-      const code = rawCode.trim().toUpperCase();
-      const baseCharge = await resolveGuestVoteCharge(order);
-
-      const config = await getBuyerPaymentConfig();
-      const questPromo = await resolveAppManagedVotePromoDiscount(code, baseCharge.subtotalCents);
-      const stripePromo = !questPromo && config.provider === "stripe"
-        ? await resolveStripeVotePromoDiscount(await getStripeBuyerClient(), code, baseCharge.subtotalCents)
-        : null;
-      const discountPromo = questPromo ?? stripePromo;
-      if (discountPromo) {
-        const quote = applyGuestVoteDiscount(baseCharge, discountPromo);
-        if (quote.amountCents > 0 && quote.amountCents < 50) {
-          return res.json({
-            valid: false,
-            message: "This discount leaves less than Stripe’s $0.50 minimum payment due for this vote package.",
-          });
-        }
+      const quote = await validateCheckoutCode({ purpose: "vote", ...parsed.data });
+      if (quote.valid && quote.kind === "discount" && quote.totalAmountCents > 0 && quote.totalAmountCents < 50) {
         return res.json({
-          valid: true,
-          kind: "discount",
-          code: discountPromo.code,
-          discountLabel: discountPromo.discountLabel,
-          ...{
-            subtotalCents: quote.subtotalCents,
-            discountAmountCents: quote.discountAmountCents,
-            discountedSubtotalCents: quote.discountedSubtotalCents,
-            taxAmountCents: quote.taxAmountCents,
-            totalAmountCents: quote.amountCents,
-          },
+          valid: false,
+          message: "This discount leaves less than Stripe’s $0.50 minimum payment due for this vote package.",
         });
       }
-
-      const internalReferral = await firestoreReferrals.resolveCode(code);
-      const externalReferral = internalReferral ? null : await lookupCodeRegistry(code);
-      const referralCode = internalReferral?.code || (
-        externalReferral?.found ? externalReferral.code?.trim().toUpperCase() || code : null
-      );
-      if (!referralCode) {
-        return res.json({ valid: false, message: "That code is not an active discount or referral code." });
-      }
-
-      return res.json({
-        valid: true,
-        kind: "referral",
-        code: referralCode,
-        discountAmountCents: 0,
-        subtotalCents: baseCharge.subtotalCents,
-        discountedSubtotalCents: baseCharge.subtotalCents,
-        taxAmountCents: baseCharge.taxAmountCents,
-        totalAmountCents: baseCharge.amountCents,
-      });
+      return res.json(quote);
     } catch (error: any) {
       console.error("Vote checkout code validation error:", error);
       if (error.status) return res.status(error.status).json({ message: error.message });

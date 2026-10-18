@@ -11,7 +11,7 @@ export interface VotePromoDiscount {
   discountLabel: string;
 }
 
-export function resolveQuestVotePromoDiscount(
+export function resolveAppManagedPromoDiscount(
   rawCode: unknown,
   subtotalCents: number,
   settings: {
@@ -39,10 +39,10 @@ export function resolveQuestVotePromoDiscount(
 }
 
 /**
- * Resolves Stripe Dashboard promotion codes for one-time vote payments.
+ * Resolves Stripe Dashboard promotion codes for one-time payments.
  * This remains as a fallback; Quest-managed promotion codes are resolved first.
  */
-export async function resolveStripeVotePromoDiscount(
+export async function resolveStripePromoDiscount(
   stripe: Stripe,
   rawCode: unknown,
   subtotalCents: number,
@@ -83,7 +83,7 @@ export async function resolveStripeVotePromoDiscount(
       : null
   );
   if (minimumAmountCents !== null && minimumAmountCents !== undefined && subtotalCents < minimumAmountCents) {
-    return reject("This promo code requires a higher vote-package subtotal.");
+    return reject("This promo code requires a higher subtotal.");
   }
 
   const rawCoupon = promotionCode.promotion.coupon;
@@ -91,7 +91,7 @@ export async function resolveStripeVotePromoDiscount(
     return reject("This Stripe promo code does not have an active coupon.");
   }
   if (rawCoupon.applies_to?.products?.length) {
-    return reject("This promo code is restricted to Stripe products not used for vote purchases.");
+    return reject("This promo code is restricted to Stripe products not used for this checkout.");
   }
   if (rawCoupon.max_redemptions != null) {
     return reject("This coupon has a Stripe redemption limit that this checkout cannot enforce.");
@@ -113,7 +113,7 @@ export async function resolveStripeVotePromoDiscount(
 
   discountAmountCents = Math.min(Math.max(0, Math.round(subtotalCents)), discountAmountCents);
   if (discountAmountCents <= 0) {
-    return reject("This promo code does not discount this vote purchase.");
+    return reject("This promo code does not discount this purchase.");
   }
   if (!discountLabel) discountLabel = `$${(discountAmountCents / 100).toFixed(2)} off`;
 
@@ -123,3 +123,6 @@ export async function resolveStripeVotePromoDiscount(
     discountLabel,
   };
 }
+
+export const resolveQuestVotePromoDiscount = resolveAppManagedPromoDiscount;
+export const resolveStripeVotePromoDiscount = resolveStripePromoDiscount;

@@ -123,7 +123,7 @@ test("fingerprints tolerate form number strings and omitted optional fields", ()
     stripeOrderFingerprint({ purpose: "host", selectedPackageName: "Pro", competitionId: 21 }));
 });
 
-test("vote promo codes and their server quote are bound to the Stripe intent", () => {
+test("promo codes and their server quote are bound to the Stripe intent", () => {
   const discountedOrder: StripeOrder = {
     ...order,
     promoCode: "SAVE20",
@@ -138,6 +138,23 @@ test("vote promo codes and their server quote are bound to the Stripe intent", (
     stripeOrderFingerprint(discountedOrder),
     stripeOrderFingerprint({ ...discountedOrder, promoCode: "SAVE10" }),
   );
+});
+
+test("host, join, and nomination promo and referral values bind to the Stripe intent", () => {
+  for (const purpose of ["host", "join", "nominate"] as const) {
+    const base: StripeOrder = {
+      purpose,
+      ...(purpose === "host" ? { selectedPackageName: "Pro" } : { competitionId: 21 }),
+    };
+    assert.notEqual(
+      stripeOrderFingerprint(base),
+      stripeOrderFingerprint({ ...base, promoCode: "SAVE20", promoDiscountAmountCents: 300 }),
+    );
+    assert.notEqual(
+      stripeOrderFingerprint(base),
+      stripeOrderFingerprint({ ...base, referralCode: "HOSTREF" }),
+    );
+  }
 });
 
 test("webhooks accept valid rotated signatures and reject wrong, stale, or altered payloads", () => {

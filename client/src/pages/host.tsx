@@ -120,6 +120,14 @@ export default function HostPage() {
     }
   }, [inviteDetails]);
   const [referralCode, setReferralCode] = useState("");
+  const [appliedPaymentCode, setAppliedPaymentCode] = useState<{
+    kind: "discount" | "referral";
+    code: string;
+    discountLabel?: string | null;
+    discountAmountCents: number;
+    totalAmountCents: number;
+  } | null>(null);
+  const [codeChecking, setCodeChecking] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
   const [stripeCard, setStripeCard] = useState<StripeCardHandle | null>(null);
   const [expMonth, setExpMonth] = useState("");
@@ -157,6 +165,12 @@ export default function HostPage() {
   const hostingPackages = platformSettings?.hostingPackages || [];
   const selectedPackage = selectedPackageIdx !== null ? hostingPackages[selectedPackageIdx] : null;
   const selectedPrice = selectedPackage?.price || 0;
+  const selectedPriceCents = Math.round(selectedPrice * 100);
+  const amountDueCents = appliedPaymentCode?.kind === "discount"
+    ? appliedPaymentCode.totalAmountCents
+    : selectedPriceCents;
+  const amountDue = amountDueCents / 100;
+  const needsPayment = amountDueCents > 0;
 
   const referenceCompetition = competitions?.find(c => c.id === referenceCompetitionId) || null;
 
@@ -176,9 +190,9 @@ export default function HostPage() {
   }, [paymentConfig, hostingPackages, acceptLoaded]);
 
   useEffect(() => {
-    if (paymentConfig?.provider !== "stripe" || selectedPrice <= 0 || stripeLoaded) return;
+    if (paymentConfig?.provider !== "stripe" || !needsPayment || stripeLoaded) return;
     loadStripeScript().then(setStripeLoaded);
-  }, [paymentConfig, selectedPrice, stripeLoaded]);
+  }, [paymentConfig, needsPayment, stripeLoaded]);
 
   const updateField = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -198,7 +212,11 @@ export default function HostPage() {
       toast({ title: "Please select a hosting package", variant: "destructive" });
       return false;
     }
-    if (selectedPrice > 0) {
+    if (referralCode.trim() && !appliedPaymentCode) {
+      toast({ title: "Apply the promo or referral code before submitting", variant: "destructive" });
+      return false;
+    }
+    if (needsPayment) {
       if (paymentConfig?.provider === "stripe" ? !stripeCard?.complete : paymentConfig?.provider !== "paypal" && (!cardNumber || !expMonth || !expYear || !cvv)) {
         toast({ title: "Please enter your card details", variant: "destructive" });
         return false;
@@ -218,7 +236,46 @@ export default function HostPage() {
       }
     }
     return true;
-  }, [settings, form, selectedPrice, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
+  }, [settings, form, selectedPrice, selectedPackage, needsPayment, referralCode, appliedPaymentCode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
+
+  const applyPaymentCode = async () => {
+    if (!referralCode.trim() || !selectedPackage) return;
+    setCodeChecking(true);
+    try {
+      const response = await apiRequest("POST", "/api/payment/validate-code", {
+        purpose: "host",
+        code: referralCode.trim(),
+        selectedPackageName: selectedPackage.name,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.valid) throw new Error(data.message || "This code is invalid or inactive.");
+      const applied = {
+        kind: data.kind as "discount" | "referral",
+        code: data.code as string,
+        discountLabel: data.discountLabel || null,
+        discountAmountCents: Number(data.discountAmountCents || 0),
+        totalAmountCents: Number(data.totalAmountCents ?? selectedPriceCents),
+      };
+      setAppliedPaymentCode(applied);
+      setReferralCode(applied.code);
+      paymentIdempotencyKey.current = crypto.randomUUID();
+      toast({
+        title: applied.kind === "discount" ? "Discount applied" : "Referral tracked",
+        description: applied.kind === "discount"
+          ? `${applied.discountLabel || "Discount"}; you save $${(applied.discountAmountCents / 100).toFixed(2)}.`
+          : "The referral is recorded without changing the hosting fee.",
+      });
+    } catch (error: any) {
+      setAppliedPaymentCode(null);
+      toast({
+        title: "Code not applied",
+        description: error.message?.replace(/^\d+:\s*/, "") || "Could not validate the code.",
+        variant: "destructive",
+      });
+    } finally {
+      setCodeChecking(false);
+    }
+  };
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -239,11 +296,15 @@ export default function HostPage() {
           ocPaymentId,
           selectedPackageName: selectedPackage?.name || null,
           selectedPackagePrice: selectedPrice,
-          referralCode: referralCode.trim().toUpperCase() || undefined,
+          promoCode: appliedPaymentCode?.kind === "discount" ? appliedPaymentCode.code : undefined,
+          referralCode: appliedPaymentCode?.kind === "referral" ? appliedPaymentCode.code : undefined,
           billingAddress,
         });
         setSuccess(true);
-        toast({ title: "Application submitted!", description: "We'll review your event proposal and get back to you." });
+        toast({
+          title: "Application submitted!",
+          description: `We'll review your event proposal and get back to you.${appliedPaymentCode?.kind === "referral" ? ` Referral tracked: ${appliedPaymentCode.code}.` : ""}`,
+        });
       } catch (error: any) {
         toast({ title: "Submission Failed", description: error.message?.replace(/^\d+:\s*/, "") || "Something went wrong", variant: "destructive" });
       } finally {
@@ -251,7 +312,7 @@ export default function HostPage() {
       }
     };
 
-    if (selectedPrice > 0 && paymentConfig?.provider === "stripe") {
+    if (needsPayment && paymentConfig?.provider === "stripe") {
       try {
         const { paymentIntentId: stripePaymentIntentId, ocPaymentId } = await confirmStripeCardPayment({
           publishableKey: paymentConfig.stripePublishableKey!,
@@ -259,6 +320,8 @@ export default function HostPage() {
           intentPayload: {
             idempotencyKey: paymentIdempotencyKey.current,
             selectedPackageName: selectedPackage?.name,
+            promoCode: appliedPaymentCode?.kind === "discount" ? appliedPaymentCode.code : undefined,
+            referralCode: appliedPaymentCode?.kind === "referral" ? appliedPaymentCode.code : undefined,
           },
           cardHandle: stripeCard,
           name: form.fullName || "",
@@ -270,7 +333,7 @@ export default function HostPage() {
         setProcessing(false);
         toast({ title: "Stripe payment failed", description: error.message, variant: "destructive" });
       }
-    } else if (selectedPrice > 0 && paymentConfig?.provider === "paypal") {
+    } else if (needsPayment && paymentConfig?.provider === "paypal") {
       const paypalPayload = {
         idempotencyKey: paymentIdempotencyKey.current,
         ...form,
@@ -279,7 +342,8 @@ export default function HostPage() {
         mediaUrls: [],
         selectedPackageName: selectedPackage?.name || null,
         selectedPackagePrice: selectedPrice,
-        referralCode: referralCode.trim().toUpperCase() || undefined,
+        promoCode: appliedPaymentCode?.kind === "discount" ? appliedPaymentCode.code : undefined,
+        referralCode: appliedPaymentCode?.kind === "referral" ? appliedPaymentCode.code : undefined,
         billingAddress,
       };
       sessionStorage.setItem("quest_paypal_host", JSON.stringify(paypalPayload));
@@ -295,7 +359,7 @@ export default function HostPage() {
         setProcessing(false);
         toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" });
       }
-    } else if (selectedPrice > 0) {
+    } else if (needsPayment) {
       window.Accept!.dispatchData({
         authData: { clientKey: paymentConfig!.clientKey, apiLoginID: paymentConfig!.apiLoginId },
         cardData: {
@@ -320,7 +384,7 @@ export default function HostPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, billingAddress, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId, inviteToken, referralCode, stripeLoaded, stripeCard]);
+  }, [settings, form, billingAddress, cardNumber, expMonth, expYear, cvv, paymentConfig, toast, selectedPrice, selectedPackage, referenceCompetitionId, inviteToken, appliedPaymentCode, stripeLoaded, stripeCard, needsPayment]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -502,7 +566,12 @@ export default function HostPage() {
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => setSelectedPackageIdx(idx)}
+                  onClick={() => {
+                    setSelectedPackageIdx(idx);
+                    setAppliedPaymentCode(null);
+                    setReferralCode("");
+                    paymentIdempotencyKey.current = crypto.randomUUID();
+                  }}
                   className={`text-left p-5 border transition-all duration-300 ${
                     selectedPackageIdx === idx
                       ? "border-[#FF5A09] bg-[#FF5A09]/10"
@@ -654,9 +723,17 @@ export default function HostPage() {
               <p className="text-[#FF5A09] font-bold uppercase text-sm" style={{ letterSpacing: "2px" }}>
                 {selectedPackage.name} Package: ${selectedPrice}
               </p>
-              <p className="text-white/40 text-xs mt-1">Payment for your selected hosting package.</p>
+              {appliedPaymentCode?.kind === "discount" && (
+                <p className="text-green-300 text-xs mt-2">
+                  Discount applied: {appliedPaymentCode.discountLabel || "Promo discount"} · save ${(appliedPaymentCode.discountAmountCents / 100).toFixed(2)}
+                </p>
+              )}
+              {appliedPaymentCode?.kind === "referral" && (
+                <p className="text-green-300 text-xs mt-2">Referral tracked: {appliedPaymentCode.code}</p>
+              )}
+              <p className="text-white/60 text-xs mt-2">Amount due: ${amountDue.toFixed(2)}</p>
             </div>
-            <div className="space-y-4">
+            {needsPayment && <div className="space-y-4">
               <div className="border-b border-white/10 pb-4">
                 <p className="text-white/60 uppercase text-xs tracking-wider mb-3">Billing Address</p>
                 <div className="space-y-3">
@@ -726,21 +803,44 @@ export default function HostPage() {
                 </div>
               </div>
               </>) : null}
-            </div>
+            </div>}
           </div>
         )}
 
         <div className="mb-6">
           <Label className="text-white/60 uppercase text-xs tracking-wider">
-            Referral Code <span className="text-white/30 normal-case">(optional)</span>
+            Promo or Referral Code <span className="text-white/30 normal-case">(optional)</span>
           </Label>
-          <Input
-            value={referralCode}
-            onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_\-]/g, ""))}
-            className="bg-white/[0.08] border-white/20 text-white mt-2"
-            placeholder="Enter a referral code if you have one"
-            data-testid="input-referral-code"
-          />
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <Input
+              value={referralCode}
+              onChange={(e) => {
+                setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_\-]/g, ""));
+                setAppliedPaymentCode(null);
+                paymentIdempotencyKey.current = crypto.randomUUID();
+              }}
+              className="min-h-11 min-w-0 flex-1 bg-white/[0.08] border-white/20 text-white"
+              placeholder="Enter a promo or referral code"
+              data-testid="input-referral-code"
+            />
+            <button
+              type="button"
+              onClick={applyPaymentCode}
+              disabled={codeChecking || !referralCode.trim() || !selectedPackage}
+              className="min-h-11 border border-[#FF5A09]/40 bg-[#FF5A09]/10 px-5 text-xs uppercase tracking-wider text-[#FF5A09] disabled:opacity-40"
+              data-testid="button-apply-payment-code"
+            >
+              {codeChecking ? "Checking..." : "Apply code"}
+            </button>
+          </div>
+          {appliedPaymentCode && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-green-400" role="status" aria-live="polite">
+              <CheckCircle className="h-3.5 w-3.5" />
+              {appliedPaymentCode.kind === "discount"
+                ? `Discount applied: ${appliedPaymentCode.discountLabel || "Promo discount"}`
+                : `Referral tracked: ${appliedPaymentCode.code}`}
+            </p>
+          )}
         </div>
 
         <button
@@ -749,10 +849,10 @@ export default function HostPage() {
           className="w-full bg-[#FF5A09] text-white font-bold text-base uppercase px-8 leading-[52px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           data-testid="button-submit"
         >
-          {selectedPrice > 0 ? (
+          {needsPayment ? (
             <>
               <CreditCard className="h-5 w-5" />
-              {processing ? "PROCESSING..." : `PAY $${selectedPrice} & SUBMIT`}
+              {processing ? "PROCESSING..." : `PAY $${amountDue.toFixed(2)} & SUBMIT`}
             </>
           ) : (
             <>
@@ -786,9 +886,15 @@ export default function HostPage() {
               { label: "Applicant", value: form.fullName || form.name || "" },
               { label: "Package", value: selectedPackage.name },
               { label: "Hosting Fee", value: `$${selectedPrice}` },
+              ...(appliedPaymentCode?.kind === "discount" ? [
+                { label: `Promo code (${appliedPaymentCode.code})`, value: `-$${(appliedPaymentCode.discountAmountCents / 100).toFixed(2)}` },
+              ] : []),
+              ...(appliedPaymentCode?.kind === "referral" ? [
+                { label: "Referral", value: `Tracked: ${appliedPaymentCode.code}` },
+              ] : []),
             ]}
-            totalAmount={`$${selectedPrice}`}
-            confirmText={`PAY $${selectedPrice} & SUBMIT`}
+            totalAmount={`$${amountDue.toFixed(2)}`}
+            confirmText={needsPayment ? `PAY $${amountDue.toFixed(2)} & SUBMIT` : "SUBMIT EVENT PROPOSAL"}
             termsSummary={platformSettings?.termsSummary}
             termsFinePrint={platformSettings?.termsFinePrint}
           />

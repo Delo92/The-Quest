@@ -3562,7 +3562,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         </span>
                       </div>
                       <p className="mt-1 text-xs leading-relaxed text-white/45">
-                         Create free, percentage-off, or fixed-amount codes for nominations and vote checkout. Active codes have no redemption limit.
+                         Create free, percentage-off, or fixed-amount codes accepted across paid nominations, vote packages, hosting packages, and paid join applications. Active codes have no redemption limit.
                       </p>
                     </div>
 
