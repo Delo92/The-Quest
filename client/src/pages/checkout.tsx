@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
@@ -74,6 +75,7 @@ export default function CheckoutPage() {
   const stageId = new URLSearchParams(window.location.search).get("stageId");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user: authUser, isLoading: authLoading } = useAuth();
   const { getImage, getMedia } = useLivery();
 
   const [name, setName] = useState("");
@@ -123,6 +125,22 @@ export default function CheckoutPage() {
   const { data: paymentConfig } = useQuery<PaymentConfig>({
     queryKey: ["/api/payment-config"],
   });
+
+  useEffect(() => {
+    if (authLoading || !authUser) return;
+
+    setName((current) => current.trim() ? current : authUser.displayName?.trim() || "");
+    setEmail((current) => current.trim() ? current : authUser.email || "");
+
+    const savedAddress = authUser.billingAddress;
+    if (!savedAddress) return;
+    setBillingAddress((current) => ({
+      address: current.address.trim() ? current.address : savedAddress.street || "",
+      city: current.city.trim() ? current.city : savedAddress.city || "",
+      state: current.state.trim() ? current.state : savedAddress.state || "",
+      zip: current.zip.trim() ? current.zip : savedAddress.zip || "",
+    }));
+  }, [authLoading, authUser]);
 
   useEffect(() => {
     const savedRef = localStorage.getItem("hfc_ref");
@@ -580,6 +598,7 @@ export default function CheckoutPage() {
               <Input
                 id="name"
                 type="text"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="bg-white/[0.08] border-white/20 text-white mt-2"
@@ -595,6 +614,7 @@ export default function CheckoutPage() {
               <Input
                 id="checkout-email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-white/[0.08] border-white/20 text-white mt-2"
