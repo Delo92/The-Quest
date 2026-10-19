@@ -275,10 +275,17 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="py-24 md:py-28 bg-black" id="categories">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section
+        className="relative isolate overflow-hidden border-y border-white/[0.07] bg-[#090b0a] py-24 md:py-28"
+        id="categories"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_24%,rgba(38,96,69,0.16),transparent_58%)]"
+        />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div ref={cats.ref} className={`text-center mb-24 transition-all duration-1000 ${cats.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
-            <p className="text-[#5f5f5f] text-sm mb-1">See what&apos;s new</p>
+            <p className="mb-1 text-sm text-white/45">See what&apos;s new</p>
             <h2 className="text-lg uppercase text-white font-normal tracking-[5px] sm:tracking-[10px]">
               Competition Categories
             </h2>
@@ -287,13 +294,17 @@ export default function Landing() {
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${(activeCategories.length) <= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-6`}>
             {activeCategories.map((cat: any, i: number) => {
               return (
-              <Link href="/competitions" key={cat.id}>
+              <Link
+                href="/competitions"
+                key={cat.id}
+                className="group block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-4 focus-visible:ring-offset-[#090b0a]"
+              >
                 <div
-                  className={`group cursor-pointer transition-all duration-500 ${cats.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+                  className={`h-full overflow-hidden rounded-2xl border border-white/12 bg-[#111412] shadow-[0_12px_30px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.07)] transition-transform duration-300 group-hover:-translate-y-1 group-hover:border-[var(--quest-brand)]/45 group-hover:shadow-[0_18px_40px_rgba(0,0,0,0.55)] ${cats.isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
                   style={{ transitionDelay: `${i * 100}ms` }}
                   data-testid={`card-category-${cat.name.toLowerCase()}`}
                 >
-                  <div className="overflow-hidden">
+                  <div className="relative aspect-square overflow-hidden border-b border-white/10 bg-zinc-900">
                     {cat.videoUrl ? (
                       <LazyVideoCard
                         src={cat.videoUrl}
@@ -302,23 +313,27 @@ export default function Landing() {
                         className="overflow-hidden"
                       />
                     ) : cat.imageUrl ? (
-                      <img src={cat.imageUrl} alt={cat.name} className="w-full aspect-square object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
+                      <img src={cat.imageUrl} alt={cat.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" loading="lazy" decoding="async" />
                     ) : (
-                      <div className="w-full aspect-square bg-zinc-900 transition-transform duration-700 group-hover:scale-110" />
+                      <div className="h-full w-full bg-zinc-900 transition-transform duration-700 group-hover:scale-[1.04]" />
                     )}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent"
+                    />
                   </div>
-                  <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
-                    <h4 className="text-white group-hover:text-black uppercase text-base font-bold mb-2 transition-colors duration-500">
+                  <div className="flex min-h-[190px] flex-col items-center bg-gradient-to-b from-[#171b18] to-[#101211] px-4 py-6 text-center">
+                    <h4 className="mb-2 text-base font-bold uppercase text-white">
                       {cat.name}
                     </h4>
-                    <p className="text-white/50 group-hover:text-black/50 text-sm mb-4 transition-colors duration-500">
+                    <p className="mb-5 text-sm leading-relaxed text-white/60">
                       {cat.description}
                     </p>
                     <span
-                      className="text-[11px] text-white group-hover:text-black uppercase border-b border-white group-hover:border-black pb-1 transition-colors duration-500"
-                      style={{ letterSpacing: "10px" }}
+                      className="mt-auto inline-flex min-h-9 items-center gap-2 rounded-full border border-white/20 bg-white/[0.035] px-4 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] group-hover:border-[var(--quest-brand)]/55 group-hover:bg-[var(--quest-brand)]/10 group-hover:text-white"
                     >
                       See More
+                      <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
                     </span>
                   </div>
                 </div>

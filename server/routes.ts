@@ -12,6 +12,7 @@ import {
 } from "@shared/weekly-consent";
 import { storage } from "./storage";
 import { calculateNominationPromoQuote, normalizeNominationPromoCodes } from "./nomination-promos";
+import { normalizeImageCropPositions } from "./image-crop";
 import { formatNominationPromoDiscount } from "../shared/nomination-promos";
 import { escapeXml, getPublicOrigin } from "./share-meta";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
@@ -5464,10 +5465,18 @@ export async function registerRoutes(
       const {
         fullName, email, phone, bio, category, competitionId, nominatorEmail, suggestedNonprofit,
         dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
-        mediaUrls, promoCode, referralCode, billingAddress,
+        mediaUrls, imageCropPositions, promoCode, referralCode, billingAddress,
         nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged,
         nonprofitProceedsAcknowledged,
       } = req.body;
+      const nomineeImageUrls = Array.isArray(mediaUrls) ? mediaUrls : [];
+      const normalizedNominationImageCropPositions = normalizeImageCropPositions(
+        imageCropPositions,
+        nomineeImageUrls.length,
+      );
+      if (!normalizedNominationImageCropPositions) {
+        return res.status(400).json({ message: "Invalid image framing settings" });
+      }
       const nomineeName = typeof fullName === "string" ? fullName.trim() : "";
       const nomineeEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
       const normalizedNominatorEmail = typeof nominatorEmail === "string" ? nominatorEmail.trim().toLowerCase() : "";
@@ -5579,11 +5588,17 @@ export async function registerRoutes(
               bio: bio || null,
               category: category || null,
               location: null,
-              imageUrls: Array.isArray(mediaUrls) ? mediaUrls : [],
+              imageUrls: nomineeImageUrls,
+              imageCropPositions: normalizedNominationImageCropPositions,
               videoUrls: [],
               socialLinks: null,
               role: "talent",
             });
+          } else if (nomineeImageUrls.length > 0 && (!Array.isArray(existingProfile.imageUrls) || existingProfile.imageUrls.length === 0)) {
+            existingProfile = await storage.updateTalentProfile(firebaseUid, {
+              imageUrls: nomineeImageUrls,
+              imageCropPositions: normalizedNominationImageCropPositions,
+            }) || existingProfile;
           }
           talentProfileId = existingProfile.id;
 
@@ -5657,7 +5672,8 @@ export async function registerRoutes(
         bio: bio || null,
         category: category || null,
         socialLinks: null,
-        mediaUrls: Array.isArray(mediaUrls) ? mediaUrls : [],
+        mediaUrls: nomineeImageUrls,
+        imageCropPositions: normalizedNominationImageCropPositions,
         transactionId,
         amountPaid,
         type: "nomination",
@@ -5853,12 +5869,23 @@ export async function registerRoutes(
         await updateFirestoreUser(account.uid, { level: accountLevel });
       }
       let profile = await storage.getTalentProfileByUserId(account.uid);
+      const nomineeImageUrls = Array.isArray(submission.mediaUrls) ? submission.mediaUrls : [];
+      const savedImageCropPositions = normalizeImageCropPositions(
+        submission.imageCropPositions,
+        nomineeImageUrls.length,
+      ) || normalizeImageCropPositions(undefined, nomineeImageUrls.length) || [];
       if (!profile) {
         profile = await storage.createTalentProfile({
           userId: account.uid, email, displayName: submission.fullName,
           stageName: null, bio: submission.bio || null, category: submission.category || null,
-          location: null, imageUrls: submission.mediaUrls || [], videoUrls: [], socialLinks: null, role: "talent",
+          location: null, imageUrls: nomineeImageUrls, imageCropPositions: savedImageCropPositions,
+          videoUrls: [], socialLinks: null, role: "talent",
         });
+      } else if (nomineeImageUrls.length > 0 && (!Array.isArray(profile.imageUrls) || profile.imageUrls.length === 0)) {
+        profile = await storage.updateTalentProfile(account.uid, {
+          imageUrls: nomineeImageUrls,
+          imageCropPositions: savedImageCropPositions,
+        }) || profile;
       }
       if (accountLevel === 2 && profile.role === "viewer") {
         await storage.updateTalentProfile(account.uid, { role: "talent" });

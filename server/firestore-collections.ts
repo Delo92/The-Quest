@@ -326,6 +326,7 @@ export interface FirestoreJoinSubmission {
   category: string | null;
   socialLinks: string | null;
   mediaUrls: string[];
+  imageCropPositions?: Array<{ x: number; y: number }>;
   status: "pending" | "approved" | "rejected";
   transactionId: string | null;
   amountPaid: number;

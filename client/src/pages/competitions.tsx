@@ -82,14 +82,12 @@ export default function Competitions() {
                 Want to run your own competition? Get access to built-in voting, contestant management, analytics, and more.
               </p>
             </div>
-            <Link href="/host" className="flex-shrink-0">
-              <span
-                className="quest-action-label inline-flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white uppercase px-6 py-3 text-sm cursor-pointer hover:from-emerald-500 hover:to-emerald-400 transition-all duration-300 whitespace-nowrap"
-                style={{ letterSpacing: "2px" }}
-                data-testid="button-become-a-host"
-              >
-                Become a Host <ArrowRight className="h-4 w-4" />
-              </span>
+            <Link
+              href="/host"
+              className="inline-flex min-h-11 flex-shrink-0 items-center justify-center gap-2 rounded-full border border-emerald-300/25 bg-gradient-to-r from-emerald-600 to-emerald-500 px-6 text-sm font-semibold tracking-wide text-white shadow-[0_6px_20px_rgba(16,185,129,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:from-emerald-500 hover:to-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
+              data-testid="button-become-a-host"
+            >
+              Become a Host <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -101,8 +99,14 @@ export default function Competitions() {
             {["all", "active", "completed"].map((f) => (
               <button
                 key={f}
+                type="button"
                 onClick={() => setFilter(f)}
-                className={`inline-block px-4 py-2 min-h-[40px] text-[14px] border-2 transition-all duration-300 whitespace-nowrap ${filter === f ? "border-black bg-transparent text-white" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
+                aria-pressed={filter === f}
+                className={`inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                  filter === f
+                    ? "border-[#FF5A09]/60 bg-[#FF5A09]/10 text-white"
+                    : "border-white/10 bg-white/[0.035] text-white/60 hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                }`}
                 data-testid={`filter-${f}`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -114,8 +118,14 @@ export default function Competitions() {
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scroll-momentum">
             <div className="flex items-center gap-2 mb-8 min-w-max sm:min-w-0 sm:flex-wrap">
               <button
+                type="button"
                 onClick={() => setCategoryFilter("all")}
-                className={`inline-block px-4 py-2 min-h-[40px] text-[12px] uppercase tracking-wider border-2 transition-all duration-300 whitespace-nowrap ${categoryFilter === "all" ? "border-[#FF5A09] text-[#FF5A09]" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
+                aria-pressed={categoryFilter === "all"}
+                className={`inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-full border px-4 text-xs font-semibold uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                  categoryFilter === "all"
+                    ? "border-[#FF5A09]/60 bg-[#FF5A09]/10 text-[#FF9A70]"
+                    : "border-white/10 bg-white/[0.035] text-white/60 hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                }`}
                 data-testid="filter-category-all"
               >
                 All Categories
@@ -123,8 +133,14 @@ export default function Competitions() {
               {firestoreCategories.map((cat: any) => (
                 <button
                   key={cat.id}
+                  type="button"
                   onClick={() => setCategoryFilter(cat.name)}
-                  className={`inline-block px-4 py-2 min-h-[40px] text-[12px] uppercase tracking-wider border-2 transition-all duration-300 whitespace-nowrap ${categoryFilter === cat.name ? "border-[#FF5A09] text-[#FF5A09]" : "border-transparent bg-[#f4f4f4]/10 text-white/50 hover:border-white/30"}`}
+                  aria-pressed={categoryFilter === cat.name}
+                  className={`inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-full border px-4 text-xs font-semibold uppercase tracking-wider shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                    categoryFilter === cat.name
+                      ? "border-[#FF5A09]/60 bg-[#FF5A09]/10 text-[#FF9A70]"
+                      : "border-white/10 bg-white/[0.035] text-white/60 hover:border-white/25 hover:bg-white/[0.08] hover:text-white"
+                  }`}
                   data-testid={`filter-category-${cat.id}`}
                 >
                   {cat.name}
@@ -173,20 +189,23 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
   const coverPoster = competition.coverVideoThumbnail || competition.coverImage || getImage("competition_card_fallback");
   return (
     <div
-      className="group relative overflow-hidden rounded-sm border border-white/10 bg-[#101010] shadow-[0_16px_35px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FF5A09]/60 hover:shadow-[0_20px_45px_rgba(0,0,0,0.65)]"
+      className="group relative overflow-hidden rounded-lg border border-white/10 bg-[#101010] shadow-[0_16px_35px_rgba(0,0,0,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-[#FF5A09]/60 hover:shadow-[0_20px_45px_rgba(0,0,0,0.65)]"
       data-testid={`card-competition-${competition.id}`}
     >
-      <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
+      <Link
+        href={`/${slugify(competition.category)}/${slugify(competition.title)}`}
+        className="block rounded-t-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#FF5A09]"
+      >
         <div className="cursor-pointer">
           <div className="overflow-hidden relative h-52 border-b border-white/10 bg-[#080808]">
             {competition.isFeatured && (
-              <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 border border-[#FF5A09]/60 bg-black/85 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[2px] text-[#FF5A09] shadow-lg">
+              <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-[#FF5A09]/60 bg-black/85 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#FF5A09] shadow-lg">
                 <Star className="h-3 w-3 fill-current" />
                 Featured
               </div>
             )}
             {competition.status === "draft" && (
-              <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 border border-[#FF5A09]/60 bg-black/85 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[1.5px] text-[#FFB38F] shadow-lg">
+              <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-[#FF5A09]/60 bg-black/85 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#FFB38F] shadow-lg">
                 <Clock3 className="h-3 w-3" />
                 Schedule pending
               </div>
@@ -265,7 +284,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
             )}
             <div className="mt-3 flex justify-center">
               <span
-                className="quest-action-label inline-block border border-white/20 bg-white/10 text-white text-[12px] uppercase px-5 py-2 transition-colors duration-300 group-hover:border-[#FF5A09]/70 group-hover:bg-[#FF5A09] group-hover:text-black"
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-white/20 bg-white/[0.06] px-5 text-xs font-semibold uppercase tracking-wider text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-200 group-hover:border-[#FF5A09]/60 group-hover:bg-[#FF5A09]/10 group-hover:text-white"
               >
                 See Competition
               </span>
@@ -281,7 +300,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
          ) : (
            <Link
              href={`/join?competition=${competition.id}`}
-              className="quest-action-label inline-block bg-[#FF5A09] text-white text-sm uppercase px-5 leading-[36px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
+              className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#FF5A09]/60 bg-[#FF5A09] px-5 text-xs font-semibold uppercase tracking-wider text-white shadow-[0_5px_18px_rgba(255,90,9,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#e95008] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-[#101010] active:translate-y-0"
              data-testid={`button-join-${competition.id}`}
            >
              Start Nominating

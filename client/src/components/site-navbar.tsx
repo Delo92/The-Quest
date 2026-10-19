@@ -88,6 +88,9 @@ function LiveVoteCounter() {
   );
 }
 
+const desktopNavItemClass =
+  "inline-flex min-h-9 items-center justify-center rounded-md border border-white/10 bg-white/[0.035] px-2.5 text-[10px] xl:text-[11px] font-bold uppercase tracking-wider text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_12px_rgba(0,0,0,0.25)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-[var(--quest-brand)]/55 hover:bg-white/[0.09] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0";
+
 export default function SiteNavbar() {
   const { user, isAuthenticated } = useAuth();
   const { isViewerLoggedIn } = useViewerSession();
@@ -117,7 +120,7 @@ export default function SiteNavbar() {
     <>
       <style>{`:root { --quest-brand: ${questBrand}; --quest-brand-dark: ${questBrandDark}; }`}</style>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? "bg-black/95 backdrop-blur-sm" : "bg-transparent"}`}
+        className={`fixed top-0 left-0 right-0 z-50 border-b border-white/10 shadow-[0_8px_28px_rgba(0,0,0,0.42)] ${scrolled ? "bg-black/95 backdrop-blur-xl" : "bg-[#0b0d0c]/82 backdrop-blur-lg"}`}
         data-testid="site-navbar"
       >
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-7 bg-black/60 backdrop-blur-sm border-b border-white/5 max-w-7xl mx-auto w-full">
@@ -133,14 +136,17 @@ export default function SiteNavbar() {
         <div className="flex items-center gap-3 lg:hidden">
           <Link
             href={hostHref}
-            className="inline-flex min-h-10 items-center justify-center border border-[var(--quest-brand)]/70 px-3 text-[var(--quest-brand)] text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-[var(--quest-brand)] hover:text-white"
+            className="inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--quest-brand)]/65 bg-[var(--quest-brand)]/10 px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--quest-brand)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_12px_rgba(0,0,0,0.3)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[var(--quest-brand)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
             data-testid="link-mobile-host"
           >
             Host an Event
           </Link>
           <button
-            className="text-white"
+            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-white/15 bg-white/[0.06] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_4px_12px_rgba(0,0,0,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-site-navigation"
             data-testid="button-mobile-menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,62 +159,64 @@ export default function SiteNavbar() {
           </button>
         </div>
 
-        <div className="hidden lg:flex items-center gap-8">
+        <div className="hidden lg:flex items-center gap-1.5 xl:gap-2">
           <a
             href={homeHref}
-            className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
+            className={desktopNavItemClass}
             data-testid="link-nav-home"
           >
             Home
           </a>
           <Link
             href="/competitions"
-            className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
+            className={desktopNavItemClass}
             data-testid="link-nav-competitions"
           >
             Competitions
           </Link>
           <Link
             href="/nominate"
-            className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
+            className={desktopNavItemClass}
             data-testid="link-nav-join"
           >
             Nominate
           </Link>
           <Link
             href="/about"
-            className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
+            className={desktopNavItemClass}
             data-testid="link-nav-about"
           >
             About
           </Link>
           <Link
             href="/faq"
-            className="text-white text-sm font-bold uppercase tracking-wider transition-colors duration-300 hover:text-white/70"
+            className={desktopNavItemClass}
             data-testid="link-nav-faq"
           >
             FAQ
           </Link>
         </div>
 
-        <div className="hidden lg:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-2.5 xl:gap-3">
           <Link
             href={hostHref}
-            className="inline-flex items-center justify-center min-h-10 border border-[var(--quest-brand)]/70 px-3 text-[var(--quest-brand)] font-bold text-[11px] uppercase tracking-wider transition-colors hover:bg-[var(--quest-brand)] hover:text-white"
+            className="inline-flex min-h-10 items-center justify-center rounded-md border border-[var(--quest-brand)]/65 bg-[var(--quest-brand)]/10 px-3 text-[10px] xl:text-[11px] font-bold uppercase tracking-wider text-[var(--quest-brand)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_12px_rgba(0,0,0,0.3)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[var(--quest-brand)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
             data-testid="link-nav-host"
           >
             Host an Event
           </Link>
           <Link
             href="/competitions"
-            className="inline-flex items-center gap-1 bg-[var(--quest-brand)] text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-full transition-all duration-300 hover:bg-[var(--quest-brand-dark)]"
+            className="inline-flex min-h-10 items-center gap-1 rounded-md border border-white/20 bg-[var(--quest-brand)] px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_5px_16px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[var(--quest-brand-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
             data-testid="link-nav-vote"
           >
             Vote
           </Link>
           <Link
             href="/my-purchases"
-            className="text-white transition-colors duration-500 hover:text-[var(--quest-brand)]"
+            aria-label="My purchases"
+            title="My purchases"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white/[0.045] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_4px_12px_rgba(0,0,0,0.3)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-[var(--quest-brand)]/55 hover:bg-white/[0.09] hover:text-[var(--quest-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
             data-testid="link-nav-cart"
           >
             <ShoppingCart className="h-5 w-5" />
@@ -216,7 +224,7 @@ export default function SiteNavbar() {
           {isLoggedIn ? (
             <Link
               href={dashboardHref}
-              className="text-white font-bold text-base cursor-pointer transition-colors duration-500 hover:text-white/70"
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-white/15 bg-white/[0.045] px-3 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_4px_12px_rgba(0,0,0,0.3)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
               data-testid="link-nav-dashboard"
             >
               {isViewerLoggedIn ? "My Account" : "Dashboard"}
@@ -224,7 +232,7 @@ export default function SiteNavbar() {
           ) : (
             <Link
               href="/login"
-              className="text-white font-bold text-base cursor-pointer transition-colors duration-500 hover:text-white/70"
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-white/15 bg-white/[0.045] px-3 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_4px_12px_rgba(0,0,0,0.3)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
               data-testid="link-nav-login"
             >
               Login
@@ -234,8 +242,8 @@ export default function SiteNavbar() {
       </div>
 
       {menuOpen && (
-        <div className="lg:hidden bg-black/98 backdrop-blur-xl border-t border-white/10 px-4 pb-safe">
-          <div className="py-2 space-y-0.5">
+        <div id="mobile-site-navigation" className="lg:hidden border-t border-white/10 bg-[#0b0d0c]/98 px-4 pb-safe shadow-[0_16px_28px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+          <div className="space-y-1 py-3">
             {[
               { href: homeHref, label: "Home", testid: "link-mobile-home", isAnchor: true },
               { href: "/competitions", label: "Competitions", testid: "link-mobile-competitions" },
@@ -244,11 +252,11 @@ export default function SiteNavbar() {
               { href: "/faq", label: "FAQ", testid: "link-mobile-faq" },
             ].map(({ href, label, testid, isAnchor }) =>
               isAnchor ? (
-                <a key={href} href={href} className="flex items-center min-h-[52px] text-white font-bold uppercase tracking-wider text-sm border-b border-white/5" data-testid={testid}>
+                <a key={href} href={href} className="flex min-h-11 items-center rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-bold uppercase tracking-wider text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)]" data-testid={testid}>
                   {label}
                 </a>
               ) : (
-                <Link key={href} href={href} className="flex items-center min-h-[52px] text-white font-bold uppercase tracking-wider text-sm border-b border-white/5" onClick={() => setMenuOpen(false)} data-testid={testid}>
+                <Link key={href} href={href} className="flex min-h-11 items-center rounded-md border border-white/10 bg-white/[0.035] px-3 text-sm font-bold uppercase tracking-wider text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)]" onClick={() => setMenuOpen(false)} data-testid={testid}>
                   {label}
                 </Link>
               )
@@ -257,7 +265,7 @@ export default function SiteNavbar() {
           <div className="py-3 space-y-3">
             <Link
               href="/competitions"
-              className="flex items-center justify-center gap-2 min-h-[52px] w-full bg-[var(--quest-brand)] text-white font-bold uppercase tracking-wider text-sm"
+              className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-md border border-white/20 bg-[var(--quest-brand)] text-sm font-bold uppercase tracking-wider text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_5px_16px_rgba(0,0,0,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               onClick={() => setMenuOpen(false)}
               data-testid="link-mobile-vote"
             >
@@ -265,7 +273,7 @@ export default function SiteNavbar() {
             </Link>
             <Link
               href="/my-purchases"
-              className="flex items-center justify-center gap-2 min-h-[48px] w-full border border-white/20 text-white font-bold uppercase tracking-wider text-sm"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-white/20 bg-white/[0.04] text-sm font-bold uppercase tracking-wider text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)]"
               onClick={() => setMenuOpen(false)}
               data-testid="link-mobile-cart"
             >
@@ -275,7 +283,7 @@ export default function SiteNavbar() {
             {isLoggedIn ? (
               <Link
                 href={dashboardHref}
-                className="flex items-center justify-center min-h-[48px] w-full text-white/60 font-bold text-sm"
+                className="flex min-h-12 w-full items-center justify-center rounded-md border border-white/15 bg-white/[0.035] text-sm font-bold text-white"
                 onClick={() => setMenuOpen(false)}
                 data-testid="link-mobile-dashboard"
               >
@@ -284,7 +292,7 @@ export default function SiteNavbar() {
             ) : (
               <Link
                 href="/login"
-                className="flex items-center justify-center min-h-[48px] w-full text-white/60 font-bold text-sm"
+                className="flex min-h-12 w-full items-center justify-center rounded-md border border-white/15 bg-white/[0.035] text-sm font-bold text-white"
                 onClick={() => setMenuOpen(false)}
                 data-testid="link-mobile-login"
               >

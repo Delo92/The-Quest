@@ -14,8 +14,9 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Upload, X, Loader2, ImageIcon, Sparkles } from "lucide-react";
+import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Upload, X, Loader2, ImageIcon, Sparkles, Crop } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
+import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
 import {
@@ -97,6 +98,9 @@ export default function JoinPage() {
   const [referralCode, setReferralCode] = useState("");
   const [referralChecking, setReferralChecking] = useState(false);
   const [nominationImageUrl, setNominationImageUrl] = useState<string | null>(null);
+  const [nominationImageCropPosition, setNominationImageCropPosition] = useState<ImageCropPosition>({ x: 50, y: 50 });
+  const [nominationImageCropDraft, setNominationImageCropDraft] = useState<ImageCropPosition>({ x: 50, y: 50 });
+  const [nominationCropDialogOpen, setNominationCropDialogOpen] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [promoCode, setPromoCode] = useState(() =>
@@ -245,6 +249,10 @@ export default function JoinPage() {
       }
       const data = await res.json();
       setNominationImageUrl(data.url);
+      const centeredPosition = { x: 50, y: 50 };
+      setNominationImageCropPosition(centeredPosition);
+      setNominationImageCropDraft(centeredPosition);
+      setNominationCropDialogOpen(true);
       toast({ title: "Image uploaded!" });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
@@ -333,6 +341,7 @@ export default function JoinPage() {
           suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
           referralCode: appliedReferralCode || undefined,
           mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
+          imageCropPositions: nominationImageUrl ? [nominationImageCropPosition] : [],
           promoCode: promoValidated ? promoCode : undefined,
           dataDescriptor,
           dataValue,
@@ -402,6 +411,7 @@ export default function JoinPage() {
         suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
         referralCode: appliedReferralCode || undefined,
         mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
+        imageCropPositions: nominationImageUrl ? [nominationImageCropPosition] : [],
         promoCode: promoValidated ? promoCode : undefined,
         billingAddress,
       };
@@ -808,7 +818,9 @@ export default function JoinPage() {
                     <Label className="text-white/60 uppercase text-xs tracking-wider">
                       Photo of Nominee <span className="text-white/30 normal-case">(optional)</span>
                     </Label>
-                    <p className="text-white/30 text-xs mt-1 mb-2">Upload a photo of the person, brand, or company you're nominating</p>
+                    <p className="text-white/45 text-xs mt-1 mb-2">
+                      Upload a photo, then frame the nominee&apos;s face or main subject for their public competition card.
+                    </p>
                     <input
                       ref={nominationImageRef}
                       type="file"
@@ -818,16 +830,51 @@ export default function JoinPage() {
                       data-testid="input-nomination-image"
                     />
                     {nominationImageUrl ? (
-                      <div className="relative inline-block">
-                        <img src={nominationImageUrl} alt="Nominee" className="w-32 h-32 object-cover rounded border border-white/20" />
-                        <button
-                          type="button"
-                          onClick={() => setNominationImageUrl(null)}
-                          className="absolute -top-2 -right-2 bg-red-600 rounded-full p-1 hover:bg-red-500"
-                          data-testid="button-remove-nomination-image"
-                        >
-                          <X className="h-3 w-3 text-white" />
-                        </button>
+                      <div className="max-w-xs space-y-3">
+                        <div className="relative aspect-[1.45] overflow-hidden rounded-lg border border-white/20 bg-black shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+                          <img
+                            src={nominationImageUrl}
+                            alt={`Nominee photo preview${form.fullName ? ` for ${form.fullName}` : ""}`}
+                            className="h-full w-full object-cover"
+                            style={{
+                              objectPosition: `${nominationImageCropPosition.x}% ${nominationImageCropPosition.y}%`,
+                            }}
+                          />
+                          <span className="absolute bottom-2 left-2 rounded-full border border-white/15 bg-black/75 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white/80">
+                            Competition card preview
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNominationImageCropDraft(nominationImageCropPosition);
+                              setNominationCropDialogOpen(true);
+                            }}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/20 bg-white/[0.05] px-3 text-sm font-semibold text-white hover:border-[#FF5A09]/70 hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]"
+                            data-testid="button-adjust-nomination-image"
+                          >
+                            <Crop className="h-4 w-4" />
+                            Adjust framing
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNominationImageUrl(null);
+                              setNominationImageCropPosition({ x: 50, y: 50 });
+                              setNominationImageCropDraft({ x: 50, y: 50 });
+                              setNominationCropDialogOpen(false);
+                            }}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/15 px-3 text-sm text-white/65 hover:border-red-400/50 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                            data-testid="button-remove-nomination-image"
+                          >
+                            <X className="h-4 w-4" />
+                            Remove photo
+                          </button>
+                        </div>
+                        <p className="text-xs text-white/45">
+                          Your framing is saved with the nomination and used if this photo becomes the nominee&apos;s public profile image, even if they don&apos;t sign in.
+                        </p>
                       </div>
                     ) : (
                       <button
@@ -1233,6 +1280,25 @@ export default function JoinPage() {
           />
         )}
       </div>
+
+      {nominationImageUrl && (
+        <ImageCropDialog
+          open={nominationCropDialogOpen}
+          onOpenChange={(open) => {
+            if (open) setNominationImageCropDraft(nominationImageCropPosition);
+            setNominationCropDialogOpen(open);
+          }}
+          src={nominationImageUrl}
+          alt={form.fullName ? `Nominee ${form.fullName}` : "Nominee"}
+          position={nominationImageCropDraft}
+          onPositionChange={setNominationImageCropDraft}
+          onSave={() => {
+            setNominationImageCropPosition(nominationImageCropDraft);
+            setNominationCropDialogOpen(false);
+          }}
+          isSaving={false}
+        />
+      )}
 
       <SiteFooter />
     </div>
