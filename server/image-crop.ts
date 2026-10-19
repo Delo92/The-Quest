@@ -1,9 +1,11 @@
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "../shared/image-crop";
+
 export interface ImageCropPosition {
   x: number;
   y: number;
 }
 
-const CENTERED_IMAGE_CROP: ImageCropPosition = { x: 50, y: 50 };
+const DEFAULT_IMAGE_CROP: ImageCropPosition = { ...DEFAULT_TALENT_IMAGE_CROP_POSITION };
 
 export function normalizeImageCropPositions(
   value: unknown,
@@ -29,7 +31,7 @@ export function normalizeImageCropPositions(
 
   return Array.from({ length: imageCount }, (_, index) => {
     const position = positions[index] as ImageCropPosition | undefined;
-    if (!position) return { ...CENTERED_IMAGE_CROP };
+    if (!position) return { ...DEFAULT_IMAGE_CROP };
     return {
       x: Math.max(0, Math.min(100, position.x)),
       y: Math.max(0, Math.min(100, position.y)),

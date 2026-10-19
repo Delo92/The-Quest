@@ -17,6 +17,7 @@ import { useSEO } from "@/hooks/use-seo";
 import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Upload, X, Loader2, ImageIcon, Sparkles, Crop } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
 import {
@@ -98,8 +99,8 @@ export default function JoinPage() {
   const [referralCode, setReferralCode] = useState("");
   const [referralChecking, setReferralChecking] = useState(false);
   const [nominationImageUrl, setNominationImageUrl] = useState<string | null>(null);
-  const [nominationImageCropPosition, setNominationImageCropPosition] = useState<ImageCropPosition>({ x: 50, y: 50 });
-  const [nominationImageCropDraft, setNominationImageCropDraft] = useState<ImageCropPosition>({ x: 50, y: 50 });
+  const [nominationImageCropPosition, setNominationImageCropPosition] = useState<ImageCropPosition>({ ...DEFAULT_TALENT_IMAGE_CROP_POSITION });
+  const [nominationImageCropDraft, setNominationImageCropDraft] = useState<ImageCropPosition>({ ...DEFAULT_TALENT_IMAGE_CROP_POSITION });
   const [nominationCropDialogOpen, setNominationCropDialogOpen] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -249,9 +250,9 @@ export default function JoinPage() {
       }
       const data = await res.json();
       setNominationImageUrl(data.url);
-      const centeredPosition = { x: 50, y: 50 };
-      setNominationImageCropPosition(centeredPosition);
-      setNominationImageCropDraft(centeredPosition);
+      const faceFocusedPosition = { ...DEFAULT_TALENT_IMAGE_CROP_POSITION };
+      setNominationImageCropPosition(faceFocusedPosition);
+      setNominationImageCropDraft(faceFocusedPosition);
       setNominationCropDialogOpen(true);
       toast({ title: "Image uploaded!" });
     } catch (err: any) {
@@ -831,7 +832,7 @@ export default function JoinPage() {
                     />
                     {nominationImageUrl ? (
                       <div className="max-w-xs space-y-3">
-                        <div className="relative aspect-[1.45] overflow-hidden rounded-lg border border-white/20 bg-black shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+                        <div className="relative aspect-[4/5] overflow-hidden rounded-xl border border-white/20 bg-black shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
                           <img
                             src={nominationImageUrl}
                             alt={`Nominee photo preview${form.fullName ? ` for ${form.fullName}` : ""}`}
@@ -861,8 +862,8 @@ export default function JoinPage() {
                             type="button"
                             onClick={() => {
                               setNominationImageUrl(null);
-                              setNominationImageCropPosition({ x: 50, y: 50 });
-                              setNominationImageCropDraft({ x: 50, y: 50 });
+                              setNominationImageCropPosition({ ...DEFAULT_TALENT_IMAGE_CROP_POSITION });
+                              setNominationImageCropDraft({ ...DEFAULT_TALENT_IMAGE_CROP_POSITION });
                               setNominationCropDialogOpen(false);
                             }}
                             className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/15 px-3 text-sm text-white/65 hover:border-red-400/50 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"

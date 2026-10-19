@@ -11,6 +11,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -86,7 +87,7 @@ export default function TalentProfilePublic() {
           alt={profile.stageName || profile.displayName || "Talent"}
           className="absolute inset-0 w-full h-full object-cover"
           style={{
-            objectPosition: `${profile.imageCropPositions?.[0]?.x ?? 50}% ${profile.imageCropPositions?.[0]?.y ?? 50}%`,
+            objectPosition: `${profile.imageCropPositions?.[0]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[0]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
           }}
         />
         <div className="absolute inset-0 bg-black/65" />
@@ -221,7 +222,7 @@ export default function TalentProfilePublic() {
                     alt=""
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     style={{
-                      objectPosition: `${profile.imageCropPositions?.[i]?.x ?? 50}% ${profile.imageCropPositions?.[i]?.y ?? 50}%`,
+                      objectPosition: `${profile.imageCropPositions?.[i]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[i]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
                     }}
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500" />

@@ -13,6 +13,7 @@ import {
 import { storage } from "./storage";
 import { calculateNominationPromoQuote, normalizeNominationPromoCodes } from "./nomination-promos";
 import { normalizeImageCropPositions } from "./image-crop";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "../shared/image-crop";
 import { formatNominationPromoDiscount } from "../shared/nomination-promos";
 import { escapeXml, getPublicOrigin } from "./share-meta";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
@@ -4628,6 +4629,38 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/admin/talent-profiles/:profileId/image-framing", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const profileId = Number(req.params.profileId);
+      if (!Number.isSafeInteger(profileId) || profileId <= 0) {
+        return res.status(400).json({ message: "Invalid profile ID" });
+      }
+
+      const profile = await storage.getTalentProfile(profileId);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+      const imageCount = profile.imageUrls?.length || 0;
+      if (imageCount === 0) return res.status(400).json({ message: "This profile has no photos to frame" });
+
+      const [position] = normalizeImageCropPositions([req.body?.position], 1) || [];
+      if (!position) return res.status(400).json({ message: "Invalid image framing position" });
+
+      const positions = profile.imageCropPositions == null
+        ? Array.from({ length: imageCount }, () => ({ ...DEFAULT_TALENT_IMAGE_CROP_POSITION }))
+        : normalizeImageCropPositions(profile.imageCropPositions, imageCount);
+      if (!positions) {
+        return res.status(409).json({ message: "Existing image framing is invalid and could not be preserved" });
+      }
+      positions[0] = position;
+      await storage.updateTalentProfile(profile.userId, { imageCropPositions: positions } as any);
+
+      res.json({ imageCropPositions: positions });
+    } catch (error: any) {
+      console.error("Admin image framing update error:", error);
+      res.status(500).json({ message: "Failed to update image framing" });
+    }
+  });
+
   app.post("/api/admin/users/:profileId/images", firebaseAuth, requireAdmin, talentImageUpload.single("image"), async (req, res) => {
     try {
       const profileId = parseInt(req.params.profileId);
@@ -4685,12 +4718,12 @@ export async function registerRoutes(
       const currentBackupUrls = (profile as any).imageBackupUrls || [];
       const currentCropPositions = Array.from(
         { length: currentUrls.length },
-        (_, index) => (profile as any).imageCropPositions?.[index] || { x: 50, y: 50 },
+        (_, index) => (profile as any).imageCropPositions?.[index] || { ...DEFAULT_TALENT_IMAGE_CROP_POSITION },
       );
       const updated = await storage.updateTalentProfile(profile.userId, {
         imageUrls: [...currentUrls, primaryUrl],
         imageBackupUrls: [...currentBackupUrls, firebaseUrl],
-        imageCropPositions: [...currentCropPositions, { x: 50, y: 50 }],
+        imageCropPositions: [...currentCropPositions, { ...DEFAULT_TALENT_IMAGE_CROP_POSITION }],
       });
 
       res.json({
@@ -7555,12 +7588,12 @@ export async function registerRoutes(
       const currentBackupUrls = (profile as any).imageBackupUrls || [];
       const currentCropPositions = Array.from(
         { length: currentUrls.length },
-        (_, index) => (profile as any).imageCropPositions?.[index] || { x: 50, y: 50 },
+        (_, index) => (profile as any).imageCropPositions?.[index] || { ...DEFAULT_TALENT_IMAGE_CROP_POSITION },
       );
       await storage.updateTalentProfile(uid, {
         imageUrls: [...currentUrls, primaryUrl],
         imageBackupUrls: [...currentBackupUrls, firebaseUrl],
-        imageCropPositions: [...currentCropPositions, { x: 50, y: 50 }],
+        imageCropPositions: [...currentCropPositions, { ...DEFAULT_TALENT_IMAGE_CROP_POSITION }],
       });
 
       if (stageId && stage) {
@@ -7608,7 +7641,7 @@ export async function registerRoutes(
         imageUrl: url,
         thumbnailUrl: url,
         fallbackUrl: backupUrls[idx] || null,
-        cropPosition: (profile as any).imageCropPositions?.[idx] || { x: 50, y: 50 },
+        cropPosition: (profile as any).imageCropPositions?.[idx] || { ...DEFAULT_TALENT_IMAGE_CROP_POSITION },
       })));
     } catch (error: any) {
       console.error("Image list error:", error);
@@ -8092,9 +8125,11 @@ export async function registerRoutes(
       const existingImageIndex = currentImages.indexOf(imageUrl);
       const nextImages = [imageUrl, ...currentImages.filter((url: string) => url !== imageUrl)];
       const nextPositions = [
-        existingImageIndex >= 0 ? currentPositions[existingImageIndex] || { x: 50, y: 50 } : { x: 50, y: 50 },
+        existingImageIndex >= 0
+          ? currentPositions[existingImageIndex] || { ...DEFAULT_TALENT_IMAGE_CROP_POSITION }
+          : { ...DEFAULT_TALENT_IMAGE_CROP_POSITION },
         ...currentImages
-          .map((url: string, index: number) => ({ url, position: currentPositions[index] || { x: 50, y: 50 } }))
+          .map((url: string, index: number) => ({ url, position: currentPositions[index] || { ...DEFAULT_TALENT_IMAGE_CROP_POSITION } }))
           .filter(({ url }: { url: string }) => url !== imageUrl)
           .map(({ position }: { position: { x: number; y: number } }) => position),
       ];

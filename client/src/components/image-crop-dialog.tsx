@@ -3,6 +3,7 @@ import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 
 export interface ImageCropPosition {
   x: number;
@@ -39,7 +40,7 @@ export default function ImageCropDialog({
         <DialogHeader>
           <DialogTitle>Adjust public image framing</DialogTitle>
           <DialogDescription className="text-white/55">
-            Drag the photo or use the controls. This same crop is used on your competition card, profile header, and gallery.
+            Drag the photo or use the controls. This same crop is used on the competition card, profile header, and gallery.
           </DialogDescription>
         </DialogHeader>
 
@@ -47,7 +48,7 @@ export default function ImageCropDialog({
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wider text-white/55">Competition card</p>
             <div
-              className="relative aspect-[1.45] touch-none cursor-move overflow-hidden rounded-md bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400"
+              className="relative aspect-[4/5] touch-none cursor-move overflow-hidden rounded-xl bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400"
               role="application"
               aria-label="Drag the image to adjust its public framing"
               tabIndex={0}
@@ -125,7 +126,7 @@ export default function ImageCropDialog({
             type="button"
             variant="ghost"
             className="min-h-10 justify-center text-white/70 hover:bg-white/10 hover:text-white sm:mr-auto"
-            onClick={() => onPositionChange({ x: 50, y: 50 })}
+            onClick={() => onPositionChange({ ...DEFAULT_TALENT_IMAGE_CROP_POSITION })}
             data-testid="button-reset-image-crop"
           >
             <RotateCcw className="mr-2 h-4 w-4" /> Reset

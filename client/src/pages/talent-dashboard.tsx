@@ -38,6 +38,7 @@ import {
 } from "@shared/nonprofit-policy";
 import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 
 interface Props {
   user: any;
@@ -361,7 +362,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
     setSavingImageCrop(true);
     try {
       const positions = Array.from({ length: profile.imageUrls?.length || 0 }, (_, index) =>
-        profile.imageCropPositions?.[index] || { x: 50, y: 50 },
+        profile.imageCropPositions?.[index] || { ...DEFAULT_TALENT_IMAGE_CROP_POSITION },
       );
       positions[editingImageCrop.index] = editingImageCrop.position;
       await apiRequest("PATCH", "/api/talent-profiles/me", { imageCropPositions: positions });
@@ -1939,7 +1940,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                         onOpenChange={(open) => { if (!open && !savingImageCrop) setEditingImageCrop(null); }}
                         src={editingImageCrop?.src || ""}
                         alt={editingImageCrop ? `Framing preview for ${driveImages?.[editingImageCrop.index]?.name || "photo"}` : "Image framing preview"}
-                        position={editingImageCrop?.position || { x: 50, y: 50 }}
+                        position={editingImageCrop?.position || { ...DEFAULT_TALENT_IMAGE_CROP_POSITION }}
                         onPositionChange={(position) => setEditingImageCrop((current) => current ? { ...current, position } : current)}
                         onSave={saveImageCrop}
                         isSaving={savingImageCrop}

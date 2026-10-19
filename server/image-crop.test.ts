@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeImageCropPositions } from "./image-crop";
 
-test("defaults missing image framing to centered positions", () => {
+test("defaults missing image framing to a face-forward position", () => {
   assert.deepEqual(normalizeImageCropPositions(undefined, 2), [
-    { x: 50, y: 50 },
-    { x: 50, y: 50 },
+    { x: 50, y: 18 },
+    { x: 50, y: 18 },
   ]);
 });
 

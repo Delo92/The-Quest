@@ -3,12 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, Calendar, Vote, Heart, Users, Crown, Award, ChevronRight, ShoppingCart, Menu, ChevronDown, Clock3, ImageIcon } from "lucide-react";
+import { Trophy, Calendar, Vote, Heart, Users, Crown, Award, ChevronRight, ShoppingCart, Menu, ChevronDown, Clock3, ImageIcon, Crop } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isVoteAuthenticationError, VoteAuthDialog } from "@/components/vote-auth-dialog";
+import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
@@ -16,6 +17,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify, slugifyWithId } from "@shared/slugify";
 import { preserveReferralQuery } from "@/lib/referral";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
@@ -209,6 +211,13 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   const { toast } = useToast();
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);
   const [voteAuthContestantId, setVoteAuthContestantId] = useState<number | null>(null);
+  const [editingContestantCrop, setEditingContestantCrop] = useState<{
+    profileId: number;
+    src: string;
+    alt: string;
+    position: ImageCropPosition;
+  } | null>(null);
+  const [savingContestantCrop, setSavingContestantCrop] = useState(false);
 
   const voteSource = useMemo(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -227,6 +236,41 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
     queryKey: ["/api/resolve/competition", categorySlug, compSlug],
     enabled: !!categorySlug && !!compSlug,
   });
+  const saveContestantCrop = async () => {
+    if (!editingContestantCrop || !competition || savingContestantCrop) return;
+    setSavingContestantCrop(true);
+    try {
+      const response = await apiRequest(
+        "PATCH",
+        `/api/admin/talent-profiles/${editingContestantCrop.profileId}/image-framing`,
+        { position: editingContestantCrop.position },
+      );
+      const result = await response.json() as { imageCropPositions: ImageCropPosition[] };
+      queryClient.setQueryData<CompetitionDetail>(
+        ["/api/resolve/competition", categorySlug, compSlug],
+        (current) => current
+          ? {
+              ...current,
+              contestants: current.contestants.map((entry) =>
+                entry.talentProfile.id === editingContestantCrop.profileId
+                  ? { ...entry, talentProfile: { ...entry.talentProfile, imageCropPositions: result.imageCropPositions } }
+                  : entry,
+              ),
+            }
+          : current,
+      );
+      setEditingContestantCrop(null);
+      toast({ title: "Photo framing saved", description: "The updated crop is now used on the contestant card and profile." });
+    } catch (error: any) {
+      toast({
+        title: "Could not save photo framing",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingContestantCrop(false);
+    }
+  };
   const { data: contestantVideoData = [], isLoading: isLoadingContestantVideos } = useQuery<{ contestantId: number; videos: ContestantVideo[] }[]>({
     queryKey: ["/api/resolve/competition", categorySlug, compSlug, "videos"],
     enabled: !!competition && !!categorySlug && !!compSlug,
@@ -712,6 +756,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                const pct = maxVotes > 0 ? (voteCount / maxVotes) * 100 : 0;
               const rankIcon = index === 0 ? <Crown className="h-4 w-4 text-yellow-400" /> : index === 1 ? <Award className="h-4 w-4 text-gray-300" /> : index === 2 ? <Award className="h-4 w-4 text-orange-400" /> : null;
               const videos = contestantVideos.get(contestant.id) || [];
+               const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
                const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
                const stageResult = selectedStage ? contestant.stageResults?.[selectedStage.id] : null;
     const referralQuery = preserveReferralQuery(window.location.search);
@@ -720,7 +765,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               return (
                 <div
                   key={contestant.id}
-                  className="group cursor-pointer transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]"
+                   className="overflow-hidden rounded-2xl border border-white/10 bg-[#101010] shadow-sm"
                   data-testid={`card-contestant-${contestant.id}`}
                 >
                   {demoMode && !selectedStage && videos.length > 0 ? (
@@ -734,16 +779,21 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                         />
                       </div>
                       {rankIcon && (
-                        <div className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center bg-black/70">
+                        <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/75">
                           {rankIcon}
                         </div>
                       )}
                     </div>
                   ) : (
-                  <Link href={contestantHref} className={`block relative overflow-hidden bg-black ${videos.length > 0 ? "p-1 space-y-1" : "h-52"}`}>
+                  <Link
+                    href={contestantHref}
+                    className={`relative block overflow-hidden bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] ${videos.length > 0 ? "space-y-1" : "aspect-[4/5]"}`}
+                    style={{ outlineColor: accent }}
+                    aria-label={`View ${contestant.talentProfile.stageName || contestant.talentProfile.displayName}'s profile`}
+                  >
                     {selectedStage && stageSubmissionsQuery.isLoading ? (
                       <div
-                        className="h-52 bg-[#101010] animate-pulse flex items-center justify-center text-xs uppercase tracking-[3px] text-white/70"
+                        className="aspect-[4/5] animate-pulse flex items-center justify-center bg-[#101010] text-xs uppercase tracking-[3px] text-white/70"
                         aria-label="Loading stage submission"
                       >
                         Loading stage media
@@ -762,16 +812,17 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                         src={stageSubmission.mediaUrl}
                         fallbackSrc={stageSubmission.thumbnailUrl || getImage("talent_profile_fallback") || undefined}
                         alt={`${contestant.talentProfile.stageName || contestant.talentProfile.displayName} — ${selectedStage.name}`}
-                        className="h-52 w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="aspect-[4/5] w-full object-cover"
+                        style={{ objectPosition: `${DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%` }}
                       />
                     ) : selectedStage ? (
-                      <div className="flex h-52 flex-col items-center justify-center gap-3 bg-[#101010] px-5 text-center">
+                      <div className="flex aspect-[4/5] flex-col items-center justify-center gap-3 bg-[#101010] px-5 text-center">
                         <ImageIcon className="h-8 w-8 text-white/15" />
                         <span className="text-xs uppercase tracking-[2px] text-white/70">No stage submission yet</span>
                       </div>
                     ) : isLoadingContestantVideos ? (
                       <div
-                        className="h-52 bg-[#101010] animate-pulse flex items-center justify-center text-xs uppercase tracking-[3px] text-white/70"
+                        className="aspect-[4/5] animate-pulse flex items-center justify-center bg-[#101010] text-xs uppercase tracking-[3px] text-white/70"
                         aria-label="Loading contestant media"
                       >
                         Loading media
@@ -794,67 +845,89 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                       );
                     }) : (
                       <FallbackImage
-                        src={(contestant as any).videoThumbnail || contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback") || undefined}
+                        src={(contestant as any).videoThumbnail || primaryProfileImage || getImage("talent_profile_fallback") || undefined}
                         fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback") || undefined}
                         alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="h-full w-full object-cover"
                         style={{
-                          objectPosition: `${contestant.talentProfile.imageCropPositions?.[0]?.x ?? 50}% ${contestant.talentProfile.imageCropPositions?.[0]?.y ?? 50}%`,
+                          objectPosition: `${contestant.talentProfile.imageCropPositions?.[0]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${contestant.talentProfile.imageCropPositions?.[0]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
                         }}
                       />
                     )}
                     {rankIcon && (
-                      <div className="absolute top-3 left-3 w-8 h-8 bg-black/70 flex items-center justify-center">
+                      <div className="absolute top-3 left-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/75">
                         {rankIcon}
                       </div>
                     )}
                     {stageResult && stageResult !== "active" && (
-                      <div className="absolute right-3 top-3 bg-black/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[1.5px]" style={{ border: `1px solid ${accent}80`, color: accentBg, fontFamily: accentFont }}>
+                      <div className="absolute right-3 top-3 rounded-full bg-black/85 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[1.5px]" style={{ border: `1px solid ${accent}80`, color: accentBg }}>
                         {stageResult}
                       </div>
                     )}
                   </Link>
                   )}
-                  <div className="bg-black group-hover:bg-[#f5f9fa] text-center py-6 px-4 transition-all duration-500">
+                   <div className="bg-[#141414] px-4 py-5 text-center">
                     <Link
                       href={contestantHref}
+                       className="inline-flex min-h-10 items-center justify-center rounded-sm text-white transition-colors hover:text-white/70 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                       style={{ outlineColor: accent }}
                       data-testid={`link-contestant-name-${contestant.id}`}
                     >
-                      <h4 className="text-white group-hover:text-black uppercase font-bold mb-2 transition-colors duration-500" style={{ fontFamily: accentFont || "inherit", fontSize: accentFont ? "1.3rem" : "1rem", letterSpacing: accentFont ? "0.06em" : "0" }} data-testid={`text-contestant-name-${contestant.id}`}>
+                       <h4 className="mb-1 font-sans text-base font-semibold leading-tight sm:text-lg" data-testid={`text-contestant-name-${contestant.id}`}>
                         {contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                       </h4>
                     </Link>
                     <div className="mb-3">
-                      <span className="text-white/60 group-hover:text-black/60 text-sm transition-colors duration-500" data-testid={`text-votes-${contestant.id}`}>
+                       <span className="text-sm text-white/65" data-testid={`text-votes-${contestant.id}`}>
                         {voteCount} {selectedStage ? "stage votes" : "votes"}
                       </span>
                       {contestant.talentProfile.category && (
                         <>
-                          <span className="text-white/55 group-hover:text-black/55 mx-2 transition-colors duration-500">|</span>
-                          <span className="text-white/60 group-hover:text-black/60 text-sm transition-colors duration-500">
+                           <span className="mx-2 text-white/35">·</span>
+                           <span className="text-sm text-white/55">
                             {contestant.talentProfile.category}
                           </span>
                         </>
                       )}
                     </div>
 
-                    <div className="relative h-1.5 bg-white/10 group-hover:bg-black/10 mb-4 transition-colors duration-500">
+                     <div className="relative mb-4 h-1.5 overflow-hidden rounded-full bg-white/10">
                       <div
-                        className="absolute inset-y-0 left-0 transition-all duration-1000"
+                         className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                         style={{ width: `${pct}%`, backgroundColor: accent }}
                       />
                     </div>
 
                     <div className="flex flex-col items-center gap-2">
                       <Link
-                  href={contestantHref}
-                        className="text-[11px] text-white group-hover:text-black uppercase border-b border-white group-hover:border-black pb-1 transition-colors duration-500"
-                        style={{ letterSpacing: "4px" }}
+                         href={contestantHref}
+                         className="inline-flex min-h-10 items-center justify-center rounded-full border px-5 text-sm font-semibold transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                         style={{ borderColor: accent, color: accent, outlineColor: accent }}
                         data-testid={`link-profile-${contestant.id}`}
-                        onClick={(e) => e.stopPropagation()}
                       >
                         View Profile
                       </Link>
+                       {user && user.level >= 4 && !selectedStage && !isLoadingContestantVideos && videos.length === 0 && primaryProfileImage && (
+                         <button
+                           type="button"
+                           className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-white/15 px-4 text-xs font-medium text-white/65 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                           style={{ outlineColor: accent }}
+                           onClick={() => {
+                             const position = contestant.talentProfile.imageCropPositions?.[0]
+                               ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
+                             setEditingContestantCrop({
+                               profileId: contestant.talentProfile.id,
+                               src: primaryProfileImage,
+                               alt: contestant.talentProfile.stageName || contestant.talentProfile.displayName,
+                               position: { x: position.x, y: position.y },
+                             });
+                           }}
+                           data-testid={`button-adjust-contestant-framing-${contestant.id}`}
+                         >
+                           <Crop className="h-3.5 w-3.5" />
+                           Adjust photo framing
+                         </button>
+                       )}
                       {canVote && (
                         <div className="flex items-center justify-center gap-2 w-full flex-wrap">
                           <button
@@ -869,7 +942,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                               voteMutation.mutate({ contestantId: contestant.id, stageId: selectedStage?.id });
                             }}
                             disabled={voteMutation.isPending}
-                            className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 bg-black group-hover:bg-[#111] text-white font-bold text-sm capitalize px-4 py-2.5 min-h-[44px] border border-black transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
+                            className="flex min-h-11 flex-1 min-w-[120px] items-center justify-center gap-1.5 rounded-full border border-white/20 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+                            style={{ outlineColor: accent }}
                             data-testid={`button-vote-${contestant.id}`}
                           >
                             <Heart className="h-3.5 w-3.5 flex-shrink-0" />
@@ -878,8 +952,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                           {!isInPersonOnlyEvent && (
                             <Link
                                href={`/checkout/${competition.id}/${contestant.id}${selectedStage ? `?stageId=${encodeURIComponent(selectedStage.id)}` : ""}`}
-                              className="flex-1 min-w-[90px] flex items-center justify-center gap-1.5 font-bold capitalize px-4 py-2.5 min-h-[44px] border transition-all duration-500 cursor-pointer"
-                              style={{ backgroundColor: accentBg, color: accentText, borderColor: accentBg, fontFamily: accentFont || "inherit", fontSize: accentFont ? "1rem" : "0.875rem", letterSpacing: accentFont ? "2px" : "0", clipPath: clipBtn }}
+                               className="flex min-h-11 flex-1 min-w-[120px] items-center justify-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-semibold transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                               style={{ backgroundColor: accentBg, color: accentText, borderColor: accentBg, outlineColor: accent }}
                               onClick={(e) => e.stopPropagation()}
                               data-testid={`button-buy-votes-${contestant.id}`}
                             >
@@ -925,6 +999,20 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
         competitionId={competition?.id ?? null}
         contestantId={voteAuthContestantId}
       />
+      {editingContestantCrop && (
+        <ImageCropDialog
+          open={!!editingContestantCrop}
+          onOpenChange={(open) => {
+            if (!open && !savingContestantCrop) setEditingContestantCrop(null);
+          }}
+          src={editingContestantCrop.src}
+          alt={`Photo framing for ${editingContestantCrop.alt}`}
+          position={editingContestantCrop.position}
+          onPositionChange={(position) => setEditingContestantCrop((current) => current ? { ...current, position } : current)}
+          onSave={saveContestantCrop}
+          isSaving={savingContestantCrop}
+        />
+      )}
     </div>
   );
 }

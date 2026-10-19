@@ -19,6 +19,7 @@ import { parsePublicLinks } from "@shared/public-links";
 import { preserveReferralQuery } from "@/lib/referral";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { buildVimeoSrc } from "@/lib/media-utils";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 
 interface ResolvedData {
   competition: {
@@ -550,7 +551,7 @@ export default function ContestantSharePage() {
               alt={profile.stageName || profile.displayName || ""}
               className="absolute inset-0 w-full h-full object-cover"
               style={{
-                objectPosition: `${profile.imageCropPositions?.[0]?.x ?? 50}% ${profile.imageCropPositions?.[0]?.y ?? 50}%`,
+                objectPosition: `${profile.imageCropPositions?.[0]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[0]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
               }}
             />
           )}
@@ -669,7 +670,7 @@ export default function ContestantSharePage() {
                       alt=""
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       style={{
-                        objectPosition: `${profile.imageCropPositions?.[i]?.x ?? 50}% ${profile.imageCropPositions?.[i]?.y ?? 50}%`,
+                        objectPosition: `${profile.imageCropPositions?.[i]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[i]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
                       }}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500" />
