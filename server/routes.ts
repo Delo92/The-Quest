@@ -61,6 +61,7 @@ import {
   firestoreHostSubmissions,
   firestoreInvitations,
   firestoreArtistProfileReminders,
+  firestoreEmailActivity,
   firestoreReferrals,
   firestoreCompetitions,
   firestoreTalentProfiles,
@@ -3114,6 +3115,7 @@ export async function registerRoutes(
           nomineeName: "Sample Talent", nominatorName: "The Quest Admin",
           competitionName: "CB Publishing Music 2026",
           defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
+          trackDelivery: false,
         });
 
         // 2. Nomination Congrats (to the nominee)
@@ -3122,6 +3124,7 @@ export async function registerRoutes(
           competitionName: "CB Publishing Music 2026", siteUrl,
           defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
           endpoint: "/api/admin/test-email",
+          trackDelivery: false,
         });
 
         // 3. Nomination Receipt (for the nominator)
@@ -3165,6 +3168,7 @@ export async function registerRoutes(
           nomineeName: "Sample Talent", nominatorName: "The Quest Admin",
           competitionName: "CB Publishing Music 2026",
           defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
+          trackDelivery: false,
         });
       } else if (template === "nomination_congrats") {
         await sendNominationCongrats({
@@ -3172,6 +3176,7 @@ export async function registerRoutes(
           competitionName: "CB Publishing Music 2026", siteUrl,
           defaultPassword: getTemporaryAccountPassword(), accountCreated: true,
           endpoint: "/api/admin/test-email",
+          trackDelivery: false,
         });
       } else if (template === "nomination_receipt") {
         await sendNominationReceipt({
@@ -3209,6 +3214,19 @@ export async function registerRoutes(
       res.json({ success: true, message: `${labels[template] || "Generic Test"} email sent to ${to}` });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/email-activity", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const requestedLimit = Number(req.query.limit ?? 100);
+      const limit = Number.isFinite(requestedLimit) ? requestedLimit : 100;
+      const activity = await firestoreEmailActivity.getRecent(limit);
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ items: activity });
+    } catch (error) {
+      console.error("Get email activity error:", error instanceof Error ? error.message : "Unknown error");
+      res.status(500).json({ message: "Failed to load email activity" });
     }
   });
 

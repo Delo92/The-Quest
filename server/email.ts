@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { google } from "googleapis";
 import { createHash, randomUUID } from "node:crypto";
-import { firestoreLivery } from "./firestore-collections";
+import { firestoreEmailActivity, firestoreLivery } from "./firestore-collections";
 import { getFirebaseAuth } from "./firebase-admin";
 import { getMicrosoftEmailSettings } from "./microsoft-email-oauth";
 import { buildAccountLoginUrl } from "../shared/account-login-links";
@@ -262,7 +262,21 @@ export async function sendInviteEmail(opts: {
   needsVideo?: boolean;
   reminderStopUrl?: string;
   replyTo?: string;
+  trackDelivery?: boolean;
 }): Promise<boolean> {
+  let activityId: string | null = null;
+  if (opts.trackDelivery !== false && !opts.isReminder) {
+    try {
+      activityId = await firestoreEmailActivity.startWelcomeEmail({
+        recipientEmail: opts.to,
+        recipientName: opts.nomineeName || opts.to.split("@")[0],
+        competitionName: opts.competitionName,
+      });
+    } catch {
+      console.warn("[EmailActivity] Could not record the welcome email attempt.");
+    }
+  }
+
   try {
     const transporter = await getTransporter();
     const roleDisplay = opts.role.charAt(0).toUpperCase() + opts.role.slice(1);
@@ -373,7 +387,7 @@ export async function sendInviteEmail(opts: {
       ${opts.isReminder && opts.reminderStopUrl ? `<p class="fallback-link"><a href="${escapeHtml(opts.reminderStopUrl)}">Stop these reminders</a></p>` : ""}
     `);
 
-    await transporter.sendMail({
+    const sendResult = await transporter.sendMail({
       from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
@@ -387,10 +401,38 @@ export async function sendInviteEmail(opts: {
       html,
     });
 
-    console.log(`Invite email sent to ${opts.to}`);
-    return true;
+    const accepted = sendResult.accepted?.length > 0 && !sendResult.rejected?.length;
+    if (activityId) {
+      try {
+        await firestoreEmailActivity.finishWelcomeEmail(activityId, {
+          status: accepted ? "provider_accepted" : "failed",
+          providerMessageId: sendResult.messageId || null,
+          failureCode: accepted ? null : "recipient_not_accepted",
+        });
+      } catch {
+        console.warn("[EmailActivity] Could not save the welcome email result.");
+      }
+    }
+
+    console.log(accepted
+      ? `Invite email accepted by mail provider for ${opts.to}`
+      : `Invite email was not accepted by mail provider for ${opts.to}`);
+    return accepted;
   } catch (err: any) {
     console.error("Failed to send invite email:", err.message);
+    if (activityId) {
+      try {
+        const failureCode = typeof err?.code === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(err.code)
+          ? err.code
+          : "send_error";
+        await firestoreEmailActivity.finishWelcomeEmail(activityId, {
+          status: "failed",
+          failureCode,
+        });
+      } catch {
+        console.warn("[EmailActivity] Could not save the failed welcome email result.");
+      }
+    }
     resetTransporter();
     return false;
   }
@@ -411,8 +453,22 @@ export async function sendNominationCongrats(opts: {
   accountLevel?: number;
   diagnosticId?: string;
   endpoint?: string;
+  trackDelivery?: boolean;
 }): Promise<boolean> {
   const diagnosticId = opts.diagnosticId || randomUUID();
+  let activityId: string | null = null;
+  if (opts.trackDelivery !== false) {
+    try {
+      activityId = await firestoreEmailActivity.startWelcomeEmail({
+        recipientEmail: opts.to,
+        recipientName: opts.nomineeName,
+        competitionName: opts.competitionName,
+      });
+    } catch {
+      console.warn("[EmailActivity] Could not record the nomination welcome email attempt.");
+    }
+  }
+
   try {
     const transporter = await getTransporter();
     const loginUrl = buildAccountLoginUrl(opts.siteUrl, opts.to, { level: opts.accountLevel || 2 });
@@ -481,16 +537,44 @@ export async function sendNominationCongrats(opts: {
       <p style="font-size:13px; color:#555;">Share this on social media and tell your fans to VOTE for you! Every vote counts toward your ranking.</p>
     `);
 
-    await transporter.sendMail({
+    const sendResult = await transporter.sendMail({
       from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
       subject: `🏆 You've Been Nominated — ${opts.competitionName} | The Quest`,
       html,
     });
 
-    console.log(`Nomination congrats email sent to ${opts.to}`);
-    return true;
+    const accepted = sendResult.accepted?.length > 0 && !sendResult.rejected?.length;
+    if (activityId) {
+      try {
+        await firestoreEmailActivity.finishWelcomeEmail(activityId, {
+          status: accepted ? "provider_accepted" : "failed",
+          providerMessageId: sendResult.messageId || null,
+          failureCode: accepted ? null : "recipient_not_accepted",
+        });
+      } catch {
+        console.warn("[EmailActivity] Could not save the nomination welcome email result.");
+      }
+    }
+
+    console.log(accepted
+      ? `Nomination welcome email accepted by mail provider for ${opts.to}`
+      : `Nomination welcome email was not accepted by mail provider for ${opts.to}`);
+    return accepted;
   } catch (error: any) {
+    if (activityId) {
+      try {
+        const failureCode = typeof error?.code === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(error.code)
+          ? error.code
+          : "send_error";
+        await firestoreEmailActivity.finishWelcomeEmail(activityId, {
+          status: "failed",
+          failureCode,
+        });
+      } catch {
+        console.warn("[EmailActivity] Could not save the failed nomination welcome email result.");
+      }
+    }
     await logEmailDiagnostic({
       stage: "nominee_access_send",
       error,

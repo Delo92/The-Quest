@@ -22,6 +22,7 @@ const COLLECTIONS = {
   COUNTERS: "counters",
   JOIN_SETTINGS: "joinSettings",
   JOIN_SUBMISSIONS: "joinSubmissions",
+  EMAIL_ACTIVITY: "emailActivity",
   HOST_SETTINGS: "hostSettings",
   HOST_SUBMISSIONS: "hostSubmissions",
   INVITATIONS: "invitations",
@@ -1445,6 +1446,66 @@ export const firestoreHostSubmissions = {
     await ref.update({ status });
     const updated = await ref.get();
     return updated.data() as FirestoreHostSubmission;
+  },
+};
+
+export interface FirestoreEmailActivity {
+  id: string;
+  kind: "welcome";
+  recipientEmail: string;
+  recipientName: string;
+  competitionName: string | null;
+  status: "sending" | "provider_accepted" | "failed";
+  attemptedAt: string;
+  updatedAt: string;
+  providerMessageId?: string | null;
+  failureCode?: string | null;
+}
+
+export const firestoreEmailActivity = {
+  async startWelcomeEmail(input: {
+    recipientEmail: string;
+    recipientName: string;
+    competitionName?: string | null;
+  }): Promise<string> {
+    const ref = db().collection(COLLECTIONS.EMAIL_ACTIVITY).doc();
+    const attemptedAt = new Date().toISOString();
+    const record: FirestoreEmailActivity = {
+      id: ref.id,
+      kind: "welcome",
+      recipientEmail: input.recipientEmail.trim().toLowerCase(),
+      recipientName: input.recipientName,
+      competitionName: input.competitionName || null,
+      status: "sending",
+      attemptedAt,
+      updatedAt: attemptedAt,
+    };
+    await ref.set(record);
+    return ref.id;
+  },
+
+  async finishWelcomeEmail(
+    id: string,
+    result: {
+      status: "provider_accepted" | "failed";
+      providerMessageId?: string | null;
+      failureCode?: string | null;
+    },
+  ): Promise<void> {
+    await db().collection(COLLECTIONS.EMAIL_ACTIVITY).doc(id).update({
+      ...result,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+
+  async getRecent(limit = 100): Promise<FirestoreEmailActivity[]> {
+    const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+    const snapshot = await db()
+      .collection(COLLECTIONS.EMAIL_ACTIVITY)
+      .orderBy("attemptedAt", "desc")
+      .limit(safeLimit)
+      .get();
+    return snapshot.docs.map((doc) => doc.data() as FirestoreEmailActivity);
   },
 };
 

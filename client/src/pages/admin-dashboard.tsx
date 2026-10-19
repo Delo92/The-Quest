@@ -35,6 +35,7 @@ import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 import AdminPayrollSettings from "@/components/admin-payroll-settings";
 import AdminFinancialOverview, { type FinancialView } from "@/components/admin-financial-overview";
 import AdminMicrosoftEmail from "@/components/admin-microsoft-email";
+import AdminEmailActivity from "@/components/admin-email-activity";
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
@@ -2908,6 +2909,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               </div>
               <AdminMicrosoftEmail />
               <GmailStatusPanel />
+              <AdminEmailActivity />
             </div>
           </TabsContent>
 
