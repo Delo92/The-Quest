@@ -1,5 +1,5 @@
 import { Switch, Route, Redirect, useSearch, useParams } from "wouter";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,29 +8,30 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useLivery } from "@/hooks/use-livery";
 import { useGATracking } from "@/hooks/use-ga-tracking";
 import { installClientErrorHandlers } from "@/lib/client-error-logger";
-import NotFound from "@/pages/not-found";
-import CodeLandingPage from "@/pages/code-landing";
-import HomePage from "@/pages/home";
-import Landing from "@/pages/landing";
-import Competitions from "@/pages/competitions";
-import CompetitionDetail from "@/pages/competition-detail";
-import TalentProfilePublic from "@/pages/talent-profile-public";
-import Dashboard from "@/pages/dashboard";
-import LoginPage from "@/pages/login";
-import CheckoutPage from "@/pages/checkout";
-import MyPurchasesPage from "@/pages/my-purchases";
-import JoinPage from "@/pages/join";
-import HostPage from "@/pages/host";
-import ContestantSharePage from "@/pages/contestant-share";
-import HostProfilePublic from "@/pages/host-profile-public";
-import AboutPage from "@/pages/about";
-import FAQPage from "@/pages/faq";
-import ViewerDashboard from "@/pages/viewer-dashboard";
-import AppDemoPage from "@/pages/app-demo";
-import ReferralLandingPage from "@/pages/referral-landing";
-import AdminFormsPage from "@/pages/admin-forms";
-import PublicFormPage from "@/pages/public-form";
 import { WeeklyConsentGate } from "@/components/weekly-consent-gate";
+
+const NotFound = lazy(() => import("@/pages/not-found"));
+const CodeLandingPage = lazy(() => import("@/pages/code-landing"));
+const HomePage = lazy(() => import("@/pages/home"));
+const Landing = lazy(() => import("@/pages/landing"));
+const Competitions = lazy(() => import("@/pages/competitions"));
+const CompetitionDetail = lazy(() => import("@/pages/competition-detail"));
+const TalentProfilePublic = lazy(() => import("@/pages/talent-profile-public"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const LoginPage = lazy(() => import("@/pages/login"));
+const CheckoutPage = lazy(() => import("@/pages/checkout"));
+const MyPurchasesPage = lazy(() => import("@/pages/my-purchases"));
+const JoinPage = lazy(() => import("@/pages/join"));
+const HostPage = lazy(() => import("@/pages/host"));
+const ContestantSharePage = lazy(() => import("@/pages/contestant-share"));
+const HostProfilePublic = lazy(() => import("@/pages/host-profile-public"));
+const AboutPage = lazy(() => import("@/pages/about"));
+const FAQPage = lazy(() => import("@/pages/faq"));
+const ViewerDashboard = lazy(() => import("@/pages/viewer-dashboard"));
+const AppDemoPage = lazy(() => import("@/pages/app-demo"));
+const ReferralLandingPage = lazy(() => import("@/pages/referral-landing"));
+const AdminFormsPage = lazy(() => import("@/pages/admin-forms"));
+const PublicFormPage = lazy(() => import("@/pages/public-form"));
 
 function RootEntryPage() {
   const search = useSearch();
@@ -121,14 +122,22 @@ function App() {
         <TooltipProvider>
           <DynamicFavicon />
           <Toaster />
-          <Switch>
-            <Route path="/" component={RootEntryPage} />
-            <Route path="/app-demo" component={AppDemoPage} />
-            <Route path="/talent/:id" component={TalentProfileRedirect} />
-            <Route path="/thequest" nest component={QuestApplication} />
-            <Route path="/:slug" component={CodeLandingPage} />
-            <Route component={NotFound} />
-          </Switch>
+          <Suspense
+            fallback={
+              <div className="flex min-h-[40vh] items-center justify-center px-4 text-sm text-white/60" role="status">
+                Loading page…
+              </div>
+            }
+          >
+            <Switch>
+              <Route path="/" component={RootEntryPage} />
+              <Route path="/app-demo" component={AppDemoPage} />
+              <Route path="/talent/:id" component={TalentProfileRedirect} />
+              <Route path="/thequest" nest component={QuestApplication} />
+              <Route path="/:slug" component={CodeLandingPage} />
+              <Route component={NotFound} />
+            </Switch>
+          </Suspense>
         </TooltipProvider>
       </ErrorTelemetryBoundary>
     </QueryClientProvider>
