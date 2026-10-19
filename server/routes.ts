@@ -1627,10 +1627,10 @@ export async function registerRoutes(
 
   app.get("/api/stats/total-votes", async (req, res) => {
     try {
-      const total = await getCachedPublicResponse("stats:total-votes", 15_000, () =>
+      const total = await getCachedPublicResponse("stats:total-votes", 10_000, () =>
         firestoreVotes.getTotalPlatformVotes(),
       );
-      setPublicCacheHeaders(res, 15);
+      res.setHeader("Cache-Control", "no-store");
       res.json({ totalVotes: total });
     } catch (error: any) {
       console.error("Total votes error:", error);
@@ -7112,6 +7112,7 @@ export async function registerRoutes(
         voteCount: totalVotes,
         refCode: resolvedRefCode,
       });
+      invalidatePublicResponseCache("stats:total-votes");
 
       if (resolvedRefCode) {
         try {

@@ -5,6 +5,7 @@ import { useViewerSession } from "@/hooks/use-viewer-session";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useLivery } from "@/hooks/use-livery";
 import { ShoppingCart, Radio } from "lucide-react";
+import { VOTE_COUNT_UPDATED_EVENT } from "@/lib/vote-count-events";
 
 function useAnimatedCounter(targetValue: number, duration: number = 800) {
   const [displayValue, setDisplayValue] = useState(targetValue);
@@ -41,7 +42,7 @@ function LiveVoteCounter() {
 
   const fetchVotes = useCallback(async () => {
     try {
-      const res = await fetch("/api/stats/total-votes");
+      const res = await fetch("/api/stats/total-votes", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setTotalVotes(data.totalVotes);
@@ -51,12 +52,22 @@ function LiveVoteCounter() {
 
   useEffect(() => {
     fetchVotes();
-    // Poll every 60s — server caches for 15s so faster than this returns stale data anyway.
-    // Pause while the tab is hidden so background tabs don't hammer the server.
+    const handleVoteCountUpdated = () => { void fetchVotes(); };
+    const handleVisibilityChange = () => {
+      if (!document.hidden) void fetchVotes();
+    };
+    window.addEventListener(VOTE_COUNT_UPDATED_EVENT, handleVoteCountUpdated);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Keep public counters reasonably current without refetching on every render.
     const interval = setInterval(() => {
-      if (!document.hidden) fetchVotes();
-    }, 60_000);
-    return () => clearInterval(interval);
+      if (!document.hidden) void fetchVotes();
+    }, 15_000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener(VOTE_COUNT_UPDATED_EVENT, handleVoteCountUpdated);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [fetchVotes]);
 
   if (totalVotes === null) return null;

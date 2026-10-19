@@ -16,6 +16,7 @@ import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import { slugify } from "@shared/slugify";
 import { confirmStripeCardPayment, type StripeInstance, type StripeCardHandle } from "@/lib/buyer-payment";
 import { StripeCardField } from "@/components/stripe-card-field";
+import { notifyVoteCountUpdated } from "@/lib/vote-count-events";
 
 declare global {
   interface Window {
@@ -415,6 +416,7 @@ export default function CheckoutPage() {
           ...(stripePaymentIntentId ? { stripePaymentIntentId } : {}),
         });
         const data = await resultResponse.json();
+        notifyVoteCountUpdated();
         setSuccess(true);
         setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
         toast({ title: "Purchase successful!", description: `${data.votesAdded} votes added!` });
@@ -462,6 +464,7 @@ export default function CheckoutPage() {
         const result = await apiRequest("POST", "/api/guest/checkout", body);
 
         const data = await result.json();
+        notifyVoteCountUpdated();
         setSuccess(true);
         setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
         toast({ title: "Purchase successful!", description: `${data.votesAdded} votes added!` });
@@ -486,6 +489,7 @@ export default function CheckoutPage() {
         .then(async (response) => {
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || "PayPal payment could not be completed.");
+          notifyVoteCountUpdated();
           setSuccess(true);
           setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
           sessionStorage.removeItem("quest_paypal_checkout");
