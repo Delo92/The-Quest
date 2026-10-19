@@ -1228,7 +1228,7 @@ export default function JoinPage() {
             ]}
             totalAmount={`$${(paymentAmount / 100).toFixed(2)}`}
             confirmText={paymentAmount > 0 ? `PAY $${(paymentAmount / 100).toFixed(2)} & NOMINATE` : "SUBMIT NOMINATION"}
-            termsSummary={platformSettings?.termsSummary}
+            termsContext="nomination"
             termsFinePrint={platformSettings?.termsFinePrint}
           />
         )}

@@ -1116,7 +1116,7 @@ export default function CheckoutPage() {
               lineItems={lineItems}
               totalAmount={`$${total.toFixed(2)}`}
               confirmText={noPaymentDue ? "COMPLETE FREE CHECKOUT" : `PAY $${total.toFixed(2)}`}
-              termsSummary={platformSettings?.termsSummary}
+              termsContext="vote"
               termsFinePrint={platformSettings?.termsFinePrint}
             />
           );

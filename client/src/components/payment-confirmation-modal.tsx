@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CreditCard, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  getPaymentTermsForContext,
+  PAYMENT_TERMS_LABELS,
+  type PaymentTermsContext,
+} from "@/lib/payment-terms";
 
 export interface PaymentLineItem {
   label: string;
@@ -20,8 +25,8 @@ interface PaymentConfirmationModalProps {
   totalAmount: string;
   confirmText?: string;
   cancelText?: string;
-  termsSummary?: string;
   termsFinePrint?: string;
+  termsContext: PaymentTermsContext;
 }
 
 export default function PaymentConfirmationModal({
@@ -36,14 +41,19 @@ export default function PaymentConfirmationModal({
   totalAmount,
   confirmText = "CONFIRM & PAY",
   cancelText = "CANCEL",
-  termsSummary,
   termsFinePrint,
+  termsContext,
 }: PaymentConfirmationModalProps) {
   const [termsAccepted, setTermsAccepted] = useState(true);
   const [showFinePrint, setShowFinePrint] = useState(false);
 
-  const hasTerms = !!(termsSummary?.trim());
-  const summaryLines = termsSummary?.trim().split("\n").filter((l) => l.trim()) || [];
+  const paymentTerms = getPaymentTermsForContext(termsFinePrint, termsContext);
+  const hasTerms = !!paymentTerms;
+  const termsLabel = PAYMENT_TERMS_LABELS[termsContext];
+
+  useEffect(() => {
+    if (open) setShowFinePrint(false);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !processing && onClose()}>
@@ -84,35 +94,31 @@ export default function PaymentConfirmationModal({
                 data-testid="checkbox-terms"
               />
               <span className="text-xs text-white/70 leading-relaxed">
-                I agree to the Terms & Conditions:
+                I agree to the {termsLabel} Terms & Conditions.
               </span>
             </label>
 
-            <ul className="pl-9 space-y-1">
-              {summaryLines.map((line, i) => (
-                <li key={i} className="text-[11px] text-white/50 leading-relaxed flex items-start gap-2">
-                  <span className="text-[#FF5A09] mt-0.5 flex-shrink-0">•</span>
-                  <span>{line.trim()}</span>
-                </li>
-              ))}
-            </ul>
-
-            {termsFinePrint?.trim() && (
-              <div className="pl-9">
+            {paymentTerms && (
+              <div className="pl-7">
                 <button
                   type="button"
                   onClick={() => setShowFinePrint(!showFinePrint)}
-                  className="text-[11px] text-[#FF5A09] hover:text-orange-300 transition-colors flex items-center gap-1 mt-1"
+                  aria-expanded={showFinePrint}
+                  aria-controls="payment-terms-details"
+                  className="inline-flex min-h-9 items-center gap-1 text-[11px] text-[#FF5A09] hover:text-orange-300 transition-colors"
                   data-testid="button-view-fine-print"
                 >
-                  {showFinePrint ? "Hide" : "View"} Full Details
+                  {showFinePrint ? "Hide" : "View"} {termsLabel} terms
                   {showFinePrint ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 </button>
-                {showFinePrint && (
-                  <div className="mt-2 p-3 bg-white/5 border border-white/10 rounded text-[11px] text-white/50 leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre-wrap" data-testid="text-fine-print">
-                    {termsFinePrint.trim()}
-                  </div>
-                )}
+                <div
+                  id="payment-terms-details"
+                  hidden={!showFinePrint}
+                  className="mt-2 p-3 bg-white/5 border border-white/10 rounded text-[11px] text-white/60 leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre-wrap"
+                  data-testid="text-fine-print"
+                >
+                  {paymentTerms}
+                </div>
               </div>
             )}
           </div>

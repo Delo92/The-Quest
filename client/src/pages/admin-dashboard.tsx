@@ -5388,9 +5388,9 @@ export default function AdminDashboard({ user }: { user: any }) {
 
                   <div className="rounded-md bg-white/5 border border-white/10 p-5 space-y-4">
                     <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Terms & Conditions</h4>
-                    <p className="text-[10px] text-white/25">Displayed in the payment confirmation modal. Summary appears as bullet points; full details are viewable via an expandable link.</p>
+                    <p className="text-[10px] text-white/25">Payment confirmations keep terms collapsed behind a purchase-specific disclosure. The legacy summary is retained for compatibility; customers see the relevant sections from Full Details only when they expand the disclosure.</p>
                     <div>
-                      <Label className="text-white/50 text-xs">Summary (Bullet Points)</Label>
+                      <Label className="text-white/50 text-xs">Legacy Summary (Not Shown at Checkout)</Label>
                       <Textarea
                         value={form.termsSummary ?? ""}
                         onChange={(e) => updateForm("termsSummary", e.target.value)}
@@ -5398,7 +5398,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         placeholder={"All fees are non-refundable once processed.\nBy proceeding, you agree to the official competition rules.\nVote purchases support the contestant's chosen nonprofit."}
                         data-testid="input-terms-summary"
                       />
-                      <p className="text-[10px] text-white/25 mt-1">Each line becomes a bullet point in the confirmation modal</p>
+                      <p className="text-[10px] text-white/25 mt-1">Saved for compatibility with older settings; this summary is no longer repeated in payment confirmations.</p>
                     </div>
                     <div>
                       <Label className="text-white/50 text-xs">Full Details (Fine Print)</Label>
@@ -5409,7 +5409,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         placeholder="Enter the full legal terms and conditions here..."
                         data-testid="input-terms-fine-print"
                       />
-                      <p className="text-[10px] text-white/25 mt-1">Viewable via "View Full Details" link in the payment modal</p>
+                      <p className="text-[10px] text-white/25 mt-1">Shown only after expanding the relevant disclosure. Use the headings Nomination Fees, Vote Package Purchases, No Refund Policy, User Responsibility, Fraud Prevention &amp; Payment Security, Chargebacks &amp; Payment Disputes, and Agreement to Terms to keep payment types separate.</p>
                     </div>
                   </div>
 

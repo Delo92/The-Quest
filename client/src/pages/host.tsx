@@ -895,7 +895,7 @@ export default function HostPage() {
             ]}
             totalAmount={`$${amountDue.toFixed(2)}`}
             confirmText={needsPayment ? `PAY $${amountDue.toFixed(2)} & SUBMIT` : "SUBMIT EVENT PROPOSAL"}
-            termsSummary={platformSettings?.termsSummary}
+            termsContext="host"
             termsFinePrint={platformSettings?.termsFinePrint}
           />
         )}
