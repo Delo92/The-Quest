@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,8 @@ interface WelcomeEmailActivity {
 interface ActivityResponse {
   items: WelcomeEmailActivity[];
 }
+
+const PAGE_SIZE = 20;
 
 function statusPresentation(status: WelcomeEmailActivity["status"]) {
   if (status === "provider_accepted") {
@@ -50,6 +52,7 @@ function formatAttemptedAt(value: string) {
 
 export default function AdminEmailActivity() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const { data, isLoading, isError, isFetching, refetch } = useQuery<ActivityResponse>({
     queryKey: ["/api/admin/email-activity"],
     refetchInterval: 30_000,
@@ -64,6 +67,14 @@ export default function AdminEmailActivity() {
       item.competitionName || "",
     ].some((value) => value.toLowerCase().includes(needle)));
   }, [items, search]);
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+  const currentPage = Math.min(page, pageCount);
+  const pageItems = filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const firstVisible = filteredItems.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const lastVisible = Math.min(currentPage * PAGE_SIZE, filteredItems.length);
 
   return (
     <section className="space-y-4 border-t border-white/10 pt-5" aria-labelledby="welcome-email-activity-title">
@@ -94,14 +105,17 @@ export default function AdminEmailActivity() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Input
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder="Search name, email, or competition"
           aria-label="Search welcome email activity"
           className="min-h-10 border-white/15 bg-white/[0.04] text-white placeholder:text-white/35 sm:max-w-sm"
           data-testid="input-search-email-activity"
         />
         <span className="text-xs text-white/45">
-          Showing {filteredItems.length} of {items.length} recent sends
+          Showing {firstVisible}–{lastVisible} of {filteredItems.length} matching sends
         </span>
       </div>
 
@@ -120,42 +134,72 @@ export default function AdminEmailActivity() {
           No recent sends match that search.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-md border border-white/10">
-          <div className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-white/45 md:grid">
-            <span>Recipient</span>
-            <span>Competition</span>
-            <span>Attempted</span>
-            <span>Send result</span>
+        <div className="space-y-3">
+          <div className="overflow-hidden rounded-md border border-white/10">
+            <div className="hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-white/45 md:grid">
+              <span>Recipient</span>
+              <span>Competition</span>
+              <span>Attempted</span>
+              <span>Send result</span>
+            </div>
+            <div className="divide-y divide-white/[0.07]">
+              {pageItems.map((item) => {
+                const status = statusPresentation(item.status);
+                return (
+                  <article
+                    key={item.id}
+                    className="grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-3"
+                    data-testid={`email-activity-${item.id}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-medium text-white">{item.recipientName}</p>
+                      <p className="break-all text-xs text-white/55">{item.recipientEmail}</p>
+                    </div>
+                    <p className="text-xs text-white/65">
+                      <span className="mr-1 text-white/40 md:hidden">Competition:</span>
+                      {item.competitionName || "The Quest"}
+                    </p>
+                    <p className="text-xs tabular-nums text-white/55">
+                      <span className="mr-1 text-white/40 md:hidden">Attempted:</span>
+                      {formatAttemptedAt(item.attemptedAt)}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className={status.className}>{status.label}</Badge>
+                      {item.failureCode && <span className="text-[11px] text-white/45">Code: {item.failureCode}</span>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
-          <div className="divide-y divide-white/[0.07]">
-            {filteredItems.map((item) => {
-              const status = statusPresentation(item.status);
-              return (
-                <article
-                  key={item.id}
-                  className="grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-3"
-                  data-testid={`email-activity-${item.id}`}
-                >
-                  <div className="min-w-0">
-                    <p className="break-words text-sm font-medium text-white">{item.recipientName}</p>
-                    <p className="break-all text-xs text-white/55">{item.recipientEmail}</p>
-                  </div>
-                  <p className="text-xs text-white/65">
-                    <span className="mr-1 text-white/40 md:hidden">Competition:</span>
-                    {item.competitionName || "The Quest"}
-                  </p>
-                  <p className="text-xs tabular-nums text-white/55">
-                    <span className="mr-1 text-white/40 md:hidden">Attempted:</span>
-                    {formatAttemptedAt(item.attemptedAt)}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className={status.className}>{status.label}</Badge>
-                    {item.failureCode && <span className="text-[11px] text-white/45">Code: {item.failureCode}</span>}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+
+          <nav aria-label="Email activity pagination" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs text-white/50" aria-live="polite">
+              Page {currentPage} of {pageCount} · {PAGE_SIZE} per page
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-10 border-white/15 text-white"
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                data-testid="button-email-activity-previous"
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-10 border-white/15 text-white"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= pageCount}
+                data-testid="button-email-activity-next"
+              >
+                Next
+              </Button>
+            </div>
+          </nav>
         </div>
       )}
     </section>
