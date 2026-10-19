@@ -75,7 +75,7 @@ export default function AdminEmailActivity() {
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/60">
             New welcome, invitation, and nomination access emails appear here. “Accepted by provider” means the mail service
             accepted the message; it does not confirm inbox delivery. The app does not request delivery
-            or read receipts.
+            or read receipts. Activity tracking began after earlier sends, so old messages are not backfilled.
           </p>
         </div>
         <Button
@@ -113,7 +113,7 @@ export default function AdminEmailActivity() {
         </div>
       ) : items.length === 0 ? (
         <p className="rounded-md border border-white/10 px-4 py-8 text-center text-sm text-white/50">
-          No tracked welcome emails yet. Future welcome, invitation, and nomination access sends will appear here.
+          No tracked welcome emails yet. Only sends made after activity tracking was added will appear here.
         </p>
       ) : filteredItems.length === 0 ? (
         <p className="rounded-md border border-white/10 px-4 py-8 text-center text-sm text-white/50">
