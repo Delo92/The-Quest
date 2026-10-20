@@ -29,7 +29,7 @@ export default function OCReferralBanner({ href, audience }: OCReferralBannerPro
               <span className="font-semibold text-orange-200">THE QUEST</span> for free automation during your first Quest competition.
             </p>
             <p className="mt-2 text-xs leading-relaxed text-white/40">
-              Continuing opens Original Concepts and shares your email, name, and social profile links to prefill setup.
+              This offer does not connect OC to Quest or authorize Quest to publish. Continuing opens Original Concepts and shares your email, name, and social profile links to prefill setup.
             </p>
           </div>
         </div>

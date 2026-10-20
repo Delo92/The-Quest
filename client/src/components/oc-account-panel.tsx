@@ -39,16 +39,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import OCReferralBanner from "@/components/oc-referral-banner";
 
 interface OCAccountPanelProps {
   returnTo: "/thequest/dashboard";
+  referralHref: string;
+  referralAudience: "artist" | "host";
   demoMode?: boolean;
 }
 
 const platformLabel = (platform: string) =>
   platform.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-export default function OCAccountPanel({ returnTo, demoMode = false }: OCAccountPanelProps) {
+export default function OCAccountPanel({
+  returnTo,
+  referralHref,
+  referralAudience,
+  demoMode = false,
+}: OCAccountPanelProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [consentChecked, setConsentChecked] = useState(false);
@@ -341,6 +349,10 @@ export default function OCAccountPanel({ returnTo, demoMode = false }: OCAccount
             Disconnect
           </Button>
         )}
+      </div>
+
+      <div className="border-t border-white/10 pt-4">
+        <OCReferralBanner href={referralHref} audience={referralAudience} />
       </div>
 
       {isLoading ? (

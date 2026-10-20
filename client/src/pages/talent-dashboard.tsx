@@ -39,7 +39,6 @@ import {
 import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
-import OCReferralBanner from "@/components/oc-referral-banner";
 import OCAccountPanel from "@/components/oc-account-panel";
 import { buildOCReferralUrl } from "@/lib/oc-referral";
 
@@ -1105,9 +1104,11 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                 </div>
                 {!demoMode && (
                   <>
-                    <OCReferralBanner
-                      audience="artist"
-                      href={buildOCReferralUrl({
+                    <OCAccountPanel
+                      returnTo="/thequest/dashboard"
+                      demoMode={demoMode}
+                      referralAudience="artist"
+                      referralHref={buildOCReferralUrl({
                         role: "artist",
                         email,
                         displayName: displayName || profile?.displayName || user.displayName,
@@ -1121,7 +1122,6 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                         },
                       })}
                     />
-                    <OCAccountPanel returnTo="/thequest/dashboard" demoMode={demoMode} />
                   </>
                 )}
               </div>
