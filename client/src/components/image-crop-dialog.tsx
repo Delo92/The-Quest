@@ -3,11 +3,12 @@ import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION, getCompetitionCropImageStyle } from "@shared/image-crop";
 
 export interface ImageCropPosition {
   x: number;
   y: number;
+  zoom?: number;
 }
 
 interface ImageCropDialogProps {
@@ -22,6 +23,8 @@ interface ImageCropDialogProps {
   title?: string;
   description?: string;
   secondaryPreviewLabel?: string;
+  zoomEnabled?: boolean;
+  defaultZoom?: number;
 }
 
 export default function ImageCropDialog({
@@ -36,9 +39,14 @@ export default function ImageCropDialog({
   title = "Adjust public image framing",
   description = "Drag the photo or use the controls to adjust its public framing.",
   secondaryPreviewLabel = "Profile gallery",
+  zoomEnabled = false,
+  defaultZoom = 1.25,
 }: ImageCropDialogProps) {
   const dragStart = useRef<{ x: number; y: number; position: ImageCropPosition } | null>(null);
-  const objectPosition = `${position.x}% ${position.y}%`;
+  const zoom = zoomEnabled ? position.zoom ?? defaultZoom : 1;
+  const cropStyle = zoomEnabled && zoom > 1
+    ? getCompetitionCropImageStyle({ ...position, zoom })
+    : { objectPosition: `${position.x}% ${position.y}%` };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,6 +77,7 @@ export default function ImageCropDialog({
                 if (!dragStart.current) return;
                 const bounds = event.currentTarget.getBoundingClientRect();
                 onPositionChange({
+                  ...dragStart.current.position,
                   x: Math.max(0, Math.min(100, dragStart.current.position.x - ((event.clientX - dragStart.current.x) / bounds.width) * 100)),
                   y: Math.max(0, Math.min(100, dragStart.current.position.y - ((event.clientY - dragStart.current.y) / bounds.height) * 100)),
                 });
@@ -83,7 +92,7 @@ export default function ImageCropDialog({
                 else if (event.key === "ArrowDown") onPositionChange({ ...position, y: Math.min(100, position.y + step) });
               }}
             >
-              <img src={src} alt={alt} draggable={false} className="h-full w-full select-none object-cover" style={{ objectPosition }} />
+              <img src={src} alt={alt} draggable={false} className="h-full w-full select-none object-cover" style={cropStyle} />
               <span className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/45 to-transparent pb-2 text-xs text-white/90">
                 Drag to reposition
               </span>
@@ -92,13 +101,13 @@ export default function ImageCropDialog({
 
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wider text-white/55">{secondaryPreviewLabel}</p>
-            <div className="aspect-square overflow-hidden rounded-md bg-black" data-testid="image-crop-preview-gallery">
-              <img src={src} alt="" className="h-full w-full object-cover" style={{ objectPosition }} />
+            <div className="relative aspect-square overflow-hidden rounded-md bg-black" data-testid="image-crop-preview-gallery">
+              <img src={src} alt="" className="h-full w-full object-cover" style={cropStyle} />
             </div>
           </div>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className={`grid gap-5 ${zoomEnabled ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <label className="space-y-2 text-sm text-white/75">
             <span className="flex justify-between"><span>Left / right</span><span>{Math.round(position.x)}%</span></span>
             <Slider
@@ -111,6 +120,20 @@ export default function ImageCropDialog({
               data-testid="slider-image-crop-x"
             />
           </label>
+          {zoomEnabled && (
+            <label className="space-y-2 text-sm text-white/75">
+              <span className="flex justify-between"><span>Zoom</span><span>{zoom.toFixed(2)}×</span></span>
+              <Slider
+                aria-label="Adjust image zoom"
+                value={[zoom]}
+                min={1}
+                max={2.5}
+                step={0.05}
+                onValueChange={([nextZoom]) => onPositionChange({ ...position, zoom: nextZoom })}
+                data-testid="slider-image-crop-zoom"
+              />
+            </label>
+          )}
           <label className="space-y-2 text-sm text-white/75">
             <span className="flex justify-between"><span>Up / down</span><span>{Math.round(position.y)}%</span></span>
             <Slider
@@ -130,7 +153,10 @@ export default function ImageCropDialog({
             type="button"
             variant="ghost"
             className="min-h-10 justify-center text-white/70 hover:bg-white/10 hover:text-white sm:mr-auto"
-            onClick={() => onPositionChange({ ...DEFAULT_TALENT_IMAGE_CROP_POSITION })}
+            onClick={() => onPositionChange({
+              ...DEFAULT_TALENT_IMAGE_CROP_POSITION,
+              ...(zoomEnabled ? { zoom: defaultZoom } : {}),
+            })}
             data-testid="button-reset-image-crop"
           >
             <RotateCcw className="mr-2 h-4 w-4" /> Reset

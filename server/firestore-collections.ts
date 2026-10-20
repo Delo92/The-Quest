@@ -90,7 +90,7 @@ export interface FirestoreCompetition {
   chronicBrandsPromotionEnabled: boolean;
   chronicBrandsPromotionUrl?: string | null;
   themeColor?: string | null;
-  contestantImageCropPositions?: Record<string, Record<string, { x: number; y: number }>>;
+  contestantImageCropPositions?: Record<string, Record<string, { x: number; y: number; zoom?: number }>>;
   stages?: CompetitionStage[];
   payrollRules?: {
     payoutModel: "winner_only" | "top_three" | "custom";
@@ -138,7 +138,7 @@ export interface FirestoreTalentProfile {
   location: string | null;
   imageUrls: string[];
   imageBackupUrls?: string[];
-  imageCropPositions?: Array<{ x: number; y: number }>;
+  imageCropPositions?: Array<{ x: number; y: number; zoom?: number }>;
   videoUrls: string[];
   competitionVideoUris?: Record<string, string>;
   socialLinks: string | null;
@@ -327,7 +327,7 @@ export interface FirestoreJoinSubmission {
   category: string | null;
   socialLinks: string | null;
   mediaUrls: string[];
-  imageCropPositions?: Array<{ x: number; y: number }>;
+  imageCropPositions?: Array<{ x: number; y: number; zoom?: number }>;
   status: "pending" | "approved" | "rejected";
   transactionId: string | null;
   amountPaid: number;

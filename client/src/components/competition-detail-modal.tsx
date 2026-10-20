@@ -12,7 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
-import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION, getCompetitionCropImageStyle } from "@shared/image-crop";
 import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle, Upload, Palette, Crop } from "lucide-react";
 import type { CompetitionStage } from "@shared/schema";
 import CompetitionShareLinks from "@/components/competition-share-links";
@@ -77,7 +77,7 @@ interface ContestantProfileDetail {
     category?: string;
     imageUrls?: string[];
     imageBackupUrls?: string[];
-    imageCropPositions?: { x: number; y: number }[];
+    imageCropPositions?: { x: number; y: number; zoom?: number }[];
   };
   vimeoVideos?: { uri: string; name: string; link: string; embedUrl?: string; thumbnail?: string | null }[];
 }
@@ -1187,7 +1187,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                   const epd = isExpanded ? expandedProfileData : null;
                   const epImages = epd?.profile?.imageUrls ?? c.imageUrls ?? [];
                   const epVideos = isExpanded ? (expandedProfileData?.vimeoVideos ?? []) : [];
-                  const cardCropPosition = competition.contestantImageCropPositions?.[String(c.talentProfileId)]?.["0"]
+                  const cardCropPosition: ImageCropPosition = competition.contestantImageCropPositions?.[String(c.talentProfileId)]?.["0"]
                     ?? epd?.profile?.imageCropPositions?.[0]
                     ?? c.imageCropPositions?.[0]
                     ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
@@ -1295,7 +1295,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                                           imageIndex: 0,
                                           src: epImages[0],
                                           alt: c.stageName || c.displayName,
-                                          position: { x: cardCropPosition.x, y: cardCropPosition.y },
+                                          position: { x: cardCropPosition.x, y: cardCropPosition.y, zoom: cardCropPosition.zoom ?? 1.25 },
                                         })}
                                         data-testid={`button-adjust-comp-photo-${c.id}`}
                                       >
@@ -1309,9 +1309,9 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                                             src={url}
                                             alt={`photo-${i + 1}`}
                                             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            style={{
-                                              objectPosition: `${i === 0 ? cardCropPosition.x : epd?.profile?.imageCropPositions?.[i]?.x ?? 50}% ${i === 0 ? cardCropPosition.y : epd?.profile?.imageCropPositions?.[i]?.y ?? 18}%`,
-                                            }}
+                                             style={i === 0
+                                               ? getCompetitionCropImageStyle(cardCropPosition)
+                                               : { objectPosition: `${epd?.profile?.imageCropPositions?.[i]?.x ?? 50}% ${epd?.profile?.imageCropPositions?.[i]?.y ?? 18}%` }}
                                           />
                                           <div className="absolute inset-0 bg-orange-500/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <ArrowUpRight className="h-5 w-5 text-white" />
@@ -1393,6 +1393,8 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
           title="Adjust competition card photo"
           description="Drag the photo or use the controls. This framing changes only this competition; the shared profile and other competitions stay unchanged."
           secondaryPreviewLabel="Square preview"
+          zoomEnabled
+          defaultZoom={1.25}
         />
       )}
     </div>

@@ -40,7 +40,7 @@ export interface Competition {
   stages?: CompetitionStage[];
   isFeatured?: boolean;
   themeColor?: string | null;
-  contestantImageCropPositions?: Record<string, Record<string, { x: number; y: number }>>;
+  contestantImageCropPositions?: Record<string, Record<string, { x: number; y: number; zoom?: number }>>;
   createdAt: string | null;
   createdBy: string | null;
 }
@@ -57,7 +57,7 @@ export interface TalentProfile {
   location: string | null;
   imageUrls: string[];
   imageBackupUrls?: string[];
-  imageCropPositions?: Array<{ x: number; y: number }>;
+  imageCropPositions?: Array<{ x: number; y: number; zoom?: number }>;
   videoUrls: string[];
   competitionVideoUris?: Record<string, string>;
   socialLinks: string | null;

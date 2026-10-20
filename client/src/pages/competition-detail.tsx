@@ -17,7 +17,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify, slugifyWithId } from "@shared/slugify";
 import { preserveReferralQuery } from "@/lib/referral";
-import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION, getCompetitionCropImageStyle } from "@shared/image-crop";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
@@ -89,7 +89,7 @@ interface ContestantWithProfile {
     category: string | null;
     imageUrls: string[] | null;
     imageBackupUrls?: string[] | null;
-    imageCropPositions?: Array<{ x: number; y: number }> | null;
+    imageCropPositions?: Array<{ x: number; y: number; zoom?: number }> | null;
     location: string | null;
   };
 }
@@ -754,7 +754,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               const rankIcon = index === 0 ? <Crown className="h-4 w-4 text-yellow-400" /> : index === 1 ? <Award className="h-4 w-4 text-gray-300" /> : index === 2 ? <Award className="h-4 w-4 text-orange-400" /> : null;
               const videos = contestantVideos.get(contestant.id) || [];
                const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
-                const cardCropPosition = competition.contestantImageCropPositions?.[String(contestant.talentProfile.id)]?.["0"]
+                const cardCropPosition: ImageCropPosition = competition.contestantImageCropPositions?.[String(contestant.talentProfile.id)]?.["0"]
                   ?? contestant.talentProfile.imageCropPositions?.[0]
                   ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
                const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
@@ -850,7 +850,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                         alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                         className="h-full w-full object-cover"
                         style={{
-                          objectPosition: `${cardCropPosition.x}% ${cardCropPosition.y}%`,
+                          ...getCompetitionCropImageStyle(cardCropPosition),
                         }}
                       />
                     )}
@@ -917,7 +917,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                                profileId: contestant.talentProfile.id,
                                src: primaryProfileImage,
                                alt: contestant.talentProfile.stageName || contestant.talentProfile.displayName,
-                                position: { x: cardCropPosition.x, y: cardCropPosition.y },
+                                position: { x: cardCropPosition.x, y: cardCropPosition.y, zoom: cardCropPosition.zoom ?? 1.25 },
                              });
                            }}
                            data-testid={`button-adjust-contestant-framing-${contestant.id}`}
@@ -1012,6 +1012,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
           title="Adjust competition card photo"
           description="Drag the photo or use the controls. This framing changes only this competition; the shared profile and other competitions stay unchanged."
           secondaryPreviewLabel="Square preview"
+          zoomEnabled
+          defaultZoom={1.25}
         />
       )}
     </div>
