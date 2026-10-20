@@ -797,7 +797,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                     />
                     {tileVideoSrc && (
                       <div className="absolute inset-0">
-                        <LazyVimeoIframe src={tileVideoSrc} title={`${name} video preview`} className="absolute left-1/2 top-1/2 h-full min-h-full w-full min-w-full -translate-x-1/2 -translate-y-1/2 border-0" />
+                       <LazyVimeoIframe src={tileVideoSrc} title={`${name} video preview`} className="pointer-events-none absolute left-1/2 top-1/2 h-full min-h-full w-full min-w-full -translate-x-1/2 -translate-y-1/2 border-0" />
                       </div>
                     )}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent px-1.5 pb-1.5 pt-8">
@@ -840,22 +840,27 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#101010] shadow-sm"
                   data-testid={`card-contestant-${contestant.id}`}
                 >
-                  {demoMode && !selectedStage && videos.length > 0 ? (
-                    <div className="relative overflow-hidden bg-black p-1">
-                      <div className={`relative w-full overflow-hidden ${videos[0].height && videos[0].width && videos[0].height > videos[0].width ? "aspect-[9/16]" : "aspect-video"}`}>
-                        <DemoVimeoPreview
-                          videoId={videos[0].uri}
-                          thumbnail={videos[0].thumbnail}
-                          title={`${contestant.talentProfile.displayName} — ${videos[0].name}`}
-                          className="absolute inset-0 h-full w-full"
-                        />
-                      </div>
-                      {rankIcon && (
-                        <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/75">
-                          {rankIcon}
-                        </div>
-                      )}
-                    </div>
+                   {demoMode && !selectedStage && videos.length > 0 ? (
+                     <Link
+                       href={contestantHref}
+                       className="relative block overflow-hidden bg-black p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px]"
+                       style={{ outlineColor: accent }}
+                       aria-label={`View ${contestant.talentProfile.stageName || contestant.talentProfile.displayName}'s profile`}
+                     >
+                       <div className={`relative w-full overflow-hidden ${videos[0].height && videos[0].width && videos[0].height > videos[0].width ? "aspect-[9/16]" : "aspect-video"}`}>
+                         <DemoVimeoPreview
+                           videoId={videos[0].uri}
+                           thumbnail={videos[0].thumbnail}
+                           title={`${contestant.talentProfile.displayName} — ${videos[0].name}`}
+                           className="pointer-events-none absolute inset-0 h-full w-full"
+                         />
+                       </div>
+                       {rankIcon && (
+                         <div className="pointer-events-none absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/75">
+                           {rankIcon}
+                         </div>
+                       )}
+                     </Link>
                   ) : (
                   <Link
                     href={contestantHref}
@@ -873,7 +878,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                     ) : selectedStage && stageSubmission?.mediaType === "video" ? (
                       <div className="relative aspect-video w-full overflow-hidden">
                         <LazyVimeoIframe
-                          src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
+                           src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
+                           className="pointer-events-none"
                           title={`${contestant.talentProfile.displayName} — ${selectedStage.name}`}
                         />
                         {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
@@ -908,7 +914,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                           className={`relative w-full overflow-hidden ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
                         >
                           <LazyVimeoIframe
-                            src={playerUrl}
+                           src={playerUrl}
+                           className="pointer-events-none"
                             title={`${contestant.talentProfile.displayName} — ${video.name}`}
                           />
                           {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}

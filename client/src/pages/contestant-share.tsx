@@ -72,7 +72,20 @@ interface ResolvedData {
     };
   };
   totalVotes: number;
+  otherCompetitionVideos?: {
+    uri: string;
+    name: string;
+    embedUrl: string;
+    duration: number;
+    thumbnail: string | null;
+    width?: number;
+    height?: number;
+    competitionId: number;
+    competitionTitle: string;
+  }[];
 }
+
+type ContestantVideo = ResolvedData["contestant"]["videos"][number];
 
 interface CompetitionContestant {
   id: number;
@@ -167,6 +180,8 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   // Scroll to top whenever the contestant changes
   useEffect(() => {
     if (!demoMode) window.scrollTo({ top: 0, behavior: "instant" });
+    setActiveVideoIndex(0);
+    setPlayingVideo(null);
   }, [talentSlug, demoMode]);
 
   useEffect(() => {
@@ -343,13 +358,12 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const bgImage = profile.profileBgImage || null;
   const fallbackDefault = getImage("talent_profile_fallback") || "";
   const videos = mediaData?.videos || contestant.videos || [];
-  const activeVideo = Math.min(activeVideoIndex, Math.max(videos.length - 1, 0));
-  const currentVideo = videos[activeVideo];
-  const hasImages = !!(profile.imageUrls && profile.imageUrls.length > 0);
-  const heroVideoEmbedUrl = !hasImages && videos.length > 0 ? videos[0].embedUrl : null;
-  const heroVideoIsPortrait = heroVideoEmbedUrl
-    && videos[0].height && videos[0].width
-    && videos[0].height > videos[0].width;
+  const currentVideo = videos[0];
+  const otherVideos = bundleData?.otherCompetitionVideos || [];
+  const activeOtherVideo = otherVideos[Math.min(activeVideoIndex, Math.max(otherVideos.length - 1, 0))];
+  const playingVideoData: ContestantVideo | (typeof otherVideos)[number] | undefined = playingVideo
+    ? [...videos, ...otherVideos].find((video) => video.uri === playingVideo)
+    : undefined;
   const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0) || fallbackDefault;
   const isVotingOpen = competition.status === "active" || competition.status === "voting";
@@ -570,37 +584,31 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
           </div>
         </header>
 
-        {/* Videos: same cover-flow wheel as the home page, vote flow attached */}
-        {videos.length > 0 && (
-          <section className="mx-auto max-w-5xl px-4 pb-10 pt-6" aria-label="Competition videos" data-testid="contestant-videos">
-            <ContestantVideoWheel
-              videos={videos.map((video, i) => ({
-                id: video.uri || String(i),
-                title: formatVideoTitle(video.name),
-                thumbnail: video.thumbnail || contestant.videoThumbnail || null,
-              }))}
-              index={activeVideo}
-              onIndexChange={(next) => { setActiveVideoIndex(next); setPlayingVideo(null); }}
-              onPlay={(i) => setPlayingVideo(videos[i].uri)}
-              voteCount={contestant.voteCount}
-              accentColor={accentColor}
-            />
-            {currentVideo && playingVideo === currentVideo.uri && (
-              <div
-                className={`relative mx-auto mt-8 w-full overflow-hidden rounded-lg bg-black ${currentVideo.height && currentVideo.width && currentVideo.height > currentVideo.width ? "aspect-[9/16] max-h-[78vh] max-w-sm" : "aspect-video max-w-3xl"}`}
-                data-testid="video-player"
-              >
-                <iframe
-                  src={buildVimeoSrc(currentVideo.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
-                  className="absolute inset-0 h-full w-full"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  allowFullScreen
-                  title={formatVideoTitle(currentVideo.name)}
-                />
+        {/* The current competition entry leads; the profile-wide video wheel follows it. */}
+        {(videos.length > 0 || otherVideos.length > 0) && (
+          <section className="mx-auto max-w-5xl px-4 pb-6 pt-6" aria-label="Competition videos" data-testid="contestant-videos">
+            {currentVideo && (
+              <div className="mx-auto max-w-3xl">
+                <div className="mb-3 text-center">
+                  <p className="text-[11px] uppercase tracking-[3px] text-white/45">This competition</p>
+                  <h2 className="mt-1 text-sm font-semibold text-white/85">{competition.title}</h2>
+                </div>
+                <div
+                  className={`relative mx-auto w-full overflow-hidden rounded-xl bg-black ${currentVideo.height && currentVideo.width && currentVideo.height > currentVideo.width ? "aspect-[9/16] max-h-[72dvh] max-w-sm" : "aspect-video max-w-3xl"}`}
+                  data-testid="video-player"
+                >
+                  <iframe
+                    src={buildVimeoSrc(currentVideo.embedUrl, "autoplay=1&muted=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
+                    className="absolute inset-0 h-full w-full"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                    title={formatVideoTitle(currentVideo.name)}
+                  />
+                </div>
               </div>
             )}
             {isVotingOpen && (
-              <div className="mt-8">
+              <div className="mt-6">
                 <p className="mb-3 text-center text-xs uppercase text-white/50" style={{ letterSpacing: "3px" }}>
                   Vote for {profile.stageName || profile.displayName}
                 </p>
@@ -627,12 +635,71 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
               </div>
               </div>
             )}
+            {otherVideos.length > 0 && (
+              <div className="mt-8" data-testid="other-competition-video-wheel">
+                <div className="mb-2 text-center">
+                  <p className="text-[11px] uppercase tracking-[3px] text-white/45">More from {profile.stageName || profile.displayName}</p>
+                  <h2 className="mt-1 text-sm font-semibold text-white/85">Videos from other competitions</h2>
+                </div>
+                <ContestantVideoWheel
+                  videos={otherVideos.map((video) => ({
+                    id: video.uri,
+                    title: `${formatVideoTitle(video.name)} · ${video.competitionTitle}`,
+                    thumbnail: video.thumbnail,
+                  }))}
+                  index={activeVideoIndex}
+                  onIndexChange={(next) => { setActiveVideoIndex(next); setPlayingVideo(null); }}
+                  onPlay={(i) => setPlayingVideo(otherVideos[i].uri)}
+                  voteCount={contestant.voteCount}
+                  accentColor={accentColor}
+                />
+                {activeOtherVideo && playingVideo === activeOtherVideo.uri && (
+                  <div
+                    className={`relative mx-auto mt-5 w-full overflow-hidden rounded-xl bg-black ${activeOtherVideo.height && activeOtherVideo.width && activeOtherVideo.height > activeOtherVideo.width ? "aspect-[9/16] max-h-[72dvh] max-w-sm" : "aspect-video max-w-3xl"}`}
+                    data-testid="other-video-player"
+                  >
+                    <iframe
+                      src={buildVimeoSrc(activeOtherVideo.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
+                      className="absolute inset-0 h-full w-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                      title={`${formatVideoTitle(activeOtherVideo.name)} — ${activeOtherVideo.competitionTitle}`}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Profile photos follow the current-competition video and cross-competition wheel. */}
+        {profile.imageUrls && profile.imageUrls.length > 0 && (
+          <section className="mx-auto mb-8 w-full max-w-5xl px-4" aria-label="Contestant photo gallery" data-testid="contestant-photo-gallery">
+            <div className="mb-5 text-center">
+              <p className="mb-1 text-sm text-[#5f5f5f]">See what&apos;s new</p>
+              <h2 className="text-lg font-normal uppercase text-white" style={{ letterSpacing: "8px" }}>Profile photos</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+              {profile.imageUrls.map((url, i) => (
+                <div key={i} className="group relative aspect-square overflow-hidden rounded-lg bg-zinc-900">
+                  <FallbackImage
+                    src={url}
+                    fallbackSrc={getBackupUrl(profile.imageUrls, profile.imageBackupUrls, i)}
+                    alt={`${profile.stageName || profile.displayName} profile photo ${i + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    style={{
+                      objectPosition: `${profile.imageCropPositions?.[i]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[i]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </section>
         )}
 
         <div className="mx-auto max-w-4xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
 
-          {videos.length === 0 && isVotingOpen && (
+          {videos.length === 0 && otherVideos.length === 0 && isVotingOpen && (
             <div className="mb-10" data-testid="voting-actions-wrap">
               <div className="flex flex-wrap items-center justify-center gap-3" data-testid="voting-actions-no-video">
                 <button
@@ -711,34 +778,6 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
               </div>
             );
           })()}
-
-          {/* Gallery */}
-          {profile.imageUrls && profile.imageUrls.length > 0 && (
-            <div className="mb-10">
-              <div className="text-center mb-10">
-                <p className="text-[#5f5f5f] text-sm mb-1">See what&apos;s new</p>
-                <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
-                  Gallery
-                </h2>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {profile.imageUrls.map((url, i) => (
-                  <div key={i} className="relative aspect-square overflow-hidden group cursor-pointer">
-                    <FallbackImage
-                      src={url}
-                      fallbackSrc={getBackupUrl(profile.imageUrls, profile.imageBackupUrls, i)}
-                      alt=""
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      style={{
-                        objectPosition: `${profile.imageCropPositions?.[i]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[i]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Share */}
           <div className="flex justify-center mb-10">

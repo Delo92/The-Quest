@@ -8796,7 +8796,7 @@ export async function registerRoutes(
       if (!contestant) return res.status(404).json({ message: "Contestant not found in this competition" });
 
       // 3. Fetch all data in parallel — votes, media (cached), host profile
-      const [totalVotes, media, hostedByProfile] = await Promise.all([
+      const [totalVotes, media, hostedByProfile, otherCompetitionVideos] = await Promise.all([
         storage.getTotalVotesByCompetition(comp.id),
         getCachedPublicResponse(
           `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
@@ -8826,6 +8826,33 @@ export async function registerRoutes(
             return await storage.getUser(comp.createdBy) || null;
           } catch { return null; }
         })(),
+        getCachedPublicResponse(
+          `resolve-profile-videos:${contestant.talentProfile.id}:${comp.id}`,
+          60_000,
+          async () => {
+            const profile = contestant.talentProfile;
+            const talentName = (profile.stageName || profile.displayName).trim();
+            const otherEntries = (await storage.getContestantsByTalent(profile.id))
+              .filter((entry) => entry.applicationStatus === "approved" && entry.competitionId !== comp.id);
+            const videosByCompetition = await Promise.all(otherEntries.map(async (entry) => {
+              const otherCompetition = await storage.getCompetition(entry.competitionId);
+              if (!otherCompetition) return [];
+              const scopedVideos = await getCompetitionScopedTalentVideos(profile, otherCompetition, talentName);
+              return Promise.all(scopedVideos.map(async (video: any) => ({
+                uri: video.uri,
+                name: formatVimeoDisplayName(video.name, otherCompetition.title, talentName),
+                embedUrl: video.player_embed_url,
+                duration: video.duration,
+                width: video.width,
+                height: video.height,
+                thumbnail: await resolveVideoThumbnail(video).catch(() => getVideoThumbnail(video)),
+                competitionId: otherCompetition.id,
+                competitionTitle: otherCompetition.title,
+              })));
+            }));
+            return videosByCompetition.flat();
+          },
+        ),
       ]);
 
       setPublicCacheHeaders(res, 30);
@@ -8841,6 +8868,7 @@ export async function registerRoutes(
         totalVotes,
         contestants,
         hostedBy: hostedByProfile,
+        otherCompetitionVideos,
       });
     } catch (error: any) {
       console.error("Bundle resolution error:", error);

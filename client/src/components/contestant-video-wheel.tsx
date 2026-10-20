@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Play } from "lucide-react";
 import { useCardWidth } from "@/components/hero-coverflow-gallery";
 
@@ -23,7 +23,6 @@ export default function ContestantVideoWheel({ videos, index, onIndexChange, onP
   const cardWidth = useCardWidth();
   const total = videos.length;
   const [animating, setAnimating] = useState(false);
-  const touchStart = useRef<number | null>(null);
 
   const go = useCallback((next: number) => {
     if (animating || total === 0) return;
@@ -41,15 +40,6 @@ export default function ContestantVideoWheel({ videos, index, onIndexChange, onP
     <div
       className="w-full"
       data-testid="contestant-video-wheel"
-      // Swiping the wheel must not also page to the next contestant.
-      onTouchStart={(e) => { e.stopPropagation(); touchStart.current = e.touches[0].clientX; }}
-      onTouchEnd={(e) => {
-        e.stopPropagation();
-        if (touchStart.current === null) return;
-        const diff = touchStart.current - e.changedTouches[0].clientX;
-        touchStart.current = null;
-        if (Math.abs(diff) > 50 && total > 1) go(index + (diff > 0 ? 1 : -1));
-      }}
     >
       <div className="coverflow-container" style={{ perspective: "1200px" }}>
         <div className="coverflow-track">
