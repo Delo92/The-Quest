@@ -62,6 +62,14 @@ OC base URL: `https://oraginalconcepts.com`
 | POST | /batches/:id/approve | Approve a payroll batch |
 | POST | /batches/:id/release | Release (Stripe Connect transfers) an approved batch |
 
+## Per-user OC account and brand-kit access
+
+Each Quest user’s OC account connection is separate from the optional OC referral and the existing Quest-to-OC server integration. Do not reuse the shared `QUEST_OC_API_TOKEN` or OC’s normal portal-session JWT as the linked user’s credential. The portal JWT represents broader portal access, not a narrowly scoped brand-kit grant. Use a distinct, user-consented, read-only authorization; keep its credentials encrypted on Quest’s server, associated with the authenticated Quest user, and proxy OC brand-kit reads through Quest. Disconnecting one Quest account must not affect the shared integration or other users.
+
+**Why:** The owners want each individual Quest user to connect their own OC account and select a brand kit. A service-wide integration token cannot represent that user’s identity or consent, and reusing a normal portal session would grant more access than this feature needs.
+
+**How to apply:** Wait for OC’s account-authorization contract before implementing endpoints, scopes, or token handling. Once available, use the user’s Quest identity for ownership, retrieve only the authorized account’s brand kits, and make selected kit media available in Quest without exposing OC credentials to the browser.
+
 ## Quest files
 
 - `server/services/ocAdapter.ts` — all OC calls; exports `isOCAdapterConfigured`, `createOCPayment`, `getOCPayment`, `captureOCPayPalPayment`, `refundOCPayment`, `getOCPayoutBatch`, `approveOCBatch`, `releaseOCBatch`

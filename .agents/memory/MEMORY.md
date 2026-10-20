@@ -36,7 +36,7 @@
 - [Host platform referral codes](host-platform-referral-codes.md) — every host should have a global `?ref=CODE` link separate from competition-specific codes
 - [Centralized error logging](chronicdocs-error-logging.md) — install API capture before routes; cover JSON and non-JSON errors without persisting request values or response bodies
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
-- [OC Integration Bridge](oc-integration-bridge.md) — owners want Quest-owned Stripe; inspect existing OC routing and preserve unrelated integrations during cutover
+- [OC integration boundaries](oc-integration-bridge.md) — keep user-authorized brand-kit access separate from the shared Quest↔OC service bridge and payment routing
 - [OC social profile sync](oc-social-profile-sync.md) — social links determine scan eligibility; email is optional and missing links must come from an account-linked source
 - [OC social-publishing referral](oc-social-publishing-referral.md) — OC-hosted automation is the first step; keep scan sync unchanged and pass profile details only when the user follows the referral
 - [OC payment provider selection](oc-payment-provider-selection.md) — bridge availability and active buyer provider are separate settings
