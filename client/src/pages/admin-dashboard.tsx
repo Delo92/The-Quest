@@ -19,6 +19,7 @@ import {
 import { Trophy, Type,  BarChart3, Users, Plus, Check, X as XIcon, LogOut, Vote, Flame, Image, Upload, RotateCcw, UserPlus, Megaphone, Settings, DollarSign, Eye, Search, ExternalLink, Music, Video, Play, Calendar, Award, UserCheck, UserCircle, Mail, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, HardDrive, RefreshCw, FolderOpen, QrCode, MapPin, Download, Trash2, Copy, Share2, Star, Link2, Pencil } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import { detectMediaType, MEDIA_TYPE_LABELS, MEDIA_TYPE_COLORS, getVimeoId, buildVimeoSrc } from "@/lib/media-utils";
+import PromoVideosEditor from "@/components/promo-videos-editor";
 import { InviteDialog, CreateUserDialog, InviteHostDialog } from "@/components/invite-dialog";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "wouter";
@@ -2228,6 +2229,14 @@ export default function AdminDashboard({ user }: { user: any }) {
                       {(comp as any).isFeatured ? "Featured" : "Feature"}
                     </Button>
                   </div>
+                  <details className="mt-3 rounded-md border border-white/10 bg-black/40 p-3" data-testid={`details-promo-videos-${comp.id}`}>
+                    <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-white">
+                      Promo videos ({((comp as any).promoVideos ?? []).length}/3)
+                    </summary>
+                    <div className="pt-2">
+                      <PromoVideosEditor role="admin" competitionId={comp.id} videos={(comp as any).promoVideos ?? []} />
+                    </div>
+                  </details>
                 </div>
               ))}
             </div>

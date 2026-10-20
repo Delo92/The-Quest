@@ -13,6 +13,7 @@ const MAX_VIDEOS = 3;
 interface PromoVideosEditorProps {
   competitionId: number;
   videos: string[];
+  role?: "host" | "admin";
 }
 
 function authHeaders(): Record<string, string> {
@@ -32,7 +33,7 @@ async function playerUrlFor(videoUri: string): Promise<string> {
   return `https://player.vimeo.com/video/${videoId}`;
 }
 
-export default function PromoVideosEditor({ competitionId, videos }: PromoVideosEditorProps) {
+export default function PromoVideosEditor({ competitionId, videos, role = "host" }: PromoVideosEditorProps) {
   const { toast } = useToast();
   const fileInput = useRef<HTMLInputElement>(null);
   const [link, setLink] = useState("");
@@ -41,7 +42,7 @@ export default function PromoVideosEditor({ competitionId, videos }: PromoVideos
   const full = videos.length >= MAX_VIDEOS;
 
   const save = async (next: string[]) => {
-    const response = await fetch(`/api/host/competitions/${competitionId}`, {
+    const response = await fetch(`/api/competitions/${competitionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ promoVideos: next }),
@@ -51,6 +52,7 @@ export default function PromoVideosEditor({ competitionId, videos }: PromoVideos
       throw new Error(body.message || "Could not save the video.");
     }
     await queryClient.invalidateQueries({ queryKey: ["/api/host/competitions"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/competitions"] });
     await queryClient.invalidateQueries({ queryKey: [`/api/competitions/${competitionId}`] });
   };
 
@@ -75,7 +77,7 @@ export default function PromoVideosEditor({ competitionId, videos }: PromoVideos
 
   const upload = (file: File) => {
     void run("uploading", async () => {
-      const ticketResponse = await fetch(`/api/host/competitions/${competitionId}/cover-vimeo-ticket`, {
+      const ticketResponse = await fetch(`/api/${role}/competitions/${competitionId}/cover-vimeo-ticket`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ fileSize: file.size }),
