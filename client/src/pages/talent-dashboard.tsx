@@ -27,6 +27,7 @@ import { getAuthToken } from "@/hooks/use-auth";
 import { firebaseReauthenticate } from "@/lib/firebase";
 import type { TalentProfile, Competition } from "@shared/schema";
 import { useState, useRef, useCallback, useEffect } from "react";
+import OCReferralBanner from "@/components/oc-referral-banner";
 import { useAuth } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import NonprofitDeclarationForm, { emptyNonprofitDeclaration, type NonprofitDeclaration } from "@/components/nonprofit-declaration-form";
@@ -2450,6 +2451,12 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                         </p>
                       </div>
                     </div>
+
+                    {!demoMode && (
+                      <div className="mb-5" data-testid="rules-oc-social-sharing">
+                        <OCReferralBanner audience="artist" />
+                      </div>
+                    )}
 
                     <div className="space-y-3">
                       {appliedContests.map((contest: any) => {

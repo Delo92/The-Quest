@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ArrowUpRight, Loader2, Megaphone } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { ArrowUpRight, ChevronDown, Loader2, Megaphone } from "lucide-react";
 import { useGetOCReferralEvents, useStartOCEventReferral, getGetOCReferralEventsQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ interface OCReferralBannerProps {
 }
 
 export default function OCReferralBanner({ audience }: OCReferralBannerProps) {
+  const uid = useId();
   const label = audience === "artist" ? "artist" : "host";
   const { user, isLoading } = useAuth();
   const [choice, setChoice] = useState("");
@@ -51,7 +52,7 @@ export default function OCReferralBanner({ audience }: OCReferralBannerProps) {
   return (
     <section
       className="rounded-xl border border-orange-400/20 bg-orange-400/[0.05] p-4 sm:p-5"
-      aria-labelledby={`oc-referral-title-${audience}`}
+      aria-labelledby={`oc-referral-title-${uid}`}
       data-testid={`oc-referral-banner-${audience}`}
     >
       <div className="space-y-4">
@@ -60,19 +61,25 @@ export default function OCReferralBanner({ audience }: OCReferralBannerProps) {
             <Megaphone className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h3 id={`oc-referral-title-${audience}`} className="text-sm font-semibold text-white">
+            <h3 id={`oc-referral-title-${uid}`} className="text-sm font-semibold text-white">
               Free OC automation for your Quest event
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-white/65">
-              Get social automation from OC’s $105/month Gold package for your {label} brand during your first eligible Quest event, with promo code{" "}
+            <p className="mt-1 text-sm leading-relaxed text-white/70">
+              Post to your socials automatically with OC’s $105/month Gold package, free during your Quest event. Promo code{" "}
               <span className="font-semibold text-orange-200">THE QUEST</span>.
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-white/60">
-              The free benefit ends when the event ends or is cancelled, you withdraw or are removed, or you are eliminated. A confirmed event end date{audience === "artist" ? " and an approved entry are" : " is"} required.
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-white/55">
-              Continuing shares your saved profile email, name, social links, and selected event details with OC to prefill setup and verify this offer. It does not connect OC to Quest or authorize Quest to publish.
-            </p>
+            <details className="group mt-2 text-xs leading-relaxed text-white/65">
+              <summary className="flex min-h-8 cursor-pointer list-none items-center gap-1 font-medium text-orange-200 [&::-webkit-details-marker]:hidden">
+                Terms and what is shared
+                <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <p className="mt-1">
+                The free benefit ends when the event ends or is cancelled, you withdraw or are removed, or you are eliminated. A confirmed event end date{audience === "artist" ? " and an approved entry are" : " is"} required.
+              </p>
+              <p className="mt-2">
+                Continuing shares your saved profile email, name, social links, and selected event details with OC to prefill setup and verify this offer. It does not connect OC to Quest or authorize Quest to publish.
+              </p>
+            </details>
           </div>
         </div>
         {eventsQuery.isLoading ? (
@@ -93,14 +100,17 @@ export default function OCReferralBanner({ audience }: OCReferralBannerProps) {
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
             <div className="min-w-0 space-y-2">
-              <Label htmlFor={`oc-referral-event-${audience}`} className="text-sm text-white">Event for your one-time Quest offer</Label>
+              {events.length === 1 && selectedEvent ? (
+                <p className="text-sm text-white/80">Event: <span className="font-semibold text-white">{selectedEvent.title}</span></p>
+              ) : (<>
+              <Label htmlFor={`oc-referral-event-${uid}`} className="text-sm text-white">Event for your one-time Quest offer</Label>
               <select
-                id={`oc-referral-event-${audience}`}
+                id={`oc-referral-event-${uid}`}
                 value={selectedEvent ? selectedId : ""}
                 onChange={(event) => { setChoice(event.target.value); setError(""); }}
                 disabled={startMutation.isPending || eligibleEvents.length === 0}
                 className="min-h-11 w-full min-w-0 rounded-md border border-white/20 bg-[#222] px-3 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-60"
-                data-testid={`select-oc-referral-event-${audience}`}
+                data-testid={`select-oc-referral-event-${uid}`}
               >
                 <option value="" disabled>{eligibleEvents.length ? "Choose the event that brings you to OC" : "No eligible event available"}</option>
                 {events.map((event) => (
@@ -109,7 +119,8 @@ export default function OCReferralBanner({ audience }: OCReferralBannerProps) {
                   </option>
                 ))}
               </select>
-              {selectedEvent?.endDate && <p className="text-xs text-white/60">Event end: {selectedEvent.endDate.slice(0, 10)}. Subject to OC verifying current event eligibility; not an indefinite free subscription.</p>}
+              </>)}
+              {selectedEvent?.endDate && <p className="text-xs text-white/60">Event end: {selectedEvent.endDate.slice(0, 10)}. Subject to OC eligibility checks.</p>}
               {eligibleEvents.length === 0 && <p className="text-xs text-orange-100" role="status">{events.find((event) => event.competitionId === eventsQuery.data?.claimedCompetitionId)?.message || events[0]?.message}</p>}
             </div>
             <Button
@@ -120,7 +131,7 @@ export default function OCReferralBanner({ audience }: OCReferralBannerProps) {
               data-testid={`button-oc-referral-${audience}`}
             >
               {startMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowUpRight className="h-4 w-4" aria-hidden="true" />}
-              Continue to OC
+              Set up social sharing on OC
             </Button>
           </div>
         )}
