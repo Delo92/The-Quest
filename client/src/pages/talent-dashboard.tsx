@@ -758,6 +758,8 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
     { id: "tax" as const, label: "Tax details", sublabel: "Forms & secure information", icon: ShieldCheck },
   ];
 
+  const activeNav = navItems.find((n) => n.id === activeSection);
+
   return (
     <div className="quest-dashboard min-h-screen bg-[#090909] text-white">
       {/* Top Nav */}
@@ -805,17 +807,31 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-white leading-none truncate">{displayName || user.displayName}</p>
             <p className="text-[10px] text-white/35 mt-0.5">
-              {navItems.find((n) => n.id === activeSection)?.label ?? "Dashboard"}
+              Contestant
             </p>
           </div>
           <InviteDialog senderLevel={2} />
+        </div>
+        <div className="px-4 pb-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="h-10 w-10 flex-shrink-0 border-white/15 bg-white/[0.05] text-white" aria-label="Open dashboard menu" data-testid="button-mobile-menu">
-                <Menu className="h-5 w-5" />
-              </Button>
+              <button
+                type="button"
+                className="flex w-full min-h-14 items-center gap-3 rounded-xl border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-left active:bg-orange-500/20"
+                aria-label={`Current section: ${activeNav?.label}. Open dashboard menu`}
+                data-testid="button-mobile-menu"
+              >
+                {activeNav && <activeNav.icon className="h-5 w-5 flex-shrink-0 text-orange-400" />}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[10px] uppercase tracking-wider text-white/40">You are in</span>
+                  <span className="block truncate text-base font-bold text-white">{activeNav?.label}</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-orange-300">
+                  Menu <Menu className="h-5 w-5" />
+                </span>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 border-white/10 bg-[#141414] text-white">
+            <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] max-w-sm border-white/10 bg-[#141414] text-white">
               {navItems.map(({ id, label, sublabel, icon: Icon }) => (
                 <DropdownMenuItem
                   key={id}
