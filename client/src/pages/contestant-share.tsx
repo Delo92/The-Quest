@@ -86,11 +86,11 @@ interface CompetitionContestant {
   };
 }
 
-export default function ContestantSharePage() {
+export default function ContestantSharePage({ demoMode = false }: { demoMode?: boolean } = {}) {
   const params = useParams<{ categorySlug: string; compSlug: string; talentSlug: string }>();
-  const categorySlug = params?.categorySlug;
-  const compSlug = params?.compSlug;
-  const talentSlug = params?.talentSlug;
+  const categorySlug = demoMode ? "music" : params?.categorySlug;
+  const compSlug = demoMode ? "cb-publishing-music-quest" : params?.compSlug;
+  const talentSlug = demoMode ? "most-hated-twinz-501" : params?.talentSlug;
   const [, navigate] = useLocation();
   const { getImage } = useLivery();
   const { user } = useAuth();
@@ -139,7 +139,7 @@ export default function ContestantSharePage() {
   const seoName = seoProfile?.stageName || seoProfile?.displayName;
   const seoTalentSlug = seoProfile ? slugifyWithId(seoName || "contestant", seoProfile.id) : talentSlug;
   useSEO({
-    title: seoName && data
+    title: demoMode ? "The Quest app demo" : seoName && data
       ? `${seoName} — ${data.competition.title} | The Quest`
       : "Contestant Profile | The Quest",
     description: seoProfile?.bio
@@ -166,11 +166,11 @@ export default function ContestantSharePage() {
 
   // Scroll to top whenever the contestant changes
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, [talentSlug]);
+    if (!demoMode) window.scrollTo({ top: 0, behavior: "instant" });
+  }, [talentSlug, demoMode]);
 
   useEffect(() => {
-    if (data) {
+    if (data && !demoMode) {
       document.title = `${data.contestant.talentProfile.stageName || data.contestant.talentProfile.displayName} - ${data.competition.title} | The Quest`;
     }
     return () => { document.title = "The Quest - Talent Competition & Voting Platform"; };
@@ -184,8 +184,8 @@ export default function ContestantSharePage() {
       ? Number(c.talentProfile.id) === requestedTalentId
       : slugify(c.talentProfile.stageName || c.talentProfile.displayName) === talentSlug
   );
-  const prevContestant = currentIndex > 0 ? orderedContestants[currentIndex - 1] : null;
-  const nextContestant = currentIndex >= 0 && currentIndex < orderedContestants.length - 1
+  const prevContestant = !demoMode && currentIndex > 0 ? orderedContestants[currentIndex - 1] : null;
+  const nextContestant = !demoMode && currentIndex >= 0 && currentIndex < orderedContestants.length - 1
     ? orderedContestants[currentIndex + 1]
     : null;
 
@@ -499,10 +499,10 @@ export default function ContestantSharePage() {
       )}
 
       <div className="relative z-10">
-        <SiteNavbar />
+        {!demoMode && <SiteNavbar />}
 
         {/* Back to competition breadcrumb */}
-        <div className="bg-black/80 border-b border-white/10 px-4 py-2 flex items-center gap-2 text-sm sticky top-0 z-40 backdrop-blur-sm">
+        {!demoMode && <div className="bg-black/80 border-b border-white/10 px-4 py-2 flex items-center gap-2 text-sm sticky top-0 z-40 backdrop-blur-sm">
           <Link href={`/${categorySlug}/${compSlug}`}>
             <span className="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors cursor-pointer">
               <ChevronRight className="h-3.5 w-3.5 rotate-180 shrink-0" />
@@ -514,7 +514,7 @@ export default function ContestantSharePage() {
           {positionLabel && (
             <span className="ml-auto text-white/25 text-xs shrink-0">{positionLabel}</span>
           )}
-        </div>
+        </div>}
 
         {/* Swipe hint bar (shown only when neighbours exist) */}
         {(prevContestant || nextContestant) && (
@@ -754,7 +754,7 @@ export default function ContestantSharePage() {
           </div>
 
           {/* Bottom nav */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pb-10">
+          {!demoMode && <div className="flex flex-wrap items-center justify-center gap-4 pb-10">
             <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
               <span
                 className="inline-block bg-transparent text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer text-center"
@@ -771,10 +771,10 @@ export default function ContestantSharePage() {
                 All Competitions
               </span>
             </Link>
-          </div>
+          </div>}
         </div>
 
-        <SiteFooter />
+        {!demoMode && <SiteFooter />}
         <VoteAuthDialog
           open={voteAuthOpen}
           onOpenChange={setVoteAuthOpen}

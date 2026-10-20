@@ -5,6 +5,7 @@ import HostDashboard from "./host-dashboard";
 import AdminDashboard from "./admin-dashboard";
 import ViewerDashboard from "./viewer-dashboard";
 import CompetitionDetail from "./competition-detail";
+import ContestantShare from "./contestant-share";
 import { DemoAuthProvider } from "@/hooks/use-auth";
 import { getQueryFn } from "@/lib/queryClient";
 import { installDemoApiGuard } from "@/lib/app-demo-data";
@@ -14,7 +15,7 @@ import { ExternalLink, Menu } from "lucide-react";
 
 type DemoRole = "artist" | "host-admin" | "voter";
 type HostAdminPanel = "host" | "admin";
-type VoterPanel = "competition" | "dashboard";
+type VoterPanel = "competition" | "profile" | "dashboard";
 
 const artistUser = {
   uid: "demo-artist-01",
@@ -133,7 +134,7 @@ export default function AppDemoPage() {
     new URLSearchParams(window.location.search).get("panel") === "admin" ? "admin" : "host",
   );
   const [voterPanel, setVoterPanel] = useState<VoterPanel>(() =>
-    new URLSearchParams(window.location.search).get("panel") === "dashboard" ? "dashboard" : "competition",
+    ({ dashboard: "dashboard", profile: "profile" } as Record<string, VoterPanel>)[new URLSearchParams(window.location.search).get("panel") || ""] ?? "competition",
   );
   const [apiGuardReady, setApiGuardReady] = useState(false);
   const [demoQueryClient] = useState(() => new QueryClient({
@@ -273,7 +274,7 @@ export default function AppDemoPage() {
               {role === "voter" && (
                 <div className="flex w-full flex-wrap items-center gap-2 pt-3" aria-label="Voter preview">
                   <span className="text-xs text-white/45">View</span>
-                  {(["competition", "dashboard"] as const).map((panel) => (
+                  {(["competition", "profile", "dashboard"] as const).map((panel) => (
                     <button
                       key={panel}
                       type="button"
@@ -286,7 +287,7 @@ export default function AppDemoPage() {
                           : "border-white/10 text-white/55 hover:border-white/25 hover:text-white/80"
                       }`}
                     >
-                      {panel === "competition" ? "Competition" : "Voter dashboard"}
+                      {panel === "competition" ? "Competition" : panel === "profile" ? "Contestant profile" : "Voter dashboard"}
                     </button>
                   ))}
                 </div>
@@ -312,6 +313,9 @@ export default function AppDemoPage() {
                 )}
                 {role === "voter" && voterPanel === "competition" && (
                   <CompetitionDetail demoMode />
+                )}
+                {role === "voter" && voterPanel === "profile" && (
+                  <ContestantShare demoMode />
                 )}
                 {role === "voter" && voterPanel === "dashboard" && (
                   <ViewerDashboard demoMode />

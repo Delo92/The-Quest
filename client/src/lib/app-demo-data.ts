@@ -662,6 +662,37 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
   }
   if (path === "/api/tax/my-deadlines") return [];
 
+  if (path.startsWith("/api/resolve/") && path.endsWith("/bundle")) {
+    const entry = demoCompetition.contestants[0];
+    const sample = demoVideoSamplesByContestantId[entry.id];
+    return {
+      competition: demoCompetition,
+      contestant: {
+        ...entry,
+        videoThumbnail: sample.thumbnail,
+        videos: [{
+          uri: `/videos/${sample.id}`,
+          name: sample.name,
+          link: `https://vimeo.com/${sample.id}`,
+          embedUrl: `https://player.vimeo.com/video/${sample.id}`,
+          duration: sample.duration,
+          thumbnail: sample.thumbnail,
+          width: sample.width,
+          height: sample.height,
+        }],
+        talentProfile: {
+          ...entry.talentProfile,
+          socialLinks: JSON.stringify({
+            instagram: "https://www.instagram.com/",
+            youtube: "https://www.youtube.com/",
+            tiktok: "https://www.tiktok.com/",
+          }),
+        },
+      },
+      totalVotes: demoCompetition.totalVotes,
+      contestants: demoCompetition.contestants,
+    };
+  }
   if (path.includes("/api/resolve/competition/") && path.endsWith("/videos")) {
     const selectedCompetition = path.includes("/raplahoma")
       ? demoSecondCompetition
