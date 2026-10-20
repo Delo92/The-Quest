@@ -816,15 +816,15 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
               onClick={() => setActiveSection(id)}
               data-demo-navigation="allowed"
               data-testid={`sticky-tab-${id}`}
-               className={`min-w-[68px] flex-1 rounded-xl py-2 px-1 flex flex-col items-center gap-1 transition-all border ${
+               className={`min-w-[84px] shrink-0 flex-1 rounded-xl py-2 px-3 flex flex-col items-center gap-1 transition-all border ${
                 activeSection === id
                   ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/20"
                   : "bg-white/[0.05] border-white/10 text-white/45 active:bg-white/[0.09]"
               }`}
             >
               <Icon className={`h-4 w-4 ${activeSection === id ? "text-white" : "text-white/40"}`} />
-              <span className={`text-[10px] font-bold leading-none ${activeSection === id ? "text-white" : "text-white/40"}`}>
-                {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label}
+              <span className={`text-[11px] font-bold leading-none whitespace-nowrap ${activeSection === id ? "text-white" : "text-white/40"}`}>
+                {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label === "Tax details" ? "Tax" : label}
               </span>
             </button>
           ))}
