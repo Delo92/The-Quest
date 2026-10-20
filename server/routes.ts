@@ -4502,10 +4502,11 @@ export async function registerRoutes(
 
       const allContestantsRaw = await storage.getAllContestants();
       const compContestants = allContestantsRaw.filter(c => c.competitionId === id);
-      const totalRawVotes = await storage.getTotalVotesByCompetition(id);
-      const weightedContestants = await storage.getContestantsByCompetition(id);
-      const weightedByContestantId = new Map(weightedContestants.map(c => [c.id, c.voteCount]));
-      const totalVotes = weightedContestants.reduce((sum, contestant) => sum + contestant.voteCount, 0);
+      const [totalVotes, votePurchases] = await Promise.all([
+        storage.getTotalVotesByCompetition(id),
+        firestoreVotePurchases.getByCompetition(id),
+      ]);
+      const voteRevenue = votePurchases.reduce((sum, purchase) => sum + (purchase.amount || 0), 0) / 100;
 
       let creatorRole: string | null = null;
       let creatorProfile: any = null;
@@ -4561,8 +4562,7 @@ export async function registerRoutes(
 
       const contestantDetails = [];
       for (const c of compContestants) {
-        const rawVoteCount = await storage.getVoteCountForContestantInCompetition(c.id, id);
-        const voteCount = weightedByContestantId.get(c.id) || 0;
+        const voteCount = await storage.getVoteCountForContestantInCompetition(c.id, id);
         contestantDetails.push({
           id: c.id,
           talentProfileId: c.talentProfileId,
@@ -4579,7 +4579,6 @@ export async function registerRoutes(
           location: (c.talentProfile as any).location || null,
           socialLinks: (c.talentProfile as any).socialLinks || null,
           voteCount,
-          rawVoteCount,
         });
       }
 
@@ -4587,7 +4586,7 @@ export async function registerRoutes(
         competition: comp,
         viewerRole: role,
         totalVotes,
-        totalRawVotes,
+        voteRevenue,
         createdByAdmin: creatorRole === "admin",
         hosts: competitionHosts,
         contestants: contestantDetails,

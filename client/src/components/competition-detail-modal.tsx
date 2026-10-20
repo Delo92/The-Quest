@@ -43,6 +43,7 @@ interface CompDetailResponse {
   };
   viewerRole: "admin" | "host";
   totalVotes: number;
+  voteRevenue: number;
   createdByAdmin?: boolean;
   hosts: {
     id: string | number;
@@ -451,7 +452,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
 
   if (!data) return <div className="text-white/40 text-sm py-8 text-center">Failed to load details.</div>;
 
-  const { competition, totalVotes, createdByAdmin, hosts, contestants } = data;
+  const { competition, totalVotes, voteRevenue, createdByAdmin, hosts, contestants } = data;
   const globalMaxImages = Math.max(1, Number(platformSettings?.maxImagesPerContestant ?? 10));
   const globalMaxVideos = Math.max(1, Number(platformSettings?.maxVideosPerContestant ?? 3));
   const effectiveMaxImages = maxImages
@@ -746,9 +747,9 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
               </div>
               <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4 flex flex-col justify-between">
                 <span className="text-white/40 text-xs font-medium uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <BarChart3 className="w-3.5 h-3.5" /> Revenue Est.
+                  <BarChart3 className="w-3.5 h-3.5" /> Paid Vote Revenue
                 </span>
-                <span className="text-2xl font-bold text-green-400/90">${(totalVotes * (competition.voteCost ?? 1)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                <span className="text-2xl font-bold text-green-400/90">${voteRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
               </div>
               <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4 flex flex-col justify-between">
                 <span className="text-white/40 text-xs font-medium uppercase tracking-wider mb-2 flex items-center gap-1">
