@@ -354,7 +354,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
 
   const { competition, contestant, totalVotes } = data;
   const profile = contestant.talentProfile;
-  const accentColor = profile.profileColor || "#FF5A09";
+  const accentColor = competition.themeColor || "#FF5A09";
   const bgImage = profile.profileBgImage || null;
   const fallbackDefault = getImage("talent_profile_fallback") || "";
   const videos = mediaData?.videos || contestant.videos || [];
