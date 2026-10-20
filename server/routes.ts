@@ -2712,6 +2712,17 @@ export async function registerRoutes(
     res.json({ id: match.id });
   });
 
+  app.get("/api/talent-profiles/:id/competitions", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid profile ID" });
+    const entries = await storage.getContestantsByTalent(id);
+    const approved = entries.filter((e) => e.applicationStatus === "approved");
+    const comps = await Promise.all(approved.map((e) => storage.getCompetition(e.competitionId)));
+    res.json(comps
+      .filter((c): c is NonNullable<typeof c> => !!c && (c.status === "active" || c.status === "voting"))
+      .map((c) => ({ id: c.id, title: c.title, category: c.category || null })));
+  });
+
   app.get("/api/talent-profiles/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid profile ID" });

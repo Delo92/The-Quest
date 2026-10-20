@@ -39,6 +39,12 @@ export default function TalentProfilePublic() {
     staleTime: 60_000,
   });
 
+  const { data: activeCompetitions = [] } = useQuery<{ id: number; title: string; category: string | null }[]>({
+    queryKey: ["/api/talent-profiles", id, "competitions"],
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black">
@@ -204,6 +210,29 @@ export default function TalentProfilePublic() {
             </div>
           );
         })()}
+
+        {activeCompetitions.length > 0 && (
+          <div className="mb-10" data-testid="active-competitions">
+            <div className="text-center mb-6">
+              <p className="text-sm mb-1" style={{ color: accentColor }}>Vote now</p>
+              <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>Competing in</h2>
+            </div>
+            <div className="flex flex-col items-stretch gap-3 max-w-md mx-auto">
+              {activeCompetitions.map((c) => (
+                <Link key={c.id} href={`/competitions/${c.id}`}>
+                  <span
+                    className="flex min-h-12 items-center justify-between gap-3 rounded-full border px-5 py-3 text-sm font-semibold cursor-pointer transition-all hover:opacity-80"
+                    style={{ borderColor: accentColor, color: accentColor }}
+                    data-testid={`link-active-competition-${c.id}`}
+                  >
+                    <span className="truncate">{c.title}</span>
+                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {profile.imageUrls && profile.imageUrls.length > 0 && (
           <div className="mb-10">

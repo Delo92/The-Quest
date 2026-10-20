@@ -55,3 +55,4 @@
 - [Competition branding scope](competition-branding-scope.md) — sharing Starr Struck's UI/UX does not mean sharing its pink palette; preserve each event's own colors.
 - [Competition photo framing](competition-image-framing.md) — card-photo crops are competition-scoped overrides and must not alter a contestant's shared profile crop.
 - [Public app demo](public-app-demo.md) — verified real media must match identities; keep metrics fictional, allow muted visible-only autoplay, and block writes.
+- [Host contestant admin](host-contestant-admin.md) — hosts reuse admin profile dialog scoped to own events; phone kept in private collection; Competitor URL aliases talent page
