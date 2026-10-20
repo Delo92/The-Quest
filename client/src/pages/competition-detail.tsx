@@ -629,7 +629,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               <CompetitionSummaryText
                 content={competition.description}
                 accentColor={accent}
-                className="mb-6 max-w-3xl"
+                className="mx-auto mb-6 max-w-3xl"
                 testId="text-description"
                 collapsible
               />
@@ -771,9 +771,13 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               const cardCropPosition: ImageCropPosition = competition.contestantImageCropPositions?.[String(contestant.talentProfile.id)]?.["0"]
                 ?? contestant.talentProfile.imageCropPositions?.[0]
                 ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
+              const tileVideo = !selectedStage ? (contestantVideos.get(contestant.id) || [])[0] : undefined;
+              const tileVideoSrc = tileVideo
+                ? `${tileVideo.embedUrl}${tileVideo.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`
+                : null;
               const imageSrc = stageSubmission
                 ? (stageSubmission.mediaType === "image" ? stageSubmission.mediaUrl : stageSubmission.thumbnailUrl) || undefined
-                : (contestant as any).videoThumbnail || primaryProfileImage || getImage("talent_profile_fallback") || undefined;
+                : tileVideo?.thumbnail || (contestant as any).videoThumbnail || primaryProfileImage || getImage("talent_profile_fallback") || undefined;
               const referralQuery = preserveReferralQuery(window.location.search);
               const href = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugifyWithId(name, contestant.talentProfile.id)}${referralQuery}`;
               return (
@@ -791,6 +795,11 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                       className="h-full w-full object-cover"
                       style={getCompetitionCropImageStyle(cardCropPosition)}
                     />
+                    {tileVideoSrc && (
+                      <div className="absolute inset-0">
+                        <LazyVimeoIframe src={tileVideoSrc} title={`${name} video preview`} className="absolute left-1/2 top-1/2 h-full min-h-full w-full min-w-full -translate-x-1/2 -translate-y-1/2 border-0" />
+                      </div>
+                    )}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent px-1.5 pb-1.5 pt-8">
                       <p className="line-clamp-2 text-xs font-semibold leading-tight text-white">{name}</p>
                       <p className="mt-0.5 text-[11px] text-white/80">{voteCount} {selectedStage ? "stage votes" : "votes"}</p>
