@@ -21,6 +21,7 @@ import { DEFAULT_TALENT_IMAGE_CROP_POSITION, getCompetitionCropImageStyle } from
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
+import CompetitionPromoVideos from "@/components/competition-promo-videos";
 import CompetitionSummaryText from "@/components/competition-summary-text";
 import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import {
@@ -151,6 +152,7 @@ interface CompetitionDetail {
   category: string;
   coverImage: string | null;
   coverVideo: string | null;
+  promoVideos?: string[] | null;
   status: string;
   voteCost: number;
   maxVotesPerDay: number;
@@ -616,14 +618,24 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               </div>
             </div>
           </section>
-        ) : competition.description ? (
-          <CompetitionSummaryText
-            content={competition.description}
-            accentColor={accent}
-            className="mb-8 max-w-3xl"
-            testId="text-description"
-          />
-        ) : null}
+        ) : (
+          <>
+            <CompetitionPromoVideos
+              videos={competition.promoVideos ?? []}
+              title={competition.title}
+              accentColor={accent}
+            />
+            {competition.description && (
+              <CompetitionSummaryText
+                content={competition.description}
+                accentColor={accent}
+                className="mb-6 max-w-3xl"
+                testId="text-description"
+                collapsible
+              />
+            )}
+          </>
+        )}
 
         <div className="mb-8">
           <CompetitionShareLinks competition={competition} />

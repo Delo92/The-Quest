@@ -23,6 +23,7 @@ import { useState, useMemo } from "react";
 import { VotePointsBreakdown } from "@/components/vote-points-breakdown";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
+import PromoVideosEditor from "@/components/promo-videos-editor";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
 import CompetitionShareLinks from "@/components/competition-share-links";
 import OwnerAnalyticsPanel from "@/components/owner-analytics-panel";
@@ -54,6 +55,7 @@ interface HostCompetition {
   category: string;
   coverImage: string | null;
   coverVideo: string | null;
+  promoVideos?: string[] | null;
   status: string;
   voteCost: number;
   maxVotesPerDay: number;
@@ -1277,7 +1279,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                           <p className="text-[10px] text-white/25 mt-1">Talent videos upload here first for this event. The standard Vimeo destinations remain backups.</p>
                         </div>
                         <div>
-                          <Label className="text-white/50 text-xs">Cover Image / Thumbnail</Label>
+                          <Label className="text-white/50 text-xs">Cover Image / Thumbnail (a video here is a looping 30-second cover; use Promo videos below for full videos)</Label>
                           <div className="flex flex-wrap items-center gap-3 mt-1">
                             {(comp.coverImage || comp.coverVideo) && (
                               <div className="relative w-24 h-16 rounded-md overflow-hidden border border-white/10">
@@ -1319,6 +1321,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                             </Button>
                           </div>
                         </div>
+                        <PromoVideosEditor competitionId={comp.id} videos={comp.promoVideos ?? []} />
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="sm" onClick={() => { setEditingCompId(null); setEditForm({}); }} className="text-white/50" data-testid={`edit-cancel-${comp.id}`}>
                             Cancel

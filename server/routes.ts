@@ -1,3 +1,4 @@
+import { normalizePromoVideos } from "./promo-videos";
 import type { Express, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
@@ -2252,6 +2253,10 @@ export async function registerRoutes(
       updateData.stages = normalized.stages;
     }
 
+    if ("promoVideos" in updateData) {
+      try { updateData.promoVideos = normalizePromoVideos(updateData.promoVideos); }
+      catch (error: any) { return res.status(400).json({ message: error.message }); }
+    }
     if ("vimeoFolderUrl" in updateData) {
       if (updateData.vimeoFolderUrl === "" || updateData.vimeoFolderUrl === null) {
         updateData.vimeoFolderUrl = null;
@@ -2985,6 +2990,10 @@ export async function registerRoutes(
     const updateData = { ...req.body };
     if (updateData.chronicBrandsPromotionEnabled !== undefined && typeof updateData.chronicBrandsPromotionEnabled !== "boolean") {
       return res.status(400).json({ message: "chronicBrandsPromotionEnabled must be a boolean" });
+    }
+    if ("promoVideos" in updateData) {
+      try { updateData.promoVideos = normalizePromoVideos(updateData.promoVideos); }
+      catch (error: any) { return res.status(400).json({ message: error.message }); }
     }
     if ("vimeoFolderUrl" in updateData) {
       if (updateData.vimeoFolderUrl === "" || updateData.vimeoFolderUrl === null) {

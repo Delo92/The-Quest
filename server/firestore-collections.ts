@@ -72,6 +72,7 @@ export interface FirestoreCompetition {
   category: string;
   coverImage: string | null;
   coverVideo: string | null;
+  promoVideos?: string[] | null;
   status: string;
   voteCost: number;
   nominationFee?: number | null;
