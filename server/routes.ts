@@ -13,6 +13,7 @@ import {
 import { storage } from "./storage";
 import { calculateNominationPromoQuote, normalizeNominationPromoCodes } from "./nomination-promos";
 import { normalizeImageCropPositions } from "./image-crop";
+import { getCompetitionNominationFeeCents } from "../shared/nomination-fee";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "../shared/image-crop";
 import { formatNominationPromoDiscount } from "../shared/nomination-promos";
 import { escapeXml, getPublicOrigin } from "./share-meta";
@@ -2209,6 +2210,18 @@ export async function registerRoutes(
     }
 
     const updateData = { ...req.body };
+
+    if ("nominationFee" in updateData) {
+      if (updateData.nominationFee === null || updateData.nominationFee === "") {
+        updateData.nominationFee = null;
+      } else if (
+        typeof updateData.nominationFee !== "number" ||
+        !Number.isSafeInteger(updateData.nominationFee) ||
+        updateData.nominationFee < 0
+      ) {
+        return res.status(400).json({ message: "Nomination fee must be a non-negative amount in cents, or blank to use the site-wide fee" });
+      }
+    }
 
     if ("themeColor" in updateData) {
       if (updateData.themeColor === "" || updateData.themeColor === null) {
@@ -5413,7 +5426,17 @@ export async function registerRoutes(
       const { code } = req.body;
       if (!code) return res.status(400).json({ valid: false });
       const settings = await firestoreJoinSettings.get();
-      const quote = calculateNominationPromoQuote(settings.nominationFee, code, settings);
+      let nominationFee = settings.nominationFee;
+      if (req.body.competitionId !== undefined && req.body.competitionId !== null) {
+        const competitionId = Number(req.body.competitionId);
+        if (!Number.isSafeInteger(competitionId) || competitionId <= 0) {
+          return res.status(400).json({ valid: false, message: "Invalid competition" });
+        }
+        const competition = await storage.getCompetition(competitionId);
+        if (!competition) return res.status(404).json({ valid: false, message: "Competition not found" });
+        nominationFee = getCompetitionNominationFeeCents(competition.nominationFee, nominationFee);
+      }
+      const quote = calculateNominationPromoQuote(nominationFee, code, settings);
       if (!quote.valid || !quote.promoCode) return res.json({ valid: false });
       res.json({
         valid: true,
@@ -5703,7 +5726,11 @@ export async function registerRoutes(
       if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
         return res.status(400).json({ message: "This competition is not accepting nominations" });
       }
-      const nominationQuote = await resolveProviderPaymentAmount({ purpose: "nominate", promoCode });
+      const nominationQuote = await resolveProviderPaymentAmount({
+        purpose: "nominate",
+        competitionId: targetCompetition.id,
+        promoCode,
+      });
       const resolvedReferralCode = referralCode
         ? await resolveReferralTrackingCode(referralCode)
         : null;
@@ -6765,12 +6792,22 @@ export async function registerRoutes(
     }
     if (input.purpose === "nominate") {
       const settings = await firestoreJoinSettings.get();
+      let nominationFee = settings.nominationFee;
+      if (input.competitionId !== undefined) {
+        const competitionId = Number(input.competitionId);
+        if (!Number.isSafeInteger(competitionId) || competitionId <= 0) {
+          throw Object.assign(new Error("Invalid competition"), { status: 400 });
+        }
+        const competition = await storage.getCompetition(competitionId);
+        if (!competition) throw Object.assign(new Error("Competition not found"), { status: 404 });
+        nominationFee = getCompetitionNominationFeeCents(competition.nominationFee, nominationFee);
+      }
       const promo = input.promoCode
-        ? await resolveCheckoutPromoDiscount(input.promoCode, settings.nominationFee)
+        ? await resolveCheckoutPromoDiscount(input.promoCode, nominationFee)
         : null;
       if (input.promoCode && !promo) throw new VotePromoCodeError("This promo code is invalid or inactive.");
       return {
-        amountCents: Math.max(0, settings.nominationFee - (promo?.discountAmountCents || 0)),
+        amountCents: Math.max(0, nominationFee - (promo?.discountAmountCents || 0)),
         discountAmountCents: promo?.discountAmountCents || 0,
         promoCode: promo?.code || null,
         discountLabel: promo?.discountLabel || null,

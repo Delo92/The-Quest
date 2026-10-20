@@ -25,6 +25,7 @@ interface CompDetailResponse {
     category: string;
     status: string;
     voteCost: number;
+    nominationFee?: number | null;
     maxVotesPerDay: number;
     maxImagesPerContestant: number | null;
     maxVideosPerContestant: number | null;
@@ -101,6 +102,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [voteCost, setVoteCost] = useState("");
+  const [nominationFee, setNominationFee] = useState("");
   const [maxVotesPerDay, setMaxVotesPerDay] = useState("");
   const [maxImages, setMaxImages] = useState("");
   const [maxVideos, setMaxVideos] = useState("");
@@ -149,6 +151,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       setStartDate(c.startDate ? c.startDate.split("T")[0] : "");
       setEndDate(c.endDate ? c.endDate.split("T")[0] : "");
       setVoteCost(String(c.voteCost ?? 1));
+      setNominationFee(c.nominationFee == null ? "" : (c.nominationFee / 100).toFixed(2));
       setMaxVotesPerDay(String(c.maxVotesPerDay ?? 10));
       setMaxImages(String(c.maxImagesPerContestant ?? ""));
       setMaxVideos(String(c.maxVideosPerContestant ?? ""));
@@ -336,6 +339,11 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   });
 
   const handleSave = () => {
+    const nominationFeeCents = nominationFee.trim() === "" ? null : Math.round(Number(nominationFee) * 100);
+    if (nominationFeeCents !== null && (!Number.isSafeInteger(nominationFeeCents) || nominationFeeCents < 0)) {
+      toast({ title: "Invalid nomination fee", description: "Enter a valid non-negative amount.", variant: "destructive" });
+      return;
+    }
     saveMutation.mutate({
       title: title.trim(),
       description: description.trim() || null,
@@ -344,6 +352,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       startDateTbd: !startDate,
       endDateTbd: !endDate,
       voteCost: parseFloat(voteCost) || 1,
+      nominationFee: nominationFeeCents,
       maxVotesPerDay: parseInt(maxVotesPerDay) || 10,
       maxImagesPerContestant: maxImages ? parseInt(maxImages) : null,
       maxVideosPerContestant: maxVideos ? parseInt(maxVideos) : null,
@@ -829,6 +838,25 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                           </div>
 
                           <div className="space-y-1.5">
+                            <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Nomination / Registration Fee ($)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={nominationFee}
+                              onChange={(e) => setNominationFee(e.target.value)}
+                              placeholder="Use site-wide default"
+                              className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors"
+                              data-testid="input-comp-nomination-fee"
+                            />
+                            <p className="text-[10px] text-white/35">
+                              {nominationFee.trim()
+                                ? `This competition charges $${Number(nominationFee || 0).toFixed(2)} per nomination.`
+                                : "Leave blank to use the site-wide nomination fee."}
+                            </p>
+                          </div>
+
+                          <div className="space-y-1.5">
                             <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Max Votes/Day</Label>
                             <Input type="number" min="1" value={maxVotesPerDay} onChange={(e) => setMaxVotesPerDay(e.target.value)} className="bg-black/20 border-white/10 text-white focus:border-orange-500/50 transition-colors" data-testid="input-comp-max-votes" />
                           </div>
@@ -892,6 +920,14 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                           <div>
                             <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Vote Cost</p>
                             <p className="text-sm text-white/80">${competition.voteCost}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Nomination Fee</p>
+                            <p className="text-sm text-white/80">
+                              {competition.nominationFee == null
+                                ? "Site-wide default"
+                                : `$${(competition.nominationFee / 100).toFixed(2)}`}
+                            </p>
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Category</p>

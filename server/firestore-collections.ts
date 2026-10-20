@@ -74,6 +74,7 @@ export interface FirestoreCompetition {
   coverVideo: string | null;
   status: string;
   voteCost: number;
+  nominationFee?: number | null;
   maxVotesPerDay: number;
   maxImagesPerContestant: number | null;
   maxVideosPerContestant: number | null;

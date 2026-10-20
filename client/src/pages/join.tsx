@@ -18,6 +18,7 @@ import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Upload, X, Loader2, 
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import { getCompetitionNominationFeeCents } from "@shared/nomination-fee";
 import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
 import {
@@ -201,7 +202,14 @@ export default function JoinPage() {
   }, []);
 
   const promoValidated = appliedPromo?.kind === "discount";
-  const originalPaymentAmount = settings?.nominationFee || 0;
+  const originalPaymentAmount = getCompetitionNominationFeeCents(
+    selectedCompetition?.nominationFee,
+    settings?.nominationFee ?? 0,
+  );
+  useEffect(() => {
+    setAppliedPromo(null);
+    paymentIdempotencyKey.current = crypto.randomUUID();
+  }, [selectedCompetitionId, originalPaymentAmount]);
   const appliedReferralCode = appliedPromo?.kind === "referral" ? appliedPromo.code : referralCode;
   const paymentAmount = promoValidated ? appliedPromo!.finalAmountCents : originalPaymentAmount;
   const needsPayment = paymentAmount > 0;
@@ -590,7 +598,9 @@ export default function JoinPage() {
                 <Trophy className="h-5 w-5 text-[#FF5A09]" />
                 <div>
                   <p className="font-bold text-white">{selectedCompetition.title}</p>
-                  <p className="text-xs text-white/40">{selectedCompetition.category} | {selectedCompetition.status}</p>
+                  <p className="text-xs text-white/40">
+                    {selectedCompetition.category} | {selectedCompetition.status} | Nomination fee: ${(originalPaymentAmount / 100).toFixed(2)}
+                  </p>
                 </div>
               </div>
               <button
@@ -724,7 +734,7 @@ export default function JoinPage() {
                 />
                 <button
                   type="button"
-                  disabled={referralChecking || !(referralCode || promoCode).trim()}
+                  disabled={referralChecking || !selectedCompetitionId || !(referralCode || promoCode).trim()}
                   onClick={async () => {
                     const codeToApply = (referralCode || promoCode).trim();
                     if (!codeToApply) return;
@@ -733,6 +743,7 @@ export default function JoinPage() {
                       const response = await apiRequest("POST", "/api/payment/validate-code", {
                         purpose: "nominate",
                         code: codeToApply,
+                        competitionId: selectedCompetitionId,
                       });
                       const data = await response.json();
                       if (!response.ok || !data.valid) throw new Error(data.message || "Invalid code.");
