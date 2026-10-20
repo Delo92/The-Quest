@@ -1728,8 +1728,8 @@ export async function registerRoutes(
             const comp = catComps[i];
             const contestants = contestantsByCompetition[i];
             for (const contestant of contestants) {
-              if (contestant.voteCount > topVoteCount) {
-                topVoteCount = contestant.voteCount;
+              if ((contestant.rawVoteCount ?? 0) > topVoteCount) {
+                topVoteCount = contestant.rawVoteCount ?? 0;
                 topContestant = contestant;
                 topCompetition = comp;
               }
@@ -1798,11 +1798,11 @@ export async function registerRoutes(
              displayCompetition = featuredCompetition;
              topContestant = contestantsByCompetition[catComps.indexOf(featuredCompetition)]?.reduce(
                (best: any, contestant: any) =>
-                 !best || contestant.voteCount > best.voteCount ? contestant : best,
+                 !best || (contestant.rawVoteCount ?? 0) > (best.rawVoteCount ?? 0) ? contestant : best,
                null,
              ) || null;
              topCompetition = featuredCompetition;
-             topVoteCount = topContestant?.voteCount || 0;
+             topVoteCount = topContestant?.rawVoteCount || 0;
              await applyCompetitionCover(featuredCompetition);
            }
 

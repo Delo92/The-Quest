@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { slugify } from "@shared/slugify";
 
-function useCardWidth() {
+export function useCardWidth() {
   const [width, setWidth] = useState(() => {
     if (typeof window === "undefined") return 260;
     if (window.innerWidth <= 480) return 170;

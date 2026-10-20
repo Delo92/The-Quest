@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Trophy, MapPin, Tag, ChevronRight, ChevronLeft, Play, Heart, ShoppingCart, Share2, Check, Users, Globe } from "lucide-react";
+import { Trophy, MapPin, Tag, ChevronRight, ChevronLeft, Heart, ShoppingCart, Share2, Check, Users, Globe, ExternalLink } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -20,6 +20,7 @@ import { preserveReferralQuery } from "@/lib/referral";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { buildVimeoSrc } from "@/lib/media-utils";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import ContestantVideoWheel from "@/components/contestant-video-wheel";
 
 interface ResolvedData {
   competition: {
@@ -97,6 +98,7 @@ export default function ContestantSharePage() {
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);
 
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [copied, setCopied] = useState(false);
   const [showNudge, setShowNudge] = useState(false);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
@@ -341,6 +343,8 @@ export default function ContestantSharePage() {
   const bgImage = profile.profileBgImage || null;
   const fallbackDefault = getImage("talent_profile_fallback") || "";
   const videos = mediaData?.videos || contestant.videos || [];
+  const activeVideo = Math.min(activeVideoIndex, Math.max(videos.length - 1, 0));
+  const currentVideo = videos[activeVideo];
   const hasImages = !!(profile.imageUrls && profile.imageUrls.length > 0);
   const heroVideoEmbedUrl = !hasImages && videos.length > 0 ? videos[0].embedUrl : null;
   const heroVideoIsPortrait = heroVideoEmbedUrl
@@ -521,91 +525,138 @@ export default function ContestantSharePage() {
           </div>
         )}
 
-        {/* Hero */}
-        <section className="relative h-[270px] md:h-[400px] overflow-hidden">
-          {heroVideoEmbedUrl ? (
-            <iframe
-              src={`${heroVideoEmbedUrl}${heroVideoEmbedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`}
-              className="absolute left-0"
-              style={heroVideoIsPortrait ? {
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: "100%",
-                aspectRatio: `${videos[0].width} / ${videos[0].height}`,
-                border: "none",
-                pointerEvents: "none",
-              } : {
-                top: 0,
-                width: "100%",
-                height: "100%",
-                border: "none",
-                pointerEvents: "none",
-              }}
-              allow="autoplay; fullscreen"
-              title={profile.stageName || profile.displayName || ""}
-            />
-          ) : (
+        {/* Identity */}
+        <header className="px-4 pb-2 pt-8 text-center">
+          <div
+            className="mx-auto mb-3 h-20 w-20 overflow-hidden rounded-full border-2 bg-zinc-900 md:h-24 md:w-24"
+            style={{ borderColor: accentColor }}
+          >
             <FallbackImage
-              src={mainImage}
+              src={profile.imageUrls?.[0] || mainImage}
               fallbackSrc={mainImageFallback}
               alt={profile.stageName || profile.displayName || ""}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="h-full w-full object-cover"
               style={{
                 objectPosition: `${profile.imageCropPositions?.[0]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[0]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
               }}
             />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30" />
-          <div
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pt-8 pb-5 px-8 z-10 w-[calc(100%-40px)] max-w-[600px]"
-            style={{ backgroundColor: "white" }}
-          >
-            <p className="text-xs uppercase mb-1" style={{ letterSpacing: "4px", color: accentColor }} data-testid="text-competition-context">
-              {competition.title}
-            </p>
-            <h2
-              className="text-[24px] md:text-[34px] uppercase text-black font-normal leading-none"
-              style={{ letterSpacing: "10px" }}
-              data-testid="text-contestant-name"
-            >
-              {profile.stageName || profile.displayName}
-            </h2>
           </div>
-        </section>
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-
-          {/* Metadata */}
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40 mb-6">
+          <p className="mb-1 text-xs uppercase" style={{ letterSpacing: "4px", color: accentColor }} data-testid="text-competition-context">
+            {competition.title}
+          </p>
+          <h1
+            className="text-[28px] font-normal uppercase leading-none text-white md:text-[40px]"
+            style={{ letterSpacing: "8px" }}
+            data-testid="text-contestant-name"
+          >
+            {profile.stageName || profile.displayName}
+          </h1>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm text-white/60">
             {profile.category && (
               <span className="flex items-center gap-1.5" data-testid="text-category">
-                <Tag className="h-4 w-4 text-white/30" /> {profile.category}
+                <Tag className="h-4 w-4 text-white/40" /> {profile.category}
               </span>
             )}
             {profile.location && (
               <span className="flex items-center gap-1.5" data-testid="text-location">
-                <MapPin className="h-4 w-4 text-white/30" /> {profile.location}
+                <MapPin className="h-4 w-4 text-white/40" /> {profile.location}
               </span>
             )}
-            <span className="flex items-center gap-1.5" data-testid="text-competition-name">
-              <Trophy className="h-4 w-4 text-white/30" /> {competition.title}
+            <span className="flex items-center gap-1.5" data-testid="text-vote-count">
+              <Heart className="h-4 w-4" style={{ color: accentColor }} />
+              <span className="font-semibold text-white">{contestant.voteCount}</span> votes
+              <span className="text-white/35" data-testid="text-vote-percentage">· {votePercentage}% of total</span>
             </span>
           </div>
+        </header>
 
-          {/* Vote stats */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-6 bg-white/5 px-8 py-4">
-              <div data-testid="text-vote-count">
-                <span className="text-3xl font-bold" style={{ color: accentColor }}>{contestant.voteCount}</span>
-                <p className="text-white/40 text-xs uppercase mt-1" style={{ letterSpacing: "3px" }}>Votes</p>
+        {/* Videos: same cover-flow wheel as the home page, vote flow attached */}
+        {videos.length > 0 && (
+          <section className="mx-auto max-w-5xl px-4 pb-10 pt-6" aria-label="Competition videos" data-testid="contestant-videos">
+            <ContestantVideoWheel
+              videos={videos.map((video, i) => ({
+                id: video.uri || String(i),
+                title: formatVideoTitle(video.name),
+                thumbnail: video.thumbnail || contestant.videoThumbnail || null,
+              }))}
+              index={activeVideo}
+              onIndexChange={(next) => { setActiveVideoIndex(next); setPlayingVideo(null); }}
+              onPlay={(i) => setPlayingVideo(videos[i].uri)}
+              voteCount={contestant.voteCount}
+              accentColor={accentColor}
+            />
+            {currentVideo && playingVideo === currentVideo.uri && (
+              <div
+                className={`relative mx-auto mt-8 w-full overflow-hidden rounded-lg bg-black ${currentVideo.height && currentVideo.width && currentVideo.height > currentVideo.width ? "aspect-[9/16] max-h-[78vh] max-w-sm" : "aspect-video max-w-3xl"}`}
+                data-testid="video-player"
+              >
+                <iframe
+                  src={buildVimeoSrc(currentVideo.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
+                  className="absolute inset-0 h-full w-full"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  title={formatVideoTitle(currentVideo.name)}
+                />
               </div>
-              <div className="w-px h-10 bg-white/10" />
-              <div data-testid="text-vote-percentage">
-                <span className="text-3xl font-bold text-white">{votePercentage}%</span>
-                <p className="text-white/40 text-xs uppercase mt-1" style={{ letterSpacing: "3px" }}>Of Total</p>
+            )}
+            {isVotingOpen && (
+              <div className="mt-8">
+                <p className="mb-3 text-center text-xs uppercase text-white/50" style={{ letterSpacing: "3px" }}>
+                  Vote for {profile.stageName || profile.displayName}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3" data-testid="voting-actions">
+                <button
+                  onClick={handleVoteClick}
+                  disabled={voteMutation.isPending}
+                  className="inline-flex min-h-12 items-center rounded-full border border-white bg-black px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:bg-white hover:text-black disabled:opacity-50"
+                  style={{ letterSpacing: "2px" }}
+                  data-testid="button-vote"
+                >
+                  <Heart className="mr-2 h-4 w-4" />
+                  {voteMutation.isPending ? "Voting..." : "Vote Free"}
+                </button>
+                <Link
+                  href={`/checkout/${competition.id}/${contestant.id}`}
+                  className="inline-flex min-h-12 items-center rounded-full border px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:brightness-110"
+                  style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
+                  data-testid="button-buy-votes"
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Buy Votes
+                </Link>
+              </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        <div className="mx-auto max-w-4xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+
+          {videos.length === 0 && isVotingOpen && (
+            <div className="mb-10" data-testid="voting-actions-wrap">
+              <div className="flex flex-wrap items-center justify-center gap-3" data-testid="voting-actions-no-video">
+                <button
+                  onClick={handleVoteClick}
+                  disabled={voteMutation.isPending}
+                  className="inline-flex min-h-12 items-center rounded-full border border-white bg-black px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:bg-white hover:text-black disabled:opacity-50"
+                  style={{ letterSpacing: "2px" }}
+                  data-testid="button-vote"
+                >
+                  <Heart className="mr-2 h-4 w-4" />
+                  {voteMutation.isPending ? "Voting..." : "Vote Free"}
+                </button>
+                <Link
+                  href={`/checkout/${competition.id}/${contestant.id}`}
+                  className="inline-flex min-h-12 items-center rounded-full border px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:brightness-110"
+                  style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
+                  data-testid="button-buy-votes"
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Buy Votes
+                </Link>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Bio */}
           {profile.bio && (
@@ -616,38 +667,47 @@ export default function ContestantSharePage() {
             </div>
           )}
 
-          {/* Social links */}
+          {/* Links */}
           {(() => {
             const socialObj = parsePublicLinks(profile.socialLinks);
             const platforms = [
-              { key: "youtube", icon: SiYoutube, label: "YouTube", color: "text-[#FF0000] hover:text-[#FF0000]/80" },
-              { key: "instagram", icon: SiInstagram, label: "Instagram", color: "text-[#E4405F] hover:text-[#E4405F]/80" },
-              { key: "tiktok", icon: SiTiktok, label: "TikTok", color: "text-[#00F2EA] hover:text-[#00F2EA]/80" },
-              { key: "facebook", icon: SiFacebook, label: "Facebook", color: "text-[#1877F2] hover:text-[#1877F2]/80" },
+              { key: "youtube", icon: SiYoutube, label: "YouTube" },
+              { key: "instagram", icon: SiInstagram, label: "Instagram" },
+              { key: "tiktok", icon: SiTiktok, label: "TikTok" },
+              { key: "facebook", icon: SiFacebook, label: "Facebook" },
             ];
             const active = Object.entries(socialObj);
             if (active.length === 0) return null;
             return (
-              <div className="flex flex-wrap items-center justify-center gap-5 mb-10" data-testid="social-links">
-                {active.map(([key, url]) => {
-                  const platform = platforms.find((item) => item.key === key.toLowerCase());
-                  const Icon = platform?.icon;
-                  const label = platform?.label || key;
-                  return (
-                    <a
-                      key={key}
-                      href={url}
-                      target="_blank"
-                      rel="me noopener noreferrer"
-                      className={`${platform?.color || "text-white/70 hover:text-[#FF5A09]"} transition-colors duration-300`}
-                      data-testid={`link-social-${key}`}
-                      title={label}
-                      aria-label={`${label} profile`}
-                    >
-                      {Icon ? <Icon className="h-6 w-6" /> : <Globe className="h-6 w-6" />}
-                    </a>
-                  );
-                })}
+              <div className="mx-auto mb-12 w-full max-w-md" data-testid="social-links">
+                <div className="mb-5 text-center">
+                  <p className="mb-1 text-sm text-[#5f5f5f]">Follow along</p>
+                  <h2 className="text-lg font-normal uppercase text-white" style={{ letterSpacing: "10px" }}>Links</h2>
+                </div>
+                <ul className="flex flex-col gap-3">
+                  {active.map(([key, url]) => {
+                    const platform = platforms.find((item) => item.key === key.toLowerCase());
+                    const Icon = platform?.icon;
+                    const label = platform?.label || key;
+                    return (
+                      <li key={key}>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="me noopener noreferrer"
+                          className="flex min-h-12 items-center gap-3 rounded-full border border-white/15 bg-white/[0.04] px-5 text-sm font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                          style={{ outlineColor: accentColor }}
+                          data-testid={`link-social-${key}`}
+                          aria-label={`${label} profile`}
+                        >
+                          {Icon ? <Icon className="h-5 w-5 shrink-0" style={{ color: accentColor }} /> : <Globe className="h-5 w-5 shrink-0" style={{ color: accentColor }} />}
+                          <span className="min-w-0 flex-1 truncate text-center capitalize">{label}</span>
+                          <ExternalLink className="h-4 w-4 shrink-0 text-white/40" aria-hidden="true" />
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             );
           })()}
@@ -677,112 +737,6 @@ export default function ContestantSharePage() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Videos + vote buttons directly below */}
-          {videos.length > 0 && (
-            <div className="mb-10">
-              <div className="text-center mb-10">
-                <p className="text-[#5f5f5f] text-sm mb-1">Watch performances</p>
-                <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
-                  Videos
-                </h2>
-              </div>
-              <div className={`grid gap-6 ${videos.length === 1 ? "grid-cols-1 max-w-xl mx-auto" : "grid-cols-1 md:grid-cols-2"}`}>
-                {videos.map((video, i) => (
-                  <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
-                    <div
-                      className={`relative overflow-hidden ${video.height && video.width && video.height > video.width ? "aspect-[9/16]" : "aspect-video"}`}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Play ${formatVideoTitle(video.name)}`}
-                      onClick={() => setPlayingVideo(video.uri)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setPlayingVideo(video.uri);
-                        }
-                      }}
-                    >
-                      {playingVideo === video.uri ? (
-                        <iframe
-                          src={buildVimeoSrc(video.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
-                          className="absolute inset-0 w-full h-full"
-                          allow="autoplay; fullscreen; picture-in-picture"
-                          allowFullScreen
-                          title={formatVideoTitle(video.name)}
-                        />
-                      ) : (
-                        <>
-                          <FallbackImage
-                            src={video.thumbnail || getImage("talent_profile_fallback") || ""}
-                            fallbackSrc={getImage("talent_profile_fallback") || ""}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/30 transition-colors duration-300">
-                            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 border border-white/30 text-white shadow-lg backdrop-blur-sm">
-                              <Play className="ml-1 h-6 w-6 fill-current" />
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <p className="text-white/50 text-sm mt-2 text-center truncate">{formatVideoTitle(video.name)}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Vote buttons directly under the video — in eyeline after watching */}
-              {isVotingOpen && (
-                <div className="flex flex-wrap items-center justify-center gap-4 mt-8" data-testid="voting-actions">
-                  <button
-                    onClick={handleVoteClick}
-                    disabled={voteMutation.isPending}
-                    className="inline-flex items-center bg-black text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
-                    style={{ letterSpacing: "2px" }}
-                    data-testid="button-vote"
-                  >
-                    <Heart className="h-4 w-4 mr-2" />
-                    {voteMutation.isPending ? "Voting..." : "Vote Free"}
-                  </button>
-                  <Link
-                    href={`/checkout/${competition.id}/${contestant.id}`}
-                    className="inline-flex items-center text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border transition-all duration-500 cursor-pointer"
-                    style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
-                    data-testid="button-buy-votes"
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Buy Votes
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Vote buttons for profiles with no video (keep above nav) */}
-          {videos.length === 0 && isVotingOpen && (
-            <div className="flex flex-wrap items-center justify-center gap-4 mb-10" data-testid="voting-actions">
-              <button
-                onClick={handleVoteClick}
-                disabled={voteMutation.isPending}
-                className="inline-flex items-center bg-black text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer disabled:opacity-50"
-                style={{ letterSpacing: "2px" }}
-                data-testid="button-vote"
-              >
-                <Heart className="h-4 w-4 mr-2" />
-                {voteMutation.isPending ? "Voting..." : "Vote Free"}
-              </button>
-              <Link
-                href={`/checkout/${competition.id}/${contestant.id}`}
-                className="inline-flex items-center text-white font-bold text-sm uppercase px-8 leading-[47px] rounded-full border transition-all duration-500 cursor-pointer"
-                style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
-                data-testid="button-buy-votes"
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Buy Votes
-              </Link>
             </div>
           )}
 
