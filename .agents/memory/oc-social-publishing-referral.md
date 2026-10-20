@@ -1,10 +1,16 @@
 ---
 name: OC social-publishing referral
-description: Product scope and referral prefill for the initial OC-hosted social automation offer
+description: Event-scoped OC Gold automation benefit and consented referral attribution
 ---
 
-The first social-publishing offer is hosted by Original Concepts: Quest artists and hosts can follow a referral link, use promo code `THE QUEST`, and receive free automation during their first Quest competition. Quest should pass available profile email, display/stage name, role, and social links only when the user chooses to continue. The existing OC social scanning flow stays unchanged in this initial referral phase. Building native Quest publishing is a later product phase.
+Original Concepts gives referred Quest contestants and hosts free social-media automation from its Gold package, which the user states is worth $105 per month. The benefit is tied to the Quest event that triggered signup; OC must know the client's event association so it can revoke the promotional automation privilege appropriately.
 
-**Why:** This provides a low-effort way to offer social automation while OC handles platform connections and publishing, without mixing that work into Quest's existing scan integration.
+**Why:** The user explicitly requires event attribution and proper revocation on OC's side, not an indefinite free Gold automation entitlement based only on a promo code.
 
-**How to apply:** Keep the settings CTA explicit about what profile details are sent to OC. Keep the offer informational and separate from Quest's required marketing-guidelines acknowledgment; do not imply that checking the Quest acknowledgment creates an OC account or grants posting access. Coordinate the referral query-field contract with OC's landing page. Do not change scan-result handling or add publishing callbacks as part of the referral-only phase.
+**How to apply:** Include unambiguous event attribution in the referral contract and distinguish browser-supplied prefill from server-verified entitlement. Do not invent an expiry policy for elimination, withdrawal, cancellation, or rescheduling. Keep OC's promotional entitlement separate from OAuth publishing authorization and any paid OC subscription.
+
+Profile email, display/stage name, role, and social links may be passed only when the user chooses to follow the referral. Keep that disclosure explicit, preserve the existing social scanning flow, and keep the offer separate from Quest's required marketing-guidelines acknowledgment.
+
+**Why:** Following the referral is a separate consented action; accepting Quest guidelines must not imply OC account creation or posting authorization.
+
+**How to apply:** Coordinate referral fields with OC's landing page and preserve the distinction between the offer, account connection, and each explicit publishing action.
