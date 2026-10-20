@@ -39,6 +39,8 @@ import {
 import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import OCReferralBanner from "@/components/oc-referral-banner";
+import { buildOCReferralUrl } from "@/lib/oc-referral";
 
 interface Props {
   user: any;
@@ -1100,6 +1102,24 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                     </div>
                   ))}
                 </div>
+                {!demoMode && (
+                  <OCReferralBanner
+                    audience="artist"
+                    href={buildOCReferralUrl({
+                      role: "artist",
+                      email,
+                      displayName: displayName || profile?.displayName || user.displayName,
+                      stageName: (profile as any)?.stageName || user.stageName,
+                      socialLinks: {
+                        youtube: socialYoutube,
+                        instagram: socialInstagram,
+                        tiktok: socialTiktok,
+                        facebook: socialFacebook,
+                        customLinks,
+                      },
+                    })}
+                  />
+                )}
               </div>
 
               <div className="space-y-4 rounded-md bg-white/[0.03] border border-white/10 p-5">

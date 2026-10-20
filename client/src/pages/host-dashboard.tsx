@@ -34,6 +34,8 @@ import {
   hasPrizeReadyNonprofitDeclaration,
   nonprofitAllocationCents,
 } from "@shared/nonprofit-policy";
+import OCReferralBanner from "@/components/oc-referral-banner";
+import { buildOCReferralUrl } from "@/lib/oc-referral";
 
 interface HostStats {
   totalCompetitions: number;
@@ -700,6 +702,19 @@ export default function HostDashboard({ user }: { user: any }) {
                 ))}
               </div>
             </div>
+            <OCReferralBanner
+              audience="host"
+              href={buildOCReferralUrl({
+                role: "host",
+                email: accountForm.email || user?.email,
+                displayName: accountForm.displayName || user?.displayName,
+                stageName: accountForm.stageName || user?.stageName,
+                socialLinks: {
+                  ...parsePublicLinks(myProfile?.socialLinks || user?.socialLinks),
+                  customLinks: hostCustomLinks,
+                },
+              })}
+            />
             <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} level="host" />
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 border-t border-white/10 pt-4">
               <Button variant="ghost" onClick={() => setAccountOpen(false)} className="text-white/55">Cancel</Button>
