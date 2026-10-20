@@ -64,11 +64,11 @@ OC base URL: `https://oraginalconcepts.com`
 
 ## Per-user OC account and brand-kit access
 
-Each Quest user’s OC account connection is separate from the optional OC referral and the existing Quest-to-OC server integration. Do not reuse the shared `QUEST_OC_API_TOKEN` or OC’s normal portal-session JWT as the linked user’s credential. The portal JWT represents broader portal access, not a narrowly scoped brand-kit grant. Use a distinct, user-consented, read-only authorization; keep its credentials encrypted on Quest’s server, associated with the authenticated Quest user, and proxy OC brand-kit reads through Quest. Disconnecting one Quest account must not affect the shared integration or other users.
+Each Quest user’s OC account connection is separate from the optional OC referral and the existing Quest-to-OC server integration. The user explicitly consents to Quest using the selected kit’s identity/media and publishing to that kit’s connected social accounts. Do not reuse the shared `QUEST_OC_API_TOKEN` or OC’s normal portal-session JWT as the linked user’s credential. The portal JWT represents broader portal access. Use a distinct, user-consented authorization scoped to the selected kit and its authorized social accounts; keep its credentials encrypted on Quest’s server and associate the grant with the authenticated Quest user. OC retains the social-platform credentials and performs publishing. Disconnecting one Quest account must not affect the shared integration or other users.
 
-**Why:** The owners want each individual Quest user to connect their own OC account and select a brand kit. A service-wide integration token cannot represent that user’s identity or consent, and reusing a normal portal session would grant more access than this feature needs.
+**Why:** The owners want each individual Quest user to connect their own OC account, select a brand kit, and authorize Quest to post to its connected social accounts. A service-wide integration token cannot represent that user’s identity or consent, and reusing a normal portal session would grant more access than this feature needs.
 
-**How to apply:** Wait for OC’s account-authorization contract before implementing endpoints, scopes, or token handling. Once available, use the user’s Quest identity for ownership, retrieve only the authorized account’s brand kits, and make selected kit media available in Quest without exposing OC credentials to the browser.
+**How to apply:** Use a user-specific grant that covers reading brand-kit identity/media and publishing only to the selected kit’s authorized social accounts. Keep OC access/refresh tokens off the browser, use OC as the publishing broker, and make the consent, selected kit, connected targets, and disconnect status visible in Quest.
 
 ## Quest files
 
