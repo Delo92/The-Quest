@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import * as tus from "tus-js-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle } from "lucide-react";
+import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle, Upload, Palette } from "lucide-react";
 import type { CompetitionStage } from "@shared/schema";
 import CompetitionShareLinks from "@/components/competition-share-links";
 
@@ -32,8 +33,12 @@ interface CompDetailResponse {
     onlineVoteWeight: number;
     inPersonOnly: boolean;
     vimeoFolderUrl: string | null;
+    coverImage: string | null;
+    coverVideo: string | null;
+    themeColor?: string | null;
     stages?: CompetitionStage[];
   };
+  viewerRole: "admin" | "host";
   totalVotes: number;
   createdByAdmin?: boolean;
   hosts: {
@@ -67,6 +72,7 @@ interface ContestantProfileDetail {
     category?: string;
     imageUrls?: string[];
     imageBackupUrls?: string[];
+    imageCropPositions?: { x: number; y: number }[];
   };
   vimeoVideos?: { uri: string; name: string; link: string; embedUrl?: string; thumbnail?: string | null }[];
 }
@@ -88,7 +94,10 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   const [maxVideos, setMaxVideos] = useState("");
   const [onlineVoteWeight, setOnlineVoteWeight] = useState("");
   const [vimeoFolderUrl, setVimeoFolderUrl] = useState("");
+  const [themeColor, setThemeColor] = useState("#f97316");
   const [stages, setStages] = useState<CompetitionStage[]>([]);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const [coverUploadProgress, setCoverUploadProgress] = useState<number | null>(null);
 
   // Search/filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -107,14 +116,16 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   });
 
   const { data: expandedProfileData, isLoading: expandedLoading } = useQuery<ContestantProfileDetail>({
-    queryKey: ["/api/admin/users", expandedProfileId, "detail"],
+    queryKey: ["/api/competitions", compId, "contestants", expandedProfileId, "media"],
+    queryFn: async () => {
+      const token = getAuthToken();
+      const response = await fetch(`/api/competitions/${compId}/contestants/${expandedProfileId}/media`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error("Could not load contestant media");
+      return response.json();
+    },
     enabled: expandedProfileId !== null,
-    staleTime: 60_000,
-  });
-
-  const { data: expandedVideosData } = useQuery<{ vimeoVideos: ContestantProfileDetail["vimeoVideos"] }>({
-    queryKey: ["/api/admin/users", expandedProfileId, "videos"],
-    enabled: expandedProfileId !== null && !!expandedProfileData,
     staleTime: 60_000,
   });
 
@@ -131,6 +142,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
       setMaxVideos(String(c.maxVideosPerContestant ?? ""));
       setOnlineVoteWeight(String(c.onlineVoteWeight ?? 100));
       setVimeoFolderUrl(c.vimeoFolderUrl || "");
+      setThemeColor(c.themeColor || "#f97316");
       setStages((c.stages || []).map((stage, index) => ({
         id: stage.id || `stage-${index + 1}`,
         order: index + 1,
@@ -186,6 +198,110 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
     },
     onError: (err: Error) => {
       toast({ title: "Stages could not be saved", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const themeColorMutation = useMutation({
+    mutationFn: async (color: string | null) => {
+      await apiRequest("PATCH", `/api/competitions/${compId}`, { themeColor: color });
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Competition accent updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Accent color could not be saved", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const coverUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const token = getAuthToken();
+      const authHeaders: Record<string, string> = {};
+      if (token) authHeaders.Authorization = `Bearer ${token}`;
+      const rolePath = data?.viewerRole === "admin" ? "admin" : "host";
+
+      if (file.type.startsWith("video/") || /\.(mp4|webm|mov|avi|mkv|m4v)$/i.test(file.name)) {
+        setCoverUploadProgress(0);
+        const ticketResponse = await fetch(`/api/${rolePath}/competitions/${compId}/cover-vimeo-ticket`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ fileSize: file.size }),
+        });
+        if (!ticketResponse.ok) {
+          const error = await ticketResponse.json().catch(() => ({}));
+          throw new Error(error.message || "Could not start the video upload");
+        }
+        const ticket = await ticketResponse.json();
+        await new Promise<void>((resolve, reject) => {
+          const upload = new tus.Upload(file, {
+            uploadUrl: ticket.uploadLink,
+            onError: (error) => reject(new Error(error.message || "Video upload failed")),
+            onProgress: (uploaded, total) => setCoverUploadProgress(Math.round((uploaded / total) * 100)),
+            onSuccess: () => resolve(),
+          });
+          upload.start();
+        });
+        if (ticket.completeUri) {
+          try { await fetch(`https://api.vimeo.com${ticket.completeUri}`, { method: "DELETE" }); } catch {}
+        }
+
+        const videoId = String(ticket.videoUri || "").match(/\/videos\/(\d+)/)?.[1];
+        if (!videoId) throw new Error("The video upload did not return a valid Vimeo video");
+        let playerUrl = `https://player.vimeo.com/video/${videoId}`;
+        if (rolePath === "admin") {
+          try {
+            const embedResponse = await fetch(`/api/admin/vimeo/video/${videoId}/embed-url`, { headers: authHeaders });
+            if (embedResponse.ok) playerUrl = (await embedResponse.json()).playerEmbedUrl || playerUrl;
+          } catch {}
+        }
+        const saveResponse = await fetch(`/api/${rolePath}/competitions/${compId}/cover-video-url`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ videoUrl: playerUrl }),
+        });
+        if (!saveResponse.ok) {
+          const error = await saveResponse.json().catch(() => ({}));
+          throw new Error(error.message || "The video uploaded but its cover could not be saved");
+        }
+        return saveResponse.json();
+      }
+
+      const formData = new FormData();
+      formData.append("cover", file);
+      const response = await fetch(`/api/${rolePath}/competitions/${compId}/cover`, {
+        method: "PUT",
+        headers: authHeaders,
+        body: formData,
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || "Cover upload failed");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setCoverUploadProgress(null);
+      invalidateAll();
+      toast({ title: "Competition page media updated" });
+    },
+    onError: (err: Error) => {
+      setCoverUploadProgress(null);
+      toast({ title: "Media upload failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const coverRemoveMutation = useMutation({
+    mutationFn: async (type: "image" | "video") => {
+      const rolePath = data?.viewerRole === "admin" ? "admin" : "host";
+      await apiRequest("DELETE", `/api/${rolePath}/competitions/${compId}/cover?type=${type}`);
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Competition page media removed" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Media could not be removed", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
     },
   });
 
@@ -762,6 +878,124 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
               {/* Sidebar items */}
               <div className="space-y-6">
 
+                <section className="rounded-xl bg-zinc-900 border border-white/10 overflow-hidden" data-testid="comp-detail-appearance">
+                  <div className="border-b border-white/10 bg-white/5 px-5 py-3">
+                    <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
+                      <Palette className="h-4 w-4 text-orange-400" /> Page Appearance
+                    </h3>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    <div className="space-y-2">
+                      <Label htmlFor="competition-theme-color" className="text-xs text-white/55 uppercase tracking-wider font-semibold">
+                        Competition accent
+                      </Label>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <input
+                          id="competition-theme-color"
+                          aria-label="Competition accent color"
+                          type="color"
+                          value={/^#[0-9a-f]{6}$/i.test(themeColor) ? themeColor : "#f97316"}
+                          onChange={(event) => setThemeColor(event.target.value)}
+                          className="h-11 w-14 cursor-pointer rounded-md border border-white/15 bg-transparent p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400"
+                          data-testid="input-comp-theme-color"
+                        />
+                        <span className="font-mono text-sm text-white/75 uppercase">{themeColor}</span>
+                        <Button
+                          size="sm"
+                          className="ml-auto min-h-10 bg-orange-500 text-white hover:bg-orange-400"
+                          onClick={() => themeColorMutation.mutate(themeColor)}
+                          disabled={themeColorMutation.isPending || !/^#[0-9a-f]{6}$/i.test(themeColor) || themeColor === (competition.themeColor || "#f97316")}
+                          data-testid="button-save-comp-theme"
+                        >
+                          {themeColorMutation.isPending ? "Saving…" : "Save color"}
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-auto min-h-9 px-0 text-xs text-white/45 hover:text-white"
+                        onClick={() => themeColorMutation.mutate(null)}
+                        disabled={themeColorMutation.isPending || !competition.themeColor}
+                        data-testid="button-reset-comp-theme"
+                      >
+                        Use default orange
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2 border-t border-white/10 pt-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-xs text-white/55 uppercase tracking-wider font-semibold">Page cover</Label>
+                        <input
+                          ref={coverInputRef}
+                          type="file"
+                          accept="image/*,video/*"
+                          className="sr-only"
+                          aria-label="Upload competition cover image or video"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) coverUploadMutation.mutate(file);
+                            event.currentTarget.value = "";
+                          }}
+                          data-testid="input-comp-cover-upload"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="min-h-10 border-white/15 text-white/75 hover:border-orange-400/50 hover:bg-orange-500/10"
+                          onClick={() => coverInputRef.current?.click()}
+                          disabled={coverUploadMutation.isPending}
+                          data-testid="button-upload-comp-cover"
+                        >
+                          <Upload className="mr-2 h-3.5 w-3.5" />
+                          {coverUploadMutation.isPending ? "Uploading…" : "Upload media"}
+                        </Button>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-white/40">Choose an image or a short video for this competition page.</p>
+                      {coverUploadProgress !== null && (
+                        <div className="space-y-1" role="status" aria-live="polite">
+                          <div className="flex justify-between text-xs text-white/55"><span>Video upload</span><span>{coverUploadProgress}%</span></div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                            <div className="h-full bg-orange-400 transition-[width]" style={{ width: `${coverUploadProgress}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      {competition.coverVideo ? (
+                        <div className="relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black">
+                          {competition.coverVideo.includes("vimeo.com") ? (
+                            <iframe
+                              src={`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}background=1&muted=1`}
+                              title={`${competition.title} cover video`}
+                              className="absolute inset-0 h-full w-full border-0"
+                              allow="autoplay; fullscreen"
+                            />
+                          ) : (
+                            <video src={competition.coverVideo} muted controls playsInline className="h-full w-full object-cover" />
+                          )}
+                        </div>
+                      ) : competition.coverImage ? (
+                        <img src={competition.coverImage} alt={`${competition.title} cover`} className="aspect-video w-full rounded-lg border border-white/10 object-cover" />
+                      ) : (
+                        <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-white/10 text-xs text-white/35">
+                          No cover media selected
+                        </div>
+                      )}
+                      {(competition.coverImage || competition.coverVideo) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="min-h-10 px-0 text-xs text-red-300/80 hover:bg-red-500/10 hover:text-red-200"
+                          onClick={() => coverRemoveMutation.mutate(competition.coverVideo ? "video" : "image")}
+                          disabled={coverRemoveMutation.isPending}
+                          data-testid="button-remove-comp-cover"
+                        >
+                          {coverRemoveMutation.isPending ? "Removing…" : "Remove cover media"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
                 {/* Voting Analytics */}
                 <div className="rounded-xl bg-zinc-900 border border-white/10 p-5" data-testid="comp-detail-vote-breakdown">
                   <h3 className="text-sm font-semibold text-white/90 mb-4">Voting Methods</h3>
@@ -922,7 +1156,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                   const isExpanded = expandedProfileId === c.talentProfileId;
                   const epd = isExpanded ? expandedProfileData : null;
                   const epImages = epd?.profile?.imageUrls ?? c.imageUrls ?? [];
-                  const epVideos = isExpanded ? (expandedVideosData?.vimeoVideos ?? []) : [];
+                  const epVideos = isExpanded ? (expandedProfileData?.vimeoVideos ?? []) : [];
                   return (
                     <div key={c.id} className="rounded-xl bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors overflow-hidden group" data-testid={`comp-contestant-${c.id}`}>
                       <button
@@ -1022,6 +1256,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                                             src={url}
                                             alt={`photo-${i + 1}`}
                                             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            style={{ objectPosition: `${epd?.profile?.imageCropPositions?.[i]?.x ?? 50}% ${epd?.profile?.imageCropPositions?.[i]?.y ?? 18}%` }}
                                           />
                                           <div className="absolute inset-0 bg-orange-500/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <ArrowUpRight className="h-5 w-5 text-white" />

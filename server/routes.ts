@@ -2210,6 +2210,16 @@ export async function registerRoutes(
 
     const updateData = { ...req.body };
 
+    if ("themeColor" in updateData) {
+      if (updateData.themeColor === "" || updateData.themeColor === null) {
+        updateData.themeColor = null;
+      } else if (typeof updateData.themeColor !== "string" || !/^#[0-9a-f]{6}$/i.test(updateData.themeColor)) {
+        return res.status(400).json({ message: "Competition accent must be a six-digit hex color" });
+      } else {
+        updateData.themeColor = updateData.themeColor.toUpperCase();
+      }
+    }
+
     if ("stages" in updateData) {
       const currentCompetition = await storage.getCompetition(id);
       if (!currentCompetition) return res.status(404).json({ message: "Competition not found" });
@@ -3035,6 +3045,37 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: "Failed to update cover video" });
+    }
+  });
+
+  app.delete("/api/host/competitions/:id/cover", firebaseAuth, requireHost, async (req, res) => {
+    try {
+      const { uid } = req.firebaseUser!;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
+      const type = req.query.type;
+      if (type !== "image" && type !== "video") {
+        return res.status(400).json({ message: "Cover type must be image or video" });
+      }
+
+      const comp = await storage.getCompetition(id);
+      if (!comp || comp.createdBy !== uid) {
+        return res.status(403).json({ message: "Not your competition" });
+      }
+
+      const updateData: Record<string, null> = {};
+      if (type === "video") {
+        updateData.coverVideo = null;
+        if (comp.coverVideo) invalidateVideoPlayCache(extractVimeoVideoId(comp.coverVideo) ?? "");
+      } else {
+        updateData.coverImage = null;
+      }
+      const updated = await storage.updateCompetition(id, updateData);
+      if (!updated) return res.status(404).json({ message: "Competition not found" });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Host cover removal error:", error);
+      res.status(500).json({ message: "Failed to remove cover" });
     }
   });
 
@@ -4540,6 +4581,7 @@ export async function registerRoutes(
 
       res.json({
         competition: comp,
+        viewerRole: role,
         totalVotes,
         totalRawVotes,
         createdByAdmin: creatorRole === "admin",
@@ -4549,6 +4591,64 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Competition detail error:", error);
       res.status(500).json({ message: "Failed to get competition detail" });
+    }
+  });
+
+  app.get("/api/competitions/:competitionId/contestants/:profileId/media", firebaseAuth, async (req, res) => {
+    try {
+      const { uid } = req.firebaseUser!;
+      const [profile, competition] = await Promise.all([
+        storage.getTalentProfile(Number(req.params.profileId)),
+        storage.getCompetition(Number(req.params.competitionId)),
+      ]);
+      if (!Number.isSafeInteger(Number(req.params.profileId)) || !profile) {
+        return res.status(404).json({ message: "Contestant profile not found" });
+      }
+      if (!Number.isSafeInteger(Number(req.params.competitionId)) || !competition) {
+        return res.status(404).json({ message: "Competition not found" });
+      }
+
+      const viewerProfile = await storage.getTalentProfileByUserId(uid);
+      const role = viewerProfile?.role;
+      if (role !== "admin" && role !== "host") {
+        return res.status(403).json({ message: "Admin or host access required" });
+      }
+      if (role === "host" && competition.createdBy !== uid) {
+        return res.status(403).json({ message: "Not your competition" });
+      }
+
+      const entries = await storage.getContestantsByCompetition(competition.id);
+      if (!entries.some((entry) => entry.talentProfileId === profile.id)) {
+        return res.status(404).json({ message: "Contestant is not part of this competition" });
+      }
+
+      const talentName = String(profile.stageName || profile.displayName || "").trim();
+      const rawVideos = await getCompetitionScopedTalentVideos(profile, competition, talentName).catch(() => []);
+      const vimeoVideos = await Promise.all(rawVideos.map(async (video: any) => ({
+        uri: video.uri,
+        name: video.name,
+        link: video.link,
+        embedUrl: video.player_embed_url,
+        duration: video.duration,
+        thumbnail: await resolveVideoThumbnail(video),
+      })));
+
+      res.json({
+        profile: {
+          displayName: profile.displayName,
+          stageName: profile.stageName,
+          bio: profile.bio,
+          location: profile.location,
+          category: profile.category,
+          imageUrls: profile.imageUrls || [],
+          imageBackupUrls: (profile as any).imageBackupUrls || [],
+          imageCropPositions: (profile as any).imageCropPositions || [],
+        },
+        vimeoVideos,
+      });
+    } catch (error: any) {
+      console.error("Competition contestant media error:", error);
+      res.status(500).json({ message: "Failed to load competition contestant media" });
     }
   });
 
