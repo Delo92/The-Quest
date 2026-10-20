@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import OCReferralBanner from "@/components/oc-referral-banner";
+import OCPostActivity from "@/components/oc-post-activity";
 
 interface OCAccountPanelProps {
   returnTo: "/thequest/dashboard";
@@ -352,6 +353,7 @@ export default function OCAccountPanel({
       <div className="border-t border-white/10 pt-4">
         <OCReferralBanner audience={referralAudience} />
       </div>
+      <OCPostActivity />
 
       {isLoading ? (
         <div className="space-y-3 border-t border-white/10 pt-4" role="status" aria-label="Loading OC connection">
