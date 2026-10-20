@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { hasOCIntegrationToken, isValidOCIntegrationAuthorization } from "./services/ocAdapter";
 import { createOCReferralService, OCReferralError } from "./oc-referral-service";
 import { ocReferralStore } from "./oc-referral-store";
+import { createOCPostResultService, ocPostResultStore, postResultSchema } from "./oc-post-results";
 
 const referralService = createOCReferralService({
   store: ocReferralStore,
@@ -26,12 +27,14 @@ export function registerOCReferralRoutes(
   app: Express,
   options: {
     service?: typeof referralService;
+    postResults?: ReturnType<typeof createOCPostResultService>;
     userAuth?: RequestHandler;
     integrationConfigured?: () => boolean;
     integrationAuthorized?: (value: string | undefined) => boolean;
   } = {},
 ) {
   const service = options.service ?? referralService;
+  const postResults = options.postResults ?? createOCPostResultService(ocPostResultStore);
   const userAuth = options.userAuth ?? firebaseAuth;
   const configured = options.integrationConfigured ?? hasOCIntegrationToken;
   const authorized = options.integrationAuthorized ?? isValidOCIntegrationAuthorization;
@@ -59,5 +62,22 @@ export function registerOCReferralRoutes(
     try {
       res.json(await service.verify(parsed.data.referralId, parsed.data.ocAccountId, parsed.data.verifiedEmail));
     } catch (error) { fail(res, error); }
+  });
+  app.post("/api/integrations/oc/referral/post-results", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    if (!configured()) return res.status(503).json({ message: "OC integration is not configured." });
+    if (!authorized(req.headers.authorization)) return res.status(401).json({ message: "OC integration authorization required." });
+    const parsed = postResultSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "A referral reference, OC account ID, post ID, and 1-20 platform results are required." });
+    try { res.json(await postResults.record(parsed.data)); } catch (error) {
+      if (error instanceof OCReferralError) return res.status(error.status).json({ message: error.message, code: error.code });
+      res.status(503).json({ message: "Quest could not record the post results. Retry with the same post ID.", code: "post_results_unavailable" });
+    }
+  });
+  app.get("/api/oc/referral/post-results", userAuth, async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    try { res.json(await postResults.summary(req.firebaseUser!.uid)); } catch {
+      res.status(503).json({ message: "Post activity is temporarily unavailable." });
+    }
   });
 }
