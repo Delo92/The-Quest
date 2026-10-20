@@ -35,6 +35,7 @@ import {
   nonprofitAllocationCents,
 } from "@shared/nonprofit-policy";
 import OCReferralBanner from "@/components/oc-referral-banner";
+import OCAccountPanel from "@/components/oc-account-panel";
 import { buildOCReferralUrl } from "@/lib/oc-referral";
 
 interface HostStats {
@@ -208,7 +209,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
   );
 }
 
-export default function HostDashboard({ user }: { user: any }) {
+export default function HostDashboard({ user, demoMode = false }: { user: any; demoMode?: boolean }) {
   const { logout } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
@@ -715,6 +716,7 @@ export default function HostDashboard({ user }: { user: any }) {
                 },
               })}
             />
+            <OCAccountPanel returnTo="/thequest/dashboard" demoMode={demoMode} />
             <NonprofitDeclarationForm value={nonprofitDeclaration} onChange={setNonprofitDeclaration} level="host" />
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 border-t border-white/10 pt-4">
               <Button variant="ghost" onClick={() => setAccountOpen(false)} className="text-white/55">Cancel</Button>

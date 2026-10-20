@@ -305,7 +305,7 @@ export default function AppDemoPage() {
                   <TalentDashboard user={artistUser} profile={artistProfile as any} demoMode />
                 )}
                 {role === "host-admin" && hostAdminPanel === "host" && (
-                  <HostDashboard user={hostUser} />
+                  <HostDashboard user={hostUser} demoMode />
                 )}
                 {role === "host-admin" && hostAdminPanel === "admin" && (
                   <AdminDashboard user={adminUser} />

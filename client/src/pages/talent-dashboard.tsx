@@ -40,6 +40,7 @@ import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import OCReferralBanner from "@/components/oc-referral-banner";
+import OCAccountPanel from "@/components/oc-account-panel";
 import { buildOCReferralUrl } from "@/lib/oc-referral";
 
 interface Props {
@@ -1103,22 +1104,25 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                   ))}
                 </div>
                 {!demoMode && (
-                  <OCReferralBanner
-                    audience="artist"
-                    href={buildOCReferralUrl({
-                      role: "artist",
-                      email,
-                      displayName: displayName || profile?.displayName || user.displayName,
-                      stageName: (profile as any)?.stageName || user.stageName,
-                      socialLinks: {
-                        youtube: socialYoutube,
-                        instagram: socialInstagram,
-                        tiktok: socialTiktok,
-                        facebook: socialFacebook,
-                        customLinks,
-                      },
-                    })}
-                  />
+                  <>
+                    <OCReferralBanner
+                      audience="artist"
+                      href={buildOCReferralUrl({
+                        role: "artist",
+                        email,
+                        displayName: displayName || profile?.displayName || user.displayName,
+                        stageName: (profile as any)?.stageName || user.stageName,
+                        socialLinks: {
+                          youtube: socialYoutube,
+                          instagram: socialInstagram,
+                          tiktok: socialTiktok,
+                          facebook: socialFacebook,
+                          customLinks,
+                        },
+                      })}
+                    />
+                    <OCAccountPanel returnTo="/thequest/dashboard" demoMode={demoMode} />
+                  </>
                 )}
               </div>
 

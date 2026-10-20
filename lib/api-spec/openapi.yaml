@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: original-concepts
+    description: Per-user Original Concepts account connection and publishing
 paths:
   /healthz:
     get:
@@ -24,7 +26,237 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /oc/account/connect:
+    post:
+      operationId: startOCAccountConnection
+      tags: [original-concepts]
+      summary: Start a per-user OC authorization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OCAccountConnectInput"
+      responses:
+        "200":
+          description: Authorization URL for the OC OAuth consent screen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCAccountConnectResponse"
+        "400":
+          description: Invalid return destination
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Quest sign-in required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: OC OAuth is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /oc/account/callback:
+    get:
+      operationId: completeOCAccountConnection
+      tags: [original-concepts]
+      summary: Receive the OC OAuth callback
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the Quest account page with a connection outcome
+        "400":
+          description: Invalid or expired authorization state
+  /oc/account/status:
+    get:
+      operationId: getOCAccountStatus
+      tags: [original-concepts]
+      summary: Get the signed-in user's OC connection
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Connection status and selected brand kit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCAccountStatus"
+        "401":
+          description: Quest sign-in required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /oc/account/brand-kits:
+    get:
+      operationId: getOCBrandKits
+      tags: [original-concepts]
+      summary: List the signed-in user's OC brand kits
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OC brand kits the user is allowed to access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCBrandKitList"
+        "401":
+          description: Quest sign-in or OC connection required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /oc/account/brand-kit:
+    get:
+      operationId: getSelectedOCBrandKit
+      tags: [original-concepts]
+      summary: Get the selected OC brand kit's identity and media
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Selected brand kit details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCSelectedBrandKit"
+        "401":
+          description: Quest sign-in or OC connection required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: No brand kit has been selected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    put:
+      operationId: selectOCBrandKit
+      tags: [original-concepts]
+      summary: Select a brand kit the connected OC user can access
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OCBrandKitSelectionInput"
+      responses:
+        "200":
+          description: Selected brand kit and its details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCBrandKitSelectionResponse"
+        "400":
+          description: Invalid brand kit identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Quest sign-in or OC connection required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /oc/account/publish:
+    post:
+      operationId: publishOCBrandKitPost
+      tags: [original-concepts]
+      summary: Publish a user-approved post through the selected OC brand kit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OCBrandKitPostInput"
+      responses:
+        "200":
+          description: Per-account publishing results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCBrandKitPostResponse"
+        "400":
+          description: Invalid post request or media selection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Quest sign-in or OC connection required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: A selected social target is not available to this OC user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: An idempotent publish request is already being processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /oc/account/connection:
+    delete:
+      operationId: disconnectOCAccount
+      tags: [original-concepts]
+      summary: Revoke and remove the signed-in user's OC authorization
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Quest-side connection removal result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCAccountDisconnectResponse"
+        "401":
+          description: Quest sign-in required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +265,225 @@ components:
           type: string
       required:
         - status
+    ApiError:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+      required: [message]
+    OCAccountConnectInput:
+      type: object
+      properties:
+        returnTo:
+          type: string
+          enum: [/thequest/dashboard]
+      required: [returnTo]
+    OCAccountConnectResponse:
+      type: object
+      properties:
+        authorizationUrl:
+          type: string
+          format: uri
+      required: [authorizationUrl]
+    OCAccount:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+      required: [id, displayName]
+    OCAccountStatus:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        account:
+          anyOf:
+            - $ref: "#/components/schemas/OCAccount"
+            - type: "null"
+        selectedBrandKitId:
+          type: ["string", "null"]
+        selectedBrandKitName:
+          type: ["string", "null"]
+        scopes:
+          type: array
+          items:
+            type: string
+        connectedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [connected, account, selectedBrandKitId, selectedBrandKitName, scopes, connectedAt]
+    OCBrandKitSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        businessName:
+          type: string
+        brandSlug:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
+        primaryColor:
+          type: string
+      required: [id, name]
+    OCBrandKitList:
+      type: object
+      properties:
+        brandKits:
+          type: array
+          items:
+            $ref: "#/components/schemas/OCBrandKitSummary"
+      required: [brandKits]
+    OCBrandKitIdentity:
+      type: object
+      properties:
+        businessName:
+          type: string
+        brandSlug:
+          type: string
+        tagline:
+          type: string
+        description:
+          type: string
+        logoUrl:
+          type: string
+          format: uri
+        websiteUrl:
+          type: string
+          format: uri
+        primaryColor:
+          type: string
+        secondaryColor:
+          type: string
+        accentColor:
+          type: string
+    OCBrandKitMedia:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [image, video]
+        mimeType:
+          type: string
+        previewUrl:
+          type: string
+          format: uri
+        canPublish:
+          type: boolean
+      required: [id, name, kind, mimeType, previewUrl, canPublish]
+    OCBrandKitSocialAccount:
+      type: object
+      properties:
+        id:
+          type: string
+        platform:
+          type: string
+        displayName:
+          type: string
+        canPublish:
+          type: boolean
+      required: [id, platform, displayName, canPublish]
+    OCBrandKit:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        identity:
+          $ref: "#/components/schemas/OCBrandKitIdentity"
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/OCBrandKitMedia"
+        socialAccounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OCBrandKitSocialAccount"
+      required: [id, name, identity, media, socialAccounts]
+    OCSelectedBrandKit:
+      type: object
+      properties:
+        brandKit:
+          $ref: "#/components/schemas/OCBrandKit"
+      required: [brandKit]
+    OCBrandKitSelectionInput:
+      type: object
+      properties:
+        brandKitId:
+          type: string
+          minLength: 1
+          maxLength: 256
+      required: [brandKitId]
+    OCBrandKitSelectionResponse:
+      type: object
+      properties:
+        selectedBrandKitId:
+          type: string
+        brandKit:
+          $ref: "#/components/schemas/OCBrandKit"
+      required: [selectedBrandKitId, brandKit]
+    OCBrandKitPostInput:
+      type: object
+      properties:
+        targetIds:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 20
+        caption:
+          type: string
+          minLength: 1
+          maxLength: 2200
+        mediaAssetId:
+          type: string
+        idempotencyKey:
+          type: string
+          format: uuid
+      required: [targetIds, caption, idempotencyKey]
+    OCBrandKitPostResult:
+      type: object
+      properties:
+        targetId:
+          type: string
+        platform:
+          type: string
+        success:
+          type: boolean
+        postUrl:
+          type: string
+          format: uri
+        error:
+          type: string
+      required: [targetId, platform, success]
+    OCBrandKitPostResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/OCBrandKitPostResult"
+      required: [success, results]
+    OCAccountDisconnectResponse:
+      type: object
+      properties:
+        disconnected:
+          type: boolean
+        revocationConfirmed:
+          type: boolean
+      required: [disconnected, revocationConfirmed]
 

@@ -95,6 +95,7 @@ import { registerQuestTaxAndDonations } from "./quest-tax-donations";
 import { registerPaymentProviderWebhooks } from "./payment-provider-webhooks";
 import { registerQuestForms } from "./quest-forms";
 import { registerOCSocialProfileRoutes } from "./oc-social-profile-routes";
+import { registerOCAccountRoutes } from "./oc-account-routes";
 import { queueOCSocialProfileSyncForUser } from "./services/ocSocialProfileSync";
 import { getOwnerAnalytics } from "./services/ownerAnalytics";
 import { sendInviteEmail, sendNominationCongrats, sendNominationReceipt, sendPurchaseReceipt, sendVoteThankYou, sendApplicationApproved, sendTestEmail, isEmailConfigured, isGmailEmailConfigured, getGmailAuthUrl, exchangeGmailCode, sendContactEmail, resetTransporter, sendCodeUsedNotification, sendLaunchpadWelcomeEmail, verifyAccountAccessEmailDelivery } from "./email";
@@ -934,6 +935,7 @@ export async function registerRoutes(
   registerQuestTaxAndDonations(app);
   registerQuestForms(app);
   registerOCSocialProfileRoutes(app);
+  registerOCAccountRoutes(app);
 
   const clientErrorTypes = new Set<ErrorType>([
     "registration",
