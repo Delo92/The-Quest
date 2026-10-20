@@ -188,11 +188,6 @@ function numericCents(value: unknown): number {
   return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : 0;
 }
 
-function dollarsToCents(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0;
-}
-
 function transactionHasLedgerSource(transaction: any, ledger: any[]) {
   const sourceId = String(transaction.sourceLedgerId || transaction.ledgerId || "");
   if (sourceId && ledger.some((entry) => String(entry.id) === sourceId)) return true;
@@ -312,7 +307,7 @@ async function buildFinancialOverview() {
         freeVoteCount,
         paidVoteCount: contestantPaidVoteCount,
         totalVoteCount,
-        paidVoteRevenueCents: contestantPurchases.reduce((sum, purchase: any) => sum + dollarsToCents(purchase.amount), 0),
+        paidVoteRevenueCents: contestantPurchases.reduce((sum, purchase: any) => sum + numericCents(purchase.amount), 0),
         voteSharePercentage: totalPaidVoteShare > 0 ? Math.round((contestantPaidVoteCount / totalPaidVoteShare) * 10000) / 100 : 0,
         earningsCents: grossCents,
         nonprofitCents,
@@ -341,7 +336,7 @@ async function buildFinancialOverview() {
         })),
       };
     });
-    const paidVoteRevenueCents = purchases.reduce((sum, purchase: any) => sum + dollarsToCents(purchase.amount), 0);
+    const paidVoteRevenueCents = purchases.reduce((sum, purchase: any) => sum + numericCents(purchase.amount), 0);
     const hostShareCents = hostEntries.reduce((sum, entry: any) => sum + numericCents(entry.grossCents), 0);
     const hostNonprofitCents = hostEntries.reduce((sum, entry: any) => sum + numericCents(entry.nonprofitCents), 0);
     const hostDeclaredRate = effectiveNonprofitContributionRate(hostProfile?.nonprofitDeclaration?.contributionRate);
@@ -432,7 +427,7 @@ async function buildFinancialOverview() {
             purchaserName: purchase.guestName || "Registered voter",
             purchaserEmail: purchase.guestEmail || null,
             voteCount: Number(purchase.voteCount || 0),
-            amountCents: dollarsToCents(purchase.amount),
+            amountCents: numericCents(purchase.amount),
             transactionId: purchase.transactionId || null,
             purchasedAt: purchase.purchasedAt || null,
           };
