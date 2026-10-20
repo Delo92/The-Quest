@@ -37,3 +37,24 @@ export function normalizePromoVideos(input: unknown): string[] {
   const urls = input.map(normalizePromoVideoUrl);
   return Array.from(new Set(urls));
 }
+
+/**
+ * Unlisted Vimeo videos only play with their access hash. Uploads and pasted
+ * short links often lack it, so resolve it server-side from Vimeo.
+ */
+export async function withVimeoAccessHashes(
+  urls: string[],
+  lookupEmbedUrl: (videoId: string) => Promise<string | null>,
+): Promise<string[]> {
+  return Promise.all(urls.map(async (value) => {
+    const url = new URL(value);
+    if (url.hostname !== "player.vimeo.com" || url.searchParams.get("h")) return value;
+    const id = url.pathname.match(/^\/video\/(\d+)/)?.[1];
+    if (!id) return value;
+    try {
+      const resolved = await lookupEmbedUrl(id);
+      if (resolved && new URL(resolved).hostname === "player.vimeo.com") return resolved;
+    } catch { /* keep the plain player URL if Vimeo is unreachable */ }
+    return value;
+  }));
+}

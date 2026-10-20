@@ -1,4 +1,4 @@
-import { normalizePromoVideos } from "./promo-videos";
+import { normalizePromoVideos, withVimeoAccessHashes } from "./promo-videos";
 import type { Express, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
@@ -2254,7 +2254,7 @@ export async function registerRoutes(
     }
 
     if ("promoVideos" in updateData) {
-      try { updateData.promoVideos = normalizePromoVideos(updateData.promoVideos); }
+      try { updateData.promoVideos = await withVimeoAccessHashes(normalizePromoVideos(updateData.promoVideos), async (videoId) => (await getVideoById(videoId)).player_embed_url || null); }
       catch (error: any) { return res.status(400).json({ message: error.message }); }
     }
     if ("vimeoFolderUrl" in updateData) {
@@ -2992,7 +2992,7 @@ export async function registerRoutes(
       return res.status(400).json({ message: "chronicBrandsPromotionEnabled must be a boolean" });
     }
     if ("promoVideos" in updateData) {
-      try { updateData.promoVideos = normalizePromoVideos(updateData.promoVideos); }
+      try { updateData.promoVideos = await withVimeoAccessHashes(normalizePromoVideos(updateData.promoVideos), async (videoId) => (await getVideoById(videoId)).player_embed_url || null); }
       catch (error: any) { return res.status(400).json({ message: error.message }); }
     }
     if ("vimeoFolderUrl" in updateData) {
