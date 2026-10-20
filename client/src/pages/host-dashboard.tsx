@@ -35,6 +35,7 @@ import {
   nonprofitAllocationCents,
 } from "@shared/nonprofit-policy";
 import OCAccountPanel from "@/components/oc-account-panel";
+import TalentDetailModal from "@/components/talent-detail-panel";
 
 interface HostStats {
   totalCompetitions: number;
@@ -221,6 +222,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
   const COMPS_PER_PAGE = 10;
   const [contestantFilter, setContestantFilter] = useState("all");
   const [contestantSearch, setContestantSearch] = useState("");
+  const [contestantDetailId, setContestantDetailId] = useState<number | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [calendarSelectedDay, setCalendarSelectedDay] = useState<number | null>(null);
   const [calendarSelectedComp, setCalendarSelectedComp] = useState<number | null>(null);
@@ -567,6 +569,17 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
           </div>
         </div>
       </nav>
+
+      <Dialog open={contestantDetailId !== null} onOpenChange={(open) => { if (!open) setContestantDetailId(null); }}>
+        <DialogContent className="bg-zinc-900 border-white/10 text-white w-full max-w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-xl overflow-y-auto" data-testid="host-contestant-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl">Contestant Profile</DialogTitle>
+          </DialogHeader>
+          {contestantDetailId !== null && (
+            <TalentDetailModal scope="host" profileId={contestantDetailId} competitions={competitions as any} />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
         <DialogContent className="bg-[#111] border-white/10 text-white w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1408,7 +1421,9 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                   const currentResult = c.stageResults?.[selectedStageId];
                   return (
                   <div key={c.id} className="rounded-md bg-white/5 border border-white/5 p-4 flex flex-wrap items-center justify-between gap-3" data-testid={`contestant-card-${c.id}`}>
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <button type="button" disabled={demoMode} onClick={() => setContestantDetailId(c.talentProfileId)}
+                      className="flex items-center gap-3 flex-1 min-w-0 min-h-11 text-left rounded-md hover:bg-white/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400"
+                      aria-label={`Open ${c.talentProfile?.displayName || "contestant"} details`} data-testid={`button-open-contestant-${c.id}`}>
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={c.talentProfile?.imageUrls?.[0] || ""} />
                         <AvatarFallback className="bg-white/10 text-white text-xs">
@@ -1419,7 +1434,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                         <p className="font-medium text-sm truncate" data-testid={`contestant-name-${c.id}`}>{c.talentProfile?.displayName || "Unknown"}</p>
                         <p className="text-xs text-white/30 truncate">{c.competitionTitle} {c.talentProfile?.category ? `| ${c.talentProfile.category}` : ""}</p>
                       </div>
-                    </div>
+                    </button>
                     <div className="flex items-center gap-2">
                       <Badge className={`border-0 text-xs ${c.applicationStatus === "approved" ? "bg-green-500/20 text-green-400" : c.applicationStatus === "rejected" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`} data-testid={`contestant-status-${c.id}`}>
                         {c.applicationStatus}
@@ -1457,7 +1472,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                         </div>
                       )}
                       <Link href={"/talent/" + c.talentProfileId} className="text-xs text-orange-400 flex items-center gap-1" data-testid={`link-profile-contestant-${c.id}`}>
-                        <ExternalLink className="h-3 w-3" /> Profile
+                        <ExternalLink className="h-3 w-3" /> Public page
                       </Link>
                     </div>
                   </div>

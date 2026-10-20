@@ -53,6 +53,9 @@ export interface TalentProfile {
   stageName: string | null;
   email?: string | null;
   showEmail?: boolean;
+  /** Private contact, merged in only for the owner's own profile response and host/admin views. */
+  phone?: string | null;
+  smsOptIn?: boolean;
   bio: string | null;
   category: string | null;
   location: string | null;

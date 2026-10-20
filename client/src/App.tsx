@@ -1,5 +1,5 @@
 import { Switch, Route, Redirect, useSearch, useParams } from "wouter";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -47,6 +47,7 @@ function QuestRouter() {
       <Route path="/register" component={LoginPage} />
       <Route path="/competitions" component={Competitions} />
       <Route path="/talent/:id" component={TalentProfilePublic} />
+      <Route path="/Competitor/:name" component={CompetitorByName} />
       <Route path="/checkout/:competitionId/:contestantId" component={CheckoutPage} />
       <Route path="/my-purchases" component={MyPurchasesPage} />
       <Route path="/nominate" component={JoinPage} />
@@ -94,6 +95,24 @@ function DynamicFavicon() {
   }, [isLoading, getImage]);
 
   return null;
+}
+
+// /thequest/Competitor/{StageName} resolves the stage name to the profile page.
+function CompetitorByName() {
+  const params = useParams<{ name: string }>();
+  const name = decodeURIComponent(params.name || "");
+  const [state, setState] = useState<{ id?: number; missing?: boolean }>({});
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/talent-profiles/by-name/${encodeURIComponent(name)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
+      .then((d) => { if (!cancelled) setState({ id: d.id }); })
+      .catch(() => { if (!cancelled) setState({ missing: true }); });
+    return () => { cancelled = true; };
+  }, [name]);
+  if (state.id) return <Redirect to={`/talent/${state.id}`} replace />;
+  if (state.missing) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Competitor not found</div>;
+  return <div className="min-h-screen bg-black" aria-busy="true" />;
 }
 
 // Redirect bare /talent/:id links to the correct /thequest/talent/:id path.

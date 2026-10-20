@@ -10,6 +10,7 @@ interface AccessStatus {
   resetAt: string | null;
   lastSignInAt: string | null;
   signedInSinceReset: boolean;
+  passwordChangedSinceReset?: boolean;
   lastResetTemporaryPassword?: string | null;
 }
 interface ResetResult {
@@ -19,7 +20,8 @@ interface ResetResult {
   emailSent: boolean | null;
 }
 
-export default function AdminAccountAccess({ uid, email, name }: {
+export default function AdminAccountAccess({ uid, email, name, scope = "admin" }: {
+  scope?: "admin" | "host";
   uid: string;
   email?: string | null;
   name: string;
@@ -27,18 +29,18 @@ export default function AdminAccountAccess({ uid, email, name }: {
   const { toast } = useToast();
   const [result, setResult] = useState<ResetResult | null>(null);
   const access = useQuery<AccessStatus>({
-    queryKey: ["/api/admin/users", uid, "access-status"],
+    queryKey: [`/api/${scope}/users`, uid, "access-status"],
     staleTime: 15_000,
     refetchInterval: 30_000,
   });
   const reset = useMutation({
     mutationFn: async (sendEmail: boolean) => {
-      const response = await apiRequest("POST", `/api/admin/users/${encodeURIComponent(uid)}/reset-password`, { sendEmail });
+      const response = await apiRequest("POST", `/api/${scope}/users/${encodeURIComponent(uid)}/reset-password`, { sendEmail });
       return response.json() as Promise<ResetResult>;
     },
     onSuccess: (data) => {
       setResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users", uid, "access-status"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/${scope}/users`, uid, "access-status"] });
       toast({
         title: data.emailSent === false ? "Password reset, but email delivery failed" : "Password reset",
         description: data.emailSent === true
@@ -98,7 +100,9 @@ export default function AdminAccountAccess({ uid, email, name }: {
         {access.data?.lastResetTemporaryPassword && <div>
           <p className="text-white/50">Last known admin reset password</p>
           <code className="mt-1 block break-all text-orange-100">{access.data.lastResetTemporaryPassword}</code>
-          <p className="mt-1 text-white/55">This is not necessarily the user&apos;s current password.</p>
+          <p className="mt-1 text-white/55">{access.data.passwordChangedSinceReset
+            ? "The user changed their own password after this reset, so this password no longer works."
+            : "This is not necessarily the user's current password."}</p>
         </div>}
         <div><p className="text-white/50">Last admin reset</p><p className="mt-1 text-white/85">{access.data?.resetAt ? new Date(access.data.resetAt).toLocaleString() : "No reset recorded"}</p></div>
         <div><p className="text-white/50">Last successful sign-in</p><p className="mt-1 text-white/85">{access.data?.lastSignInAt ? new Date(access.data.lastSignInAt).toLocaleString() : "None recorded"}</p></div>

@@ -53,6 +53,8 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
   const [displayName, setDisplayName] = useState(profile?.displayName || user.displayName || "");
   const [email, setEmail] = useState(profile?.email || user.email || "");
   const [showEmail, setShowEmail] = useState(profile?.showEmail ?? false);
+  const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [smsOptIn, setSmsOptIn] = useState(profile?.smsOptIn ?? false);
   const [bio, setBio] = useState(profile?.bio || "");
   const [category, setCategory] = useState(profile?.category || "");
   const [location, setLocation] = useState(profile?.location || "");
@@ -263,7 +265,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
       if (socialFacebook.trim()) socialLinks.facebook = socialFacebook.trim();
       const validCustomLinks = customLinks.filter((l) => l.label.trim() && l.url.trim() && /^https?:\/\//i.test(l.url.trim()));
       if (validCustomLinks.length > 0) socialLinks.customLinks = validCustomLinks;
-      const data = { displayName, email, showEmail, bio, category, location, profileColor, profileBgImage: profileBgImage || null, socialLinks: Object.keys(socialLinks).length > 0 ? JSON.stringify(socialLinks) : null, nonprofitDeclaration };
+      const data = { displayName, email, showEmail, phone: phone.trim() || null, smsOptIn: phone.trim() ? smsOptIn : false, bio, category, location, profileColor, profileBgImage: profileBgImage || null, socialLinks: Object.keys(socialLinks).length > 0 ? JSON.stringify(socialLinks) : null, nonprofitDeclaration };
       if (profile) {
         await apiRequest("PATCH", "/api/talent-profiles/me", data);
       } else {
@@ -978,6 +980,24 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                   <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com" data-testid="input-email"
                     className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/25" />
+                </div>
+              </div>
+              <div className="space-y-3 rounded-md bg-white/[0.06] border border-white/12 px-4 py-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="phone" className="text-white/60">Phone (optional)</Label>
+                  <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone}
+                    onChange={(e) => { setPhone(e.target.value); if (!e.target.value.trim()) setSmsOptIn(false); }}
+                    placeholder="(555) 123-4567" data-testid="input-phone"
+                    className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/25" />
+                  <p className="text-xs text-white/40">Never shown publicly. Only hosts of events you enter can see it.</p>
+                </div>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <Label htmlFor="smsOptIn" className="text-white/80 text-sm font-medium cursor-pointer">Allow event hosts to text me</Label>
+                    <p className="text-xs text-white/40 mt-0.5">Optional. Message and data rates may apply. You can turn this off at any time.</p>
+                  </div>
+                  <Switch id="smsOptIn" checked={smsOptIn && !!phone.trim()} disabled={!phone.trim()} onCheckedChange={setSmsOptIn}
+                    data-testid="switch-sms-opt-in" className="data-[state=checked]:bg-orange-500" />
                 </div>
               </div>
               <div className="flex items-center justify-between rounded-md bg-white/[0.06] border border-white/12 px-4 py-3">

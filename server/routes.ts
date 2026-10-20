@@ -159,6 +159,13 @@ import crypto from "crypto";
 import { getTemporaryAccountPassword, nomineeAccountLevel } from "./account-email-access";
 import { sendAccountAccessEmail } from "./email";
 import { resetAdminAccount } from "./admin-account-reset";
+import {
+  requireTalentManagerByProfileId,
+  requireTalentManagerByUid,
+  recordAccessAudit,
+  getPrivateContact,
+  savePrivateContact,
+} from "./host-contestant-access";
 import QRCode from "qrcode";
 import { slugify, slugifyWithId, extractIdFromSlug } from "../shared/slugify";
 import type { CompetitionStage } from "../shared/schema";
@@ -2558,7 +2565,7 @@ export async function registerRoutes(
   app.get("/api/talent-profiles/me", firebaseAuth, async (req, res) => {
     const uid = req.firebaseUser!.uid;
     const profile = await storage.getTalentProfileByUserId(uid);
-    res.json(profile || null);
+    res.json(profile ? { ...profile, ...(await getPrivateContact(uid)) } : null);
   });
 
   const createProfileSchema = z.object({
@@ -2626,6 +2633,20 @@ export async function registerRoutes(
     if (safeData.nonprofitDeclaration !== undefined) {
       safeData.nonprofitDeclaration = normalizeNonprofitDeclaration(safeData.nonprofitDeclaration);
     }
+    const { phone: phoneInput, smsOptIn: smsOptInInput, smsOptInAt: _ignoredAt, ...profileData } = safeData;
+    let contactUpdate: { phone?: string | null; smsOptIn?: boolean } | null = null;
+    if (phoneInput !== undefined || smsOptInInput !== undefined) {
+      const currentContact = await getPrivateContact(uid);
+      const rawPhone = phoneInput === undefined ? currentContact.phone || "" : phoneInput === null ? "" : String(phoneInput).trim();
+      if (rawPhone && !/^[+()\-.\s\d]{7,20}$/.test(rawPhone)) {
+        return res.status(400).json({ message: "Enter a valid phone number" });
+      }
+      const wantsSms = smsOptInInput === undefined ? currentContact.smsOptIn : smsOptInInput === true;
+      if (wantsSms && !rawPhone) {
+        return res.status(400).json({ message: "Add a phone number before opting in to text messages" });
+      }
+      contactUpdate = { phone: rawPhone || null, smsOptIn: rawPhone ? wantsSms : false };
+    }
     if (safeData.payoutInfo !== undefined && safeData.payoutInfo !== null) {
       const pi = safeData.payoutInfo as any;
       const routing = String(pi.routingNumber || "").replace(/\D/g, "").slice(0, 9);
@@ -2644,9 +2665,10 @@ export async function registerRoutes(
         updatedAt: new Date().toISOString(),
       };
     }
-    const updated = await storage.updateTalentProfile(uid, safeData);
+    const updated = await storage.updateTalentProfile(uid, profileData);
     if (!updated) return res.status(404).json({ message: "Profile not found" });
-    res.json(updated);
+    if (contactUpdate) await savePrivateContact(uid, contactUpdate);
+    res.json({ ...updated, ...(await getPrivateContact(uid)) });
   });
 
   const profileBgUpload = multer({
@@ -2679,6 +2701,15 @@ export async function registerRoutes(
       console.error("Profile background upload error:", error);
       res.status(500).json({ message: error.message || "Upload failed" });
     }
+  });
+
+  app.get("/api/talent-profiles/by-name/:name", async (req, res) => {
+    const wanted = slugify(String(req.params.name || ""));
+    if (!wanted) return res.status(400).json({ message: "Name is required" });
+    const profiles = await storage.getAllTalentProfiles();
+    const match = profiles.find((p: any) => p.role !== "host" && p.role !== "admin" && slugify(String(p.stageName || p.displayName || "")) === wanted);
+    if (!match) return res.status(404).json({ message: "Profile not found" });
+    res.json({ id: match.id });
   });
 
   app.get("/api/talent-profiles/:id", async (req, res) => {
@@ -3992,9 +4023,15 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/users/:uid/reset-password", firebaseAuth, requireAdmin, async (req, res) => {
+  app.post(["/api/admin/users/:uid/reset-password", "/api/host/users/:uid/reset-password"], firebaseAuth, requireTalentManagerByUid, async (req, res) => {
     try {
       const { uid } = req.params;
+      const scope = req.talentScope!;
+      await recordAccessAudit({
+        action: req.body?.sendEmail === true ? "reset-password-email" : "reset-password",
+        actorUid: req.firebaseUser!.uid, actorLevel: req.firebaseUser!.level, targetUid: uid,
+        competitionIds: scope.isAdmin ? [] : Array.from(scope.competitionIds || []),
+      });
       const result = await resetAdminAccount({
         uid, adminUid: req.firebaseUser!.uid, sendEmail: req.body?.sendEmail === true,
         siteUrl: process.env.SITE_URL || `${req.protocol}://${req.get("host")}`,
@@ -4012,9 +4049,16 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/users/:uid/access-status", firebaseAuth, requireAdmin, async (req, res) => {
+  app.get(["/api/admin/users/:uid/access-status", "/api/host/users/:uid/access-status"], firebaseAuth, requireTalentManagerByUid, async (req, res) => {
     try {
       const { uid } = req.params;
+      const scope = req.talentScope!;
+      if (!scope.isAdmin) {
+        await recordAccessAudit({
+          action: "view-access-status", actorUid: req.firebaseUser!.uid, actorLevel: req.firebaseUser!.level,
+          targetUid: uid, competitionIds: Array.from(scope.competitionIds || []),
+        });
+      }
       const [firestoreUser, firebaseUser] = await Promise.all([
         getFirestoreUser(uid),
         getFirebaseAuth().getUser(uid),
@@ -4029,10 +4073,18 @@ export async function registerRoutes(
         && Date.parse(lastSignInAt) >= Date.parse(resetAt)
       );
 
+      const tokensValidAfter = firebaseUser.tokensValidAfterTime || null;
+      // The reset revokes sessions just before recording resetAt; a later revocation means the
+      // account's own password changed, so the stored reset password is no longer valid.
+      const passwordChangedSinceReset = !!(
+        resetAt && tokensValidAfter && Date.parse(tokensValidAfter) > Date.parse(resetAt) + 60_000
+      );
+
       res.set("Cache-Control", "no-store").json({
         resetAt,
         lastSignInAt,
         signedInSinceReset,
+        passwordChangedSinceReset,
         lastResetTemporaryPassword: resetAt ? getTemporaryAccountPassword() : null,
       });
     } catch (error: any) {
@@ -4727,7 +4779,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/admin/users/:profileId/detail", firebaseAuth, requireAdmin, async (req, res) => {
+  app.get(["/api/admin/users/:profileId/detail", "/api/host/users/:profileId/detail"], firebaseAuth, requireTalentManagerByProfileId, async (req, res) => {
     try {
       const profileId = parseInt(req.params.profileId);
       if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
@@ -4744,9 +4796,13 @@ export async function registerRoutes(
       ]);
 
       // For each contestant entry, run all sub-queries in parallel
+      const hostScope = req.talentScope!;
+      const visibleEntries = hostScope.isAdmin
+        ? contestantEntries
+        : contestantEntries.filter((entry) => hostScope.competitionIds!.has(entry.competitionId));
       const votingStats = (
         await Promise.all(
-          contestantEntries.map(async (entry) => {
+          visibleEntries.map(async (entry) => {
             const [comp, voteCount, totalCompVotes, allContestants] = await Promise.all([
               storage.getCompetition(entry.competitionId),
               storage.getVoteCountForContestantInCompetition(entry.id, entry.competitionId),
@@ -4786,10 +4842,22 @@ export async function registerRoutes(
       const upcomingEvents = votingStats.filter((s: any) => s.competitionStatus === "draft" && s.applicationStatus === "approved");
 
       res.json({
+        scope: hostScope.isAdmin ? "admin" : "host",
+        entries: await Promise.all(visibleEntries.map(async (entry) => {
+          const entryComp = await storage.getCompetition(entry.competitionId);
+          return {
+            contestantId: entry.id,
+            competitionId: entry.competitionId,
+            competitionTitle: entryComp?.title || entry.competitionTitle,
+            competitionStatus: entryComp?.status || null,
+            applicationStatus: entry.applicationStatus,
+          };
+        })),
         profile: {
           ...profile,
           email: firestoreUser?.email || null,
           level: firestoreUser?.level || 2,
+          ...(await getPrivateContact(profile.userId)),
           socialLinks: (profile as any).socialLinks || firestoreUser?.socialLinks || null,
         },
         activeStats,
@@ -4962,16 +5030,20 @@ export async function registerRoutes(
   });
 
   // Separate lazy endpoint for Vimeo videos — admins can manage media across all competitions
-  app.get("/api/admin/users/:profileId/videos", firebaseAuth, requireAdmin, async (req, res) => {
+  app.get(["/api/admin/users/:profileId/videos", "/api/host/users/:profileId/videos"], firebaseAuth, requireTalentManagerByProfileId, async (req, res) => {
     try {
       const profileId = parseInt(req.params.profileId);
       if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
 
-      const [profile, knownCompetitions] = await Promise.all([
+      const videoScope = req.talentScope!;
+      const [profile, allCompetitions] = await Promise.all([
         storage.getTalentProfile(profileId),
         storage.getCompetitions(),
       ]);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
+      const knownCompetitions = videoScope.isAdmin
+        ? allCompetitions
+        : allCompetitions.filter((comp) => videoScope.competitionIds!.has(comp.id));
 
       const talentName = String((profile as any).stageName || (profile as any).displayName || "").trim();
 
@@ -5068,7 +5140,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin/users/:profileId/videos/:videoId", firebaseAuth, requireAdmin, async (req, res) => {
+  app.delete(["/api/admin/users/:profileId/videos/:videoId", "/api/host/users/:profileId/videos/:videoId"], firebaseAuth, requireTalentManagerByProfileId, async (req, res) => {
     try {
       const profileId = parseInt(req.params.profileId);
       if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
@@ -5076,6 +5148,21 @@ export async function registerRoutes(
       if (!profile) return res.status(404).json({ message: "Profile not found" });
 
       const videoUri = `/videos/${req.params.videoId}`;
+      const deleteScope = req.talentScope!;
+      if (!deleteScope.isAdmin) {
+        const talentName = String((profile as any).stageName || (profile as any).displayName || "").trim();
+        const hostComps = (await storage.getCompetitions()).filter((comp) => deleteScope.competitionIds!.has(comp.id));
+        const owned = (await Promise.all(hostComps.map(async (comp) => {
+          const [a, b] = await Promise.all([
+            listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl).catch(() => []),
+            listLegacyQuestTalentVideos(comp.title, talentName).catch(() => []),
+          ]);
+          return [...a, ...b].map((v: any) => v.uri);
+        }))).flat();
+        if (!owned.includes(videoUri)) {
+          return res.status(403).json({ message: "That video does not belong to one of your events" });
+        }
+      }
       try {
         await deleteVideo(videoUri);
       } catch (vimeoErr: any) {
@@ -5095,7 +5182,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/users/:profileId/assign", firebaseAuth, requireAdmin, async (req, res) => {
+  app.post(["/api/admin/users/:profileId/assign", "/api/host/users/:profileId/assign"], firebaseAuth, requireTalentManagerByProfileId, async (req, res) => {
     try {
       const profileId = parseInt(req.params.profileId);
       if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
@@ -5109,6 +5196,10 @@ export async function registerRoutes(
 
       const comp = await storage.getCompetition(compId);
       if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const assignScope = req.talentScope!;
+      if (!assignScope.isAdmin && !assignScope.competitionIds!.has(comp.id)) {
+        return res.status(403).json({ message: "You can only assign contestants to your own events" });
+      }
 
       const existing = await storage.getContestant(compId, profileId);
       if (existing) return res.status(400).json({ message: "Already assigned to this competition" });
