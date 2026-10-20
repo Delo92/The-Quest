@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import CBLogo from "@/components/cb-logo";
-import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet, Lock, ShieldCheck, Eye, EyeOff, BarChart3, Crop } from "lucide-react";
+import { Trophy, User, Image as ImageIcon, Video, Save, Upload, LogOut, X, Trash2, Loader2, FolderOpen, Pencil, Check, Share2, Copy, ExternalLink, Palette, ImagePlus, Globe, AlertTriangle, ChevronRight, Star, LayoutDashboard, Megaphone, Ticket, Wallet, Lock, ShieldCheck, Eye, EyeOff, BarChart3, Crop, Menu, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
@@ -807,27 +809,30 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
             </p>
           </div>
           <InviteDialog senderLevel={2} />
-        </div>
-        {/* Tab strip */}
-        <div className="flex gap-1.5 overflow-x-auto px-4 pb-2.5">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveSection(id)}
-              data-demo-navigation="allowed"
-              data-testid={`sticky-tab-${id}`}
-               className={`min-w-[84px] shrink-0 flex-1 rounded-xl py-2 px-3 flex flex-col items-center gap-1 transition-all border ${
-                activeSection === id
-                  ? "bg-orange-500 border-orange-400 text-white shadow-md shadow-orange-500/20"
-                  : "bg-white/[0.05] border-white/10 text-white/45 active:bg-white/[0.09]"
-              }`}
-            >
-              <Icon className={`h-4 w-4 ${activeSection === id ? "text-white" : "text-white/40"}`} />
-              <span className={`text-[11px] font-bold leading-none whitespace-nowrap ${activeSection === id ? "text-white" : "text-white/40"}`}>
-                {label === "My Profile" ? "Profile" : label === "Media Library" ? "Media" : label === "Tax details" ? "Tax" : label}
-              </span>
-            </button>
-          ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="h-10 w-10 flex-shrink-0 border-white/15 bg-white/[0.05] text-white" aria-label="Open dashboard menu" data-testid="button-mobile-menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 border-white/10 bg-[#141414] text-white">
+              {navItems.map(({ id, label, sublabel, icon: Icon }) => (
+                <DropdownMenuItem
+                  key={id}
+                  onSelect={() => setActiveSection(id)}
+                  data-demo-navigation="allowed"
+                  data-testid={`sticky-tab-${id}`}
+                  className={`min-h-12 gap-3 ${activeSection === id ? "bg-orange-500/15 text-orange-300" : "text-white/75"}`}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="block text-[11px] text-white/40">{sublabel}</span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -884,11 +889,14 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
 
           if (items.length === 0) return null;
           return (
-            <div className="mb-6 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-amber-400 font-semibold text-sm">⚠️ A few things left to set up</span>
+            <Collapsible className="mb-6 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06]">
+              <CollapsibleTrigger className="group flex w-full min-h-12 items-center gap-2 p-4 text-left" data-testid="toggle-setup-items">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-400" />
+                <span className="text-amber-400 font-semibold text-sm">A few things left to set up</span>
                 <span className="text-[11px] text-white/35">{items.length} item{items.length !== 1 ? "s" : ""} remaining</span>
-              </div>
+                <ChevronDown className="ml-auto h-4 w-4 flex-shrink-0 text-amber-400 transition-transform group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {items.map((item) => (
                   <button
@@ -909,7 +917,8 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                   </button>
                 ))}
               </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           );
         })()}
 
