@@ -26,6 +26,83 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /oc/referral/events:
+    get:
+      operationId: getOCReferralEvents
+      tags: [original-concepts]
+      summary: List the signed-in user's event-based OC offer options
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Server-verified event associations and eligibility
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCReferralEventList"
+        "401":
+          description: Quest sign-in required
+        "403":
+          description: Account role is not eligible
+  /oc/referral/start:
+    post:
+      operationId: startOCEventReferral
+      tags: [original-concepts]
+      summary: Create an event-bound OC referral after an explicit user action
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OCReferralStartInput"
+      responses:
+        "200":
+          description: Referral URL with saved profile prefill and a verifiable event reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCReferralStartResponse"
+        "400":
+          description: Invalid event
+        "403":
+          description: Event association or eligibility could not be verified
+        "409":
+          description: One-time offer already assigned to another event or entry
+        "503":
+          description: Event-benefit verification is unavailable
+  /integrations/oc/referral/eligibility:
+    post:
+      operationId: verifyOCEventBenefit
+      tags: [original-concepts]
+      summary: Bind an OC client and check its current event-based automation eligibility
+      description: OC server only. Re-read current Quest records before every automation run. Any error must fail closed.
+      security:
+        - ocBridgeAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OCBenefitVerificationInput"
+      responses:
+        "200":
+          description: Current event context and eligibility, not a paid Gold subscription entitlement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCBenefitVerificationResponse"
+        "401":
+          description: OC integration authorization required
+        "403":
+          description: OC client or verified email does not match
+        "404":
+          description: Referral reference not found
+        "409":
+          description: Benefit already bound or revoked
+        "503":
+          description: Could not verify eligibility; do not grant automation access
   /oc/account/connect:
     post:
       operationId: startOCAccountConnection
@@ -253,6 +330,10 @@ paths:
                 $ref: "#/components/schemas/ApiError"
 components:
   securitySchemes:
+    ocBridgeAuth:
+      type: http
+      scheme: bearer
+      description: Existing Quest-OC shared service authorization, never browser-visible
     bearerAuth:
       type: http
       scheme: bearer
@@ -273,6 +354,133 @@ components:
         code:
           type: string
       required: [message]
+    OCReferralEventData:
+      type: object
+      properties:
+        competitionId:
+          type: integer
+        title:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+        startDate:
+          type: [string, "null"]
+        endDate:
+          type: [string, "null"]
+        contestantId:
+          type: [integer, "null"]
+      required: [competitionId, title, category, status, startDate, endDate, contestantId]
+    OCReferralEventOption:
+      allOf:
+        - $ref: "#/components/schemas/OCReferralEventData"
+        - type: object
+          properties:
+            eligible:
+              type: boolean
+            reason:
+              type: string
+            message:
+              type: string
+          required: [eligible, reason, message]
+    OCReferralEventList:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [artist, host]
+        claimedCompetitionId:
+          type: [integer, "null"]
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/OCReferralEventOption"
+      required: [role, claimedCompetitionId, events]
+    OCReferralStartInput:
+      type: object
+      additionalProperties: false
+      properties:
+        competitionId:
+          type: integer
+          minimum: 1
+      required: [competitionId]
+    OCReferralStartResponse:
+      type: object
+      properties:
+        referralUrl:
+          type: string
+          format: uri
+        event:
+          $ref: "#/components/schemas/OCReferralEventData"
+      required: [referralUrl, event]
+    OCBenefitVerificationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        referralId:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+        ocAccountId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        verifiedEmail:
+          type: string
+          format: email
+      required: [referralId, ocAccountId, verifiedEmail]
+    OCBenefitVerificationResponse:
+      type: object
+      properties:
+        eligible:
+          type: boolean
+        reason:
+          type: string
+        referralId:
+          type: string
+        role:
+          type: string
+          enum: [artist, host]
+        questUserId:
+          type: string
+        ocAccountId:
+          type: string
+        offer:
+          type: object
+          properties:
+            code:
+              type: string
+            plan:
+              type: string
+            feature:
+              type: string
+            planMonthlyPriceCents:
+              type: integer
+            currency:
+              type: string
+          required: [code, plan, feature, planMonthlyPriceCents, currency]
+        checkedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: [string, "null"]
+        revokedAt:
+          type: [string, "null"]
+        event:
+          anyOf:
+            - $ref: "#/components/schemas/OCReferralEventData"
+            - type: "null"
+        profile:
+          type: object
+          properties:
+            email:
+              type: [string, "null"]
+            displayName:
+              type: [string, "null"]
+            stageName:
+              type: [string, "null"]
+          required: [email, displayName, stageName]
+      required: [eligible, reason, referralId, role, questUserId, ocAccountId, offer, checkedAt, expiresAt, revokedAt, event, profile]
     OCAccountConnectInput:
       type: object
       properties:

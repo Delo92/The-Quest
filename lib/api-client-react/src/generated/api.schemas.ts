@@ -14,6 +14,103 @@ export interface ApiError {
   code?: string;
 }
 
+export interface OCReferralEventData {
+  competitionId: number;
+  title: string;
+  category: string;
+  status: string;
+  /** @nullable */
+  startDate: string | null;
+  /** @nullable */
+  endDate: string | null;
+  /** @nullable */
+  contestantId: number | null;
+}
+
+export type OCReferralEventOption = OCReferralEventData & {
+  eligible: boolean;
+  reason: string;
+  message: string;
+};
+
+export type OCReferralEventListRole = typeof OCReferralEventListRole[keyof typeof OCReferralEventListRole];
+
+
+export const OCReferralEventListRole = {
+  artist: 'artist',
+  host: 'host',
+} as const;
+
+export interface OCReferralEventList {
+  role: OCReferralEventListRole;
+  /** @nullable */
+  claimedCompetitionId: number | null;
+  events: OCReferralEventOption[];
+}
+
+export interface OCReferralStartInput {
+  /** @minimum 1 */
+  competitionId: number;
+}
+
+export interface OCReferralStartResponse {
+  referralUrl: string;
+  event: OCReferralEventData;
+}
+
+export interface OCBenefitVerificationInput {
+  /** @pattern ^[A-Za-z0-9_-]{43}$ */
+  referralId: string;
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  ocAccountId: string;
+  verifiedEmail: string;
+}
+
+export type OCBenefitVerificationResponseRole = typeof OCBenefitVerificationResponseRole[keyof typeof OCBenefitVerificationResponseRole];
+
+
+export const OCBenefitVerificationResponseRole = {
+  artist: 'artist',
+  host: 'host',
+} as const;
+
+export type OCBenefitVerificationResponseOffer = {
+  code: string;
+  plan: string;
+  feature: string;
+  planMonthlyPriceCents: number;
+  currency: string;
+};
+
+export type OCBenefitVerificationResponseProfile = {
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  stageName: string | null;
+};
+
+export interface OCBenefitVerificationResponse {
+  eligible: boolean;
+  reason: string;
+  referralId: string;
+  role: OCBenefitVerificationResponseRole;
+  questUserId: string;
+  ocAccountId: string;
+  offer: OCBenefitVerificationResponseOffer;
+  checkedAt: string;
+  /** @nullable */
+  expiresAt: string | null;
+  /** @nullable */
+  revokedAt: string | null;
+  event: OCReferralEventData | null;
+  profile: OCBenefitVerificationResponseProfile;
+}
+
 export type OCAccountConnectInputReturnTo = typeof OCAccountConnectInputReturnTo[keyof typeof OCAccountConnectInputReturnTo];
 
 

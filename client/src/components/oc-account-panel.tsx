@@ -43,7 +43,6 @@ import OCReferralBanner from "@/components/oc-referral-banner";
 
 interface OCAccountPanelProps {
   returnTo: "/thequest/dashboard";
-  referralHref: string;
   referralAudience: "artist" | "host";
   demoMode?: boolean;
 }
@@ -53,7 +52,6 @@ const platformLabel = (platform: string) =>
 
 export default function OCAccountPanel({
   returnTo,
-  referralHref,
   referralAudience,
   demoMode = false,
 }: OCAccountPanelProps) {
@@ -352,7 +350,7 @@ export default function OCAccountPanel({
       </div>
 
       <div className="border-t border-white/10 pt-4">
-        <OCReferralBanner href={referralHref} audience={referralAudience} />
+        <OCReferralBanner audience={referralAudience} />
       </div>
 
       {isLoading ? (

@@ -27,11 +27,16 @@ import type {
   OCAccountConnectResponse,
   OCAccountDisconnectResponse,
   OCAccountStatus,
+  OCBenefitVerificationInput,
+  OCBenefitVerificationResponse,
   OCBrandKitList,
   OCBrandKitPostInput,
   OCBrandKitPostResponse,
   OCBrandKitSelectionInput,
   OCBrandKitSelectionResponse,
+  OCReferralEventList,
+  OCReferralStartInput,
+  OCReferralStartResponse,
   OCSelectedBrandKit
 } from './api.schemas.ts';
 
@@ -139,6 +144,226 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+
+export const getGetOCReferralEventsUrl = () => {
+
+
+
+
+  return `/api/oc/referral/events`
+}
+
+/**
+ * @summary List the signed-in user's event-based OC offer options
+ */
+export const getOCReferralEvents = async ( options?: Parameters<typeof customFetch>[1]): Promise<OCReferralEventList> => {
+
+  return customFetch<OCReferralEventList>(getGetOCReferralEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOCReferralEventsQueryKey = () => {
+    return [
+    `/api/oc/referral/events`
+    ] as const;
+    }
+
+
+export const getGetOCReferralEventsQueryOptions = <TData = Awaited<ReturnType<typeof getOCReferralEvents>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOCReferralEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOCReferralEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOCReferralEvents>>> = ({ signal }) => getOCReferralEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOCReferralEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOCReferralEventsQueryResult = NonNullable<Awaited<ReturnType<typeof getOCReferralEvents>>>
+export type GetOCReferralEventsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the signed-in user's event-based OC offer options
+ */
+
+export function useGetOCReferralEvents<TData = Awaited<ReturnType<typeof getOCReferralEvents>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOCReferralEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOCReferralEventsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartOCEventReferralUrl = () => {
+
+
+
+
+  return `/api/oc/referral/start`
+}
+
+/**
+ * @summary Create an event-bound OC referral after an explicit user action
+ */
+export const startOCEventReferral = async (oCReferralStartInput: OCReferralStartInput, options?: Parameters<typeof customFetch>[1]): Promise<OCReferralStartResponse> => {
+
+  return customFetch<OCReferralStartResponse>(getStartOCEventReferralUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(oCReferralStartInput)
+  }
+);}
+
+
+
+
+
+export const getStartOCEventReferralMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startOCEventReferral>>, TError,{data: BodyType<OCReferralStartInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startOCEventReferral>>, TError,{data: BodyType<OCReferralStartInput>}, TContext> => {
+
+const mutationKey = ['startOCEventReferral'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startOCEventReferral>>, {data: BodyType<OCReferralStartInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  startOCEventReferral(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartOCEventReferralMutationResult = NonNullable<Awaited<ReturnType<typeof startOCEventReferral>>>
+    export type StartOCEventReferralMutationBody = BodyType<OCReferralStartInput>
+    export type StartOCEventReferralMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an event-bound OC referral after an explicit user action
+ */
+export const useStartOCEventReferral = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startOCEventReferral>>, TError,{data: BodyType<OCReferralStartInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startOCEventReferral>>,
+        TError,
+        {data: BodyType<OCReferralStartInput>},
+        TContext
+      > => {
+      return useMutation(getStartOCEventReferralMutationOptions(options));
+    }
+
+export const getVerifyOCEventBenefitUrl = () => {
+
+
+
+
+  return `/api/integrations/oc/referral/eligibility`
+}
+
+/**
+ * OC server only. Re-read current Quest records before every automation run. Any error must fail closed.
+ * @summary Bind an OC client and check its current event-based automation eligibility
+ */
+export const verifyOCEventBenefit = async (oCBenefitVerificationInput: OCBenefitVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<OCBenefitVerificationResponse> => {
+
+  return customFetch<OCBenefitVerificationResponse>(getVerifyOCEventBenefitUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(oCBenefitVerificationInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyOCEventBenefitMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyOCEventBenefit>>, TError,{data: BodyType<OCBenefitVerificationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyOCEventBenefit>>, TError,{data: BodyType<OCBenefitVerificationInput>}, TContext> => {
+
+const mutationKey = ['verifyOCEventBenefit'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyOCEventBenefit>>, {data: BodyType<OCBenefitVerificationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyOCEventBenefit(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyOCEventBenefitMutationResult = NonNullable<Awaited<ReturnType<typeof verifyOCEventBenefit>>>
+    export type VerifyOCEventBenefitMutationBody = BodyType<OCBenefitVerificationInput>
+    export type VerifyOCEventBenefitMutationError = ErrorType<void>
+
+    /**
+ * @summary Bind an OC client and check its current event-based automation eligibility
+ */
+export const useVerifyOCEventBenefit = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyOCEventBenefit>>, TError,{data: BodyType<OCBenefitVerificationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyOCEventBenefit>>,
+        TError,
+        {data: BodyType<OCBenefitVerificationInput>},
+        TContext
+      > => {
+      return useMutation(getVerifyOCEventBenefitMutationOptions(options));
+    }
 
 export const getStartOCAccountConnectionUrl = () => {
 

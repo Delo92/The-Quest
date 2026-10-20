@@ -180,6 +180,11 @@ Publishing must be idempotent. Repeating the same key and same payload must retu
 
 ## Security and ownership requirements
 
+These requirements apply to per-user OAuth, kit access, and publishing. The
+separate server-to-server promotional entitlement check is documented in
+[oc-event-benefit-contract.md](oc-event-benefit-contract.md); it does not grant
+publishing authorization.
+
 - Do not use OC's regular portal JWT for this feature; it represents broader portal access.
 - Do not use `QUEST_OC_API_TOKEN`; it remains the separate shared server-to-server integration credential.
 - OC keeps all connected Facebook, Instagram, and other social-platform credentials.

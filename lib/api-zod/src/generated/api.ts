@@ -18,6 +18,101 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary List the signed-in user's event-based OC offer options
+ */
+export const GetOCReferralEventsResponse = zod.object({
+  "role": zod.enum(['artist', 'host']),
+  "claimedCompetitionId": zod.int().nullable(),
+  "events": zod.array(zod.object({
+  "competitionId": zod.int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.string(),
+  "startDate": zod.string().nullable(),
+  "endDate": zod.string().nullable(),
+  "contestantId": zod.int().nullable()
+}).and(zod.object({
+  "eligible": zod.boolean(),
+  "reason": zod.string(),
+  "message": zod.string()
+})))
+})
+
+
+/**
+ * @summary Create an event-bound OC referral after an explicit user action
+ */
+
+
+
+export const StartOCEventReferralBody = zod.object({
+  "competitionId": zod.int().min(1)
+})
+
+export const StartOCEventReferralResponse = zod.object({
+  "referralUrl": zod.url(),
+  "event": zod.object({
+  "competitionId": zod.int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.string(),
+  "startDate": zod.string().nullable(),
+  "endDate": zod.string().nullable(),
+  "contestantId": zod.int().nullable()
+})
+})
+
+
+/**
+ * OC server only. Re-read current Quest records before every automation run. Any error must fail closed.
+ * @summary Bind an OC client and check its current event-based automation eligibility
+ */
+export const verifyOCEventBenefitBodyReferralIdRegExp = new RegExp('^[A-Za-z0-9_-]{43}$');
+export const verifyOCEventBenefitBodyOcAccountIdMax = 256;
+
+
+
+export const VerifyOCEventBenefitBody = zod.object({
+  "referralId": zod.string().regex(verifyOCEventBenefitBodyReferralIdRegExp),
+  "ocAccountId": zod.string().min(1).max(verifyOCEventBenefitBodyOcAccountIdMax),
+  "verifiedEmail": zod.email()
+})
+
+export const VerifyOCEventBenefitResponse = zod.object({
+  "eligible": zod.boolean(),
+  "reason": zod.string(),
+  "referralId": zod.string(),
+  "role": zod.enum(['artist', 'host']),
+  "questUserId": zod.string(),
+  "ocAccountId": zod.string(),
+  "offer": zod.object({
+  "code": zod.string(),
+  "plan": zod.string(),
+  "feature": zod.string(),
+  "planMonthlyPriceCents": zod.int(),
+  "currency": zod.string()
+}),
+  "checkedAt": zod.coerce.date(),
+  "expiresAt": zod.string().nullable(),
+  "revokedAt": zod.string().nullable(),
+  "event": zod.union([zod.object({
+  "competitionId": zod.int(),
+  "title": zod.string(),
+  "category": zod.string(),
+  "status": zod.string(),
+  "startDate": zod.string().nullable(),
+  "endDate": zod.string().nullable(),
+  "contestantId": zod.int().nullable()
+}),zod.null()]),
+  "profile": zod.object({
+  "email": zod.string().nullable(),
+  "displayName": zod.string().nullable(),
+  "stageName": zod.string().nullable()
+})
+})
+
+
+/**
  * @summary Start a per-user OC authorization
  */
 export const StartOCAccountConnectionBody = zod.object({

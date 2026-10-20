@@ -56,7 +56,9 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse && !/^\/api\/admin\/users\/[^/]+\/(?:reset-password|access-status)$/.test(path)) {
+      const sensitiveOCResponse = path.startsWith("/api/oc/")
+        || path.startsWith("/api/integrations/oc/referral/");
+      if (capturedJsonResponse && !sensitiveOCResponse && !/^\/api\/admin\/users\/[^/]+\/(?:reset-password|access-status)$/.test(path)) {
         const body = JSON.stringify(capturedJsonResponse);
         logLine += ` :: ${body.length > 300 ? body.slice(0, 300) + "…" : body}`;
       }
