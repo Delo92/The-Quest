@@ -963,6 +963,34 @@ export const firestoreVotes = {
     }
     return points;
   },
+
+  /** Free vs paid vote counts per contestant (votes, not points). */
+  async getVoteSplitByCompetition(competitionId: number): Promise<Map<number, { free: number; paid: number }>> {
+    const countSnapshot = await db()
+      .collection(COLLECTIONS.VOTE_COUNTS)
+      .where("competitionId", "==", competitionId)
+      .get();
+    const complete = countSnapshot.docs.every(doc => {
+      const data = doc.data();
+      if (data.stageId) return true;
+      return Number(data.freeCount || 0) + Number(data.paidCount || 0) === Number(data.count || 0);
+    });
+    const split = new Map<number, { free: number; paid: number }>();
+    if (complete) {
+      for (const doc of countSnapshot.docs) {
+        const data = doc.data();
+        if (data.stageId) continue;
+        split.set(Number(data.contestantId), { free: Number(data.freeCount || 0), paid: Number(data.paidCount || 0) });
+      }
+      return split;
+    }
+    for (const vote of await this.getVotesByCompetition(competitionId)) {
+      const entry = split.get(vote.contestantId) || { free: 0, paid: 0 };
+      if (vote.purchaseId) entry.paid += 1; else entry.free += 1;
+      split.set(vote.contestantId, entry);
+    }
+    return split;
+  },
 };
 
 export const firestoreStageSubmissions = {

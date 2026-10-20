@@ -20,6 +20,7 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useMemo } from "react";
+import { VotePointsBreakdown } from "@/components/vote-points-breakdown";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
 import { CompetitionDetailModal } from "@/components/competition-detail-modal";
@@ -41,6 +42,8 @@ interface HostStats {
   totalCompetitions: number;
   totalContestants: number;
   totalVotes: number;
+  freeVotes?: number;
+  paidVotes?: number;
   pendingApplications: number;
 }
 
@@ -85,8 +88,11 @@ interface ContestantItem {
 
 interface CompReportResponse {
   competition: HostCompetition;
-  leaderboard: { rank: number; contestantId: number; displayName: string; voteCount: number; votePercentage: number }[];
+  leaderboard: { rank: number; contestantId: number; displayName: string; voteCount: number; freeVotes?: number; paidVotes?: number; votePercentage: number }[];
   totalVotes: number;
+  freeVotes?: number;
+  paidVotes?: number;
+  freeVoteMultiplier?: number;
   totalRevenue: number;
   totalContestants: number;
   totalPurchases: number;
@@ -145,8 +151,9 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider">Tournament points</p>
-          <p className="text-lg font-bold text-orange-400">{report?.totalVotes ?? 0}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider">Votes</p>
+          <p className="text-lg font-bold text-orange-400">{((report?.freeVotes ?? 0) + (report?.paidVotes ?? 0)).toLocaleString()}</p>
+          <p className="text-[10px] text-white/40 tabular-nums">{(report?.totalVotes ?? 0).toLocaleString()} points</p>
         </div>
         <div>
           <p className="text-[10px] text-white/30 uppercase tracking-wider">Contestants</p>
@@ -161,6 +168,14 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
           <p className="text-lg font-bold">{report?.totalPurchases ?? 0}</p>
         </div>
       </div>
+      {report && report.freeVoteMultiplier != null && ((report.freeVotes ?? 0) + (report.paidVotes ?? 0)) > 0 && (
+        <VotePointsBreakdown
+          className="mt-3 border-t border-white/5 pt-3"
+          freeVotes={report.freeVotes ?? 0}
+          paidVotes={report.paidVotes ?? 0}
+          freeVoteMultiplier={report.freeVoteMultiplier}
+        />
+      )}
       {breakdown && (breakdown.online > 0 || breakdown.inPerson > 0) && (
         <div className="mt-3 border-t border-white/5 pt-3">
           <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Vote Source Breakdown</p>
@@ -196,7 +211,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
                   <span className="text-white/70">{entry.displayName}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-white/40">{entry.voteCount.toLocaleString()} points</span>
+                  <span className="text-white/40 tabular-nums">{((entry.freeVotes ?? 0) + (entry.paidVotes ?? 0)).toLocaleString()} votes ({(entry.freeVotes ?? 0).toLocaleString()} free, {(entry.paidVotes ?? 0).toLocaleString()} paid) · {entry.voteCount.toLocaleString()} pts</span>
                   <span className="text-orange-400">{entry.votePercentage}%</span>
                 </div>
               </div>
@@ -864,9 +879,10 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
           <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 sm:p-5 hover:border-green-500/30 transition-colors" data-testid="stat-votes">
             <div className="flex items-center gap-2 mb-1">
               <Vote className="h-4 w-4 text-green-400" />
-              <span className="text-xs text-white/40 uppercase tracking-wider">Tournament points</span>
+              <span className="text-xs text-white/40 uppercase tracking-wider">Votes</span>
             </div>
-            <p className="text-2xl sm:text-3xl font-bold tabular-nums">{(stats?.totalVotes ?? 0).toLocaleString()}</p>
+            <p className="text-2xl sm:text-3xl font-bold tabular-nums">{((stats?.freeVotes ?? 0) + (stats?.paidVotes ?? 0)).toLocaleString()}</p>
+            <p className="mt-1 text-xs text-white/40 tabular-nums">{(stats?.freeVotes ?? 0).toLocaleString()} free · {(stats?.paidVotes ?? 0).toLocaleString()} paid · {(stats?.totalVotes ?? 0).toLocaleString()} points</p>
           </div>
           <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 sm:p-5 hover:border-yellow-500/30 transition-colors" data-testid="stat-pending">
             <div className="flex items-center gap-2 mb-1">
@@ -1497,8 +1513,9 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                     <p className="text-2xl font-bold">{stats?.totalContestants ?? 0}</p>
                   </div>
                   <div className="rounded-md border border-white/5 bg-white/5 p-4">
-                    <p className="mb-1 text-xs uppercase tracking-wider text-white/40">Tournament points</p>
-                    <p className="text-2xl font-bold text-orange-400">{stats?.totalVotes ?? 0}</p>
+                    <p className="mb-1 text-xs uppercase tracking-wider text-white/40">Votes</p>
+                    <p className="text-2xl font-bold text-orange-400">{((stats?.freeVotes ?? 0) + (stats?.paidVotes ?? 0)).toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-white/40 tabular-nums">{(stats?.freeVotes ?? 0).toLocaleString()} free · {(stats?.paidVotes ?? 0).toLocaleString()} paid · {(stats?.totalVotes ?? 0).toLocaleString()} points</p>
                   </div>
                   <div className="rounded-md border border-white/5 bg-white/5 p-4">
                     <p className="mb-1 text-xs uppercase tracking-wider text-white/40">Pending Apps</p>
@@ -1708,8 +1725,8 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                                           <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Contestants</p>
                                         </div>
                                         <div className="bg-white/5 rounded-md p-2.5 text-center">
-                                          <p className="text-xl font-bold text-orange-400">{calendarReport.totalVotes}</p>
-                                          <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Tournament points</p>
+                                          <p className="text-xl font-bold text-orange-400">{((calendarReport.freeVotes ?? 0) + (calendarReport.paidVotes ?? 0)).toLocaleString()}</p>
+                                          <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">Votes · {calendarReport.totalVotes.toLocaleString()} pts</p>
                                         </div>
                                         <div className="bg-white/5 rounded-md p-2.5 text-center">
                                           <p className="text-xl font-bold text-orange-400">${(calendarReport.totalRevenue / 100).toFixed(2)}</p>

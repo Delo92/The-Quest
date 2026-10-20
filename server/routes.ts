@@ -2843,13 +2843,18 @@ export async function registerRoutes(
     const competitions = await storage.getCompetitionsByCreator(uid);
     let totalContestants = 0;
     let totalVotes = 0;
+    let freeVotes = 0;
+    let paidVotes = 0;
     let pendingApplications = 0;
 
     for (const comp of competitions) {
       const allContestants = await storage.getContestantsByCompetition(comp.id);
       totalContestants += allContestants.length;
+      const split = await firestoreVotes.getVoteSplitByCompetition(comp.id);
       for (const c of allContestants) {
         totalVotes += c.voteCount;
+        freeVotes += split.get(c.id)?.free || 0;
+        paidVotes += split.get(c.id)?.paid || 0;
       }
       const allContestantsRaw = await storage.getAllContestants();
       const pending = allContestantsRaw.filter(
@@ -2862,6 +2867,8 @@ export async function registerRoutes(
       totalCompetitions: competitions.length,
       totalContestants,
       totalVotes,
+      freeVotes,
+      paidVotes,
       pendingApplications,
     });
   });
@@ -3171,6 +3178,14 @@ export async function registerRoutes(
     ]);
 
     const totalVotes = contestants.reduce((sum, c) => sum + c.voteCount, 0);
+    const [voteSplit, platformDoc] = await Promise.all([
+      firestoreVotes.getVoteSplitByCompetition(id),
+      getFirestore().collection("platformSettings").doc("global").get(),
+    ]);
+    const freeVoteMultiplier = Math.max(1, Number(platformDoc.data()?.freeVoteMultiplier) || 60);
+    const splitFor = (contestantId: number) => voteSplit.get(contestantId) || { free: 0, paid: 0 };
+    const freeVotes = contestants.reduce((sum, c) => sum + splitFor(c.id).free, 0);
+    const paidVotes = contestants.reduce((sum, c) => sum + splitFor(c.id).paid, 0);
     const leaderboard = contestants
       .sort((a, b) => b.voteCount - a.voteCount)
       .map((c, i) => ({
@@ -3178,6 +3193,8 @@ export async function registerRoutes(
         contestantId: c.id,
         displayName: c.talentProfile.displayName,
         voteCount: c.voteCount,
+        freeVotes: splitFor(c.id).free,
+        paidVotes: splitFor(c.id).paid,
         votePercentage: totalVotes > 0 ? Math.round((c.voteCount / totalVotes) * 100) : 0,
       }));
 
@@ -3191,6 +3208,9 @@ export async function registerRoutes(
       competition: comp,
       leaderboard,
       totalVotes,
+      freeVotes,
+      paidVotes,
+      freeVoteMultiplier,
       voteRevenue,
       nominationRevenue,
       totalRevenue: voteRevenue + nominationRevenue,
