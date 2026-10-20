@@ -3001,8 +3001,10 @@ export async function registerRoutes(
       const updateData: any = {};
       if (isVideo) {
         updateData.coverVideo = firebaseUrl;
+        updateData.coverImage = null;
       } else {
         updateData.coverImage = firebaseUrl;
+        updateData.coverVideo = null;
       }
 
       const updated = await storage.updateCompetition(id, updateData);
@@ -3799,8 +3801,10 @@ export async function registerRoutes(
       const updateData: any = {};
       if (isVideo) {
         updateData.coverVideo = firebaseUrl;
+        updateData.coverImage = null;
       } else {
         updateData.coverImage = firebaseUrl;
+        updateData.coverVideo = null;
       }
 
       const updated = await storage.updateCompetition(id, updateData);
@@ -4649,6 +4653,61 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Competition contestant media error:", error);
       res.status(500).json({ message: "Failed to load competition contestant media" });
+    }
+  });
+
+  app.patch("/api/competitions/:id/contestant-image-framing", firebaseAuth, async (req, res) => {
+    try {
+      const { uid } = req.firebaseUser!;
+      const competitionId = Number(req.params.id);
+      const profileId = Number(req.body?.profileId);
+      const imageIndex = Number(req.body?.imageIndex);
+      if (!Number.isSafeInteger(competitionId) || competitionId <= 0) {
+        return res.status(400).json({ message: "Invalid competition ID" });
+      }
+      if (!Number.isSafeInteger(profileId) || profileId <= 0 || !Number.isSafeInteger(imageIndex) || imageIndex < 0) {
+        return res.status(400).json({ message: "Invalid contestant photo" });
+      }
+
+      const [competition, profile, viewerProfile] = await Promise.all([
+        storage.getCompetition(competitionId),
+        storage.getTalentProfile(profileId),
+        storage.getTalentProfileByUserId(uid),
+      ]);
+      if (!competition) return res.status(404).json({ message: "Competition not found" });
+      if (!profile) return res.status(404).json({ message: "Contestant profile not found" });
+      const role = viewerProfile?.role;
+      if (role !== "admin" && role !== "host") {
+        return res.status(403).json({ message: "Admin or host access required" });
+      }
+      if (role === "host" && competition.createdBy !== uid) {
+        return res.status(403).json({ message: "Not your competition" });
+      }
+      if (!await storage.getContestant(competitionId, profileId)) {
+        return res.status(404).json({ message: "Contestant is not part of this competition" });
+      }
+      if (imageIndex >= (profile.imageUrls?.length || 0)) {
+        return res.status(400).json({ message: "Contestant photo does not exist" });
+      }
+
+      const [position] = normalizeImageCropPositions([req.body?.position], 1) || [];
+      if (!position) return res.status(400).json({ message: "Invalid image framing position" });
+
+      const profileKey = String(profileId);
+      const imageKey = String(imageIndex);
+      const contestantImageCropPositions = {
+        ...(competition.contestantImageCropPositions || {}),
+        [profileKey]: {
+          ...(competition.contestantImageCropPositions?.[profileKey] || {}),
+          [imageKey]: position,
+        },
+      };
+      const updated = await storage.updateCompetition(competitionId, { contestantImageCropPositions });
+      if (!updated) return res.status(404).json({ message: "Competition not found" });
+      res.json({ contestantImageCropPositions: updated.contestantImageCropPositions || contestantImageCropPositions });
+    } catch (error: any) {
+      console.error("Competition contestant framing update error:", error);
+      res.status(500).json({ message: "Failed to save competition photo framing" });
     }
   });
 

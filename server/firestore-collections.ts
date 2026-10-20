@@ -90,6 +90,7 @@ export interface FirestoreCompetition {
   chronicBrandsPromotionEnabled: boolean;
   chronicBrandsPromotionUrl?: string | null;
   themeColor?: string | null;
+  contestantImageCropPositions?: Record<string, Record<string, { x: number; y: number }>>;
   stages?: CompetitionStage[];
   payrollRules?: {
     payoutModel: "winner_only" | "top_three" | "custom";

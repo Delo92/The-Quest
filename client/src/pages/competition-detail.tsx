@@ -165,6 +165,7 @@ interface CompetitionDetail {
   hostedBy?: string | null;
   hostedByProfileSlug?: string | null;
   themeColor?: string | null;
+  contestantImageCropPositions?: Record<string, Record<string, ImageCropPosition>>;
   stages?: CompetitionStage[];
 }
 
@@ -242,25 +243,21 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
     try {
       const response = await apiRequest(
         "PATCH",
-        `/api/admin/talent-profiles/${editingContestantCrop.profileId}/image-framing`,
-        { position: editingContestantCrop.position },
+        `/api/competitions/${competition.id}/contestant-image-framing`,
+        { profileId: editingContestantCrop.profileId, imageIndex: 0, position: editingContestantCrop.position },
       );
-      const result = await response.json() as { imageCropPositions: ImageCropPosition[] };
+      const result = await response.json() as { contestantImageCropPositions: Record<string, Record<string, ImageCropPosition>> };
       queryClient.setQueryData<CompetitionDetail>(
         ["/api/resolve/competition", categorySlug, compSlug],
         (current) => current
           ? {
               ...current,
-              contestants: current.contestants.map((entry) =>
-                entry.talentProfile.id === editingContestantCrop.profileId
-                  ? { ...entry, talentProfile: { ...entry.talentProfile, imageCropPositions: result.imageCropPositions } }
-                  : entry,
-              ),
+              contestantImageCropPositions: result.contestantImageCropPositions,
             }
           : current,
       );
       setEditingContestantCrop(null);
-      toast({ title: "Photo framing saved", description: "The updated crop is now used on the contestant card and profile." });
+      toast({ title: "Photo framing saved", description: "The updated crop applies only to this competition card." });
     } catch (error: any) {
       toast({
         title: "Could not save photo framing",
@@ -757,6 +754,9 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               const rankIcon = index === 0 ? <Crown className="h-4 w-4 text-yellow-400" /> : index === 1 ? <Award className="h-4 w-4 text-gray-300" /> : index === 2 ? <Award className="h-4 w-4 text-orange-400" /> : null;
               const videos = contestantVideos.get(contestant.id) || [];
                const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
+                const cardCropPosition = competition.contestantImageCropPositions?.[String(contestant.talentProfile.id)]?.["0"]
+                  ?? contestant.talentProfile.imageCropPositions?.[0]
+                  ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
                const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
                const stageResult = selectedStage ? contestant.stageResults?.[selectedStage.id] : null;
     const referralQuery = preserveReferralQuery(window.location.search);
@@ -850,7 +850,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                         alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                         className="h-full w-full object-cover"
                         style={{
-                          objectPosition: `${contestant.talentProfile.imageCropPositions?.[0]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${contestant.talentProfile.imageCropPositions?.[0]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
+                          objectPosition: `${cardCropPosition.x}% ${cardCropPosition.y}%`,
                         }}
                       />
                     )}
@@ -913,13 +913,11 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-white/15 px-4 text-xs font-medium text-white/65 transition-colors hover:border-white/35 hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                            style={{ outlineColor: accent }}
                            onClick={() => {
-                             const position = contestant.talentProfile.imageCropPositions?.[0]
-                               ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
                              setEditingContestantCrop({
                                profileId: contestant.talentProfile.id,
                                src: primaryProfileImage,
                                alt: contestant.talentProfile.stageName || contestant.talentProfile.displayName,
-                               position: { x: position.x, y: position.y },
+                                position: { x: cardCropPosition.x, y: cardCropPosition.y },
                              });
                            }}
                            data-testid={`button-adjust-contestant-framing-${contestant.id}`}
@@ -1011,6 +1009,9 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
           onPositionChange={(position) => setEditingContestantCrop((current) => current ? { ...current, position } : current)}
           onSave={saveContestantCrop}
           isSaving={savingContestantCrop}
+          title="Adjust competition card photo"
+          description="Drag the photo or use the controls. This framing changes only this competition; the shared profile and other competitions stay unchanged."
+          secondaryPreviewLabel="Square preview"
         />
       )}
     </div>

@@ -11,7 +11,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { getAuthToken } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle, Upload, Palette } from "lucide-react";
+import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle, Upload, Palette, Crop } from "lucide-react";
 import type { CompetitionStage } from "@shared/schema";
 import CompetitionShareLinks from "@/components/competition-share-links";
 
@@ -36,6 +38,7 @@ interface CompDetailResponse {
     coverImage: string | null;
     coverVideo: string | null;
     themeColor?: string | null;
+    contestantImageCropPositions?: Record<string, Record<string, ImageCropPosition>>;
     stages?: CompetitionStage[];
   };
   viewerRole: "admin" | "host";
@@ -57,6 +60,7 @@ interface CompDetailResponse {
     stageName?: string;
     category?: string;
     imageUrls?: string[];
+    imageCropPositions?: ImageCropPosition[];
     email?: string;
     location?: string;
     voteCount: number;
@@ -82,6 +86,13 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   const [activeTab, setActiveTab] = useState<"overview" | "stages" | "contestants">("overview");
   const [editing, setEditing] = useState(false);
   const [expandedProfileId, setExpandedProfileId] = useState<number | null>(null);
+  const [editingImageCrop, setEditingImageCrop] = useState<{
+    profileId: number;
+    imageIndex: number;
+    src: string;
+    alt: string;
+    position: ImageCropPosition;
+  } | null>(null);
 
   // Edit form state
   const [title, setTitle] = useState("");
@@ -302,6 +313,24 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
     },
     onError: (err: Error) => {
       toast({ title: "Media could not be removed", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
+    },
+  });
+
+  const imageFramingMutation = useMutation({
+    mutationFn: async (framing: { profileId: number; imageIndex: number; position: ImageCropPosition }) => {
+      const response = await apiRequest("PATCH", `/api/competitions/${compId}/contestant-image-framing`, framing);
+      return response.json() as Promise<{ contestantImageCropPositions: Record<string, Record<string, ImageCropPosition>> }>;
+    },
+    onSuccess: (result) => {
+      queryClient.setQueryData<CompDetailResponse>(["/api/competitions", compId, "detail"], (current) => current
+        ? { ...current, competition: { ...current.competition, contestantImageCropPositions: result.contestantImageCropPositions } }
+        : current);
+      queryClient.invalidateQueries({ queryKey: ["/api/resolve/competition"] });
+      setEditingImageCrop(null);
+      toast({ title: "Competition photo framing saved", description: "This crop only affects this competition." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Photo framing could not be saved", description: err.message.replace(/^\d+:\s*/, ""), variant: "destructive" });
     },
   });
 
@@ -1157,6 +1186,10 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                   const epd = isExpanded ? expandedProfileData : null;
                   const epImages = epd?.profile?.imageUrls ?? c.imageUrls ?? [];
                   const epVideos = isExpanded ? (expandedProfileData?.vimeoVideos ?? []) : [];
+                  const cardCropPosition = competition.contestantImageCropPositions?.[String(c.talentProfileId)]?.["0"]
+                    ?? epd?.profile?.imageCropPositions?.[0]
+                    ?? c.imageCropPositions?.[0]
+                    ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
                   return (
                     <div key={c.id} className="rounded-xl bg-zinc-900 border border-white/5 hover:border-white/10 transition-colors overflow-hidden group" data-testid={`comp-contestant-${c.id}`}>
                       <button
@@ -1248,7 +1281,26 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 {epImages.length > 0 && (
                                   <div className="space-y-2">
-                                    <h5 className="text-[10px] uppercase tracking-widest text-white/40 font-bold flex items-center gap-1.5"><Image className="h-3.5 w-3.5" /> Photos ({epImages.length})</h5>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <h5 className="text-[10px] uppercase tracking-widest text-white/40 font-bold flex items-center gap-1.5"><Image className="h-3.5 w-3.5" /> Photos ({epImages.length})</h5>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="min-h-10 border-white/15 px-3 text-xs text-white/75 hover:border-orange-400/50 hover:bg-orange-500/10"
+                                        disabled={imageFramingMutation.isPending}
+                                        onClick={() => setEditingImageCrop({
+                                          profileId: c.talentProfileId,
+                                          imageIndex: 0,
+                                          src: epImages[0],
+                                          alt: c.stageName || c.displayName,
+                                          position: { x: cardCropPosition.x, y: cardCropPosition.y },
+                                        })}
+                                        data-testid={`button-adjust-comp-photo-${c.id}`}
+                                      >
+                                        <Crop className="mr-2 h-3.5 w-3.5" /> Adjust card photo
+                                      </Button>
+                                    </div>
                                     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                                       {epImages.map((url, i) => (
                                         <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 relative group rounded-lg overflow-hidden border border-white/10 w-24 h-24 block">
@@ -1256,7 +1308,9 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                                             src={url}
                                             alt={`photo-${i + 1}`}
                                             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            style={{ objectPosition: `${epd?.profile?.imageCropPositions?.[i]?.x ?? 50}% ${epd?.profile?.imageCropPositions?.[i]?.y ?? 18}%` }}
+                                            style={{
+                                              objectPosition: `${i === 0 ? cardCropPosition.x : epd?.profile?.imageCropPositions?.[i]?.x ?? 50}% ${i === 0 ? cardCropPosition.y : epd?.profile?.imageCropPositions?.[i]?.y ?? 18}%`,
+                                            }}
                                           />
                                           <div className="absolute inset-0 bg-orange-500/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <ArrowUpRight className="h-5 w-5 text-white" />
@@ -1321,6 +1375,25 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
           </div>
         )}
       </div>
+      {editingImageCrop && (
+        <ImageCropDialog
+          open={!!editingImageCrop}
+          onOpenChange={(open) => { if (!open && !imageFramingMutation.isPending) setEditingImageCrop(null); }}
+          src={editingImageCrop.src}
+          alt={`Competition card photo for ${editingImageCrop.alt}`}
+          position={editingImageCrop.position}
+          onPositionChange={(position) => setEditingImageCrop((current) => current ? { ...current, position } : current)}
+          onSave={() => imageFramingMutation.mutate({
+            profileId: editingImageCrop.profileId,
+            imageIndex: editingImageCrop.imageIndex,
+            position: editingImageCrop.position,
+          })}
+          isSaving={imageFramingMutation.isPending}
+          title="Adjust competition card photo"
+          description="Drag the photo or use the controls. This framing changes only this competition; the shared profile and other competitions stay unchanged."
+          secondaryPreviewLabel="Square preview"
+        />
+      )}
     </div>
   );
 }

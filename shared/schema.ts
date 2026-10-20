@@ -40,6 +40,7 @@ export interface Competition {
   stages?: CompetitionStage[];
   isFeatured?: boolean;
   themeColor?: string | null;
+  contestantImageCropPositions?: Record<string, Record<string, { x: number; y: number }>>;
   createdAt: string | null;
   createdBy: string | null;
 }

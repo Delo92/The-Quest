@@ -19,6 +19,9 @@ interface ImageCropDialogProps {
   onPositionChange: (position: ImageCropPosition) => void;
   onSave: () => void;
   isSaving: boolean;
+  title?: string;
+  description?: string;
+  secondaryPreviewLabel?: string;
 }
 
 export default function ImageCropDialog({
@@ -30,6 +33,9 @@ export default function ImageCropDialog({
   onPositionChange,
   onSave,
   isSaving,
+  title = "Adjust public image framing",
+  description = "Drag the photo or use the controls to adjust its public framing.",
+  secondaryPreviewLabel = "Profile gallery",
 }: ImageCropDialogProps) {
   const dragStart = useRef<{ x: number; y: number; position: ImageCropPosition } | null>(null);
   const objectPosition = `${position.x}% ${position.y}%`;
@@ -38,10 +44,8 @@ export default function ImageCropDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-2xl overflow-y-auto border-white/15 bg-zinc-950 text-white sm:w-full">
         <DialogHeader>
-          <DialogTitle>Adjust public image framing</DialogTitle>
-          <DialogDescription className="text-white/55">
-            Drag the photo or use the controls. This same crop is used on the competition card, profile header, and gallery.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription className="text-white/55">{description}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-start">
@@ -87,7 +91,7 @@ export default function ImageCropDialog({
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-white/55">Profile gallery</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-white/55">{secondaryPreviewLabel}</p>
             <div className="aspect-square overflow-hidden rounded-md bg-black" data-testid="image-crop-preview-gallery">
               <img src={src} alt="" className="h-full w-full object-cover" style={{ objectPosition }} />
             </div>
