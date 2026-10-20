@@ -226,6 +226,38 @@
     font-weight: 400;
     letter-spacing: 0.12em;
   }
+
+  .profile-depth-page {
+    isolation: isolate;
+    background:
+      radial-gradient(ellipse 82% 46% at 50% 9%, rgba(255, 255, 255, 0.025), transparent 72%),
+      linear-gradient(180deg, #101012 0%, #0b0b0d 42%, #101012 100%);
+  }
+
+  .profile-depth-backdrop {
+    will-change: transform;
+  }
+
+  .profile-depth-vignette {
+    background:
+      radial-gradient(ellipse at center, transparent 32%, rgba(0, 0, 0, 0.34) 100%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.1), transparent 25%, rgba(0, 0, 0, 0.2));
+  }
+
+  .profile-depth-grid {
+    opacity: 0.12;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: linear-gradient(to bottom, black, transparent 82%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-depth-backdrop {
+    transform: none !important;
+  }
 }
 
 /* Shared Quest surface: keep solid page areas aligned with the footer's

@@ -21,6 +21,8 @@ import { formatVideoTitle } from "@/lib/media-utils";
 import { buildVimeoSrc } from "@/lib/media-utils";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import ContestantVideoWheel from "@/components/contestant-video-wheel";
+import ProfileScrollDepthCard from "@/components/profile-scroll-depth-card";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 
 interface ResolvedData {
   competition: {
@@ -29,6 +31,7 @@ interface ResolvedData {
     description: string | null;
     category: string;
     coverImage: string | null;
+    themeColor?: string | null;
     status: string;
     voteCost: number;
     maxVotesPerDay: number;
@@ -109,6 +112,9 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const { user } = useAuth();
   const { toast } = useToast();
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll();
+  const backgroundParallaxY = useTransform(scrollYProgress, [0, 1], [0, -100]);
 
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
@@ -414,10 +420,21 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
 
   return (
     <div
-      className="min-h-screen bg-black text-white relative"
+      className="profile-depth-page min-h-screen bg-black text-white relative"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      <motion.div
+        className="profile-depth-backdrop pointer-events-none fixed inset-0 z-0"
+        aria-hidden="true"
+        style={{
+          y: reduceMotion ? 0 : backgroundParallaxY,
+          backgroundImage: `radial-gradient(ellipse 58% 38% at 50% 0%, ${accentColor}20, transparent 72%), radial-gradient(ellipse 42% 46% at 0% 40%, ${accentColor}0D, transparent 72%), radial-gradient(ellipse 42% 46% at 100% 62%, rgba(255,255,255,0.035), transparent 72%)`,
+        }}
+      >
+        <div className="profile-depth-vignette absolute inset-0" />
+        <div className="profile-depth-grid absolute inset-0" />
+      </motion.div>
       {bgImage && (
         <div className="fixed inset-0 z-0 pointer-events-none">
           <img src={bgImage} alt="" className="w-full h-full object-cover opacity-[0.04]" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -593,18 +610,19 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   <p className="text-[11px] uppercase tracking-[3px] text-white/45">This competition</p>
                   <h2 className="mt-1 text-sm font-semibold text-white/85">{competition.title}</h2>
                 </div>
-                <div
+                <ProfileScrollDepthCard
                   className={`relative mx-auto w-full overflow-hidden rounded-xl bg-black ${currentVideo.height && currentVideo.width && currentVideo.height > currentVideo.width ? "aspect-[9/16] max-h-[72dvh] max-w-sm" : "aspect-video max-w-3xl"}`}
-                  data-testid="video-player"
                 >
-                  <iframe
-                    src={buildVimeoSrc(currentVideo.embedUrl, "autoplay=1&muted=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
-                    className="absolute inset-0 h-full w-full"
-                    allow="autoplay; fullscreen; picture-in-picture"
-                    allowFullScreen
-                    title={formatVideoTitle(currentVideo.name)}
-                  />
-                </div>
+                  <div data-testid="video-player">
+                    <iframe
+                      src={buildVimeoSrc(currentVideo.embedUrl, "autoplay=1&muted=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
+                      className="absolute inset-0 h-full w-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                      title={formatVideoTitle(currentVideo.name)}
+                    />
+                  </div>
+                </ProfileScrollDepthCard>
               </div>
             )}
             {isVotingOpen && (
@@ -654,18 +672,19 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   accentColor={accentColor}
                 />
                 {activeOtherVideo && playingVideo === activeOtherVideo.uri && (
-                  <div
+                  <ProfileScrollDepthCard
                     className={`relative mx-auto mt-5 w-full overflow-hidden rounded-xl bg-black ${activeOtherVideo.height && activeOtherVideo.width && activeOtherVideo.height > activeOtherVideo.width ? "aspect-[9/16] max-h-[72dvh] max-w-sm" : "aspect-video max-w-3xl"}`}
-                    data-testid="other-video-player"
                   >
-                    <iframe
-                      src={buildVimeoSrc(activeOtherVideo.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
-                      className="absolute inset-0 h-full w-full"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                      title={`${formatVideoTitle(activeOtherVideo.name)} — ${activeOtherVideo.competitionTitle}`}
-                    />
-                  </div>
+                    <div data-testid="other-video-player">
+                      <iframe
+                        src={buildVimeoSrc(activeOtherVideo.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
+                        className="absolute inset-0 h-full w-full"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        title={`${formatVideoTitle(activeOtherVideo.name)} — ${activeOtherVideo.competitionTitle}`}
+                      />
+                    </div>
+                  </ProfileScrollDepthCard>
                 )}
               </div>
             )}
@@ -681,7 +700,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
               {profile.imageUrls.map((url, i) => (
-                <div key={i} className="group relative aspect-square overflow-hidden rounded-lg bg-zinc-900">
+                <ProfileScrollDepthCard key={i} className="group relative aspect-square overflow-hidden rounded-lg bg-zinc-900">
                   <FallbackImage
                     src={url}
                     fallbackSrc={getBackupUrl(profile.imageUrls, profile.imageBackupUrls, i)}
@@ -691,7 +710,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                       objectPosition: `${profile.imageCropPositions?.[i]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[i]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
                     }}
                   />
-                </div>
+                </ProfileScrollDepthCard>
               ))}
             </div>
           </section>

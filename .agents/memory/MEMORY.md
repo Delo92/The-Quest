@@ -53,6 +53,7 @@
 - [Firebase media persistence](firebase-media-persistence.md) — media records are database-owned; never run startup seed/synchronization writes that can replace saved URLs
 - [SEO canonical origin](quest-seo-canonical-origin.md) — client hydration must retain the configured production origin instead of replacing it with the Replit preview host
 - [Competition branding scope](competition-branding-scope.md) — sharing Starr Struck's UI/UX does not mean sharing its pink palette; preserve each event's own colors.
+- [Contestant profile depth and motion](contestant-profile-depth.md) — use restrained competition-accented depth and scroll-linked media perspective, respecting reduced-motion settings.
 - [Competition photo framing](competition-image-framing.md) — card-photo crops are competition-scoped overrides and must not alter a contestant's shared profile crop.
 - [Public app demo](public-app-demo.md) — verified real media must match identities; keep metrics fictional, allow muted visible-only autoplay, and block writes.
 - [Host contestant admin](host-contestant-admin.md) — hosts reuse admin profile dialog scoped to own events; phone kept in private collection; Competitor URL aliases talent page
