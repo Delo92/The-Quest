@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
-import { Film, Link2, Loader2, Plus, Trash2 } from "lucide-react";
+import { Film, Link2, Loader2, Play, Plus, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as tus from "tus-js-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,17 @@ export default function PromoVideosEditor({ competitionId, videos, role = "host"
   const [busy, setBusy] = useState<null | "saving" | "uploading">(null);
   const [progress, setProgress] = useState(0);
   const full = videos.length >= MAX_VIDEOS;
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const thumbs = useQuery<{ thumbnails: (string | null)[] }>({
+    queryKey: ["promo-thumbnails", competitionId, videos],
+    queryFn: async () => {
+      const response = await fetch(`/api/competitions/${competitionId}/promo-thumbnails`);
+      if (!response.ok) throw new Error("Thumbnails unavailable");
+      return response.json();
+    },
+    enabled: videos.length > 0,
+    staleTime: 60_000,
+  });
 
   const save = async (next: string[]) => {
     const response = await fetch(`/api/competitions/${competitionId}`, {
@@ -109,14 +122,28 @@ export default function PromoVideosEditor({ competitionId, videos, role = "host"
         <ul className="space-y-2">
           {videos.map((url, index) => (
             <li key={url} className="flex items-center gap-3 rounded-md border border-white/10 bg-black/25 p-2">
-              <Film className="h-4 w-4 shrink-0 text-orange-300" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate text-sm text-white/80">Video {index + 1} · {url.replace(/^https:\/\//, "")}</span>
+              <button
+                type="button"
+                onClick={() => setPreviewIndex(index)}
+                className="group relative aspect-video w-28 shrink-0 overflow-hidden rounded bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-400"
+                aria-label={`Preview promo video ${index + 1}`}
+              >
+                {thumbs.data?.thumbnails[index] ? (
+                  <img src={thumbs.data.thumbnails[index]!} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Film className="mx-auto h-5 w-5 text-white/40" aria-hidden="true" />
+                )}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/35 group-hover:bg-black/50">
+                  <Play className="h-5 w-5 fill-white text-white" aria-hidden="true" />
+                </span>
+              </button>
+              <span className="min-w-0 flex-1 text-sm font-medium text-white">Promo video {index + 1}</span>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="h-11 w-11 shrink-0 text-white/60 hover:bg-red-400/10 hover:text-red-300"
-                aria-label={`Remove video ${index + 1}`}
+                aria-label={`Remove promo video ${index + 1}`}
                 disabled={busy !== null}
                 onClick={() => void run("saving", () => save(videos.filter((value) => value !== url)), "Promo video removed")}
               >
@@ -159,19 +186,35 @@ export default function PromoVideosEditor({ competitionId, videos, role = "host"
                 value={link}
                 onChange={(event) => setLink(event.target.value)}
                 onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addLink(); } }}
-                placeholder="Or paste a Vimeo link"
-                aria-label="Vimeo link"
+                placeholder="Or paste a video link"
+                aria-label="Video link"
                 inputMode="url"
                 className="min-h-11 pl-9"
                 disabled={busy !== null}
               />
             </div>
             <Button type="button" className="min-h-11" disabled={!link.trim() || busy !== null} onClick={addLink}>
-              {busy === "saving" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Add link"}
+              {busy === "saving" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : "Add"}
             </Button>
           </div>
         </div>
       )}
+      <Dialog open={previewIndex !== null} onOpenChange={(open) => { if (!open) setPreviewIndex(null); }}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-3xl border-white/10 bg-[#161616] p-3 text-white sm:p-4">
+          <DialogHeader>
+            <DialogTitle>Promo video {previewIndex !== null ? previewIndex + 1 : ""}</DialogTitle>
+          </DialogHeader>
+          {previewIndex !== null && videos[previewIndex] && (
+            <div className="aspect-video w-full overflow-hidden rounded bg-black">
+              {/\.(mp4|webm|mov|m4v)(\?|$)/i.test(videos[previewIndex]) ? (
+                <video src={videos[previewIndex]} controls playsInline className="h-full w-full" />
+              ) : (
+                <iframe src={videos[previewIndex]} title={`Promo video ${previewIndex + 1}`} allow="fullscreen; picture-in-picture" allowFullScreen className="h-full w-full border-0" />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

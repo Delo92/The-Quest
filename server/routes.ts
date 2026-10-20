@@ -1903,6 +1903,20 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  app.get("/api/competitions/:id/promo-thumbnails", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
+    const comp = await storage.getCompetition(id);
+    if (!comp) return res.status(404).json({ message: "Competition not found" });
+    const thumbnails = await Promise.all((comp.promoVideos ?? []).map(async (url) => {
+      const videoId = extractVimeoVideoId(url);
+      if (!videoId) return null;
+      try { return (await getVideoPlayUrls(videoId)).thumbnailUrl || null; } catch { return null; }
+    }));
+    res.set("Cache-Control", "no-store");
+    res.json({ thumbnails });
+  });
+
   app.get("/api/competitions/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ message: "Invalid competition ID" });
