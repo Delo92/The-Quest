@@ -5445,7 +5445,7 @@ export default function AdminDashboard({ user }: { user: any }) {
       </main>
 
       <Dialog open={compDetailId !== null} onOpenChange={(open) => { if (!open) setCompDetailId(null); }}>
-        <DialogContent className="bg-zinc-900 border-white/10 text-white w-full max-w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-5xl sm:rounded-xl p-0 sm:p-6 flex flex-col overflow-hidden" data-testid="comp-detail-dialog">
+        <DialogContent className="bg-zinc-900 border-white/10 text-white w-full max-w-[100vw] h-[100dvh] sm:h-[90dvh] sm:max-h-[90vh] sm:max-w-5xl sm:rounded-xl gap-0 p-0 sm:p-6 flex min-h-0 flex-col overflow-hidden" data-testid="comp-detail-dialog">
           <DialogHeader className="px-4 py-4 sm:p-0 border-b sm:border-0 border-white/10">
             <DialogTitle className="font-serif text-xl">Competition Details</DialogTitle>
           </DialogHeader>

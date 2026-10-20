@@ -475,7 +475,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   });
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 sm:bg-transparent" data-testid="comp-detail-content">
+    <div className="flex min-h-0 flex-1 flex-col bg-zinc-950 sm:bg-transparent" data-testid="comp-detail-content">
       {/* Workspace Header - Desktop hidden inside modal header, mobile visible */}
       <div className="px-4 py-3 sm:px-0 sm:py-0 sm:mb-5 border-b border-white/10 sm:border-0 shrink-0 bg-zinc-900/50 sm:bg-transparent">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -525,7 +525,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-0 scrollbar-hide">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 sm:p-0 scrollbar-thin scrollbar-thumb-white/15 scrollbar-track-transparent">
         {activeTab === "stages" && (
           <div className="animate-in fade-in slide-in-from-right-2 duration-300 max-w-4xl mx-auto pb-8 space-y-5" data-testid="comp-detail-stages">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">

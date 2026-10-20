@@ -1734,8 +1734,8 @@ export default function HostDashboard({ user }: { user: any }) {
       </div>
 
       <Dialog open={compDetailId !== null} onOpenChange={(open) => { if (!open) setCompDetailId(null); }}>
-        <DialogContent className="bg-zinc-900 border-white/10 text-white max-w-2xl" data-testid="host-comp-detail-modal">
-          <DialogHeader>
+        <DialogContent className="bg-zinc-900 border-white/10 text-white w-full max-w-[100vw] h-[100dvh] sm:h-[90dvh] sm:max-h-[90vh] max-w-2xl rounded-none sm:rounded-xl gap-0 p-0 sm:p-6 flex min-h-0 flex-col overflow-hidden" data-testid="host-comp-detail-modal">
+          <DialogHeader className="shrink-0 px-4 py-4 border-b border-white/10 sm:p-0 sm:border-0">
             <DialogTitle className="text-lg font-serif bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
               Competition Details
             </DialogTitle>
