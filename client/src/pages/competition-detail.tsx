@@ -759,7 +759,58 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
              error={trackingQuery.error instanceof Error ? trackingQuery.error.message : null}
            />
          ) : sorted.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <>
+          <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:hidden" data-testid="grid-contestants-compact">
+            {sorted.map((contestant, index) => {
+              const voteCount = getContestantVoteCount(contestant);
+              const name = contestant.talentProfile.stageName || contestant.talentProfile.displayName;
+              const rankColor = index === 0 ? "text-yellow-400" : index === 1 ? "text-gray-300" : index === 2 ? "text-orange-400" : "";
+              const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
+              const stageResult = selectedStage ? contestant.stageResults?.[selectedStage.id] : null;
+              const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
+              const cardCropPosition: ImageCropPosition = competition.contestantImageCropPositions?.[String(contestant.talentProfile.id)]?.["0"]
+                ?? contestant.talentProfile.imageCropPositions?.[0]
+                ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
+              const imageSrc = stageSubmission
+                ? (stageSubmission.mediaType === "image" ? stageSubmission.mediaUrl : stageSubmission.thumbnailUrl) || undefined
+                : (contestant as any).videoThumbnail || primaryProfileImage || getImage("talent_profile_fallback") || undefined;
+              const referralQuery = preserveReferralQuery(window.location.search);
+              const href = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugifyWithId(name, contestant.talentProfile.id)}${referralQuery}`;
+              return (
+                <li key={contestant.id} data-testid={`card-contestant-compact-${contestant.id}`}>
+                  <Link
+                    href={href}
+                    className="group relative block aspect-[3/4] overflow-hidden rounded-lg border border-white/10 bg-[#101010] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                    style={{ outlineColor: accent }}
+                    aria-label={`View ${name}'s profile, ${voteCount} votes`}
+                  >
+                    <FallbackImage
+                      src={imageSrc}
+                      fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback") || undefined}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      style={getCompetitionCropImageStyle(cardCropPosition)}
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent px-1.5 pb-1.5 pt-8">
+                      <p className="line-clamp-2 text-xs font-semibold leading-tight text-white">{name}</p>
+                      <p className="mt-0.5 text-[11px] text-white/80">{voteCount} {selectedStage ? "stage votes" : "votes"}</p>
+                    </div>
+                    {rankColor && (
+                      <span className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/75">
+                        {index === 0 ? <Crown className={`h-3.5 w-3.5 ${rankColor}`} /> : <Award className={`h-3.5 w-3.5 ${rankColor}`} />}
+                      </span>
+                    )}
+                    {stageResult && stageResult !== "active" && (
+                      <span className="absolute right-1.5 top-1.5 rounded-full bg-black/85 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ border: `1px solid ${accent}80`, color: accentBg }}>
+                        {stageResult}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4">
             {sorted.map((contestant, index) => {
                const voteCount = getContestantVoteCount(contestant);
                const pct = maxVotes > 0 ? (voteCount / maxVotes) * 100 : 0;
@@ -984,6 +1035,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               );
             })}
           </div>
+          </>
         ) : (
           <div className="text-center py-20">
             <Users className="h-12 w-12 text-white/10 mx-auto mb-4" />
