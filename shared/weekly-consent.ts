@@ -5,6 +5,9 @@ export const WEEKLY_CONSENT_TIME_ZONE = "America/Chicago";
 export const MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT =
   "I understand that following the marketing guidelines is crucial to the platform and my success. Lack of participation may result in disqualification or forfeit of earnings/winnings.";
 
+export const OC_SOCIAL_AUTOMATION_OFFER_TEXT =
+  "Optional offer: Original Concepts (OC) provides social media automation free during your first Quest competition with promo code THE QUEST. This offer is separate from this acknowledgment; checking this box does not create an OC account or authorize OC to post for you.";
+
 export const VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT =
   "By using CB Publishing The Quest, you agree to be reminded about your voted artists and their competition info.";
 

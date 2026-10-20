@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
+  OC_SOCIAL_AUTOMATION_OFFER_TEXT,
   type WeeklyConsentStatus,
 } from "@shared/weekly-consent";
 
@@ -134,6 +135,10 @@ export function WeeklyConsentGate({ children }: { children: React.ReactNode }) {
           <div className="rounded-md border border-[#FF5A09]/30 bg-[#FF5A09]/[0.06] p-4 text-sm leading-relaxed text-white/85">
             {MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT}
           </div>
+
+          <p className="rounded-md border border-white/10 bg-white/[0.02] p-3 text-xs leading-relaxed text-white/50">
+            {OC_SOCIAL_AUTOMATION_OFFER_TEXT}
+          </p>
 
           <label className="flex cursor-pointer items-start gap-3 rounded-md border border-white/15 bg-white/[0.03] p-4 text-sm leading-relaxed text-white/80">
             <Checkbox

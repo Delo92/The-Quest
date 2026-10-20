@@ -14,6 +14,7 @@ import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
+  OC_SOCIAL_AUTOMATION_OFFER_TEXT,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT,
 } from "@shared/weekly-consent";
 import { useSEO } from "@/hooks/use-seo";
@@ -618,21 +619,26 @@ export default function LoginPage() {
           )}
 
           {mode === "register" && [2, 3].includes(accountLevel) && (
-            <div className="flex min-h-12 items-start gap-3 rounded-md border border-white/15 bg-white/[0.03] px-3 py-3">
-              <Checkbox
-                id="marketing-guidelines-acknowledged"
-                checked={marketingGuidelinesAcknowledged}
-                onCheckedChange={(checked) => setMarketingGuidelinesAcknowledged(checked === true)}
-                aria-required="true"
-                className="mt-0.5 border-white/40 data-[state=checked]:border-[#FF5A09] data-[state=checked]:bg-[#FF5A09]"
-                data-testid="checkbox-marketing-guidelines"
-              />
-              <Label
-                htmlFor="marketing-guidelines-acknowledged"
-                className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
-              >
-                {MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT}
-              </Label>
+            <div className="space-y-2">
+              <div className="flex min-h-12 items-start gap-3 rounded-md border border-white/15 bg-white/[0.03] px-3 py-3">
+                <Checkbox
+                  id="marketing-guidelines-acknowledged"
+                  checked={marketingGuidelinesAcknowledged}
+                  onCheckedChange={(checked) => setMarketingGuidelinesAcknowledged(checked === true)}
+                  aria-required="true"
+                  className="mt-0.5 border-white/40 data-[state=checked]:border-[#FF5A09] data-[state=checked]:bg-[#FF5A09]"
+                  data-testid="checkbox-marketing-guidelines"
+                />
+                <Label
+                  htmlFor="marketing-guidelines-acknowledged"
+                  className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
+                >
+                  {MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT}
+                </Label>
+              </div>
+              <p className="pl-9 text-xs leading-relaxed text-white/45">
+                {OC_SOCIAL_AUTOMATION_OFFER_TEXT}
+              </p>
             </div>
           )}
 

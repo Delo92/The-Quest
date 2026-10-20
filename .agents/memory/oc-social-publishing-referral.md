@@ -7,4 +7,4 @@ The first social-publishing offer is hosted by Original Concepts: Quest artists 
 
 **Why:** This provides a low-effort way to offer social automation while OC handles platform connections and publishing, without mixing that work into Quest's existing scan integration.
 
-**How to apply:** Keep the settings CTA explicit about what profile details are sent to OC. Coordinate the referral query-field contract with OC's landing page. Do not change scan-result handling or add publishing callbacks as part of the referral-only phase.
+**How to apply:** Keep the settings CTA explicit about what profile details are sent to OC. Keep the offer informational and separate from Quest's required marketing-guidelines acknowledgment; do not imply that checking the Quest acknowledgment creates an OC account or grants posting access. Coordinate the referral query-field contract with OC's landing page. Do not change scan-result handling or add publishing callbacks as part of the referral-only phase.

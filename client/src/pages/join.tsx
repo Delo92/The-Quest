@@ -23,6 +23,7 @@ import HeroCoverflowGallery from "@/components/hero-coverflow-gallery";
 import type { Competition } from "@shared/schema";
 import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT,
+  OC_SOCIAL_AUTOMATION_OFFER_TEXT,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT,
 } from "@shared/weekly-consent";
 
@@ -1052,18 +1053,23 @@ export default function JoinPage() {
                 I understand that being nominated or entering competitions may require a nomination or registration fee.
               </span>
             </label>
-            <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
-              <input
-                id="nomination-marketing-guidelines-acknowledged"
-                type="checkbox"
-                checked={marketingGuidelinesAcknowledged}
-                onChange={(event) => setMarketingGuidelinesAcknowledged(event.target.checked)}
-                aria-required="true"
-                className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
-                data-testid="checkbox-nomination-marketing-guidelines"
-              />
-              <span>{MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT}</span>
-            </label>
+            <div className="space-y-2">
+              <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
+                <input
+                  id="nomination-marketing-guidelines-acknowledged"
+                  type="checkbox"
+                  checked={marketingGuidelinesAcknowledged}
+                  onChange={(event) => setMarketingGuidelinesAcknowledged(event.target.checked)}
+                  aria-required="true"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF5A09]"
+                  data-testid="checkbox-nomination-marketing-guidelines"
+                />
+                <span>{MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT}</span>
+              </label>
+              <p className="pl-7 text-xs leading-relaxed text-white/45">
+                {OC_SOCIAL_AUTOMATION_OFFER_TEXT}
+              </p>
+            </div>
             <label className="flex cursor-pointer items-start gap-3 border border-white/15 bg-white/[0.03] p-4 text-xs leading-relaxed text-white/75">
               <input
                 id="nomination-voted-artist-reminder-acknowledged"
