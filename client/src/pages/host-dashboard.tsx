@@ -19,7 +19,7 @@ import { InviteDialog } from "@/components/invite-dialog";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { VotePointsBreakdown } from "@/components/vote-points-breakdown";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
 import * as tus from "tus-js-client";
@@ -90,7 +90,9 @@ interface ContestantItem {
 
 interface CompReportResponse {
   competition: HostCompetition;
-  leaderboard: { rank: number; contestantId: number; displayName: string; voteCount: number; freeVotes?: number; paidVotes?: number; votePercentage: number }[];
+  leaderboard: { rank: number; contestantId: number; displayName: string; voteCount: number; freeVotes?: number; paidVotes?: number; paidRevenue?: number; votePercentage: number }[];
+  voteRevenue?: number;
+  nominationRevenue?: number;
   totalVotes: number;
   freeVotes?: number;
   paidVotes?: number;
@@ -151,33 +153,82 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
           </Link>
         </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider">Votes</p>
-          <p className="text-lg font-bold text-orange-400">{((report?.freeVotes ?? 0) + (report?.paidVotes ?? 0)).toLocaleString()}</p>
-          <p className="text-[10px] text-white/40 tabular-nums">{(report?.totalVotes ?? 0).toLocaleString()} points</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider">Contestants</p>
-          <p className="text-lg font-bold">{report?.totalContestants ?? 0}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider">Revenue</p>
-          <p className="text-lg font-bold text-green-400">${((report?.totalRevenue ?? 0) / 100).toFixed(2)}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider">Purchases</p>
-          <p className="text-lg font-bold">{report?.totalPurchases ?? 0}</p>
-        </div>
-      </div>
-      {report && report.freeVoteMultiplier != null && ((report.freeVotes ?? 0) + (report.paidVotes ?? 0)) > 0 && (
-        <VotePointsBreakdown
-          className="mt-3 border-t border-white/5 pt-3"
-          freeVotes={report.freeVotes ?? 0}
-          paidVotes={report.paidVotes ?? 0}
-          freeVoteMultiplier={report.freeVoteMultiplier}
-        />
-      )}
+      {(() => {
+        const free = report?.freeVotes ?? 0;
+        const paid = report?.paidVotes ?? 0;
+        const total = free + paid;
+        const voteRevenue = report?.voteRevenue ?? 0;
+        const nominationRevenue = report?.nominationRevenue ?? 0;
+        const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-white/40">Votes</p>
+                <p className="text-2xl font-bold text-white">{total.toLocaleString()}</p>
+                <p className="text-xs text-white/55 tabular-nums">{free.toLocaleString()} free · {paid.toLocaleString()} paid</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-white/40">Paid vote sales</p>
+                <p className="text-2xl font-bold text-green-400">{money(voteRevenue)}</p>
+                <p className="text-xs text-white/55 tabular-nums">{report?.totalPurchases ?? 0} purchase{(report?.totalPurchases ?? 0) === 1 ? "" : "s"} · {paid.toLocaleString()} votes</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-white/40">Contestants</p>
+                <p className="text-2xl font-bold text-white">{report?.totalContestants ?? 0}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-white/40">Nomination fees</p>
+                <p className="text-2xl font-bold text-white">{money(nominationRevenue)}</p>
+              </div>
+            </div>
+            {total > 0 && (
+              <div className="mt-4" role="img" aria-label={`${free} free votes and ${paid} paid votes`}>
+                <div className="flex h-2 overflow-hidden rounded-full bg-white/5">
+                  <div className="h-full bg-blue-400" style={{ width: `${(free / total) * 100}%` }} />
+                  <div className="h-full bg-orange-400" style={{ width: `${(paid / total) * 100}%` }} />
+                </div>
+                <div className="mt-1.5 flex gap-4 text-[11px] text-white/55">
+                  <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-400" />Free</span>
+                  <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-400" />Paid</span>
+                </div>
+              </div>
+            )}
+            {report && report.leaderboard.length > 0 && (
+              <div className="mt-4 overflow-x-auto border-t border-white/5 pt-3">
+                <table className="w-full min-w-[420px] text-xs">
+                  <caption className="sr-only">Votes and paid sales by contestant</caption>
+                  <thead>
+                    <tr className="text-left text-[10px] uppercase tracking-wider text-white/40">
+                      <th scope="col" className="pb-2 font-medium">Contestant</th>
+                      <th scope="col" className="pb-2 text-right font-medium">Free</th>
+                      <th scope="col" className="pb-2 text-right font-medium">Paid</th>
+                      <th scope="col" className="pb-2 text-right font-medium">Total</th>
+                      <th scope="col" className="pb-2 text-right font-medium">Paid sales</th>
+                    </tr>
+                  </thead>
+                  <tbody className="tabular-nums">
+                    {[...report.leaderboard]
+                      .sort((x, y) => ((y.freeVotes ?? 0) + (y.paidVotes ?? 0)) - ((x.freeVotes ?? 0) + (x.paidVotes ?? 0)))
+                      .map((entry) => (
+                        <tr key={entry.contestantId} className="border-t border-white/5">
+                          <th scope="row" className="py-2 pr-2 text-left font-normal text-white/85">{entry.displayName}</th>
+                          <td className="py-2 text-right text-white/70">{entry.freeVotes ?? 0}</td>
+                          <td className="py-2 text-right text-white/70">{entry.paidVotes ?? 0}</td>
+                          <td className="py-2 text-right font-semibold text-white">{(entry.freeVotes ?? 0) + (entry.paidVotes ?? 0)}</td>
+                          <td className="py-2 text-right text-green-400">{money(entry.paidRevenue ?? 0)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+                <p className="mt-3 text-[11px] text-white/45">
+                  Standings are ranked by points ({report.totalVotes.toLocaleString()} total): each free vote counts {report.freeVoteMultiplier ?? 60} points and each paid vote counts 1.
+                </p>
+              </div>
+            )}
+          </>
+        );
+      })()}
       {breakdown && (breakdown.online > 0 || breakdown.inPerson > 0) && (
         <div className="mt-3 border-t border-white/5 pt-3">
           <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Vote Source Breakdown</p>
@@ -202,25 +253,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
           )}
         </div>
       )}
-      {report && report.leaderboard.length > 0 && (
-        <div className="mt-3 border-t border-white/5 pt-3">
-          <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Top 3</p>
-          <div className="space-y-1">
-            {report.leaderboard.slice(0, 3).map((entry) => (
-              <div key={entry.contestantId} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className={`font-bold ${entry.rank <= 3 ? "text-orange-400" : "text-white/30"}`}>#{entry.rank}</span>
-                  <span className="text-white/70">{entry.displayName}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-white/40 tabular-nums">{((entry.freeVotes ?? 0) + (entry.paidVotes ?? 0)).toLocaleString()} votes ({(entry.freeVotes ?? 0).toLocaleString()} free, {(entry.paidVotes ?? 0).toLocaleString()} paid) · {entry.voteCount.toLocaleString()} pts</span>
-                  <span className="text-orange-400">{entry.votePercentage}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
@@ -1574,7 +1607,29 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                 {(financialOverview?.competitions || []).map((competition: any) => (
                   <div key={competition.competitionId} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} purchases · {competition.paidVoting.purchasedVoteCount} paid votes</p></div><div className="grid grid-cols-2 gap-3 text-left sm:grid-cols-4 sm:text-right"><span className="text-xs text-white/40">Voting<b className="mt-1 block text-sm text-white">${((Number(competition.paidVoting.revenueCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Host<b className="mt-1 block text-sm text-orange-200">${((Number(competition.hostShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Recorded charity<b className="mt-1 block text-sm text-white">${((Number(competition.charityShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Est. at current rates<b className="mt-1 block text-sm text-orange-200">{competition.estimatedCharityShareCents == null ? "—" : `$${(Number(competition.estimatedCharityShareCents) / 100).toFixed(2)}`}</b></span></div></div>
-                    {competition.contestants?.length > 0 && <div className="mt-4 space-y-2 border-t border-white/10 pt-3">{competition.contestants.map((contestant: any) => <div key={contestant.contestantId} className="flex items-center justify-between gap-3 text-xs"><span className="text-white/65">{contestant.name}<span className="ml-2 text-white/35">{contestant.voteSharePercentage}% paid-vote share</span></span><span className="tabular-nums text-white">${((Number(contestant.earningsCents || 0) / 100)).toFixed(2)}</span></div>)}</div>}
+                    {Number(competition.paidVoting.revenueCents || 0) > 0 && Number(competition.hostShareCents || 0) === 0 && (
+                      <p className="mt-3 rounded-lg border border-orange-400/20 bg-orange-400/[0.05] px-3 py-2 text-xs leading-relaxed text-white/65">
+                        Paid vote sales are recorded. Host and contestant payout amounts are calculated when the event is finalized, so they show $0.00 until then.
+                      </p>
+                    )}
+                    {competition.contestants?.length > 0 && (
+                      <div className="mt-4 border-t border-white/10 pt-3">
+                        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 gap-y-2 text-xs tabular-nums">
+                          <span className="text-[10px] uppercase tracking-wider text-white/40">Contestant</span>
+                          <span className="text-right text-[10px] uppercase tracking-wider text-white/40">Paid votes</span>
+                          <span className="text-right text-[10px] uppercase tracking-wider text-white/40">Paid sales</span>
+                          <span className="text-right text-[10px] uppercase tracking-wider text-white/40">Payout</span>
+                          {competition.contestants.map((contestant: any) => (
+                            <Fragment key={contestant.contestantId}>
+                              <span className="min-w-0 truncate text-white/80">{contestant.name}</span>
+                              <span className="text-right text-white/70">{contestant.paidVoteCount ?? 0}</span>
+                              <span className="text-right text-green-400">${(Number(contestant.paidVoteRevenueCents || 0) / 100).toFixed(2)}</span>
+                              <span className="text-right text-white">{Number(contestant.earningsCents || 0) > 0 ? `$${(Number(contestant.earningsCents) / 100).toFixed(2)}` : "Pending"}</span>
+                            </Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {(!financialOverview?.competitions || financialOverview.competitions.length === 0) && <p className="rounded-xl border border-white/10 p-5 text-sm text-white/40">No financial activity has been recorded for your competitions.</p>}

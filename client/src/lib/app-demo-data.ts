@@ -245,6 +245,7 @@ const demoFinancialOverview = {
           paidCents: 22320,
           voteCount: 1488,
           paidVoteCount: 1488,
+          paidVoteRevenueCents: 74400,
           freeVoteCount: 0,
           status: "completed",
           voteSharePercentage: 100,
@@ -292,18 +293,54 @@ const demoHostStats = {
   pendingApplications: demoContestants.filter((contestant) => contestant.applicationStatus === "pending").length,
 };
 
-const demoReport = {
+const DEMO_FREE_VOTE_MULTIPLIER = 60;
+
+/** Splits each contestant's votes into free/paid and apportions paid sales so every demo total agrees with its rows. */
+function withVoteSplit(
+  rows: { rank: number; contestantId: number; displayName: string; voteCount: number; votePercentage: number }[],
+  voteRevenue: number,
+  purchases: number,
+  nominationRevenue: number,
+) {
+  const split = rows.map((row) => {
+    const paid = Math.round(row.voteCount * 0.35);
+    return { ...row, freeVotes: row.voteCount - paid, paidVotes: paid };
+  });
+  const paidTotal = split.reduce((sum, row) => sum + row.paidVotes, 0);
+  let assigned = 0;
+  const leaderboard = split.map((row, i) => {
+    const paidRevenue = i === split.length - 1
+      ? voteRevenue - assigned
+      : Math.round((row.paidVotes / Math.max(paidTotal, 1)) * voteRevenue);
+    assigned += paidRevenue;
+    return { ...row, paidRevenue };
+  });
+  return {
+    leaderboard,
+    freeVotes: leaderboard.reduce((sum, row) => sum + row.freeVotes, 0),
+    paidVotes: paidTotal,
+    freeVoteMultiplier: DEMO_FREE_VOTE_MULTIPLIER,
+    voteRevenue,
+    nominationRevenue,
+    totalRevenue: voteRevenue + nominationRevenue,
+    totalPurchases: purchases,
+  };
+}
+
+const demoReportBase = {
   competition: demoSecondCompetition,
   leaderboard: [
     { rank: 1, contestantId: 601, displayName: "JUNEOUTSXDE", voteCount: 973, votePercentage: 100 },
   ],
   totalVotes: 973,
-  totalRevenue: 92100,
   totalContestants: 1,
-  totalPurchases: 46,
+};
+const demoReport = {
+  ...demoReportBase,
+  ...withVoteSplit(demoReportBase.leaderboard, 92100, 46, 0),
 };
 
-const demoPrimaryReport = {
+const demoPrimaryReportBase = {
   competition: demoCompetition,
   leaderboard: [
     { rank: 1, contestantId: 501, displayName: "Most Hated Twinz", voteCount: 684, votePercentage: 37.1 },
@@ -312,9 +349,11 @@ const demoPrimaryReport = {
     { rank: 4, contestantId: 504, displayName: "$howtime", voteCount: 199, votePercentage: 10.8 },
   ],
   totalVotes: 1842,
-  totalRevenue: 92100,
   totalContestants: 4,
-  totalPurchases: 46,
+};
+const demoPrimaryReport = {
+  ...demoPrimaryReportBase,
+  ...withVoteSplit(demoPrimaryReportBase.leaderboard, 92100, 46, 5000),
 };
 
 const demoCategories = [
@@ -507,7 +546,12 @@ function resolveDemoApi(url: URL, analyticsRole: "host" | "talent"): unknown {
     };
   }
   if (path === "/api/admin/financial-overview") return demoFinancialOverview;
-  if (path === "/api/host/stats") return { ...demoHostStats, totalTalentProfiles: 24 };
+  if (path === "/api/host/stats") return {
+    ...demoHostStats,
+    totalTalentProfiles: 24,
+    freeVotes: demoReport.freeVotes + demoPrimaryReport.freeVotes,
+    paidVotes: demoReport.paidVotes + demoPrimaryReport.paidVotes,
+  };
   if (path === "/api/admin/stats") {
     return {
       totalCompetitions: 2,

@@ -3218,6 +3218,7 @@ export async function registerRoutes(
         voteCount: c.voteCount,
         freeVotes: splitFor(c.id).free,
         paidVotes: splitFor(c.id).paid,
+        paidRevenue: purchases.filter((p) => p.contestantId === c.id).reduce((sum, p) => sum + p.amount, 0),
         votePercentage: totalVotes > 0 ? Math.round((c.voteCount / totalVotes) * 100) : 0,
       }));
 
