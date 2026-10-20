@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useCardWidth } from "@/components/hero-coverflow-gallery";
 
 export interface WheelVideo {
@@ -103,8 +103,8 @@ export default function ContestantVideoWheel({ videos, index, onIndexChange, onP
         </div>
         {total > 1 && (
           <>
-            <button className="coverflow-nav coverflow-nav-prev" onClick={() => go(index - 1)} aria-label="Previous video" data-testid="wheel-prev">&#8249;</button>
-            <button className="coverflow-nav coverflow-nav-next" onClick={() => go(index + 1)} aria-label="Next video" data-testid="wheel-next">&#8250;</button>
+            <button className="coverflow-nav coverflow-nav-prev" onClick={() => go(index - 1)} aria-label="Previous video" data-testid="wheel-prev"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></button>
+            <button className="coverflow-nav coverflow-nav-next" onClick={() => go(index + 1)} aria-label="Next video" data-testid="wheel-next"><ChevronRight className="h-5 w-5" aria-hidden="true" /></button>
             <div className="coverflow-dots">
               {videos.map((video, i) => (
                 <button

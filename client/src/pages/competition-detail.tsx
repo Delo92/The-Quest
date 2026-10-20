@@ -879,7 +879,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                       <div className="relative aspect-video w-full overflow-hidden">
                         <LazyVimeoIframe
                            src={`${stageVideoEmbedUrl(stageSubmission.mediaUrl)}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`}
-                           className="pointer-events-none"
+                           className="pointer-events-none absolute inset-0 h-full w-full border-0"
                           title={`${contestant.talentProfile.displayName} — ${selectedStage.name}`}
                         />
                         {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
@@ -915,7 +915,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                         >
                           <LazyVimeoIframe
                            src={playerUrl}
-                           className="pointer-events-none"
+                           className="pointer-events-none absolute inset-0 h-full w-full border-0"
                             title={`${contestant.talentProfile.displayName} — ${video.name}`}
                           />
                           {/* Transparent overlay — captures clicks the iframe would otherwise swallow */}
