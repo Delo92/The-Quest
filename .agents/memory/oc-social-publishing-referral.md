@@ -9,6 +9,12 @@ Original Concepts gives referred Quest contestants and hosts free social-media a
 
 **How to apply:** Include unambiguous event attribution in the referral contract and distinguish browser-supplied prefill from server-verified entitlement. Keep OC's promotional entitlement separate from OAuth publishing authorization and any paid OC subscription.
 
+The OC referral is a contestant/host profile handoff to prefill a free OC account, where participants can use event-time social automation and explore business-building tools such as websites, merch stores, booking sites, and other offerings. This is distinct from connecting an existing OC account's brand kit to Quest for user-approved publishing.
+
+**Why:** The user clarified that the referral's purpose is to send the Quest participant identity to OC and explain how OC can support the participant's broader business, not to bring OC brand identity into Quest.
+
+**How to apply:** Explain the participant-to-OC profile handoff and its account/business purpose first. Keep the optional OC-to-Quest brand-kit connection separate, with its own explicit publishing consent.
+
 The user confirmed on 2026-10-20 that **all** of these end the free event-based social automation: event completion/cancellation, withdrawal/removal, and contestant elimination. The additional comment explicitly includes all options, despite the single-select answer naming only event end/cancellation.
 
 **Why:** Expiring only by event end date would leave removed or eliminated contestants with a paid-value promotional benefit they should no longer have.

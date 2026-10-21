@@ -77,6 +77,7 @@ export default function OCAccountPanel({
     },
   });
   const connected = statusQuery.data?.connected === true;
+  const questProfileType = referralAudience === "artist" ? "contestant" : "host";
   const kitsQuery = useGetOCBrandKits({
     query: {
       enabled: connected,
@@ -326,12 +327,12 @@ export default function OCAccountPanel({
             <PlugZap className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-300/80">Connected identity</p>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-300/80">Quest identity → OC</p>
             <h3 id="oc-account-panel-title" className="text-base font-semibold text-white">
-              Original Concepts
+              Create a free OC account
             </h3>
             <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/60">
-              Bring your OC brand identity and media into The Quest. Authorization allows Quest to publish to socials connected to your selected kit; it never sends a post on its own.
+              Share your Quest {questProfileType} identity with Original Concepts to prefill account setup. Explore tools for a website, merch store, booking site, and other business offerings. The event offer below explains the social automation benefit. Connecting an existing OC account for Quest publishing is separate and optional.
             </p>
           </div>
         </div>
@@ -363,6 +364,12 @@ export default function OCAccountPanel({
         </div>
       ) : !connected ? (
         <div className="space-y-4 border-t border-white/10 pt-4">
+          <div className="space-y-1">
+            <h4 className="text-sm font-semibold text-white">Already have an OC account? Connect it to publish from Quest.</h4>
+            <p className="text-xs leading-relaxed text-white/55">
+              This optional connection is separate from the free account setup above. It lets you select an OC brand kit for Quest posts; nothing is published until you review and submit it.
+            </p>
+          </div>
           <div className="flex items-start gap-3 rounded-lg border border-orange-300/15 bg-orange-300/[0.04] p-3">
             <Checkbox
               id="oc-social-publishing-consent"
