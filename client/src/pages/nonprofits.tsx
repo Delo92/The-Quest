@@ -23,8 +23,6 @@ import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { ensureVideoLoop } from "@/lib/media-utils";
 import { nonprofitLogoMediaKey } from "@shared/nonprofit-page";
-import itStopsNowLogo from "@assets/image_1792613288554.png";
-import eventProFoundationLogo from "@assets/image_1792615336461.png";
 import "./nonprofits.css";
 
 type PublicNonprofit = {
@@ -53,13 +51,11 @@ const featuredPrograms = [
     name: "It Stops Now Foundation",
     url: "https://www.facebook.com/itstopsnowfoundation",
     imageKey: nonprofitLogoMediaKey("It Stops Now Foundation"),
-    imageSrc: itStopsNowLogo,
   },
   {
     name: "Event Pro Group Foundation",
     url: "https://eventprogroupusa.com/Foundation",
     imageKey: nonprofitLogoMediaKey("Event Pro Group Foundation"),
-    imageSrc: eventProFoundationLogo,
   },
 ];
 
@@ -205,7 +201,7 @@ export default function NonprofitsPage() {
         id: `featured-${org.imageKey}`,
         name: org.name,
         website: org.url,
-        logoUrl: logoItem?.imageUrl || org.imageSrc || logoItem?.defaultUrl || null,
+        logoUrl: logoItem?.imageUrl || logoItem?.defaultUrl || null,
         source: "featured" as const,
       };
     }),

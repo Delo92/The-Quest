@@ -68,9 +68,6 @@ attached_assets/**
 # Existing tracked images remain tracked so the app's current assets are preserved.
 *.png
 !client/public/irs-w9-page-1.png
-# Public nonprofit logos required by the nonprofits page build.
-!attached_assets/image_1792613288554.png
-!attached_assets/image_1792615336461.png
 *.jpg
 *.jpeg
 *.gif
