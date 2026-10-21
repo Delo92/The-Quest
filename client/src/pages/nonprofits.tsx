@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowDown,
   ArrowRight,
   CircleDollarSign,
+  Maximize2,
   HeartHandshake,
   Mail,
   Play,
@@ -15,6 +17,7 @@ import {
 import { Link } from "wouter";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import NonprofitDirectoryWheel, { type NonprofitDirectoryEntry } from "@/components/nonprofit-directory-wheel";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
@@ -174,6 +177,7 @@ function GalleryMedia({ item }: { item: GalleryItem }) {
 
 export default function NonprofitsPage() {
   const { getText, items } = useLivery({ refetchInterval: 65_000 });
+  const [expandedGalleryItem, setExpandedGalleryItem] = useState<GalleryItem | null>(null);
   const rosterQuery = useQuery<PublicNonprofit[]>({
     queryKey: ["/api/nonprofits/public"],
     staleTime: 30_000,
@@ -368,6 +372,16 @@ export default function NonprofitsPage() {
                         : "quest-np-gallery-frame"}>
                         <GalleryMedia item={item} />
                         {item.mediaType === "video" && <span className="quest-np-media-tag"><Play size={12} fill="currentColor" /> VIDEO</span>}
+                        <button
+                          type="button"
+                          className="quest-np-gallery-expand"
+                          onClick={() => setExpandedGalleryItem(item)}
+                          aria-label={`Expand ${item.title}`}
+                          title={`Expand ${item.title}`}
+                          data-testid={`button-expand-gallery-${item.id}`}
+                        >
+                          <Maximize2 size={16} aria-hidden="true" />
+                        </button>
                       </div>
                       <figcaption>
                         <div>
@@ -417,6 +431,36 @@ export default function NonprofitsPage() {
           <div className="quest-np-inquiry-bottom"><span>GOOD WORK, SEEN.</span><span>THE QUEST / NONPROFITS</span></div>
         </section>
       </main>
+      <Dialog
+        open={expandedGalleryItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setExpandedGalleryItem(null);
+        }}
+      >
+        <DialogContent className="quest-np-gallery-dialog">
+          {expandedGalleryItem && (
+            <>
+              <div className="quest-np-gallery-dialog-heading">
+                <DialogTitle className="quest-np-gallery-dialog-title">{expandedGalleryItem.title}</DialogTitle>
+                {expandedGalleryItem.caption && (
+                  <DialogDescription className="quest-np-gallery-dialog-description">
+                    {expandedGalleryItem.caption}
+                  </DialogDescription>
+                )}
+              </div>
+              <div className={`quest-np-gallery-expanded ${
+                isDirectVideoMedia(expandedGalleryItem)
+                  ? "quest-np-gallery-expanded--video"
+                  : expandedGalleryItem.mediaType === "image"
+                    ? "quest-np-gallery-expanded--image"
+                    : "quest-np-gallery-expanded--embed"
+              }`}>
+                <GalleryMedia item={expandedGalleryItem} />
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
       <SiteFooter />
     </div>
   );
