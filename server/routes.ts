@@ -4315,6 +4315,9 @@ export async function registerRoutes(
           if (e.code === "auth/user-not-found") {
             const newUser = await createFirebaseUser(inviteeEmail, DEFAULT_PASSWORD, inviteeName);
             firebaseUid = newUser.uid;
+            // Mark the account as created immediately so later profile/role
+            // setup failures cannot suppress the credential from the email.
+            accountCreated = true;
             await setUserLevel(firebaseUid, targetLevel);
             await createFirestoreUser({
               uid: firebaseUid,
@@ -4322,7 +4325,6 @@ export async function registerRoutes(
               displayName: inviteeName,
               level: targetLevel,
             });
-            accountCreated = true;
           } else {
             throw e;
           }
@@ -4401,7 +4403,7 @@ export async function registerRoutes(
         });
       }
 
-      res.status(201).json({ ...invitation, emailSent });
+      res.status(201).json({ ...invitation, emailSent, accountCreated });
     } catch (error: any) {
       console.error("Create invitation error:", error);
       res.status(500).json({ message: "Failed to create invitation" });

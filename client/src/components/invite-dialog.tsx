@@ -24,6 +24,7 @@ interface Category {
 
 interface Invitation {
   emailSent?: boolean;
+  accountCreated?: boolean;
   id: string;
   token: string;
   invitedBy: string;
@@ -116,12 +117,17 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
       setShowPassword(false);
       const link = buildInviteLink(data.token, data.targetLevel);
       setNewInviteLink(link);
+      const emailDescription = data.emailSent === false
+        ? "The invitation was saved, but the recipient did not receive login instructions by email."
+        : data.accountCreated
+          ? "The invitation email includes the new account's temporary password."
+          : "The invitation email was sent. Existing accounts must use their current password or reset it.";
       navigator.clipboard.writeText(link).then(() => {
         setCopiedToken(data.token);
         setTimeout(() => setCopiedToken(null), 3000);
-        toast({ title: data.emailSent === false ? "Invitation saved, but email failed" : "Invitation created & link copied!", description: data.emailSent === false ? "Check email diagnostics. The recipient has not received login instructions." : undefined, variant: data.emailSent === false ? "destructive" : "default" });
+        toast({ title: data.emailSent === false ? "Invitation saved, but email failed" : "Invitation created & link copied!", description: emailDescription, variant: data.emailSent === false ? "destructive" : "default" });
       }).catch(() => {
-        toast({ title: data.emailSent === false ? "Invitation saved, but email failed" : "Invitation created!", description: data.emailSent === false ? "Check email diagnostics and resend access instructions." : "Copy the link below to share it.", variant: data.emailSent === false ? "destructive" : "default" });
+        toast({ title: data.emailSent === false ? "Invitation saved, but email failed" : "Invitation created!", description: data.emailSent === false ? `${emailDescription} Check email diagnostics and resend access instructions.` : `${emailDescription} Copy the link below to share it.`, variant: data.emailSent === false ? "destructive" : "default" });
       });
     },
     onError: (err: Error) => {
@@ -244,13 +250,13 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-white/60">Temporary Password (optional)</Label>
+            <Label className="text-white/60">Temporary Password for a New Account (optional)</Label>
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Leave blank to use the default password"
+                placeholder="Leave blank to use the default temporary password"
                 minLength={6}
                 autoComplete="new-password"
                 className="bg-white/5 border-white/10 text-white pr-10"
@@ -267,7 +273,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
               </button>
             </div>
             <p className="text-[11px] text-white/35">
-              Used only when this invitation creates a new account. Minimum 6 characters.
+              The exact password is emailed when this invitation creates a new account. Existing accounts are not changed; their email includes password-reset instructions. Minimum 6 characters.
             </p>
           </div>
 

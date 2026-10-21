@@ -6,7 +6,12 @@ import { firestoreEmailActivity, firestoreLivery } from "./firestore-collections
 import { getFirebaseAuth } from "./firebase-admin";
 import { getMicrosoftEmailSettings } from "./microsoft-email-oauth";
 import { buildAccountLoginUrl } from "../shared/account-login-links";
-import { buildAccountAccessMessage, renderAccountEmailAccess, type AccountAccessOptions } from "./account-email-access";
+import {
+  buildAccountAccessMessage,
+  renderAccountEmailAccess,
+  renderAccountEmailAccessText,
+  type AccountAccessOptions,
+} from "./account-email-access";
 import { logEmailDiagnostic } from "./email-diagnostics";
 
 async function accountResetUrl(
@@ -317,11 +322,18 @@ export async function sendInviteEmail(opts: {
       actionLabel = "Get Started";
     }
 
+    const resetUrl = await accountResetUrl(opts.siteUrl, opts.to, accountLevel, opts.inviteToken);
     const credentialBlock = renderAccountEmailAccess({
       email: opts.to,
       accountCreated: opts.accountCreated,
       temporaryPassword: opts.defaultPassword,
-      resetUrl: await accountResetUrl(opts.siteUrl, opts.to, accountLevel, opts.inviteToken),
+      resetUrl,
+    });
+    const credentialText = renderAccountEmailAccessText({
+      email: opts.to,
+      accountCreated: opts.accountCreated,
+      temporaryPassword: opts.defaultPassword,
+      resetUrl,
     });
 
     const invitationMessageBlock = !opts.isReminder && opts.invitationMessage
@@ -398,6 +410,18 @@ export async function sendInviteEmail(opts: {
             ? `Reminder: complete your ${opts.competitionName} profile`
             : "Reminder: complete your artist profile"
         : applyPlaceholders(subject, vars)).replace(/[\r\n]/g, "").replace(/<br\/>/g, ""),
+      text: [
+        renderedHeading.replace(/<[^>]*>/g, ""),
+        renderedBody.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, ""),
+        opts.competitionName ? `Event invitation: ${opts.competitionName}` : "",
+        !opts.isReminder && opts.invitationMessage
+          ? `A message from ${opts.inviterName}:\n${opts.invitationMessage}`
+          : "",
+        credentialText,
+        `${actionLabel}: ${actionUrl}`,
+        opts.isReminder && opts.reminderStopUrl ? `Stop these reminders: ${opts.reminderStopUrl}` : "",
+        PLATFORM_LINE,
+      ].filter(Boolean).join("\n\n"),
       html,
     });
 

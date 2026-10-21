@@ -36,6 +36,27 @@ export function renderAccountEmailAccess(opts: {
   </div>`;
 }
 
+export function renderAccountEmailAccessText(opts: {
+  email: string;
+  accountCreated?: boolean;
+  temporaryPassword?: string;
+  resetUrl: string;
+}): string {
+  const hasTemporaryPassword = opts.accountCreated && !!opts.temporaryPassword;
+  return [
+    hasTemporaryPassword ? "Your Login Credentials" : "Access Your Account",
+    `Email: ${opts.email}`,
+    hasTemporaryPassword
+      ? `Temporary Password: ${opts.temporaryPassword}`
+      : "Your account already exists. Use your current password.",
+    hasTemporaryPassword
+      ? "Use the login button below and enter this temporary password. Change your password after signing in."
+      : "If you don't know your password, use the secure link below to choose a new one.",
+    `Set or reset your password: ${opts.resetUrl}`,
+    "Password reset links expire. If needed, request a fresh link from Forgot password on the login page.",
+  ].join("\n");
+}
+
 export interface AccountAccessOptions {
   to: string;
   name: string;

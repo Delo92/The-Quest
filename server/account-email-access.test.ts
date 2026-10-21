@@ -1,18 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildAccountAccessMessage, getTemporaryAccountPassword, nomineeAccountLevel, renderAccountEmailAccess } from "./account-email-access";
+import {
+  buildAccountAccessMessage,
+  getTemporaryAccountPassword,
+  nomineeAccountLevel,
+  renderAccountEmailAccess,
+  renderAccountEmailAccessText,
+} from "./account-email-access";
 import nodemailer from "nodemailer";
 
 test("new-account emails include the temporary credential without placing it in links", () => {
-  const html = renderAccountEmailAccess({
+  const options = {
     email: "nominee@example.com", accountCreated: true,
     temporaryPassword: "Sample<&Only", resetUrl: "https://quest.example/thequest/login?mode=reset&email=nominee%40example.com",
-  });
+  };
+  const html = renderAccountEmailAccess(options);
+  const text = renderAccountEmailAccessText(options);
   assert.match(html, /Temporary Password/);
   assert.match(html, /Sample&lt;&amp;Only/);
   assert.match(html, /nominee@example.com/);
   assert.match(html, /Set or reset my password/);
   assert.doesNotMatch(html, /href="[^"]*Sample/);
+  assert.match(text, /Temporary Password: Sample<&Only/);
+  assert.match(text, /Set or reset your password: https:\/\/quest\.example\/thequest\/login/);
+  assert.doesNotMatch(text, /password=Sample/);
 });
 
 test("existing-account emails never claim the default is the user's current password", () => {
@@ -24,6 +35,15 @@ test("existing-account emails never claim the default is the user's current pass
   assert.match(html, /Use your current password/);
   assert.match(html, /Set or reset my password/);
   assert.doesNotMatch(html, /MustNotBeShared|Temporary Password/);
+  const text = renderAccountEmailAccessText({
+    email: "existing@example.com",
+    accountCreated: false,
+    temporaryPassword: "MustNotBeShared",
+    resetUrl: "https://quest.example/reset",
+  });
+  assert.match(text, /Use your current password/);
+  assert.match(text, /https:\/\/quest\.example\/reset/);
+  assert.doesNotMatch(text, /MustNotBeShared|Temporary Password/);
 });
 
 test("new-account and admin-reset workflows use the same existing temporary-password convention", () => {
