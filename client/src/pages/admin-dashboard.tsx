@@ -2069,7 +2069,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     {comp.coverVideo && (
                       comp.coverVideo.includes("vimeo.com") ? (
                         <iframe
-                          src={`${comp.coverVideo}&background=1&autoplay=1&loop=1&muted=1`}
+                          src={buildVimeoSrc(comp.coverVideo, "background=1&autoplay=1&muted=1") || comp.coverVideo}
                           className="absolute inset-0 w-full h-full object-cover rounded-t-md pointer-events-none"
                           style={{ border: "none" }}
                           allow="autoplay"

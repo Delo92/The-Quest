@@ -16,6 +16,7 @@ import { DEFAULT_TALENT_IMAGE_CROP_POSITION, getCompetitionCropImageStyle } from
 import { Mail, MapPin, Download, Save, Pencil, X, ChevronDown, ChevronUp, Image, Film, Search, Settings, Users, ArrowUpRight, BarChart3, Clock, CalendarDays, ListOrdered, Plus, Trash2, LockKeyhole, AlertCircle, Upload, Palette, Crop } from "lucide-react";
 import type { CompetitionStage } from "@shared/schema";
 import CompetitionShareLinks from "@/components/competition-share-links";
+import { ensureVideoLoop } from "@/lib/media-utils";
 
 interface CompDetailResponse {
   competition: {
@@ -1030,13 +1031,13 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                         <div className="relative aspect-video overflow-hidden rounded-lg border border-white/10 bg-black">
                           {competition.coverVideo.includes("vimeo.com") ? (
                             <iframe
-                              src={`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}background=1&muted=1`}
+                              src={ensureVideoLoop(`${competition.coverVideo}${competition.coverVideo.includes("?") ? "&" : "?"}background=1&muted=1`)}
                               title={`${competition.title} cover video`}
                               className="absolute inset-0 h-full w-full border-0"
                               allow="autoplay; fullscreen"
                             />
                           ) : (
-                            <video src={competition.coverVideo} muted controls playsInline className="h-full w-full object-cover" />
+                            <video src={competition.coverVideo} muted controls loop playsInline className="h-full w-full object-cover" />
                           )}
                         </div>
                       ) : competition.coverImage ? (

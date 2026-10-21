@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthToken } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ensureVideoLoop } from "@/lib/media-utils";
 
 type GalleryItem = {
   id: string;
@@ -241,7 +242,7 @@ export default function AdminNonprofitGallery() {
                 <div className="aspect-[16/9] bg-black">
                   {item.embedUrl ? (
                     <iframe
-                      src={item.embedUrl}
+                      src={ensureVideoLoop(item.embedUrl)}
                       title={item.title}
                       className="h-full w-full"
                       loading="lazy"
@@ -249,7 +250,7 @@ export default function AdminNonprofitGallery() {
                       allowFullScreen
                     />
                   ) : item.mediaType === "video" ? (
-                    <video src={item.mediaUrl} className="h-full w-full object-cover" controls preload="metadata" playsInline />
+                    <video src={item.mediaUrl} className="h-full w-full object-cover" controls loop preload="metadata" playsInline />
                   ) : (
                     <img src={item.mediaUrl} alt={item.title} className="h-full w-full object-cover" loading="lazy" />
                   )}

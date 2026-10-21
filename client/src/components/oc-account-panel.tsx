@@ -571,7 +571,7 @@ export default function OCAccountPanel({
                           <input type="radio" name="oc-brand-kit-media" value={media.id} checked={selectedMediaId === media.id} onChange={() => setSelectedMediaId(media.id)} className="sr-only" data-testid={`radio-oc-media-${media.id}`} />
                           {media.kind === "video" ? (
                             <div className="relative">
-                              <video src={media.previewUrl} className="aspect-square w-full rounded bg-black object-cover" muted playsInline preload="metadata" aria-label={`Preview of ${media.name}`} />
+                              <video src={media.previewUrl} className="aspect-square w-full rounded bg-black object-cover" muted loop playsInline preload="metadata" aria-label={`Preview of ${media.name}`} />
                               <Video className="absolute bottom-2 right-2 h-4 w-4 text-white drop-shadow" aria-hidden="true" />
                             </div>
                           ) : (

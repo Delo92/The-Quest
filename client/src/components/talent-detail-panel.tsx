@@ -11,6 +11,7 @@ import { ExternalLink, Upload, Image, Trash2, Video, Play, Calendar, UserCheck, 
 import AdminAccountAccess from "@/components/admin-account-access";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { buildVimeoSrc, ensureVideoLoop } from "@/lib/media-utils";
 import { getAuthToken } from "@/hooks/use-auth";
 import type { Competition } from "@shared/schema";
 
@@ -576,7 +577,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
                   <div key={vid.uri} className="relative group rounded-md overflow-hidden bg-white/5 aspect-square" data-testid={`vimeo-vid-${vid.uri}`}>
                     {playingVideoUri === vid.uri ? (
                       <iframe
-                        src={`${vid.embedUrl || `https://player.vimeo.com/video/${vid.uri.split("/").pop()}`}?autoplay=1&title=0&byline=0&portrait=0`}
+                        src={ensureVideoLoop(buildVimeoSrc(vid.embedUrl || `https://player.vimeo.com/video/${vid.uri.split("/").pop()}`, "autoplay=1&title=0&byline=0&portrait=0") || vid.embedUrl || `https://player.vimeo.com/video/${vid.uri.split("/").pop()}`)}
                         className="w-full h-full"
                         allow="autoplay; fullscreen; picture-in-picture"
                         allowFullScreen

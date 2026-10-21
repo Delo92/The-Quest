@@ -1,3 +1,5 @@
+import { ensureVideoLoop } from "@/lib/media-utils";
+
 interface CompetitionPromoVideosProps {
   videos: string[];
   title: string;
@@ -28,10 +30,10 @@ export default function CompetitionPromoVideos({ videos, title, accentColor }: C
               style={{ borderColor: `${accentColor}55` }}
             >
               {isDirectFile(url) ? (
-                <video src={url} controls playsInline preload="metadata" className="h-full w-full object-cover" aria-label={`${title} video ${index + 1}`} />
+                <video src={url} controls loop playsInline preload="metadata" className="h-full w-full object-cover" aria-label={`${title} video ${index + 1}`} />
               ) : (
                 <iframe
-                  src={url}
+                  src={ensureVideoLoop(url)}
                   title={`${title} video ${index + 1}`}
                   loading="lazy"
                   allow="fullscreen; picture-in-picture"

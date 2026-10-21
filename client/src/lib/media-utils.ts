@@ -39,8 +39,37 @@ export function buildVimeoSrc(url: string, params: string): string | null {
     const hash = getVimeoHash(url);
     if (hash && !query.has("h")) query.set("h", hash);
   }
+  query.set("loop", "1");
   const qs = query.toString() ? `?${query.toString()}` : "";
   return `https://player.vimeo.com/video/${id}${qs}`;
+}
+
+export function ensureVideoLoop(url: string): string {
+  const vimeoEmbed = buildVimeoSrc(url, "loop=1");
+  if (vimeoEmbed) return vimeoEmbed;
+
+  try {
+    const embed = new URL(url);
+    const isYouTube = [
+      "youtube.com",
+      "www.youtube.com",
+      "youtube-nocookie.com",
+      "www.youtube-nocookie.com",
+    ].includes(embed.hostname.toLowerCase());
+    const videoId = embed.pathname.match(/^\/embed\/([^/]+)/)?.[1];
+
+    if (isYouTube && videoId) {
+      embed.searchParams.set("loop", "1");
+      if (!embed.searchParams.has("playlist")) {
+        embed.searchParams.set("playlist", videoId);
+      }
+      return embed.toString();
+    }
+  } catch {
+    // Leave non-URL video sources unchanged.
+  }
+
+  return url;
 }
 
 /**

@@ -23,6 +23,7 @@ import OwnerAnalyticsPanel from "@/components/owner-analytics-panel";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { buildVimeoSrc, ensureVideoLoop } from "@/lib/media-utils";
 import { getAuthToken } from "@/hooks/use-auth";
 import { firebaseReauthenticate } from "@/lib/firebase";
 import type { TalentProfile, Competition } from "@shared/schema";
@@ -2160,7 +2161,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                                 ) : vid.embedUrl ? (
                                   <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
                                     <iframe
-                                      src={`${vid.embedUrl}?title=0&byline=0&portrait=0&dnt=1`}
+                                      src={buildVimeoSrc(vid.embedUrl, "title=0&byline=0&portrait=0&dnt=1") || ensureVideoLoop(vid.embedUrl)}
                                       className="absolute inset-0 w-full h-full"
                                       allow="autoplay; fullscreen; picture-in-picture"
                                       allowFullScreen

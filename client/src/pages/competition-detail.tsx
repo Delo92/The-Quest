@@ -489,7 +489,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                 title="Competition video"
               />
             ) : (
-              <video src={competition.coverVideo} className="w-full h-full object-cover" controls playsInline />
+              <video src={competition.coverVideo} className="w-full h-full object-cover" controls loop playsInline />
             )}
           </div>
         )}

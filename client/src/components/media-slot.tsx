@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { detectMediaType, getYouTubeId, getVimeoId, buildVimeoSrc, isFacebookVideo } from "@/lib/media-utils";
 import { Volume2, VolumeX } from "lucide-react";
 
@@ -79,6 +79,8 @@ export default function MediaSlot({
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const facebookContainerRef = useRef<HTMLDivElement>(null);
+  const facebookPlayerId = useId().replace(/:/g, "");
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [muted, setMuted] = useState(true);
@@ -116,7 +118,7 @@ export default function MediaSlot({
       document.body.prepend(div);
       const script = document.createElement("script");
       script.id = "fb-sdk";
-      script.src = "https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0";
+      script.src = "https://connect.facebook.net/en_US/sdk.js#xfbml=0&version=v18.0";
       script.async = true;
       script.defer = true;
       document.body.appendChild(script);
@@ -130,6 +132,49 @@ export default function MediaSlot({
       script.onload = () => { (window as any).instgrm?.Embeds?.process?.(); };
     }
   }, [type]);
+
+  useEffect(() => {
+    if (type !== "facebook" || !isFacebookVideo(url)) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let facebook: any = null;
+    let readyHandler: ((message: any) => void) | null = null;
+    let loopSubscription: any = null;
+
+    const attachLoopHandler = () => {
+      if (cancelled) return;
+      facebook = (window as any).FB;
+      const root = facebookContainerRef.current;
+      if (!facebook?.Event || !facebook?.XFBML || !root) {
+        if (attempts++ < 100) retryTimer = setTimeout(attachLoopHandler, 100);
+        return;
+      }
+
+      readyHandler = (message: any) => {
+        if (message.type !== "video" || message.id !== facebookPlayerId || !message.instance) return;
+
+        const player = message.instance;
+        loopSubscription = player.subscribe("finishedPlaying", () => {
+          Promise.resolve(player.seek(0)).then(() => player.play()).catch(() => {});
+        });
+        facebook.Event.unsubscribe("xfbml.ready", readyHandler);
+        readyHandler = null;
+      };
+
+      facebook.Event.subscribe("xfbml.ready", readyHandler);
+      facebook.XFBML.parse(root);
+    };
+
+    attachLoopHandler();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (readyHandler) facebook?.Event?.unsubscribe("xfbml.ready", readyHandler);
+      loopSubscription?.release?.("finishedPlaying");
+    };
+  }, [type, url, facebookPlayerId]);
 
   function handleUnmuteClick() {
     if (type === "video" && videoRef.current) {
@@ -335,11 +380,12 @@ export default function MediaSlot({
     const isVid = isFacebookVideo(url);
     return (
       <div
+        ref={isVid ? facebookContainerRef : undefined}
         className={`flex items-center justify-center overflow-auto ${className}`}
         style={mode === "bg" ? { ...bgStyle, zIndex: 0 } : undefined}
       >
         {isVid ? (
-          <div className="fb-video" data-href={url} data-width="auto" data-show-text="false" data-autoplay="true" data-mute="true" />
+          <div id={facebookPlayerId} className="fb-video" data-href={url} data-width="auto" data-show-text="false" data-autoplay="true" data-mute="true" />
         ) : (
           <div className="fb-post" data-href={url} data-width="auto" data-show-text="true" />
         )}

@@ -77,7 +77,7 @@ export function HlsVideoPlayer({
   autoPlay = true,
   muted = false,
   controls = true,
-  loop = false,
+  loop = true,
   poster,
   onEnded,
   preloadedUrls,

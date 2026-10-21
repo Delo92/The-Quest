@@ -19,6 +19,7 @@ import { InviteDialog } from "@/components/invite-dialog";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ensureVideoLoop } from "@/lib/media-utils";
 import { Fragment, useState, useMemo } from "react";
 import { VotePointsBreakdown } from "@/components/vote-points-breakdown";
 import { useAuth, getAuthToken } from "@/hooks/use-auth";
@@ -999,7 +1000,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                     >
                       {comp.coverVideo && (
                         comp.coverVideo.includes("vimeo.com") ? (
-                          <iframe src={`${comp.coverVideo}&background=1&autoplay=1&loop=1&muted=1`} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ border: "none" }} allow="autoplay" />
+                        <iframe src={ensureVideoLoop(`${comp.coverVideo}${comp.coverVideo.includes("?") ? "&" : "?"}background=1&autoplay=1&muted=1`)} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ border: "none" }} allow="autoplay" />
                         ) : (
                           <video src={comp.coverVideo} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" />
                         )
@@ -1318,9 +1319,9 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                               <div className="relative w-24 h-16 rounded-md overflow-hidden border border-white/10">
                                 {comp.coverVideo ? (
                                   comp.coverVideo.includes("vimeo.com") ? (
-                                    <iframe src={`${comp.coverVideo}&background=1&muted=1`} className="w-full h-full object-cover pointer-events-none" style={{ border: "none" }} allow="autoplay" />
+                                    <iframe src={ensureVideoLoop(`${comp.coverVideo}${comp.coverVideo.includes("?") ? "&" : "?"}background=1&muted=1`)} className="w-full h-full object-cover pointer-events-none" style={{ border: "none" }} allow="autoplay" />
                                   ) : (
-                                    <video src={comp.coverVideo} muted className="w-full h-full object-cover" />
+                                    <video src={comp.coverVideo} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                                   )
                                 ) : (
                                     <img src={comp.coverImage!} alt="Cover" className="w-full h-full object-cover" />

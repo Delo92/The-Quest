@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthToken } from "@/hooks/use-auth";
 import { queryClient } from "@/lib/queryClient";
+import { ensureVideoLoop } from "@/lib/media-utils";
 
 const MAX_VIDEOS = 3;
 
@@ -207,9 +208,9 @@ export default function PromoVideosEditor({ competitionId, videos, role = "host"
           {previewIndex !== null && videos[previewIndex] && (
             <div className="aspect-video w-full overflow-hidden rounded bg-black">
               {/\.(mp4|webm|mov|m4v)(\?|$)/i.test(videos[previewIndex]) ? (
-                <video src={videos[previewIndex]} controls playsInline className="h-full w-full" />
+                <video src={videos[previewIndex]} controls loop playsInline className="h-full w-full" />
               ) : (
-                <iframe src={videos[previewIndex]} title={`Promo video ${previewIndex + 1}`} allow="fullscreen; picture-in-picture" allowFullScreen className="h-full w-full border-0" />
+                <iframe src={ensureVideoLoop(videos[previewIndex])} title={`Promo video ${previewIndex + 1}`} allow="fullscreen; picture-in-picture" allowFullScreen className="h-full w-full border-0" />
               )}
             </div>
           )}

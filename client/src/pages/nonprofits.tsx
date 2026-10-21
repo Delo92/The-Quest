@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import NonprofitDirectoryWheel, { type NonprofitDirectoryEntry } from "@/components/nonprofit-directory-wheel";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
+import { ensureVideoLoop } from "@/lib/media-utils";
 import { nonprofitLogoMediaKey } from "@shared/nonprofit-page";
 import itStopsNowLogo from "@assets/image_1792613288554.png";
 import eventProFoundationLogo from "@assets/image_1792615336461.png";
@@ -146,7 +147,7 @@ function GalleryMedia({ item }: { item: GalleryItem }) {
   if (embed) {
     return (
       <iframe
-        src={embed}
+        src={ensureVideoLoop(embed)}
         title={item.title}
         className="quest-np-gallery-media"
         loading="lazy"
@@ -158,7 +159,7 @@ function GalleryMedia({ item }: { item: GalleryItem }) {
   }
   if (isDirectVideo) {
     return (
-      <video className="quest-np-gallery-media" controls preload="metadata" playsInline aria-label={item.title}>
+      <video className="quest-np-gallery-media" controls loop preload="metadata" playsInline aria-label={item.title}>
         <source src={item.mediaUrl} />
         Your browser does not support embedded video.
       </video>
