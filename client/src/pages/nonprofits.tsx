@@ -40,7 +40,7 @@ export default function NonprofitsPage() {
 
   return (
     <div className="min-h-screen bg-[#f4f3ec] text-[#17392d]" data-testid="page-nonprofits">
-      <SiteNavbar />
+      <SiteNavbar forceDark />
 
       <main className="pt-28 sm:pt-32">
         <section className="relative overflow-hidden bg-[#17392d] text-[#f5f3e9]">

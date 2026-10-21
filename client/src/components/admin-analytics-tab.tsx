@@ -391,7 +391,7 @@ export default function AdminAnalyticsTab() {
   const buildSourcePieData = (detail: VoteDetail) => {
     const data = [];
     if (detail.free > 0) data.push({ name: "Free Votes", value: detail.free });
-    if (detail.purchased > 0) data.push({ name: "Purchased", value: detail.purchased });
+    if (detail.purchased > 0) data.push({ name: "Paid votes", value: detail.purchased });
     if (detail.referral > 0) data.push({ name: "Via Referral", value: detail.referral });
     return data;
   };
@@ -1040,13 +1040,13 @@ export default function AdminAnalyticsTab() {
                 </div>
                 <div className="rounded-md bg-white/5 p-3">
                   <div className="text-lg font-bold text-purple-400">{contestantVoteDetail.purchased}</div>
-                  <div className="text-[10px] text-white/40">Purchased</div>
+                  <div className="text-[10px] text-white/40">Paid votes</div>
                 </div>
               </div>
 
               {contestantVoteDetail.contributors.length > 0 && (
                 <div>
-                  <h4 className="text-xs text-white/50 uppercase tracking-wider mb-3">Vote Contributors (Purchases)</h4>
+                  <h4 className="text-xs text-white/50 uppercase tracking-wider mb-3">Paid Vote Contributors</h4>
                   <div className="space-y-2 max-h-[200px] overflow-y-auto">
                     {contestantVoteDetail.contributors.map((c, i) => (
                       <div key={i} className="flex items-center justify-between gap-2 rounded-md bg-white/5 p-3 text-xs">
@@ -1065,7 +1065,7 @@ export default function AdminAnalyticsTab() {
                 </div>
               )}
               {contestantVoteDetail.contributors.length === 0 && contestantVoteDetail.total > 0 && (
-                <div className="text-center text-white/30 text-xs py-3">All votes are free (no purchases yet)</div>
+                <div className="text-center text-white/30 text-xs py-3">All votes are free (no paid vote contributions yet)</div>
               )}
             </div>
           ) : (
@@ -1133,7 +1133,7 @@ export default function AdminAnalyticsTab() {
                 </div>
                 <div className="rounded-md bg-white/5 p-3">
                   <div className="text-lg font-bold text-purple-400">{competitionVoteDetail.purchased}</div>
-                  <div className="text-[10px] text-white/40">Purchased</div>
+                  <div className="text-[10px] text-white/40">Paid votes</div>
                 </div>
               </div>
 
@@ -1156,7 +1156,7 @@ export default function AdminAnalyticsTab() {
 
               {competitionVoteDetail.contributors.length > 0 && (
                 <div>
-                  <h4 className="text-xs text-white/50 uppercase tracking-wider mb-3">Vote Contributors (Purchases)</h4>
+                  <h4 className="text-xs text-white/50 uppercase tracking-wider mb-3">Paid Vote Contributors</h4>
                   <div className="space-y-2 max-h-[200px] overflow-y-auto">
                     {competitionVoteDetail.contributors.map((c, i) => (
                       <div key={i} className="flex items-center justify-between gap-2 rounded-md bg-white/5 p-3 text-xs">
@@ -1175,7 +1175,7 @@ export default function AdminAnalyticsTab() {
                 </div>
               )}
               {competitionVoteDetail.contributors.length === 0 && competitionVoteDetail.total > 0 && (
-                <div className="text-center text-white/30 text-xs py-3">All votes are free (no purchases yet)</div>
+                <div className="text-center text-white/30 text-xs py-3">All votes are free (no paid vote contributions yet)</div>
               )}
             </div>
           ) : (

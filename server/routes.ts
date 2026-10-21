@@ -2466,7 +2466,7 @@ export async function registerRoutes(
     const maxFreeVotesPerDay = Math.max(1, Number(comp.maxVotesPerDay) || 1);
     if (freeVotesToday >= maxFreeVotesPerDay) {
       return res.status(429).json({
-        message: `You've used all ${maxFreeVotesPerDay} free votes for this competition today. Purchase additional votes to keep supporting your favorite!`,
+        message: `You've used all ${maxFreeVotesPerDay} free votes for this competition today. Make a contribution to add votes and keep supporting your favorite!`,
       });
     }
 
@@ -8496,7 +8496,7 @@ export async function registerRoutes(
       res.json(purchases);
     } catch (error: any) {
       console.error("Get vote purchases error:", error);
-      res.status(500).json({ message: "Failed to get purchase history" });
+      res.status(500).json({ message: "Failed to load vote support history" });
     }
   });
 
@@ -8530,7 +8530,7 @@ export async function registerRoutes(
       res.status(201).json(purchase);
     } catch (error: any) {
       console.error("Vote purchase error:", error);
-      res.status(500).json({ message: "Failed to process vote purchase" });
+      res.status(500).json({ message: "Failed to process vote contribution" });
     }
   });
 

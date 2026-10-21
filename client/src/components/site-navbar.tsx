@@ -91,7 +91,7 @@ function LiveVoteCounter() {
 const desktopNavItemClass =
   "inline-flex min-h-9 items-center justify-center rounded-md border border-white/10 bg-white/[0.035] px-2.5 text-[10px] xl:text-[11px] font-bold uppercase tracking-wider text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_12px_rgba(0,0,0,0.25)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-[var(--quest-brand)]/55 hover:bg-white/[0.09] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0";
 
-export default function SiteNavbar() {
+export default function SiteNavbar({ forceDark = false }: { forceDark?: boolean } = {}) {
   const { user, isAuthenticated } = useAuth();
   const { isViewerLoggedIn } = useViewerSession();
   const { getImage, getMedia, getText } = useLivery();
@@ -120,7 +120,8 @@ export default function SiteNavbar() {
     <>
       <style>{`:root { --quest-brand: ${questBrand}; --quest-brand-dark: ${questBrandDark}; }`}</style>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 border-b border-white/10 shadow-[0_8px_28px_rgba(0,0,0,0.42)] ${scrolled ? "bg-black/95 backdrop-blur-xl" : "bg-[#0b0d0c]/82 backdrop-blur-lg"}`}
+        className={`fixed top-0 left-0 right-0 z-50 border-b border-white/10 shadow-[0_8px_28px_rgba(0,0,0,0.42)] ${forceDark ? "bg-black/95 backdrop-blur-xl" : scrolled ? "bg-black/95 backdrop-blur-xl" : "bg-[#0b0d0c]/82 backdrop-blur-lg"}`}
+        style={forceDark ? { backgroundColor: "#080a09" } : undefined}
         data-testid="site-navbar"
       >
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-7 bg-black/60 backdrop-blur-sm border-b border-white/5 max-w-7xl mx-auto w-full">

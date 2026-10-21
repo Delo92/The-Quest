@@ -2573,7 +2573,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               const renderField = (item: any) => {
                 const currentText = item.textContent || item.defaultText || "";
                 const isCustomText = !!item.textContent;
-                const shortLabel = item.label.replace(/^(Home Page - |Category |Hero |Social - |About Page - |FAQ \d+ - |Why The Quest - |How It Works - |Step \d+: |Welcome Email - |Purchase Receipt Email - )/, "");
+                const shortLabel = item.label.replace(/^(Home Page - |Category |Hero |Social - |About Page - |FAQ \d+ - |Why The Quest - |How It Works - |Step \d+: |Welcome Email - |Purchase Receipt Email - |Vote Support Confirmation Email - )/, "");
                 return (
                   <div key={item.imageKey} data-testid={`livery-item-${item.imageKey}`}>
                     <div className="flex items-center justify-between gap-1 mb-1 flex-wrap">
@@ -2878,7 +2878,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                   const pairItems = pair.map(k => textItems.find((t: any) => t.imageKey === k)).filter(Boolean) as any[];
                                   if (pairItems.length === 0) return null;
                                   const rawLabel = pairItems[0]?.label || "";
-                                  const pairLabel = rawLabel.startsWith("FAQ ") ? rawLabel.replace(/ - (Question|Answer)$/, "") : rawLabel.startsWith("Welcome Email") ? "Welcome / Invite Email" : rawLabel.startsWith("Purchase Receipt") ? "Purchase Receipt Email" : rawLabel.replace(/^Category (Title|Description) - /, "");
+                                  const pairLabel = rawLabel.startsWith("FAQ ") ? rawLabel.replace(/ - (Question|Answer)$/, "") : rawLabel.startsWith("Welcome Email") ? "Welcome / Invite Email" : rawLabel.startsWith("Purchase Receipt") ? "Vote Support Confirmation Email" : rawLabel.replace(/^Category (Title|Description) - /, "");
                                   return (
                                     <div key={pair[0]} className="rounded-md bg-zinc-900 border border-white/10 p-4">
                                       <h4 className="text-xs text-orange-300/80 font-bold uppercase tracking-wider mb-3">{pairLabel}</h4>
@@ -3145,7 +3145,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                   variant="ghost"
                                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
                                   onClick={() => {
-                                     if (!window.confirm(`Remove promo code ${promo.code}? It will no longer be accepted for new nominations or vote purchases.`)) return;
+                                     if (!window.confirm(`Remove promo code ${promo.code}? It will no longer be accepted for new nominations or paid vote contributions.`)) return;
                                     updateJoinSettingsMutation.mutate({
                                       nominationPromoCodes: (joinSettings.nominationPromoCodes || []).filter((item) => item.id !== promo.id),
                                     });
@@ -4478,14 +4478,14 @@ export default function AdminDashboard({ user }: { user: any }) {
                           className="bg-white/[0.08] border-white/20 text-white"
                           data-testid="input-sales-tax"
                         />
-                        <p className="text-[10px] text-white/25 mt-1">Applied to all purchases (vote packages, hosting packages, join/host fees)</p>
+                        <p className="text-[10px] text-white/25 mt-1">Applies to voter support contributions, hosting packages, and join/host fees</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="rounded-md bg-white/5 border border-white/10 p-5 space-y-4">
                     <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Voting Rules</h4>
-                    <p className="text-[10px] text-white/25">Purchased votes are unlimited. Only free votes have a daily cap.</p>
+                    <p className="text-[10px] text-white/25">Paid voting has no daily limit. Free votes have a daily cap.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                       <div>
                         <Label className="text-white/50 text-xs">Max Free Votes Per Day</Label>
@@ -4508,7 +4508,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                           className="bg-white/[0.08] border-white/20 text-white"
                           data-testid="input-free-vote-multiplier"
                         />
-                        <p className="text-white/30 text-[10px] mt-0.5">Each free vote earns this many ranking points. Purchased votes earn 1 point each.</p>
+                        <p className="text-white/30 text-[10px] mt-0.5">Each free vote earns this many ranking points. Paid votes earn 1 point each.</p>
                       </div>
                       <div>
                         <Label className="text-white/50 text-xs">Minimum Vote Cost ($)</Label>

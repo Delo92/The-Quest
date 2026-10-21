@@ -271,10 +271,10 @@ export default function AdminFinancialOverview({
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Recorded nonprofit allocations</span><strong className="mt-1 block text-white">{money(competition.charityShareCents)}</strong></div>
                         <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Contestant share</span><strong className="mt-1 block text-white">{money(competition.contestantShareCents)}</strong></div>
                         <div className="rounded-md bg-orange-400/[0.07] p-3"><span className="text-white/50">The Quest’s match total</span><strong className="mt-1 block text-orange-200">{money(competition.platformMatchDueCents)}</strong></div>
-                        <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Purchases</span><strong className="mt-1 block text-white">{competition.paidVoting.purchaseCount.toLocaleString()}</strong></div>
+                        <div className="rounded-md bg-white/[0.04] p-3"><span className="text-white/40">Vote contributions</span><strong className="mt-1 block text-white">{competition.paidVoting.purchaseCount.toLocaleString()}</strong></div>
                       </div>
                       <div className="rounded-md border border-white/10 p-3 text-xs text-white/55">
-                        <div className="flex justify-between gap-3"><span>Purchased votes</span><span className="tabular-nums text-white">{competition.paidVoting.purchasedVoteCount.toLocaleString()}</span></div>
+                        <div className="flex justify-between gap-3"><span>Paid votes</span><span className="tabular-nums text-white">{competition.paidVoting.purchasedVoteCount.toLocaleString()}</span></div>
                         <div className="mt-2 flex justify-between gap-3"><span>Competition end</span><span className="text-white">{dateLabel(competition.endDate)}</span></div>
                       </div>
                     </div>
@@ -342,7 +342,7 @@ export default function AdminFinancialOverview({
 
       {activeView === "votes" && <Section
         title="Vote activity — free and paid"
-        subtitle={`${(data.summary as any).totalVoteCount?.toLocaleString() ?? 0} total votes (${(data.summary as any).freeVoteCount?.toLocaleString() ?? 0} free + ${data.summary.paidVotingVoteCount.toLocaleString()} paid) across ${data.summary.paidVotingPurchases.toLocaleString()} paid purchases.`}
+        subtitle={`${(data.summary as any).totalVoteCount?.toLocaleString() ?? 0} total votes (${(data.summary as any).freeVoteCount?.toLocaleString() ?? 0} free + ${data.summary.paidVotingVoteCount.toLocaleString()} paid) across ${data.summary.paidVotingPurchases.toLocaleString()} paid vote contributions.`}
         icon={Vote}
         open
         onToggle={() => onViewChange(null)}
@@ -362,7 +362,7 @@ export default function AdminFinancialOverview({
                       <span><b className="text-white">{totalCount.toLocaleString()}</b> total votes</span>
                       <span><b className="text-white">{freeCount.toLocaleString()}</b> free</span>
                       <span><b className="text-orange-200">{paidCount.toLocaleString()}</b> paid · {money(competition.paidVoting.revenueCents)} revenue</span>
-                      <span>{competition.paidVoting.purchaseCount} purchase{competition.paidVoting.purchaseCount !== 1 ? "s" : ""}</span>
+                      <span>{competition.paidVoting.purchaseCount} vote contribution{competition.paidVoting.purchaseCount !== 1 ? "s" : ""}</span>
                     </div>
                   </div>
                   <b className="tabular-nums text-orange-200 shrink-0">{money(competition.paidVoting.revenueCents)}</b>
@@ -380,10 +380,10 @@ export default function AdminFinancialOverview({
                     ))}
                   </div>
                 )}
-                {/* Paid-purchase detail rows */}
+                {/* Paid vote-contribution detail rows */}
                 {competition.paidVoteDetails.length > 0 && (
                   <div className="border-t border-white/10">
-                    <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-white/30">Paid purchase records</p>
+                    <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-white/30">Paid vote contribution records</p>
                     <div className="divide-y divide-white/[0.06]">{competition.paidVoteDetails.map((purchase) => (
                       <div key={purchase.id} className="grid gap-2 px-4 py-2.5 text-xs sm:grid-cols-[1.2fr_1fr_auto_auto] sm:items-center">
                         <div><p className="text-white/70">{purchase.contestantName}</p><p className="mt-0.5 text-white/35">{purchase.purchaserName}{purchase.purchaserEmail ? ` · ${purchase.purchaserEmail}` : ""}</p></div>
