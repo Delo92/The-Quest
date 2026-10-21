@@ -369,6 +369,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   );
   const maxVotes = Math.max(...(competition.contestants?.map(getContestantVoteCount) || [1]), 1);
   const schedule = getCompetitionSchedule(competition);
+  const genericContestantFallback = getImage("talent_profile_fallback") || undefined;
+  const competitionContestantFallback = competition.coverImage || genericContestantFallback;
   const competitionPhase = getCompetitionPhase(competition);
   const isVotingOpen = (competition.status === "voting" || competition.status === "active")
     && competitionPhase !== "upcoming"
@@ -768,6 +770,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
               const stageResult = selectedStage ? contestant.stageResults?.[selectedStage.id] : null;
               const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
+              const backupProfileImage = getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0);
               const cardCropPosition: ImageCropPosition = competition.contestantImageCropPositions?.[String(contestant.talentProfile.id)]?.["0"]
                 ?? contestant.talentProfile.imageCropPositions?.[0]
                 ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
@@ -777,7 +780,10 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                 : null;
               const imageSrc = stageSubmission
                 ? (stageSubmission.mediaType === "image" ? stageSubmission.mediaUrl : stageSubmission.thumbnailUrl) || undefined
-                : tileVideo?.thumbnail || (contestant as any).videoThumbnail || primaryProfileImage || getImage("talent_profile_fallback") || undefined;
+                : tileVideo?.thumbnail || (contestant as any).videoThumbnail || primaryProfileImage || backupProfileImage || competitionContestantFallback;
+              const imageFallbackSrc = stageSubmission ? stageSubmission.thumbnailUrl : backupProfileImage;
+              const isCompetitionFallback = imageSrc === competitionContestantFallback;
+              const hasContestantPoster = Boolean(tileVideo?.thumbnail || (contestant as any).videoThumbnail || primaryProfileImage || backupProfileImage);
               const referralQuery = preserveReferralQuery(window.location.search);
               const href = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugifyWithId(name, contestant.talentProfile.id)}${referralQuery}`;
               return (
@@ -790,12 +796,13 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                   >
                     <FallbackImage
                       src={imageSrc}
-                      fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback") || undefined}
+                      fallbackSrc={imageFallbackSrc}
+                      fallbackSrcs={[competition.coverImage, genericContestantFallback]}
                       alt=""
                       className="h-full w-full object-cover"
-                      style={getCompetitionCropImageStyle(cardCropPosition)}
+                      style={isCompetitionFallback ? undefined : getCompetitionCropImageStyle(cardCropPosition)}
                     />
-                    {tileVideoSrc && (
+                    {tileVideoSrc && hasContestantPoster && (
                       <div className="absolute inset-0">
                        <LazyVimeoIframe src={tileVideoSrc} title={`${name} video preview`} className="pointer-events-none absolute left-1/2 top-1/2 h-full min-h-full w-full min-w-full -translate-x-1/2 -translate-y-1/2 border-0" />
                       </div>
@@ -826,11 +833,16 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
               const rankIcon = index === 0 ? <Crown className="h-4 w-4 text-yellow-400" /> : index === 1 ? <Award className="h-4 w-4 text-gray-300" /> : index === 2 ? <Award className="h-4 w-4 text-orange-400" /> : null;
               const videos = contestantVideos.get(contestant.id) || [];
                const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
+               const backupProfileImage = getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0);
                 const cardCropPosition: ImageCropPosition = competition.contestantImageCropPositions?.[String(contestant.talentProfile.id)]?.["0"]
                   ?? contestant.talentProfile.imageCropPositions?.[0]
                   ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
                const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
                const stageResult = selectedStage ? contestant.stageResults?.[selectedStage.id] : null;
+               const hasContestantPoster = Boolean((contestant as any).videoThumbnail || videos[0]?.thumbnail || primaryProfileImage || backupProfileImage);
+               const showVideoPreview = videos.length > 0 && hasContestantPoster;
+               const cardImage = (contestant as any).videoThumbnail || videos[0]?.thumbnail || primaryProfileImage || backupProfileImage || competitionContestantFallback;
+               const isCompetitionFallback = cardImage === competitionContestantFallback;
     const referralQuery = preserveReferralQuery(window.location.search);
     const contestantHref = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugifyWithId(contestant.talentProfile.stageName || contestant.talentProfile.displayName, contestant.talentProfile.id)}${referralQuery}`;
 
@@ -864,7 +876,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                   ) : (
                   <Link
                     href={contestantHref}
-                    className={`relative block overflow-hidden bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] ${videos.length > 0 ? "space-y-1" : "aspect-[4/5]"}`}
+                     className={`relative block overflow-hidden bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] ${showVideoPreview ? "space-y-1" : "aspect-[4/5]"}`}
                     style={{ outlineColor: accent }}
                     aria-label={`View ${contestant.talentProfile.stageName || contestant.talentProfile.displayName}'s profile`}
                   >
@@ -888,7 +900,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                     ) : selectedStage && stageSubmission?.mediaType === "image" ? (
                       <FallbackImage
                         src={stageSubmission.mediaUrl}
-                        fallbackSrc={stageSubmission.thumbnailUrl || getImage("talent_profile_fallback") || undefined}
+                        fallbackSrc={stageSubmission.thumbnailUrl}
+                        fallbackSrcs={[competition.coverImage, genericContestantFallback]}
                         alt={`${contestant.talentProfile.stageName || contestant.talentProfile.displayName} — ${selectedStage.name}`}
                         className="aspect-[4/5] w-full object-cover"
                         style={{ objectPosition: `${DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%` }}
@@ -905,7 +918,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                       >
                         Loading media
                       </div>
-                    ) : videos.length > 0 ? videos.slice(0, 1).map((video) => {
+                    ) : showVideoPreview ? videos.slice(0, 1).map((video) => {
                       const sep = video.embedUrl.includes("?") ? "&" : "?";
                       const playerUrl = `${video.embedUrl}${sep}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&quality=auto`;
                       return (
@@ -924,12 +937,13 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                       );
                     }) : (
                       <FallbackImage
-                        src={(contestant as any).videoThumbnail || primaryProfileImage || getImage("talent_profile_fallback") || undefined}
-                        fallbackSrc={getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0) || getImage("talent_profile_fallback") || undefined}
+                        src={cardImage}
+                        fallbackSrc={backupProfileImage}
+                        fallbackSrcs={[competition.coverImage, genericContestantFallback]}
                         alt={contestant.talentProfile.stageName || contestant.talentProfile.displayName}
                         className="h-full w-full object-cover"
                         style={{
-                          ...getCompetitionCropImageStyle(cardCropPosition),
+                          ...(isCompetitionFallback ? {} : getCompetitionCropImageStyle(cardCropPosition)),
                         }}
                       />
                     )}

@@ -5,6 +5,7 @@ const DEFAULT_FALLBACK_SRC = "/images/template/a1.jpg";
 interface FallbackImageProps {
   src?: string | null;
   fallbackSrc?: string | null;
+  fallbackSrcs?: Array<string | null | undefined>;
   alt: string;
   className?: string;
   style?: React.CSSProperties;
@@ -12,11 +13,31 @@ interface FallbackImageProps {
   "data-testid"?: string;
 }
 
-export function FallbackImage({ src, fallbackSrc, alt, className, style, loading, "data-testid": testId }: FallbackImageProps) {
-  const finalFallbackSrc = fallbackSrc || DEFAULT_FALLBACK_SRC;
-  const initialSrc = src || finalFallbackSrc;
+export function getImageSourceCandidates(
+  src?: string | null,
+  fallbackSrc?: string | null,
+  fallbackSrcs: Array<string | null | undefined> = [],
+): string[] {
+  return [...new Set(
+    [src, fallbackSrc, ...fallbackSrcs, DEFAULT_FALLBACK_SRC]
+      .filter((source): source is string => typeof source === "string" && source.trim().length > 0),
+  )];
+}
+
+export function FallbackImage({
+  src,
+  fallbackSrc,
+  fallbackSrcs,
+  alt,
+  className,
+  style,
+  loading,
+  "data-testid": testId,
+}: FallbackImageProps) {
+  const sourceCandidates = getImageSourceCandidates(src, fallbackSrc, fallbackSrcs);
+  const sourceKey = sourceCandidates.join("\u0000");
+  const initialSrc = sourceCandidates[0] || DEFAULT_FALLBACK_SRC;
   const [currentSrc, setCurrentSrc] = useState(initialSrc);
-  const [triedFallback, setTriedFallback] = useState(false);
   const [allSourcesFailed, setAllSourcesFailed] = useState(false);
 
   // Contestant data and livery assets can arrive after the card mounts. Reset
@@ -24,9 +45,8 @@ export function FallbackImage({ src, fallbackSrc, alt, className, style, loading
   // not permanently stick to the card.
   useEffect(() => {
     setCurrentSrc(initialSrc);
-    setTriedFallback(false);
     setAllSourcesFailed(false);
-  }, [initialSrc, finalFallbackSrc]);
+  }, [sourceKey, initialSrc]);
 
   if (allSourcesFailed) {
     return (
@@ -55,9 +75,10 @@ export function FallbackImage({ src, fallbackSrc, alt, className, style, loading
       loading={loading}
       data-testid={testId}
       onError={() => {
-        if (!triedFallback && currentSrc !== finalFallbackSrc) {
-          setCurrentSrc(finalFallbackSrc);
-          setTriedFallback(true);
+        const currentIndex = sourceCandidates.indexOf(currentSrc);
+        const nextSrc = sourceCandidates[currentIndex + 1];
+        if (nextSrc) {
+          setCurrentSrc(nextSrc);
           return;
         }
         setAllSourcesFailed(true);

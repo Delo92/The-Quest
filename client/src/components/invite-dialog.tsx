@@ -120,8 +120,8 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
       const emailDescription = data.emailSent === false
         ? "The invitation was saved, but the recipient did not receive login instructions by email."
         : data.accountCreated
-          ? "The invitation email includes the new account's temporary password."
-          : "The invitation email was sent. Existing accounts must use their current password or reset it.";
+          ? "The welcome email includes the exact temporary password assigned to this new account."
+          : "The invitation email was sent.";
       navigator.clipboard.writeText(link).then(() => {
         setCopiedToken(data.token);
         setTimeout(() => setCopiedToken(null), 3000);
@@ -250,7 +250,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-white/60">Temporary Password for a New Account (optional)</Label>
+            <Label className="text-white/60">Temporary Password (optional)</Label>
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
@@ -273,7 +273,7 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
               </button>
             </div>
             <p className="text-[11px] text-white/35">
-              The exact password is emailed when this invitation creates a new account. Existing accounts are not changed; their email includes password-reset instructions. Minimum 6 characters.
+              For a first-time invitee, this exact password is assigned to their new account and included in the welcome email. Leave blank to use the default temporary password. Minimum 6 characters.
             </p>
           </div>
 

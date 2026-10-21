@@ -362,7 +362,8 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const profile = contestant.talentProfile;
   const accentColor = competition.themeColor || "#FF5A09";
   const bgImage = profile.profileBgImage || null;
-  const fallbackDefault = getImage("talent_profile_fallback") || "";
+  const genericFallback = getImage("talent_profile_fallback") || undefined;
+  const competitionFallback = competition.coverImage || genericFallback;
   const videos = mediaData?.videos || contestant.videos || [];
   const currentVideo = videos[0];
   const otherVideos = bundleData?.otherCompetitionVideos || [];
@@ -370,8 +371,12 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const playingVideoData: ContestantVideo | (typeof otherVideos)[number] | undefined = playingVideo
     ? [...videos, ...otherVideos].find((video) => video.uri === playingVideo)
     : undefined;
-  const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || fallbackDefault;
-  const mainImageFallback = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0) || fallbackDefault;
+  const backupProfileImage = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0);
+  const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || backupProfileImage || competitionFallback;
+  const mainImageFallback = backupProfileImage || competitionFallback;
+  const profileCrop = profile.imageUrls?.[0]
+    ? profile.imageCropPositions?.[0] ?? DEFAULT_TALENT_IMAGE_CROP_POSITION
+    : DEFAULT_TALENT_IMAGE_CROP_POSITION;
   const isVotingOpen = competition.status === "active" || competition.status === "voting";
   const votePercentage = totalVotes > 0 ? Math.round((contestant.voteCount / totalVotes) * 100) : 0;
 
@@ -565,10 +570,11 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
             <FallbackImage
               src={profile.imageUrls?.[0] || mainImage}
               fallbackSrc={mainImageFallback}
+              fallbackSrcs={[competition.coverImage, genericFallback]}
               alt={profile.stageName || profile.displayName || ""}
               className="h-full w-full object-cover"
               style={{
-                objectPosition: `${profile.imageCropPositions?.[0]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[0]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
+                objectPosition: `${profileCrop.x}% ${profileCrop.y}%`,
               }}
             />
           </div>

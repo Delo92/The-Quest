@@ -13,6 +13,7 @@ import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { ShoppingCart, CreditCard, CheckCircle, ArrowLeft, Heart, Package } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
+import { FallbackImage } from "@/components/fallback-image";
 import { slugify } from "@shared/slugify";
 import { confirmStripeCardPayment, type StripeInstance, type StripeCardHandle } from "@/lib/buyer-payment";
 import { StripeCardField } from "@/components/stripe-card-field";
@@ -47,6 +48,7 @@ interface CompetitionDetail {
   id: number;
   title: string;
   category: string;
+  coverImage?: string | null;
   status: string;
   contestants: {
     id: number;
@@ -619,8 +621,10 @@ export default function CheckoutPage() {
 
         <div className="flex items-center gap-4 mb-10 p-4 border border-white/20 border-l-4 border-l-[#FF5A09] bg-white/[0.025]">
           <div className="w-16 h-16 overflow-hidden flex-shrink-0">
-            <img
-              src={contestant.talentProfile.imageUrls?.[0] || getImage("talent_profile_fallback") || undefined}
+            <FallbackImage
+              src={contestant.talentProfile.imageUrls?.[0] || competition.coverImage || getImage("talent_profile_fallback") || undefined}
+              fallbackSrc={competition.coverImage}
+              fallbackSrcs={[getImage("talent_profile_fallback")]}
               alt={contestant.talentProfile.displayName}
               className="w-full h-full object-cover"
             />
