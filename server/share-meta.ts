@@ -130,19 +130,23 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
   const origin = getPublicOrigin();
   const parts = url.pathname.split("/").filter(Boolean);
   const ref = url.searchParams.get("ref")?.trim().toUpperCase();
+  const isContestantProfilePath = parts.length === 4 && parts[0] === "thequest";
 
-  if (ref) {
+  // A contestant profile's URL is the source of its share card. Its `ref`
+  // query may be a contestant attribution slug, not a host referral code.
+  if (ref && !isContestantProfilePath) {
     const referral = await firestoreReferrals.resolveCode(ref);
     const competition = referral?.competitionId ? await storage.getCompetition(referral.competitionId) : null;
-    if (!referral || !competition) return null;
-    const hostName = referral.ownerName || competition.title;
-    return {
-      title: `${competition.title} — Hosted by ${hostName}`,
-      description: competition.description || `Join ${competition.title}, hosted by ${hostName}.`,
-      image: competition.coverImage,
-      url: `${origin}/?ref=${encodeURIComponent(referral.code)}`,
-      canonical: `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`,
-    };
+    if (referral && competition) {
+      const hostName = referral.ownerName || competition.title;
+      return {
+        title: `${competition.title} — Hosted by ${hostName}`,
+        description: competition.description || `Join ${competition.title}, hosted by ${hostName}.`,
+        image: competition.coverImage,
+        url: `${origin}/?ref=${encodeURIComponent(referral.code)}`,
+        canonical: `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`,
+      };
+    }
   }
 
   if (
@@ -369,7 +373,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     if (!contestant) return null;
 
     const profile = contestant.talentProfile;
-    const name = profile.stageName || profile.displayName || "Contestant";
+    const name = (profile.stageName || profile.displayName || "Contestant").trim();
     const talentSlug = slugifyWithId(name, profile.id);
     const compUrl = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
     const canonical = `${compUrl}/${talentSlug}`;

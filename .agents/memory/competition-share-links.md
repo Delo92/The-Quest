@@ -22,3 +22,9 @@ Vote registration keeps attribution domains separate: preserve an incoming `?ref
 **Why:** Host/competition recruiting, contestant-driven vote referrals, and ticket sales attribute different outcomes.
 
 **How to apply:** Carry `?ref` through account creation, derive the target contestant code only when no inbound referral exists, and keep `promoCode` on ticket links.
+
+Contestant profile URLs must keep their own social preview metadata even when `?ref` is present. A contestant slug such as `vivian-40` is not necessarily a host referral code; profile media and identity come from the path.
+
+**Why:** A failed host-code lookup previously returned generic site metadata for shared contestant links, so Facebook displayed the wrong title and no contestant media.
+
+**How to apply:** Resolve profile paths before query-string referral metadata; keep the original `ref` query intact for attribution and use the contestant's public image as the share image.
