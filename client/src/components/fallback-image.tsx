@@ -6,6 +6,7 @@ interface FallbackImageProps {
   src?: string | null;
   fallbackSrc?: string | null;
   fallbackSrcs?: Array<string | null | undefined>;
+  uncroppedSrcs?: Array<string | null | undefined>;
   alt: string;
   className?: string;
   style?: React.CSSProperties;
@@ -28,6 +29,7 @@ export function FallbackImage({
   src,
   fallbackSrc,
   fallbackSrcs,
+  uncroppedSrcs,
   alt,
   className,
   style,
@@ -39,6 +41,10 @@ export function FallbackImage({
   const initialSrc = sourceCandidates[0] || DEFAULT_FALLBACK_SRC;
   const [currentSrc, setCurrentSrc] = useState(initialSrc);
   const [allSourcesFailed, setAllSourcesFailed] = useState(false);
+  const useCenteredStyle = Boolean(currentSrc && uncroppedSrcs?.includes(currentSrc));
+  const imageStyle = useCenteredStyle
+    ? { ...style, objectPosition: "center", transform: "none", transformOrigin: "center" }
+    : style;
 
   // Contestant data and livery assets can arrive after the card mounts. Reset
   // the image state when those inputs change so a temporary placeholder does
@@ -71,7 +77,7 @@ export function FallbackImage({
       src={currentSrc}
       alt={alt}
       className={className}
-      style={style}
+      style={imageStyle}
       loading={loading}
       data-testid={testId}
       onError={() => {

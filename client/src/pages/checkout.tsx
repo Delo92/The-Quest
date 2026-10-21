@@ -622,9 +622,9 @@ export default function CheckoutPage() {
         <div className="flex items-center gap-4 mb-10 p-4 border border-white/20 border-l-4 border-l-[#FF5A09] bg-white/[0.025]">
           <div className="w-16 h-16 overflow-hidden flex-shrink-0">
             <FallbackImage
-              src={contestant.talentProfile.imageUrls?.[0] || competition.coverImage || getImage("talent_profile_fallback") || undefined}
-              fallbackSrc={competition.coverImage}
-              fallbackSrcs={[getImage("talent_profile_fallback")]}
+              src={contestant.talentProfile.imageUrls?.[0] || (contestant as any).videoThumbnail || competition.coverImage || getImage("talent_profile_fallback") || undefined}
+              fallbackSrc={(contestant as any).videoThumbnail || competition.coverImage}
+              fallbackSrcs={[competition.coverImage, getImage("talent_profile_fallback")]}
               alt={contestant.talentProfile.displayName}
               className="w-full h-full object-cover"
             />

@@ -372,8 +372,17 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
     ? [...videos, ...otherVideos].find((video) => video.uri === playingVideo)
     : undefined;
   const backupProfileImage = getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0);
-  const mainImage = mediaData?.videoThumbnail || contestant.videoThumbnail || profile.imageUrls?.[0] || backupProfileImage || competitionFallback;
-  const mainImageFallback = backupProfileImage || competitionFallback;
+  const mainImageCandidates = [
+    profile.imageUrls?.[0],
+    mediaData?.videoThumbnail,
+    contestant.videoThumbnail,
+    backupProfileImage,
+    competitionFallback,
+    genericFallback,
+  ].filter((source): source is string => typeof source === "string" && source.trim().length > 0);
+  const mainImage = mainImageCandidates[0];
+  const mainImageFallback = mainImageCandidates[1];
+  const mainImageFallbacks = mainImageCandidates.slice(2);
   const profileCrop = profile.imageUrls?.[0]
     ? profile.imageCropPositions?.[0] ?? DEFAULT_TALENT_IMAGE_CROP_POSITION
     : DEFAULT_TALENT_IMAGE_CROP_POSITION;
@@ -568,9 +577,10 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
             style={{ borderColor: accentColor }}
           >
             <FallbackImage
-              src={profile.imageUrls?.[0] || mainImage}
+              src={mainImage}
               fallbackSrc={mainImageFallback}
-              fallbackSrcs={[competition.coverImage, genericFallback]}
+              fallbackSrcs={mainImageFallbacks}
+              uncroppedSrcs={[competition.coverImage]}
               alt={profile.stageName || profile.displayName || ""}
               className="h-full w-full object-cover"
               style={{
