@@ -1448,13 +1448,16 @@ export async function registerRoutes(
         await firestoreInvitations.markAccepted(inviteToken, firebaseUser.uid);
       }
 
-      // Notify referral code owner when their code was used during sign-up (non-blocking)
-      if (referralCode?.trim() && await isEmailConfigured()) {
+      // Record successful sign-up referral use and send an aggregate-only notice (non-blocking).
+      if (referralCode?.trim()) {
         (async () => {
           try {
             const resolvedRef = referralCode.trim().toUpperCase();
-            const codeDoc = await firestoreReferrals.getCodeByCode(resolvedRef);
+            const codeDoc = await firestoreReferrals.resolveCode(resolvedRef);
             if (codeDoc) {
+              const usageCount = await firestoreReferrals.trackReferralCodeUse(codeDoc.code);
+              if (usageCount === null || !await isEmailConfigured()) return;
+
               let ownerEmail = codeDoc.ownerEmail || null;
               if (!ownerEmail && codeDoc.ownerId) {
                 try {
@@ -1463,15 +1466,10 @@ export async function registerRoutes(
                 } catch {}
               }
               if (ownerEmail) {
-                const siteUrl = process.env.SITE_URL || `https://${req.get("host")}`;
                 await sendCodeUsedNotification({
                   to: ownerEmail,
-                  ownerName: codeDoc.ownerName,
-                  code: resolvedRef,
-                  usedBy: normalizedDisplayName,
-                  usedByEmail: normalizedEmail,
-                  action: "signup",
-                  siteUrl,
+                  code: codeDoc.code,
+                  usageCount,
                 });
               }
             }
@@ -6163,9 +6161,13 @@ export async function registerRoutes(
         const compTitle = competitionId ? (await storage.getCompetition(Number(competitionId)))?.title : null;
         const amountInDollars = amountPaid ? (amountPaid / 100).toFixed(2) : "0.00";
 
-        // Internal Firestore tracking
-        firestoreReferrals.trackReferralVote(resolvedRef, normalizedNominatorEmail || submission.id, 1)
-          .catch((err: any) => console.warn("[Referral] Internal nomination tracking failed (non-blocking):", err.message));
+        // Internal tracking returns the aggregate use count used by the owner notice.
+        const referralUseCountPromise = firestoreReferrals
+          .trackReferralVote(resolvedRef, normalizedNominatorEmail || submission.id, 1)
+          .catch((err: any) => {
+            console.warn("[Referral] Internal nomination tracking failed (non-blocking):", err.message);
+            return null;
+          });
 
         // CBUSA report
         trackChronicBrandsPromo({
@@ -6181,8 +6183,9 @@ export async function registerRoutes(
         if (await isEmailConfigured()) {
           (async () => {
             try {
-              const codeDoc = await firestoreReferrals.getCodeByCode(resolvedRef);
-              if (codeDoc) {
+              const usageCount = await referralUseCountPromise;
+              const codeDoc = usageCount === null ? null : await firestoreReferrals.resolveCode(resolvedRef);
+              if (codeDoc && usageCount !== null) {
                 let ownerEmail = codeDoc.ownerEmail || null;
                 if (!ownerEmail && codeDoc.ownerId) {
                   try {
@@ -6191,17 +6194,10 @@ export async function registerRoutes(
                   } catch {}
                 }
                 if (ownerEmail) {
-                  const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get("host")}`;
                   await sendCodeUsedNotification({
                     to: ownerEmail,
-                    ownerName: codeDoc.ownerName,
-                    code: resolvedRef,
-                    usedBy: "Someone",
-                    usedByEmail: normalizedNominatorEmail,
-                    action: "nomination",
-                    nomineeName,
-                    competitionName: compTitle || undefined,
-                    siteUrl,
+                    code: codeDoc.code,
+                    usageCount,
                   });
                 }
               }

@@ -68,7 +68,7 @@ export default function AboutPage() {
   const givingTitle = getText("about_giving_title", "Talent That Gives Back");
   const givingText = normalizeVoteSupportCopy(getText(
     "about_giving_text",
-    "Contestants and hosts select an eligible nonprofit for their own contribution. Voters can learn how vote donations and the nonprofit program work on our dedicated nonprofit page."
+    "Contestants and hosts are required to contribute a share of their eligible earnings to an eligible nonprofit they select. Voters can learn how vote donations and the nonprofit program work on our dedicated nonprofit page."
   ));
 
   const socialFacebook = getText("social_facebook", "");
@@ -200,7 +200,7 @@ export default function AboutPage() {
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold uppercase text-white mb-4">{givingTitle}</h2>
               <p className="text-white/75 text-[15px] leading-relaxed mb-4">
-                Contestants and hosts choose their own eligible nonprofit and a 1%–10% contribution rate from their eligible earnings. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount, subject to its available share. A nominator may suggest a nonprofit, but participants make the final choice of nonprofit and rate.
+                Contestants and hosts are required to contribute 1%–10% of their eligible earnings to an eligible nonprofit they select. If no rate is set, the 10% default applies. The Quest matches each participant’s actual contribution dollar-for-dollar. A nominator may suggest a nonprofit, but participants make the final choice of nonprofit and rate.
               </p>
               <p className="text-white/75 text-[15px] leading-relaxed">
                 {renderGivingTextWithLinks(givingText)}

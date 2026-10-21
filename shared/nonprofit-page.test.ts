@@ -51,4 +51,26 @@ test("nonprofit logo media keys are deterministic and page text defaults are edi
   assert.ok(defaults.length >= 20);
   assert.ok(defaults.every((item) => item.itemType === "text" && item.defaultText));
   assert.equal(new Set(defaults.map((item) => item.imageKey)).size, defaults.length);
+
+  const textByKey = new Map(defaults.map((item) => [item.imageKey, item.defaultText || ""]));
+  const mandatoryContributionCopy = [
+    textByKey.get("nonprofits_hero_copy"),
+    textByKey.get("nonprofits_flow_copy"),
+    textByKey.get("nonprofits_step_1_copy"),
+    textByKey.get("nonprofits_step_2_copy"),
+    textByKey.get("nonprofits_example_note"),
+    textByKey.get("nonprofits_clarity_copy"),
+  ].join(" ");
+  assert.match(mandatoryContributionCopy, /required to contribute|required contribution|must choose/i);
+  assert.doesNotMatch(mandatoryContributionCopy, /\b(?:can|may) contribute\b/i);
+
+  const matchCopy = [
+    textByKey.get("nonprofits_hero_copy"),
+    textByKey.get("nonprofits_step_3_title"),
+    textByKey.get("nonprofits_step_3_copy"),
+    textByKey.get("nonprofits_example_title"),
+    textByKey.get("nonprofits_example_note"),
+  ].join(" ");
+  assert.match(matchCopy, /dollar-for-dollar/i);
+  assert.doesNotMatch(matchCopy, /may match|can match|not guaranteed|available share/i);
 });

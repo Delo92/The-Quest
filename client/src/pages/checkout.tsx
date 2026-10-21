@@ -641,7 +641,7 @@ export default function CheckoutPage() {
         <div className="mb-8 border border-emerald-300/35 bg-emerald-950/35 p-4 text-sm leading-relaxed text-emerald-50/85" data-testid="vote-nonprofit-disclosure">
           <p className="font-semibold text-emerald-100">Your vote donation is received by The Quest.</p>
           <p className="mt-2">
-            This donation is received by The Quest to add votes; it is not sent directly to a nonprofit at checkout. Contestants and hosts choose an eligible nonprofit and allocate 1%–10% of their eligible earnings (10% by default). The Quest matches those recorded contributions dollar-for-dollar, subject to available funds. Recipient and amount are set through the participant payout process, not by this checkout.
+            This donation is received by The Quest to add votes; it is not sent directly to a nonprofit at checkout. Contestants and hosts choose an eligible nonprofit and allocate 1%–10% of their eligible earnings (10% by default). The Quest matches those recorded contributions dollar-for-dollar. Recipient and amount are set through the participant payout process, not by this checkout.
           </p>
           <Link href="/NonProfits" className="mt-3 inline-flex min-h-9 items-center font-semibold text-emerald-200 underline decoration-emerald-200/50 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200" data-testid="link-checkout-nonprofits">
             See how nonprofit giving works

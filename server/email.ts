@@ -14,6 +14,7 @@ import {
   type AccountAccessOptions,
 } from "./account-email-access";
 import { logEmailDiagnostic } from "./email-diagnostics";
+import { buildReferralCodeUsageNotice } from "./referral-code-notification";
 
 async function accountResetUrl(
   siteUrl: string,
@@ -937,60 +938,25 @@ export async function sendApplicationApproved(opts: {
 ───────────────────────────────────────────────────────────────────────── */
 export async function sendCodeUsedNotification(opts: {
   to: string;
-  ownerName: string;
   code: string;
-  usedBy: string;
-  usedByEmail: string;
-  action: "nomination" | "signup";
-  nomineeName?: string;
-  competitionName?: string;
-  siteUrl: string;
+  usageCount: number;
 }): Promise<boolean> {
   try {
     const transporter = await getTransporter();
-
-    const actionLine = opts.action === "nomination"
-      ? `<strong style="color:#fff;">${opts.usedBy}</strong> just used your code to nominate <strong style="color:#FF5A09;">${opts.nomineeName || "someone"}</strong>${opts.competitionName ? ` for <strong style="color:#fff;">${opts.competitionName}</strong>` : ""}.`
-      : `<strong style="color:#fff;">${opts.usedBy}</strong> just signed up using your referral code.`;
-
-    const html = wrapInTemplate(`
-      <div style="text-align:center; margin-bottom: 28px;">
-        <span class="badge">Your Code Was Used!</span>
-      </div>
-      <h2 style="text-align:center;">Your Code Is Working, ${opts.ownerName}!</h2>
-      <p style="text-align:center; font-size:16px; color:#ccc;">${actionLine}</p>
-
-      <div class="highlight-box" style="text-align:center;">
-        <p class="label">Your Code</p>
-        <p class="value" style="font-family: monospace; font-size: 24px; letter-spacing: 4px; color: #FF5A09;">${opts.code}</p>
-      </div>
-
-      <div class="highlight-box">
-        <p class="label">Used By</p>
-        <p class="value">${opts.usedBy}</p>
-        <p style="margin:4px 0 0; color:#555; font-size:13px;">${opts.usedByEmail}</p>
-      </div>
-
-      <p>Keep sharing your code — every use helps grow The Quest community and boosts your visibility on the platform.</p>
-
-      <div class="btn-wrap">
-        <a href="${opts.siteUrl}/thequest/talent-dashboard" class="btn">View My Dashboard</a>
-      </div>
-      <hr class="divider" />
-      <p style="font-size:13px; color:#555;">Share your code with friends, fans, and on social media to maximize your reach!</p>
-    `);
+    const notice = buildReferralCodeUsageNotice(opts.code, opts.usageCount);
+    const html = wrapInTemplate(notice.bodyHtml);
 
     await transporter.sendMail({
       from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
-      subject: `Your code ${opts.code} was just used — The Quest`,
+      subject: notice.subject,
       html,
     });
 
-    console.log(`Code-used notification sent to ${opts.to} (code: ${opts.code})`);
+    console.log("Referral code usage notification sent.");
     return true;
-  } catch (err: any) {
-    console.error("Failed to send code-used notification:", err.message);
+  } catch {
+    console.error("Failed to send referral code usage notification.");
     resetTransporter();
     return false;
   }

@@ -48,7 +48,7 @@ test("payout readiness requires an explicit acknowledgment snapshot", () => {
   );
 });
 
-test("The Quest matches each contribution dollar-for-dollar when its share permits", () => {
+test("The Quest matches each eligible contribution dollar-for-dollar", () => {
   const matches = calculatePlatformMatchAllocations([
     {
       sourceId: "contestant-1",
@@ -64,7 +64,7 @@ test("The Quest matches each contribution dollar-for-dollar when its share permi
       nonprofitName: "Local Food Bank",
       contributionCents: 750,
     },
-  ], 2_000);
+  ]);
 
   assert.deepEqual(matches.map(({ sourceId, matchCents }) => [sourceId, matchCents]), [
     ["contestant-1", 1_250],
@@ -72,7 +72,7 @@ test("The Quest matches each contribution dollar-for-dollar when its share permi
   ]);
 });
 
-test("aggregate matches never exceed The Quest's available share or a participant's contribution", () => {
+test("each match equals the full participant contribution, independent of available share", () => {
   const matches = calculatePlatformMatchAllocations([
     {
       sourceId: "contestant-1",
@@ -88,8 +88,11 @@ test("aggregate matches never exceed The Quest's available share or a participan
       nonprofitName: "Local Food Bank",
       contributionCents: 800,
     },
-  ], 900);
+  ]);
 
-  assert.equal(matches.reduce((sum, match) => sum + match.matchCents, 0), 900);
-  assert.ok(matches.every((match) => match.matchCents <= match.contributionCents));
+  assert.equal(matches.reduce((sum, match) => sum + match.matchCents, 0), 2_000);
+  assert.deepEqual(matches.map(({ sourceId, matchCents }) => [sourceId, matchCents]), [
+    ["contestant-1", 1_200],
+    ["host-1", 800],
+  ]);
 });

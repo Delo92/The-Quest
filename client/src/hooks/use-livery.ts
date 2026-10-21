@@ -34,10 +34,11 @@ function writeCache(items: LiveryItem[]) {
   } catch {}
 }
 
-export function useLivery() {
+export function useLivery(options: { refetchInterval?: number } = {}) {
   const { data: items, isLoading } = useQuery<LiveryItem[]>({
     queryKey: ["/api/livery"],
     staleTime: 5 * 60 * 1000,
+    refetchInterval: options.refetchInterval ?? false,
     initialData: readCache,
     initialDataUpdatedAt: 0,
   });

@@ -3252,7 +3252,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <Label className="text-white/80 font-semibold">Non-Profit / Charity</Label>
                       </div>
                       <p className="text-xs leading-relaxed text-white/55">
-                        Contestants and hosts choose their own nonprofit and contribution rate in their account. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount to the nonprofit they selected. A nominator may suggest a nonprofit, but the participant makes the final choice.
+                        Contestants and hosts must contribute a share of eligible earnings to an eligible nonprofit they select in their own account. The rate is 1–10%; if no rate is chosen, the 10% default applies. The Quest matches each participant’s actual contribution dollar-for-dollar. A nominator may suggest a nonprofit, but the participant makes the final choice.
                       </p>
                     </div>
                     <div className="mt-4 rounded-md bg-white/5 border border-white/10 p-4">
@@ -3415,10 +3415,10 @@ export default function AdminDashboard({ user }: { user: any }) {
                               <div className="rounded-md border border-orange-400/15 bg-orange-400/[0.04] p-4" data-testid={`nonprofit-policy-audit-${sub.id}`}>
                                 <p className="text-xs uppercase tracking-wider text-orange-200/75 font-semibold">Nonprofit choices</p>
                                 <p className="mt-2 text-sm text-white/75">
-                                  Contestants and hosts choose their nonprofit and contribution rate in their own account. A nominator may provide an optional suggestion, but it does not set the participant's choice.
+                                  Contestants and hosts are required to contribute from eligible earnings. Each participant selects a nonprofit through their own account; a nominator may provide an optional suggestion, but it does not set the participant's choice.
                                 </p>
                                 <p className="mt-1 text-xs leading-relaxed text-white/50">
-                                  If no rate is selected, the 10% default applies. The Quest matches the same dollar amount to the selected nonprofit before payout.
+                                  The contribution rate is 1–10%; if no rate is selected, the 10% default applies. The Quest matches each participant’s actual contribution dollar-for-dollar before payout.
                                 </p>
                                 {sub.nonprofitPolicyAcknowledged ? (
                                   <>

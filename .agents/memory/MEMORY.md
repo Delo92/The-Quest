@@ -34,6 +34,7 @@
 - [Stage voting isolation](stage-voting-isolation.md) — stage vote records and legacy cumulative totals use separate count keys and query paths
 - [Competition share links](competition-share-links.md) — guest join CTAs go to the selected competition’s nomination form and preserve referral attribution
 - [Host platform referral codes](host-platform-referral-codes.md) — every host should have a global `?ref=CODE` link separate from competition-specific codes
+- [Referral-use privacy](referral-use-privacy.md) — code owners receive aggregate counts only; never expose referrers' names or contact details.
 - [Centralized error logging](chronicdocs-error-logging.md) — install API capture before routes; cover JSON and non-JSON errors without persisting request values or response bodies
 - [Original Concepts purchase feed](oc-purchase-feed.md) — signed additive purchase mirroring uses stable event IDs and must pass the unsigned-401 handshake before live traffic
 - [OC integration boundaries](oc-integration-bridge.md) — keep user-authorized brand-kit access separate from the shared Quest↔OC service bridge and payment routing
@@ -59,3 +60,4 @@
 - [Host contestant admin](host-contestant-admin.md) — hosts reuse admin profile dialog scoped to own events; phone kept in private collection; Competitor URL aliases talent page
 - [Promo videos and Vimeo hash](promo-videos-vimeo-hash.md) — resolve ?h= server-side on save; host role cannot call the admin lookup
 - [TypeScript check memory limit](typecheck-memory-limit.md) — broad root checks can exceed the default Node heap; use focused tests and module transforms when that happens
+- [Nonprofit directory wheel](nonprofit-directory-wheel.md) — keep featured and participant organizations in one growing cover-flow directory, not separate hero art and list sections

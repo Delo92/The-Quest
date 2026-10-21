@@ -4,24 +4,23 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowDown,
   ArrowRight,
-  ArrowUpRight,
   CircleDollarSign,
-  ExternalLink,
   HeartHandshake,
   Mail,
   Play,
   RefreshCw,
   ShieldCheck,
   Sparkles,
-  UsersRound,
 } from "lucide-react";
 import { Link } from "wouter";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
+import NonprofitDirectoryWheel, { type NonprofitDirectoryEntry } from "@/components/nonprofit-directory-wheel";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { nonprofitLogoMediaKey } from "@shared/nonprofit-page";
 import itStopsNowLogo from "@assets/image_1792613288554.png";
+import eventProFoundationLogo from "@assets/image_1792615336461.png";
 import "./nonprofits.css";
 
 type PublicNonprofit = {
@@ -41,20 +40,22 @@ type GalleryItem = {
   createdAt: string;
 };
 
+function isDirectVideoMedia(item: GalleryItem): boolean {
+  return item.mediaType === "video" && /\.(mp4|webm|mov)(?:$|[?#])/i.test(item.mediaUrl);
+}
+
 const featuredPrograms = [
   {
     name: "It Stops Now Foundation",
     url: "https://www.facebook.com/itstopsnowfoundation",
-    note: "Featured program organization",
     imageKey: nonprofitLogoMediaKey("It Stops Now Foundation"),
     imageSrc: itStopsNowLogo,
   },
   {
     name: "Event Pro Group Foundation",
     url: "https://eventprogroupusa.com/Foundation",
-    note: "Featured program organization",
     imageKey: nonprofitLogoMediaKey("Event Pro Group Foundation"),
-    imageSrc: null,
+    imageSrc: eventProFoundationLogo,
   },
 ];
 
@@ -62,17 +63,17 @@ const steps = [
   {
     number: "01",
     title: "Choose an organization",
-    copy: "Contestants and hosts choose an eligible nonprofit for their own contribution.",
+    copy: "Contestants and hosts must choose an eligible nonprofit for their required contribution.",
   },
   {
     number: "02",
     title: "Set a rate",
-    copy: "They select 1–10% of their eligible earnings. If they leave the rate unset, it defaults to 10%.",
+    copy: "The required contribution is 1–10% of eligible earnings. If no rate is set, the 10% default applies.",
   },
   {
     number: "03",
-    title: "A match may follow",
-    copy: "The Quest can match the participant’s actual recorded amount, when its available share allows.",
+    title: "Dollar-for-dollar match",
+    copy: "The Quest matches each participant’s actual recorded contribution dollar-for-dollar.",
   },
 ];
 
@@ -137,7 +138,7 @@ function SectionLabel({ children }: { children: ReactNode }) {
 
 function GalleryMedia({ item }: { item: GalleryItem }) {
   const embed = item.mediaType === "video" ? safeVideoEmbed(item.embedUrl) : null;
-  const isDirectVideo = item.mediaType === "video" && /\.(mp4|webm|mov)(?:$|[?#])/i.test(item.mediaUrl);
+  const isDirectVideo = isDirectVideoMedia(item);
 
   if (embed) {
     return (
@@ -172,8 +173,12 @@ function GalleryMedia({ item }: { item: GalleryItem }) {
 }
 
 export default function NonprofitsPage() {
-  const { getText, items } = useLivery();
-  const rosterQuery = useQuery<PublicNonprofit[]>({ queryKey: ["/api/nonprofits/public"] });
+  const { getText, items } = useLivery({ refetchInterval: 65_000 });
+  const rosterQuery = useQuery<PublicNonprofit[]>({
+    queryKey: ["/api/nonprofits/public"],
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
   const galleryQuery = useQuery<GalleryItem[]>({ queryKey: ["/api/nonprofits/gallery"] });
   const contactEmail = getText("contact_email", "admin@thequest.com") || "admin@thequest.com";
   const liveryText = (key: string, fallback: string) => getText(`nonprofits_${key}`, fallback) || fallback;
@@ -187,20 +192,43 @@ export default function NonprofitsPage() {
 
   const organizations = rosterQuery.data ?? [];
   const galleryItems = galleryQuery.data ?? [];
+  const featuredNames = new Set(featuredPrograms.map((org) => org.name.trim().toLocaleLowerCase()));
+  const directoryOrganizations: NonprofitDirectoryEntry[] = [
+    ...featuredPrograms.map((org) => {
+      const logoItem = items?.find((item) => item.imageKey === org.imageKey);
+      return {
+        id: `featured-${org.imageKey}`,
+        name: org.name,
+        website: org.url,
+        logoUrl: logoItem?.imageUrl || org.imageSrc || logoItem?.defaultUrl || null,
+        source: "featured" as const,
+      };
+    }),
+    ...organizations
+      .filter((org) => !featuredNames.has(org.name.trim().toLocaleLowerCase()))
+      .map((org) => {
+        const logoItem = items?.find((item) => item.imageKey === org.logoKey);
+        return {
+          id: `participant-${org.logoKey}`,
+          name: org.name,
+          website: org.website,
+          logoUrl: logoItem?.imageUrl || logoItem?.defaultUrl || null,
+          source: "participant" as const,
+        };
+      }),
+  ];
 
   return (
     <div className="quest-np-page min-h-screen" data-testid="page-nonprofits">
       <SiteNavbar forceDark />
       <main className="pt-[108px]">
         <section className="quest-np-hero relative overflow-hidden" aria-labelledby="np-hero-title">
-          <div className="quest-np-hero-orbit quest-np-orbit-one" aria-hidden="true" />
-          <div className="quest-np-hero-orbit quest-np-orbit-two" aria-hidden="true" />
           <div className="quest-np-hero-grain" aria-hidden="true" />
           <div className="quest-np-hero-inner">
             <Reveal className="quest-np-hero-copy">
               <SectionLabel>{liveryText("eyebrow", "A different kind of spotlight")}</SectionLabel>
               <h1 id="np-hero-title">{liveryText("hero_title", "When talent rises, its impact can travel further.")}</h1>
-              <p>{liveryText("hero_copy", "The Quest connects entertainment with participant-led nonprofit support. Contestants and hosts can contribute a share of their own eligible earnings to an organization they choose. The Quest may match that actual amount when its available share allows.")}</p>
+              <p>{liveryText("hero_copy", "The Quest connects entertainment with participant-led nonprofit support. Contestants and hosts are required to contribute a share of their own eligible earnings to an organization they choose. The Quest will match that actual amount dollar-for-dollar.")}</p>
               <div className="quest-np-hero-actions">
                 <a className="quest-np-pill quest-np-pill-accent" href="#how-it-works">
                   See how it works <ArrowDown size={16} aria-hidden="true" />
@@ -215,25 +243,25 @@ export default function NonprofitsPage() {
               </p>
             </Reveal>
             <Reveal className="quest-np-hero-art" delay={0.16}>
-              <div className="quest-np-art-caption">
-                <span>CHOICE → CONTRIBUTION → POSSIBILITY</span>
-                <span className="quest-np-art-mark">TQ / 01</span>
+              <div className="quest-np-directory-heading">
+                <div>
+                  <SectionLabel>Organizations to explore</SectionLabel>
+                  <p>Featured and participant-entered nonprofits</p>
+                </div>
+                <span>THE QUEST / DIRECTORY</span>
               </div>
-              <div className="quest-np-art-core">
-                <div className="quest-np-art-ring ring-a" />
-                <div className="quest-np-art-ring ring-b" />
-                <div className="quest-np-art-ring ring-c" />
-                <div className="quest-np-art-sun" />
-                <div className="quest-np-art-line line-a" />
-                <div className="quest-np-art-line line-b" />
-                <div className="quest-np-art-dot dot-a" />
-                <div className="quest-np-art-dot dot-b" />
-                <span className="quest-np-art-word">A share<br />of the stage</span>
-              </div>
-              <div className="quest-np-art-bottom">
-                <span>PARTICIPANT-LED GIVING</span>
-                <span>NO GUARANTEED MATCH</span>
-              </div>
+              <NonprofitDirectoryWheel organizations={directoryOrganizations} />
+              {rosterQuery.isError && (
+                <div className="quest-np-directory-error" role="alert">
+                  <span>Participant organizations could not be loaded.</span>
+                  <button type="button" onClick={() => void rosterQuery.refetch()} data-testid="button-retry-nonprofit-roster">
+                    <RefreshCw size={13} aria-hidden="true" /> Retry
+                  </button>
+                </div>
+              )}
+              <p className="quest-np-directory-disclaimer">
+                {liveryText("roster_copy", "Participant-entered listings are self-reported, not verified or endorsed, and are not a promise of donations.")} Featured links are informational, not automatic payout recipients.
+              </p>
             </Reveal>
           </div>
           <div className="quest-np-hero-bottom">
@@ -247,7 +275,7 @@ export default function NonprofitsPage() {
             <Reveal>
               <SectionLabel>{liveryText("flow_eyebrow", "A clear, participant-led flow")}</SectionLabel>
               <h2 id="np-flow-title">{liveryText("flow_title", "Giving begins with the person on stage.")}</h2>
-              <p>{liveryText("flow_copy", "This program is separate from donations made to The Quest to receive votes or register. A participant names their organization, chooses a rate, and contributes from their eligible earnings.")}</p>
+              <p>{liveryText("flow_copy", "Contestants and hosts are required to contribute from their eligible earnings to the nonprofit they choose. This program is separate from donations made to The Quest to receive votes or register.")}</p>
             </Reveal>
             <Reveal delay={0.08}>
               <div className="quest-np-flow-steps">
@@ -269,11 +297,11 @@ export default function NonprofitsPage() {
             <div className="quest-np-example-top">
               <div>
                 <SectionLabel>{liveryText("example_eyebrow", "A simple example")}</SectionLabel>
-                <h3>{liveryText("example_title", "What a match could look like")}</h3>
+                <h3>{liveryText("example_title", "How the dollar-for-dollar match works")}</h3>
               </div>
               <CircleDollarSign className="quest-np-example-icon" aria-hidden="true" />
             </div>
-            <div className="quest-np-equation" aria-label="One thousand dollars eligible earnings, ten percent participant rate, one hundred dollars participant contribution, possible one hundred dollar Quest match, up to two hundred dollars combined">
+            <div className="quest-np-equation" aria-label="One thousand dollars eligible earnings, ten percent participant rate, one hundred dollars participant contribution, one hundred dollar Quest match, two hundred dollars combined">
               <div className="quest-np-equation-item">
                 <span>Eligible earnings</span>
                 <strong>$1,000</strong>
@@ -290,102 +318,19 @@ export default function NonprofitsPage() {
               </div>
               <span className="quest-np-equation-plus" aria-hidden="true">+</span>
               <div className="quest-np-equation-item quest-np-equation-match">
-                <span>Possible Quest match</span>
-                <strong>up to $100</strong>
+                <span>Quest match</span>
+                <strong>$100</strong>
               </div>
               <span className="quest-np-equation-sign" aria-hidden="true">=</span>
               <div className="quest-np-equation-item quest-np-equation-total">
                 <span>Combined in this example</span>
-                <strong>up to $200</strong>
+                <strong>$200</strong>
               </div>
             </div>
             <p className="quest-np-example-note">
-              {liveryText("example_note", "The rate may be 1–10%; 10% applies only when the participant leaves the rate unset. A match is not guaranteed and depends on The Quest’s available share. Contributions are recorded through payout operations; The Quest does not automatically send funds to nonprofits.")}
+              {liveryText("example_note", "The required contribution rate is 1–10% of eligible earnings; the 10% default applies when no rate is set. The Quest matches each participant’s actual contribution dollar-for-dollar. Contributions are recorded through payout operations; The Quest does not automatically send funds to nonprofits.")}
             </p>
           </Reveal>
-        </section>
-
-        <section className="quest-np-roster" aria-labelledby="np-roster-title">
-          <div className="section-shell quest-np-roster-inner">
-            <Reveal className="quest-np-roster-heading">
-              <div>
-                <SectionLabel>{liveryText("roster_eyebrow", "A community of choice")}</SectionLabel>
-                <h2 id="np-roster-title">{liveryText("roster_title", "Organizations participants have named.")}</h2>
-              </div>
-              <p>{liveryText("roster_copy", "These are organization names entered by contestants and hosts. Their appearance here is not a verification, endorsement, eligibility determination, or promise of donations.")}</p>
-            </Reveal>
-            {rosterQuery.isLoading ? (
-              <div className="quest-np-roster-list" aria-label="Loading organizations">
-                {[0, 1, 2].map((n) => <div className="quest-np-roster-skeleton" key={n} />)}
-              </div>
-            ) : rosterQuery.isError ? (
-              <div className="quest-np-state" role="alert">
-                <div><strong>Organizations could not be loaded.</strong><span>Please try again in a moment.</span></div>
-                <button type="button" onClick={() => void rosterQuery.refetch()} className="quest-np-retry" data-testid="button-retry-nonprofit-roster">
-                  <RefreshCw size={15} /> Retry
-                </button>
-              </div>
-            ) : organizations.length === 0 ? (
-              <div className="quest-np-state quest-np-state-empty">
-                <UsersRound aria-hidden="true" />
-                <div><strong>No participant-entered organizations to show yet.</strong><span>{liveryText("roster_empty", "When contestants or hosts enter an organization, it will appear here.")}</span></div>
-              </div>
-            ) : (
-              <div className="quest-np-roster-list" data-testid="list-nonprofit-roster">
-                {organizations.map((org, index) => {
-                  const logoItem = items?.find((item) => item.imageKey === org.logoKey);
-                  const localLogo = org.name.trim().toLocaleLowerCase() === "it stops now foundation" ? itStopsNowLogo : "";
-                  const logo = logoItem?.imageUrl || localLogo || logoItem?.defaultUrl || "";
-                  const website = org.website && /^https?:\/\//i.test(org.website) ? org.website : null;
-                  return (
-                    <Reveal key={`${org.name}-${index}`} delay={Math.min(index * 0.045, 0.27)}>
-                      <div className="quest-np-roster-row" data-testid={`nonprofit-roster-${index}`}>
-                        <span className="quest-np-roster-index">{String(index + 1).padStart(2, "0")}</span>
-                        <span className="quest-np-roster-logo">
-                          {logo ? <img src={logo} alt="" loading="lazy" /> : <HeartHandshake aria-hidden="true" />}
-                        </span>
-                        <span className="quest-np-roster-name">{org.name}</span>
-                        {website ? (
-                          <a href={website} target="_blank" rel="noopener noreferrer" className="quest-np-roster-link" aria-label={`Visit ${org.name} website`}>
-                            Website <ArrowUpRight size={15} aria-hidden="true" />
-                          </a>
-                        ) : <span className="quest-np-roster-no-link">Participant-entered</span>}
-                      </div>
-                    </Reveal>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="quest-np-featured section-shell" aria-labelledby="np-featured-title">
-          <Reveal className="quest-np-featured-intro">
-            <SectionLabel>{liveryText("featured_eyebrow", "Featured program organizations")}</SectionLabel>
-            <h2 id="np-featured-title">{liveryText("featured_title", "Two organizations connected to the program.")}</h2>
-            <p>{liveryText("featured_copy", "These links share organizations featured in the program. They are not automatically selected payout recipients; each participant makes their own choice.")}</p>
-          </Reveal>
-          <div className="quest-np-featured-list">
-            {featuredPrograms.map((org, index) => {
-              const logoItem = items?.find((item) => item.imageKey === org.imageKey);
-              const logo = logoItem?.imageUrl || org.imageSrc || logoItem?.defaultUrl || "";
-              return (
-                <Reveal key={org.name} delay={index * 0.12}>
-                  <a href={org.url} target="_blank" rel="noopener noreferrer" className={`quest-np-featured-row featured-${index + 1}`}>
-                    <span className="quest-np-featured-number">0{index + 1}</span>
-                    <span className="quest-np-featured-logo">
-                      {logo ? <img src={logo} alt="" loading="lazy" /> : <HeartHandshake aria-hidden="true" />}
-                    </span>
-                    <span className="quest-np-featured-text">
-                      <small>{org.note}</small>
-                      <strong>{org.name}</strong>
-                    </span>
-                    <span className="quest-np-featured-arrow"><ExternalLink size={18} aria-hidden="true" /></span>
-                  </a>
-                </Reveal>
-              );
-            })}
-          </div>
         </section>
 
         <section className="quest-np-gallery" id="community" aria-labelledby="np-gallery-title">
@@ -418,7 +363,9 @@ export default function NonprofitsPage() {
                 {galleryItems.map((item, index) => (
                   <Reveal className={`quest-np-gallery-item gallery-item-${index % 3}`} key={item.id} delay={(index % 3) * 0.08}>
                     <figure>
-                      <div className="quest-np-gallery-frame">
+                      <div className={isDirectVideoMedia(item)
+                        ? "quest-np-gallery-frame quest-np-gallery-frame--video"
+                        : "quest-np-gallery-frame"}>
                         <GalleryMedia item={item} />
                         {item.mediaType === "video" && <span className="quest-np-media-tag"><Play size={12} fill="currentColor" /> VIDEO</span>}
                       </div>
@@ -443,12 +390,12 @@ export default function NonprofitsPage() {
             <div>
               <SectionLabel>{liveryText("clarity_eyebrow", "The important distinction")}</SectionLabel>
               <h2 id="np-truth-title">{liveryText("clarity_title", "A donation for votes is not a donation to a nonprofit.")}</h2>
-              <p>{liveryText("clarity_copy", "People donate to The Quest to receive votes; registration is also a donation. Those donations are received by The Quest and are not sent directly to a nonprofit at checkout. Nonprofit support is separate: contestants and hosts may contribute a share of their own eligible earnings to an organization they choose.")}</p>
+              <p>{liveryText("clarity_copy", "People donate to The Quest to receive votes; registration is also a donation. Those donations are received by The Quest and are not sent directly to a nonprofit at checkout. Separately, contestants and hosts are required to contribute a share of their own eligible earnings to an organization they choose.")}</p>
             </div>
           </Reveal>
           <Reveal className="quest-np-truth-aside" delay={0.12}>
             <span>01 / TRANSPARENCY</span>
-            <p>{liveryText("clarity_aside", "Contribution amounts and any Quest match are recorded through payout operations. The Quest does not automatically transfer funds to nonprofits.")}</p>
+            <p>{liveryText("clarity_aside", "Contribution amounts and the corresponding dollar-for-dollar Quest match are recorded through payout operations. The Quest does not automatically transfer funds to nonprofits.")}</p>
             <Link href="/competitions" className="quest-np-text-link" data-testid="link-nonprofits-competitions">
               Explore competitions <ArrowRight size={16} aria-hidden="true" />
             </Link>

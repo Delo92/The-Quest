@@ -4,6 +4,7 @@ import { getFirestore } from "./firebase-admin";
 import type { CompetitionStage } from "../shared/schema";
 import { normalizeNominationPromoCodes } from "./nomination-promos";
 import type { NominationPromoCode } from "../shared/nomination-promos";
+import { nextReferralUsageCount } from "./referral-code-notification";
 
 const COLLECTIONS = {
   USERS: "users",
@@ -208,6 +209,7 @@ export interface FirestoreReferralStats {
   ownerName: string;
   totalVotesDriven: number;
   uniqueVoters: number;
+  totalUses?: number;
   voterIps: string[];
   updatedAt: admin.firestore.Timestamp;
 }
@@ -1901,6 +1903,7 @@ export const firestoreReferrals = {
       ownerName,
       totalVotesDriven: 0,
       uniqueVoters: 0,
+      totalUses: 0,
       voterIps: [],
       updatedAt: now(),
     });
@@ -1952,7 +1955,24 @@ export const firestoreReferrals = {
     return snapshot.docs.map(doc => doc.data() as FirestoreReferralStats);
   },
 
-  async trackReferralVote(refCode: string, voterIp: string, voteCount: number = 1): Promise<void> {
+  async trackReferralCodeUse(refCode: string): Promise<number | null> {
+    const referral = await this.resolveCode(refCode);
+    if (!referral) return null;
+
+    const statsRef = db().collection(COLLECTIONS.REFERRAL_STATS).doc(referral.code);
+    return db().runTransaction(async (transaction) => {
+      const statsDoc = await transaction.get(statsRef);
+      if (!statsDoc.exists) return null;
+
+      const data = statsDoc.data() as FirestoreReferralStats;
+      const totalUses = nextReferralUsageCount(data.totalUses, data.uniqueVoters);
+
+      transaction.update(statsRef, { totalUses, updatedAt: now() });
+      return totalUses;
+    });
+  },
+
+  async trackReferralVote(refCode: string, voterIp: string, voteCount: number = 1): Promise<number | null> {
     let activeCode = refCode;
     try {
       const resolved = await this.resolveCode(refCode);
@@ -1960,19 +1980,26 @@ export const firestoreReferrals = {
     } catch {}
 
     const statsRef = db().collection(COLLECTIONS.REFERRAL_STATS).doc(activeCode);
-    const statsDoc = await statsRef.get();
-    if (!statsDoc.exists) return;
-    const data = statsDoc.data() as FirestoreReferralStats;
-    const isNewVoter = !data.voterIps.includes(voterIp);
-    const updates: any = {
-      totalVotesDriven: admin.firestore.FieldValue.increment(voteCount),
-      updatedAt: now(),
-    };
-    if (isNewVoter) {
-      updates.uniqueVoters = admin.firestore.FieldValue.increment(1);
-      updates.voterIps = admin.firestore.FieldValue.arrayUnion(voterIp);
-    }
-    await statsRef.update(updates);
+    return db().runTransaction(async (transaction) => {
+      const statsDoc = await transaction.get(statsRef);
+      if (!statsDoc.exists) return null;
+
+      const data = statsDoc.data() as FirestoreReferralStats;
+      const voterIps = Array.isArray(data.voterIps) ? data.voterIps : [];
+      const isNewVoter = !voterIps.includes(voterIp);
+      const totalUses = nextReferralUsageCount(data.totalUses, data.uniqueVoters);
+      const updates: Record<string, any> = {
+        totalVotesDriven: admin.firestore.FieldValue.increment(voteCount),
+        totalUses,
+        updatedAt: now(),
+      };
+      if (isNewVoter) {
+        updates.uniqueVoters = admin.firestore.FieldValue.increment(1);
+        updates.voterIps = admin.firestore.FieldValue.arrayUnion(voterIp);
+      }
+      transaction.update(statsRef, updates);
+      return totalUses;
+    });
   },
 
   async updateCode(
@@ -2036,6 +2063,7 @@ export const firestoreReferrals = {
           ownerName: updated.ownerName,
           totalVotesDriven: 0,
           uniqueVoters: 0,
+          totalUses: 0,
           voterIps: [],
           updatedAt: now(),
         });

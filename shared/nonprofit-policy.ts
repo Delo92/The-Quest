@@ -73,57 +73,24 @@ export type PlatformMatchAllocation = PlatformMatchSource & {
 };
 
 /**
- * The Quest matches each participant's actual nonprofit contribution
- * dollar-for-dollar. Matches use The Quest's available share and are never
- * greater than either that share or the participant's contribution.
+ * The Quest is required to match each participant's actual nonprofit
+ * contribution dollar-for-dollar.
  */
 export function calculatePlatformMatchAllocations(
   sources: PlatformMatchSource[],
-  availablePlatformShareCents: number,
 ): PlatformMatchAllocation[] {
-  if (!Number.isFinite(availablePlatformShareCents) || availablePlatformShareCents <= 0) {
-    return [];
-  }
-
-  const eligible = sources
+  return sources
     .map((source) => {
       const contributionCents = Math.max(0, Math.round(Number(source.contributionCents) || 0));
-      return { ...source, contributionCents, requestedCents: contributionCents };
+      return { ...source, contributionCents };
     })
     .filter((source) =>
       source.sourceId
       && source.nonprofitName.trim()
       && source.contributionCents > 0
-      && source.requestedCents > 0,
-    );
-
-  const requestedTotal = eligible.reduce((sum, source) => sum + source.requestedCents, 0);
-  const platformBudget = Math.max(0, Math.round(availablePlatformShareCents));
-  const matchTotal = Math.min(requestedTotal, platformBudget);
-  if (!matchTotal || !requestedTotal) return [];
-  if (matchTotal === requestedTotal) {
-    return eligible.map(({ requestedCents, ...source }) => ({ ...source, matchCents: requestedCents }));
-  }
-
-  const shares = eligible.map((source) => {
-    const exact = source.requestedCents * matchTotal / requestedTotal;
-    return { source, cents: Math.floor(exact), remainder: exact - Math.floor(exact) };
-  });
-  let unassigned = matchTotal - shares.reduce((sum, share) => sum + share.cents, 0);
-  shares
-    .sort((a, b) => b.remainder - a.remainder || a.source.sourceId.localeCompare(b.source.sourceId))
-    .forEach((share) => {
-      if (unassigned > 0 && share.cents < share.source.requestedCents) {
-        share.cents += 1;
-        unassigned -= 1;
-      }
-    });
-
-  return shares
-    .filter((share) => share.cents > 0)
-    .map(({ source, cents }) => {
-      const { requestedCents: _requestedCents, ...matchSource } = source;
-      return { ...matchSource, matchCents: cents };
-    })
-    .sort((a, b) => a.sourceId.localeCompare(b.sourceId));
+    )
+    .map((source) => ({
+      ...source,
+      matchCents: source.contributionCents,
+    }));
 }

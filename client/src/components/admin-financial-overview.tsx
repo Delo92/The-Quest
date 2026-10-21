@@ -199,7 +199,7 @@ export default function AdminFinancialOverview({
         <div>
           <span className="block text-[10px] uppercase tracking-wider text-white/40">The Quest’s dollar-for-dollar matches</span>
           <strong className="mt-1 block text-sm tabular-nums text-orange-200">{money(data.summary.platformMatchDueCents)}</strong>
-          <span className="text-[10px] text-white/35">Equal to participant contributions, limited by The Quest’s available share</span>
+          <span className="text-[10px] text-white/35">Equal to the full amount of participant contributions</span>
         </div>
       </div>
 
@@ -208,7 +208,7 @@ export default function AdminFinancialOverview({
           <div>
             <h3 className="text-sm font-semibold text-white">The Quest’s match recipients</h3>
             <p className="mt-1 text-xs text-white/45">
-              The Quest matches each contestant’s or host’s nonprofit contribution dollar-for-dollar from its available share.
+              The Quest matches each contestant’s or host’s nonprofit contribution dollar-for-dollar.
             </p>
           </div>
           <strong className="text-sm tabular-nums text-orange-200">{money(data.summary.platformMatchDueCents)} total</strong>

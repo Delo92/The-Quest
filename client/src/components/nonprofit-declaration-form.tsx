@@ -93,7 +93,7 @@ export default function NonprofitDeclarationForm({
             You can save this declaration in stages; prize payments remain on hold until you name a nonprofit and acknowledge your contribution. The rate defaults to 10% if you leave it unset.
           </p>
           <p className="mt-2 text-xs leading-relaxed text-orange-100/70">
-            The 10% default is a contribution rate, not a default nonprofit. Choose the organization you want to receive your contribution; The Quest matches that same dollar amount from its available share.
+            The 10% default is a contribution rate, not a default nonprofit. Choose the organization you want to receive your contribution; The Quest matches that same dollar amount dollar-for-dollar.
           </p>
         </div>
       </div>

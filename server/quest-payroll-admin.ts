@@ -374,7 +374,6 @@ async function buildFinancialOverview() {
             contributionCents: numericCents(entry.nonprofitCents),
           };
         }),
-      platformShareCents,
     );
     const platformMatchDueCents = platformMatchAllocations.reduce((sum, allocation) => sum + allocation.matchCents, 0);
     const charityShareCents = charityAllocationCents(compTransactions, compLedger);
