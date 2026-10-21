@@ -1609,14 +1609,14 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} vote donations · {competition.paidVoting.purchasedVoteCount} donation-supported votes</p></div><div className="grid grid-cols-2 gap-3 text-left sm:grid-cols-4 sm:text-right"><span className="text-xs text-white/40">Vote donations<b className="mt-1 block text-sm text-white">${((Number(competition.paidVoting.revenueCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Host<b className="mt-1 block text-sm text-orange-200">${((Number(competition.hostShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Recorded charity<b className="mt-1 block text-sm text-white">${((Number(competition.charityShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Est. at current rates<b className="mt-1 block text-sm text-orange-200">{competition.estimatedCharityShareCents == null ? "—" : `$${(Number(competition.estimatedCharityShareCents) / 100).toFixed(2)}`}</b></span></div></div>
                     {Number(competition.paidVoting.revenueCents || 0) > 0 && Number(competition.hostShareCents || 0) === 0 && (
                       <p className="mt-3 rounded-lg border border-orange-400/20 bg-orange-400/[0.05] px-3 py-2 text-xs leading-relaxed text-white/65">
-                        Paid vote sales are recorded. Host and contestant payout amounts are calculated when the event is finalized, so they show $0.00 until then.
+                        Vote donations are recorded. Host and contestant payout amounts are calculated when the event is finalized, so they show $0.00 until then.
                       </p>
                     )}
                     {competition.contestants?.length > 0 && (
                       <div className="mt-4 border-t border-white/10 pt-3">
                         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 gap-y-2 text-xs tabular-nums">
                           <span className="text-[10px] uppercase tracking-wider text-white/40">Contestant</span>
-                          <span className="text-right text-[10px] uppercase tracking-wider text-white/40">Paid votes</span>
+                          <span className="text-right text-[10px] uppercase tracking-wider text-white/40">Donation-supported votes</span>
                           <span className="text-right text-[10px] uppercase tracking-wider text-white/40">Paid sales</span>
                           <span className="text-right text-[10px] uppercase tracking-wider text-white/40">Payout</span>
                           {competition.contestants.map((contestant: any) => (

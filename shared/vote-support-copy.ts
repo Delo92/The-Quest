@@ -6,13 +6,17 @@
 export function normalizeVoteSupportCopy(value: string): string {
   return value
     .replace(/\bVote Package Purchases?\b/gi, "Vote Donations")
-    .replace(/\bpaid vote packages?\b/gi, "vote donation options")
+    .replace(/\bpaid vote packages?\s+(?:can|may)\s+be\s+purchased\b/gi, (match) =>
+      match[0] === "P" ? "Donations can be made to support votes" : "donations can be made to support votes")
+    .replace(/\bpaid vote packages?\b/gi, (match) =>
+      match[0] === "P" ? "Vote donation options" : "vote donation options")
     .replace(/\bvote packages?\s+(?:can|may)\s+be\s+purchased\b/gi, "donations can be made to support votes")
     .replace(/\bvote packages?\s+are available for purchase\b/gi, "vote donation options are available")
     .replace(/\bvote packages?\b/gi, "vote donation options")
     .replace(/\bvote packs?\b/gi, "vote donations")
     .replace(/\bvote purchases\b/gi, "vote donations")
-    .replace(/\bpaid vote contributions?\b/gi, "vote donations")
+    .replace(/\bpaid vote contributions?\b/gi, (match) =>
+      match[0] === "P" ? "Vote donations" : "vote donations")
     .replace(/\bpaid voting\b/gi, "vote donations")
     .replace(/\bpurchased votes\b/gi, "votes supported by donations")
     .replace(/\bpaid votes?\b/gi, (match) =>

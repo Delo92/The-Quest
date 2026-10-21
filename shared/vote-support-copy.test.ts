@@ -8,7 +8,7 @@ test("legacy vote-sale copy is expressed as vote donations", () => {
   );
   assert.equal(
     result,
-    "Vote donations are final once processed. donations can be made to support votes. How can I support voting with a donation?",
+    "Vote donations are final once processed. Donations can be made to support votes. How can I support voting with a donation?",
   );
 });
 

@@ -594,7 +594,7 @@ export default function LoginPage() {
                 htmlFor="competition-entry-fees-acknowledged"
                 className="cursor-pointer text-sm font-normal leading-relaxed text-white/75"
               >
-                I understand that being nominated or entering competitions may require a nomination or registration fee.
+                I understand that being nominated or entering competitions may require a registration donation.
               </Label>
             </div>
           )}

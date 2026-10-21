@@ -58,3 +58,4 @@
 - [Public app demo](public-app-demo.md) — verified real media must match identities; keep metrics fictional, allow muted visible-only autoplay, and block writes.
 - [Host contestant admin](host-contestant-admin.md) — hosts reuse admin profile dialog scoped to own events; phone kept in private collection; Competitor URL aliases talent page
 - [Promo videos and Vimeo hash](promo-videos-vimeo-hash.md) — resolve ?h= server-side on save; host role cannot call the admin lookup
+- [TypeScript check memory limit](typecheck-memory-limit.md) — broad root checks can exceed the default Node heap; use focused tests and module transforms when that happens
