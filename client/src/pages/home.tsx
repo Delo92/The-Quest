@@ -40,6 +40,7 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
             <a href="#home" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Home</a>
             <a href="#feature" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Features</a>
             <a href="#about" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">About</a>
+            <a href="/thequest/NonProfits" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors" data-testid="link-header-nonprofits">Nonprofits</a>
             <a href="#contact" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Contact</a>
           </nav>
 
@@ -54,9 +55,10 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
 
       {menuOpen && (
         <div className="md:hidden bg-black/95 border-t border-white/10 px-4 py-4 space-y-1">
-          {[["#home", "Home"], ["#feature", "Features"], ["#about", "About"], ["#contact", "Contact"]].map(([href, label]) => (
+          {[["#home", "Home"], ["#feature", "Features"], ["#about", "About"], ["/thequest/NonProfits", "Nonprofits"], ["#contact", "Contact"]].map(([href, label]) => (
             <a key={href} href={href} onClick={() => setMenuOpen(false)}
-              className="block py-2 text-white font-semibold uppercase tracking-wider text-sm hover:text-[var(--cbp-brand)]">{label}</a>
+              className="block py-2 text-white font-semibold uppercase tracking-wider text-sm hover:text-[var(--cbp-brand)]"
+              data-testid={label === "Nonprofits" ? "link-mobile-nonprofits" : undefined}>{label}</a>
           ))}
           <a href="/thequest" className="block py-2 text-[var(--cbp-brand)] font-bold uppercase tracking-wider text-sm">
             The Quest →

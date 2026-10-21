@@ -1,4 +1,5 @@
 import { normalizePromoVideos, withVimeoAccessHashes } from "./promo-videos";
+import { randomUUID } from "crypto";
 import type { Express, Request, Response } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServer, type Server } from "http";
@@ -17,6 +18,13 @@ import { normalizeImageCropPositions } from "./image-crop";
 import { getCompetitionNominationFeeCents } from "../shared/nomination-fee";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "../shared/image-crop";
 import { formatNominationPromoDiscount } from "../shared/nomination-promos";
+import {
+  collectPublicNonprofitOrganizations,
+  FEATURED_NONPROFIT_ORGANIZATIONS,
+  nonprofitLogoLiveryDefault,
+  nonprofitLogoMediaKey,
+  nonprofitPageTextLiveryDefaults,
+} from "../shared/nonprofit-page";
 import { escapeXml, getPublicOrigin } from "./share-meta";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
@@ -518,6 +526,54 @@ const liveryUpload = multer({
 
 function isVideoFile(filename: string): boolean {
   return /\.(mp4|webm|mov)$/i.test(filename);
+}
+
+function nonprofitGalleryEmbedUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return null;
+    const host = url.hostname.toLowerCase();
+
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      return id && /^[A-Za-z0-9_-]{6,}$/.test(id)
+        ? `https://www.youtube-nocookie.com/embed/${id}`
+        : null;
+    }
+
+    if (["youtube.com", "www.youtube.com", "m.youtube.com"].includes(host)) {
+      const id = url.searchParams.get("v")
+        || url.pathname.match(/^\/embed\/([A-Za-z0-9_-]{6,})/)?.[1];
+      return id && /^[A-Za-z0-9_-]{6,}$/.test(id)
+        ? `https://www.youtube-nocookie.com/embed/${id}`
+        : null;
+    }
+
+    if (["vimeo.com", "www.vimeo.com", "player.vimeo.com"].includes(host)) {
+      const match = url.pathname.match(/(?:^|\/)(?:video\/)?(\d+)(?:\/([^/]+))?/);
+      if (!match) return null;
+      const embed = new URL(`https://player.vimeo.com/video/${match[1]}`);
+      const accessHash = url.searchParams.get("h") || match[2];
+      if (accessHash && /^[A-Za-z0-9]+$/.test(accessHash)) embed.searchParams.set("h", accessHash);
+      return embed.href;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function nonprofitGalleryStoragePath(downloadUrl: string): string | null {
+  try {
+    const url = new URL(downloadUrl);
+    if (url.hostname !== "firebasestorage.googleapis.com") return null;
+    const match = url.pathname.match(/\/o\/([^/]+)$/);
+    if (!match) return null;
+    const decoded = decodeURIComponent(match[1]);
+    return decoded.startsWith("nonprofit-gallery/") ? decoded : null;
+  } catch {
+    return null;
+  }
 }
 
 function readOptionalVideoTitle(value: unknown): { title: string; error?: string } {
@@ -2617,6 +2673,7 @@ export async function registerRoutes(
       userId: uid,
       role: "talent",
     });
+    if (profile.nonprofitDeclaration) invalidatePublicResponseCache("livery");
     res.status(201).json(profile);
   });
 
@@ -2687,6 +2744,7 @@ export async function registerRoutes(
     const updated = await storage.updateTalentProfile(uid, profileData);
     if (!updated) return res.status(404).json({ message: "Profile not found" });
     if (contactUpdate) await savePrivateContact(uid, contactUpdate);
+    if (safeData.nonprofitDeclaration !== undefined) invalidatePublicResponseCache("livery");
     res.json({ ...updated, ...(await getPrivateContact(uid)) });
   });
 
@@ -7736,10 +7794,172 @@ export async function registerRoutes(
     res.json({ ok: true, sent });
   });
 
+  async function nonprofitLiveryDefault(imageKey: string) {
+    const textItem = nonprofitPageTextLiveryDefaults().find((item) => item.imageKey === imageKey);
+    if (textItem) return textItem;
+
+    const profiles = await storage.getAllTalentProfiles();
+    const organizationNames = new Set<string>([
+      ...FEATURED_NONPROFIT_ORGANIZATIONS.map((organization) => organization.name),
+      ...collectPublicNonprofitOrganizations(profiles).map((organization) => organization.name),
+    ]);
+    const organization = [...organizationNames].find((name) => nonprofitLogoMediaKey(name) === imageKey);
+    return organization ? nonprofitLogoLiveryDefault(organization) : null;
+  }
+
+  async function ensureAdminNonprofitLiverySlot(
+    imageKey: string,
+    itemType: "media" | "text",
+  ) {
+    const existing = await storage.getLiveryByKey(imageKey);
+    if (existing) return existing;
+    const fallback = await nonprofitLiveryDefault(imageKey);
+    if (!fallback || fallback.itemType !== itemType) return null;
+    return storage.upsertLivery(fallback);
+  }
+
+  app.get("/api/nonprofits/public", async (_req, res) => {
+    try {
+      const profiles = await storage.getAllTalentProfiles();
+      res.setHeader("Cache-Control", "no-store");
+      res.json(collectPublicNonprofitOrganizations(profiles));
+    } catch (error: any) {
+      console.error("Public nonprofit roster error:", error);
+      res.status(500).json({ message: "Could not load the nonprofit roster" });
+    }
+  });
+
+  app.get("/api/nonprofits/gallery", async (_req, res) => {
+    try {
+      const items = await storage.getAllLivery();
+      const gallery = items
+        .filter((item) => item.itemType === "gallery" && Boolean(item.imageUrl))
+        .map((item) => ({
+          id: item.imageKey,
+          title: item.galleryTitle || item.label,
+          caption: item.galleryCaption || null,
+          organizationName: item.organizationName || null,
+          mediaUrl: item.imageUrl!,
+          mediaType: item.mediaType === "video" ? "video" as const : "image" as const,
+          embedUrl: item.mediaType === "video" ? nonprofitGalleryEmbedUrl(item.imageUrl!) : null,
+          createdAt: item.createdAt || "",
+        }))
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      setPublicCacheHeaders(res, 30);
+      res.json(gallery);
+    } catch (error: any) {
+      console.error("Public nonprofit gallery error:", error);
+      res.status(500).json({ message: "Could not load the nonprofit gallery" });
+    }
+  });
+
   app.get("/api/livery", async (_req, res) => {
-    const items = await getCachedPublicResponse("livery", 5 * 60_000, () => storage.getAllLivery());
+    const items = await getCachedPublicResponse("livery", 5 * 60_000, async () => {
+      const [savedItems, profiles] = await Promise.all([
+        storage.getAllLivery(),
+        storage.getAllTalentProfiles(),
+      ]);
+      const organizationNames = new Set<string>([
+        ...FEATURED_NONPROFIT_ORGANIZATIONS.map((organization) => organization.name),
+        ...collectPublicNonprofitOrganizations(profiles).map((organization) => organization.name),
+      ]);
+      const defaults = [
+        ...nonprofitPageTextLiveryDefaults(),
+        ...[...organizationNames].map(nonprofitLogoLiveryDefault),
+      ];
+      const byKey = new Map(defaults.map((item) => [item.imageKey, item]));
+      for (const item of savedItems) byKey.set(item.imageKey, item);
+      return [...byKey.values()].sort((left, right) => left.label.localeCompare(right.label));
+    });
     setPublicCacheHeaders(res, 60);
     res.json(items);
+  });
+
+  app.post("/api/admin/nonprofits/gallery", firebaseAuth, requireAdmin, liveryUpload.single("image"), async (req, res) => {
+    try {
+      const title = typeof req.body.title === "string" ? req.body.title.trim().slice(0, 120) : "";
+      const caption = typeof req.body.caption === "string" ? req.body.caption.trim().slice(0, 600) : "";
+      const organizationName = typeof req.body.organizationName === "string"
+        ? req.body.organizationName.trim().replace(/\s+/g, " ").slice(0, 180)
+        : "";
+      if (!title) return res.status(400).json({ message: "A gallery title is required." });
+
+      const galleryId = `nonprofit_gallery_${randomUUID()}`;
+      let mediaUrl = "";
+      let mediaType: "image" | "video";
+
+      if (req.file) {
+        if (req.file.size > 35 * 1024 * 1024) {
+          return res.status(413).json({ message: "Gallery uploads must be 35 MB or smaller." });
+        }
+        const ext = path.extname(req.file.originalname).toLowerCase();
+        const video = isVideoFile(req.file.originalname);
+        const allowedImages = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+        const allowedVideos = [".mp4", ".webm", ".mov"];
+        if (video ? !allowedVideos.includes(ext) : !allowedImages.includes(ext)) {
+          return res.status(415).json({ message: "Upload a JPG, PNG, GIF, WebP, MP4, WebM, or MOV file." });
+        }
+        if (video ? !req.file.mimetype.startsWith("video/") : !req.file.mimetype.startsWith("image/")) {
+          return res.status(415).json({ message: "The uploaded file type does not match its contents." });
+        }
+        mediaType = video ? "video" : "image";
+        const storagePath = `nonprofit-gallery/${randomUUID()}${ext}`;
+        mediaUrl = await uploadToFirebaseStorage(storagePath, req.file.buffer, req.file.mimetype);
+      } else {
+        const videoUrl = typeof req.body.videoUrl === "string" ? req.body.videoUrl.trim() : "";
+        if (!videoUrl || videoUrl.length > 2048 || !nonprofitGalleryEmbedUrl(videoUrl)) {
+          return res.status(400).json({ message: "Upload an image or video, or provide a valid Vimeo or YouTube video URL." });
+        }
+        mediaType = "video";
+        mediaUrl = videoUrl;
+      }
+
+      const item = await storage.upsertLivery({
+        imageKey: galleryId,
+        label: title,
+        imageUrl: mediaUrl,
+        defaultUrl: "",
+        mediaType,
+        itemType: "gallery",
+        galleryTitle: title,
+        galleryCaption: caption || null,
+        organizationName: organizationName || null,
+        createdAt: new Date().toISOString(),
+      });
+      invalidatePublicResponseCache("livery");
+      setPublicCacheHeaders(res, 0);
+      res.status(201).json({
+        id: item.imageKey,
+        title: item.galleryTitle || item.label,
+        caption: item.galleryCaption || null,
+        organizationName: item.organizationName || null,
+        mediaUrl: item.imageUrl,
+        mediaType: item.mediaType,
+        embedUrl: item.mediaType === "video" ? nonprofitGalleryEmbedUrl(item.imageUrl || "") : null,
+        createdAt: item.createdAt || "",
+      });
+    } catch (error: any) {
+      console.error("Admin nonprofit gallery upload error:", error);
+      res.status(500).json({ message: "Could not add this item to the nonprofit gallery." });
+    }
+  });
+
+  app.delete("/api/admin/nonprofits/gallery/:imageKey", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const imageKey = req.params.imageKey;
+      const existing = await storage.getLiveryByKey(imageKey);
+      if (!existing || existing.itemType !== "gallery") {
+        return res.status(404).json({ message: "Gallery item not found." });
+      }
+      const storagePath = nonprofitGalleryStoragePath(existing.imageUrl || "");
+      if (storagePath) await deleteFromFirebaseStorage(storagePath);
+      await storage.deleteLiverySlot(imageKey);
+      invalidatePublicResponseCache("livery");
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Admin nonprofit gallery delete error:", error);
+      res.status(500).json({ message: "Could not remove this gallery item." });
+    }
   });
 
   app.get("/dynamic-favicon", async (_req, res) => {
@@ -7758,8 +7978,10 @@ export async function registerRoutes(
 
   app.put("/api/admin/livery/:imageKey", firebaseAuth, requireAdmin, liveryUpload.single("image"), async (req, res) => {
     const { imageKey } = req.params;
-    const existing = await storage.getLiveryByKey(imageKey);
-    if (!existing) return res.status(404).json({ message: "Livery item not found" });
+    const existing = await storage.getLiveryByKey(imageKey) || await ensureAdminNonprofitLiverySlot(imageKey, "media");
+    if (!existing || existing.itemType === "text" || existing.itemType === "gallery") {
+      return res.status(404).json({ message: "Livery media item not found" });
+    }
 
     let imageUrl: string | null = null;
     let mediaType: "image" | "video" = "image";
@@ -7791,8 +8013,10 @@ export async function registerRoutes(
       const { imageKey } = req.params;
       const { fileSize } = req.body;
       if (!fileSize) return res.status(400).json({ message: "fileSize is required" });
-      const existing = await storage.getLiveryByKey(imageKey);
-      if (!existing) return res.status(404).json({ message: "Livery item not found" });
+      const existing = await storage.getLiveryByKey(imageKey) || await ensureAdminNonprofitLiverySlot(imageKey, "media");
+      if (!existing || existing.itemType === "text" || existing.itemType === "gallery") {
+        return res.status(404).json({ message: "Livery media item not found" });
+      }
       const label = (existing as any).label || imageKey;
       const ticket = await createAdminLiveryUploadTicket(label, fileSize);
       res.json(ticket);
@@ -7816,8 +8040,10 @@ export async function registerRoutes(
   app.put("/api/admin/livery/:imageKey/url", firebaseAuth, requireAdmin, async (req, res) => {
     const { imageKey } = req.params;
     const { url } = req.body;
-    const existing = await storage.getLiveryByKey(imageKey);
-    if (!existing) return res.status(404).json({ message: "Livery item not found" });
+    const existing = await storage.getLiveryByKey(imageKey) || await ensureAdminNonprofitLiverySlot(imageKey, "media");
+    if (!existing || existing.itemType === "text" || existing.itemType === "gallery") {
+      return res.status(404).json({ message: "Livery media item not found" });
+    }
     if (imageKey === "hero_background" && url && !/(?:player\.)?vimeo\.com\/(?:video\/)?\d+/i.test(url)) {
       return res.status(400).json({ message: "The Quest hero requires a valid Vimeo URL" });
     }
@@ -7830,8 +8056,10 @@ export async function registerRoutes(
   app.put("/api/admin/livery/:imageKey/text", firebaseAuth, requireAdmin, async (req, res) => {
     const { imageKey } = req.params;
     const { textContent } = req.body;
-    const existing = await storage.getLiveryByKey(imageKey);
-    if (!existing) return res.status(404).json({ message: "Livery item not found" });
+    const existing = await storage.getLiveryByKey(imageKey) || await ensureAdminNonprofitLiverySlot(imageKey, "text");
+    if (!existing || existing.itemType !== "text") {
+      return res.status(404).json({ message: "Livery text item not found" });
+    }
     const updated = await storage.updateLiveryText(imageKey, textContent ?? null);
     invalidatePublicResponseCache("livery");
     res.json(updated);
@@ -8434,6 +8662,7 @@ export async function registerRoutes(
       if (Object.keys(profileUpdate).length > 0) {
         await storage.updateTalentProfile(uid, profileUpdate);
       }
+      if (nonprofitDeclaration !== undefined) invalidatePublicResponseCache("livery");
 
       const firestoreUser = await getFirestoreUser(uid);
       const profile = await storage.getTalentProfileByUserId(uid);

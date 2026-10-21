@@ -68,7 +68,7 @@ export default function AboutPage() {
   const givingTitle = getText("about_giving_title", "Talent That Gives Back");
   const givingText = normalizeVoteSupportCopy(getText(
     "about_giving_text",
-    "Contestants and hosts select an eligible nonprofit for their own contribution. Voters can learn how paid voting and the nonprofit program work on our dedicated nonprofit page."
+    "Contestants and hosts select an eligible nonprofit for their own contribution. Voters can learn how vote donations and the nonprofit program work on our dedicated nonprofit page."
   ));
 
   const socialFacebook = getText("social_facebook", "");
@@ -166,7 +166,7 @@ export default function AboutPage() {
             </div>
           </div>
           <p className="mt-6 border-t border-white/10 pt-4 text-xs leading-relaxed text-white/40">
-            For live events, The Quest works as an on-site point of sale for audience voting: attendees scan the event QR code to vote, and available paid vote packages use the platform checkout.
+            For live events, The Quest works as an on-site point of sale for audience voting: attendees scan the event QR code to vote, and vote donations use The Quest checkout.
           </p>
         </section>
 

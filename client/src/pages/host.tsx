@@ -512,7 +512,7 @@ export default function HostPage() {
             <div>
               <QrCode className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />
               <h4 className="mt-2 text-xs font-bold uppercase tracking-wider text-white">Use The Quest as your voting POS</h4>
-              <p className="mt-1 text-xs leading-relaxed text-white/50">Display your event QR code at the venue. Attendees scan it to vote on their phones; paid vote packages use The Quest checkout.</p>
+              <p className="mt-1 text-xs leading-relaxed text-white/50">Display your event QR code at the venue. Attendees scan it to vote on their phones; vote donations are received by The Quest through its checkout.</p>
             </div>
             <div>
               <BarChart3 className="h-5 w-5 text-[#FF5A09]" aria-hidden="true" />

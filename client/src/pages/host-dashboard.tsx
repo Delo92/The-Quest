@@ -169,7 +169,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
                 <p className="text-xs text-white/55 tabular-nums">{free.toLocaleString()} free · {paid.toLocaleString()} paid</p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-white/40">Paid vote sales</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/40">Vote donations</p>
                 <p className="text-2xl font-bold text-green-400">{money(voteRevenue)}</p>
                 <p className="text-xs text-white/55 tabular-nums">{report?.totalPurchases ?? 0} vote contribution{(report?.totalPurchases ?? 0) === 1 ? "" : "s"} · {paid.toLocaleString()} votes</p>
               </div>
@@ -183,7 +183,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
               </div>
             </div>
             {total > 0 && (
-              <div className="mt-4" role="img" aria-label={`${free} free votes and ${paid} paid votes`}>
+              <div className="mt-4" role="img" aria-label={`${free} free votes and ${paid} donation-supported votes`}>
                 <div className="flex h-2 overflow-hidden rounded-full bg-white/5">
                   <div className="h-full bg-blue-400" style={{ width: `${(free / total) * 100}%` }} />
                   <div className="h-full bg-orange-400" style={{ width: `${(paid / total) * 100}%` }} />
@@ -222,7 +222,7 @@ function EventAnalyticsCard({ comp }: { comp: HostCompetition }) {
                   </tbody>
                 </table>
                 <p className="mt-3 text-[11px] text-white/45">
-                  Standings are ranked by points ({report.totalVotes.toLocaleString()} total): each free vote counts {report.freeVoteMultiplier ?? 60} points and each paid vote counts 1.
+                  Standings are ranked by points ({report.totalVotes.toLocaleString()} total): each free vote counts {report.freeVoteMultiplier ?? 60} points and each donation-supported vote counts 1.
                 </p>
               </div>
             )}
@@ -1581,12 +1581,12 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-orange-300/80">Host financials</p>
                 <h2 className="mt-1 font-serif text-2xl font-bold">Competition earnings</h2>
-                <p className="mt-2 text-sm text-white/45">Review paid voting income, your recorded host share, contestant earnings, charity allocations, and pending payout items for your competitions.</p>
+                <p className="mt-2 text-sm text-white/45">Review vote donation income, your recorded host share, contestant earnings, charity allocations, and pending payout items for your competitions.</p>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   ["Host share", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.hostShareCents || 0), 0)],
-                  ["Paid voting", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.paidVoting?.revenueCents || 0), 0)],
+                  ["Vote donations", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.paidVoting?.revenueCents || 0), 0)],
                   ["Pending payouts", financialOverview?.pendingPayouts?.reduce((sum: number, item: any) => sum + Number(item.netCents || 0), 0)],
                   ["Contestant share", financialOverview?.competitions?.reduce((sum: number, item: any) => sum + Number(item.contestantShareCents || 0), 0)],
                 ].map(([label, cents]) => <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.04] p-4"><p className="text-xl font-semibold tabular-nums text-white">${((Number(cents || 0) / 100)).toFixed(2)}</p><p className="mt-1 text-xs text-white/40">{label}</p></div>)}
@@ -1606,7 +1606,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
               <div className="space-y-2">
                 {(financialOverview?.competitions || []).map((competition: any) => (
                   <div key={competition.competitionId} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} vote contributions · {competition.paidVoting.purchasedVoteCount} paid votes</p></div><div className="grid grid-cols-2 gap-3 text-left sm:grid-cols-4 sm:text-right"><span className="text-xs text-white/40">Voting<b className="mt-1 block text-sm text-white">${((Number(competition.paidVoting.revenueCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Host<b className="mt-1 block text-sm text-orange-200">${((Number(competition.hostShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Recorded charity<b className="mt-1 block text-sm text-white">${((Number(competition.charityShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Est. at current rates<b className="mt-1 block text-sm text-orange-200">{competition.estimatedCharityShareCents == null ? "—" : `$${(Number(competition.estimatedCharityShareCents) / 100).toFixed(2)}`}</b></span></div></div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{competition.title}</p><p className="mt-1 text-xs text-white/40">{competition.paidVoting.purchaseCount} vote donations · {competition.paidVoting.purchasedVoteCount} donation-supported votes</p></div><div className="grid grid-cols-2 gap-3 text-left sm:grid-cols-4 sm:text-right"><span className="text-xs text-white/40">Vote donations<b className="mt-1 block text-sm text-white">${((Number(competition.paidVoting.revenueCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Host<b className="mt-1 block text-sm text-orange-200">${((Number(competition.hostShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Recorded charity<b className="mt-1 block text-sm text-white">${((Number(competition.charityShareCents || 0) / 100)).toFixed(2)}</b></span><span className="text-xs text-white/40">Est. at current rates<b className="mt-1 block text-sm text-orange-200">{competition.estimatedCharityShareCents == null ? "—" : `$${(Number(competition.estimatedCharityShareCents) / 100).toFixed(2)}`}</b></span></div></div>
                     {Number(competition.paidVoting.revenueCents || 0) > 0 && Number(competition.hostShareCents || 0) === 0 && (
                       <p className="mt-3 rounded-lg border border-orange-400/20 bg-orange-400/[0.05] px-3 py-2 text-xs leading-relaxed text-white/65">
                         Paid vote sales are recorded. Host and contestant payout amounts are calculated when the event is finalized, so they show $0.00 until then.

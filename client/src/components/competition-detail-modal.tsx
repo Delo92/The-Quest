@@ -341,7 +341,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
   const handleSave = () => {
     const nominationFeeCents = nominationFee.trim() === "" ? null : Math.round(Number(nominationFee) * 100);
     if (nominationFeeCents !== null && (!Number.isSafeInteger(nominationFeeCents) || nominationFeeCents < 0)) {
-      toast({ title: "Invalid nomination fee", description: "Enter a valid non-negative amount.", variant: "destructive" });
+      toast({ title: "Invalid registration donation", description: "Enter a valid non-negative amount.", variant: "destructive" });
       return;
     }
     saveMutation.mutate({
@@ -756,7 +756,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
               </div>
               <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4 flex flex-col justify-between">
                 <span className="text-white/40 text-xs font-medium uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <BarChart3 className="w-3.5 h-3.5" /> Paid Vote Revenue
+                  <BarChart3 className="w-3.5 h-3.5" /> Vote Donation Total
                 </span>
                 <span className="text-2xl font-bold text-green-400/90">${voteRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
               </div>
@@ -838,7 +838,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                           </div>
 
                           <div className="space-y-1.5">
-                            <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Nomination / Registration Fee ($)</Label>
+                            <Label className="text-xs text-white/50 uppercase tracking-wider font-semibold">Registration Donation ($)</Label>
                             <Input
                               type="number"
                               step="0.01"
@@ -852,7 +852,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                             <p className="text-[10px] text-white/35">
                               {nominationFee.trim()
                                 ? `This competition charges $${Number(nominationFee || 0).toFixed(2)} per nomination.`
-                                : "Leave blank to use the site-wide nomination fee."}
+                                : "Leave blank to use the site-wide registration donation."}
                             </p>
                           </div>
 
@@ -922,7 +922,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                             <p className="text-sm text-white/80">${competition.voteCost}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Nomination Fee</p>
+                            <p className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Registration Donation</p>
                             <p className="text-sm text-white/80">
                               {competition.nominationFee == null
                                 ? "Site-wide default"

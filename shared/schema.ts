@@ -83,5 +83,9 @@ export interface SiteLivery {
   mediaType?: "image" | "video";
   textContent?: string | null;
   defaultText?: string | null;
-  itemType?: "media" | "text";
+  itemType?: "media" | "text" | "gallery";
+  galleryTitle?: string;
+  galleryCaption?: string | null;
+  organizationName?: string | null;
+  createdAt?: string;
 }

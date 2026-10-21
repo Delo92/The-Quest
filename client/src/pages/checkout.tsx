@@ -357,7 +357,7 @@ export default function CheckoutPage() {
         ? Boolean(paymentConfig.stripeConfigured && stripeCard?.stripe)
         : Boolean(paymentConfig && window.Accept);
     if (!paymentReady) {
-      toast({ title: "Payment system not ready. Please try again.", variant: "destructive" });
+      toast({ title: "Donation processing is unavailable. Please try again.", variant: "destructive" });
       return false;
     }
     return true;
@@ -447,13 +447,13 @@ export default function CheckoutPage() {
       if (tokenResponse.messages?.resultCode === "Error") {
         setProcessing(false);
         const errMsg = tokenResponse.messages.message[0]?.text || "Card tokenization failed";
-        toast({ title: "Payment Error", description: errMsg, variant: "destructive" });
+          toast({ title: "Donation Error", description: errMsg, variant: "destructive" });
         return;
       }
 
       if (!tokenResponse.opaqueData) {
         setProcessing(false);
-        toast({ title: "Payment Error", description: "Failed to tokenize card", variant: "destructive" });
+        toast({ title: "Donation Error", description: "Card details could not be securely prepared.", variant: "destructive" });
         return;
       }
 
@@ -639,9 +639,9 @@ export default function CheckoutPage() {
         </div>
 
         <div className="mb-8 border border-emerald-300/35 bg-emerald-950/35 p-4 text-sm leading-relaxed text-emerald-50/85" data-testid="vote-nonprofit-disclosure">
-          <p className="font-semibold text-emerald-100">Your contribution supports voting—and a nonprofit program.</p>
+          <p className="font-semibold text-emerald-100">Your vote donation is received by The Quest.</p>
           <p className="mt-2">
-            This payment is processed by The Quest to add votes; it is not sent directly to a nonprofit at checkout. Contestants and hosts choose an eligible nonprofit and allocate 1%–10% of their eligible earnings (10% by default). The Quest matches those recorded contributions dollar-for-dollar, subject to available funds. Recipient and amount are set through the participant payout process, not by this checkout.
+            This donation is received by The Quest to add votes; it is not sent directly to a nonprofit at checkout. Contestants and hosts choose an eligible nonprofit and allocate 1%–10% of their eligible earnings (10% by default). The Quest matches those recorded contributions dollar-for-dollar, subject to available funds. Recipient and amount are set through the participant payout process, not by this checkout.
           </p>
           <Link href="/NonProfits" className="mt-3 inline-flex min-h-9 items-center font-semibold text-emerald-200 underline decoration-emerald-200/50 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200" data-testid="link-checkout-nonprofits">
             See how nonprofit giving works
@@ -929,20 +929,20 @@ export default function CheckoutPage() {
               )}
               {codeError && <p className="mt-2 text-xs text-red-300" role="alert">{codeError}</p>}
               <p className="mt-2 text-xs text-white/45">
-                Discounts are deducted before payment; referrals track where votes came from without changing the total.
+                Discounts reduce the donation amount; referrals track where votes came from without changing the total.
               </p>
             </div>
           </div>
         </div>
 
         <div className="mb-10 border-t border-white/15 pt-8">
-          <CheckoutStepHeading number={3} title="Payment" hint={noPaymentDue ? "No card charge is due" : "Your card details stay secure"} />
+          <CheckoutStepHeading number={3} title="Donation details" hint={noPaymentDue ? "No donation balance is due" : "Your card details stay secure"} />
 
           <div className="space-y-4">
             {paymentConfig?.provider === "stripe" ? (
               noPaymentDue ? (
                 <p className="border border-green-400/25 bg-green-400/[0.06] px-4 py-3 text-sm text-green-200" role="status">
-                  Your discount covers this vote package. No card payment is needed.
+                  Your discount covers this vote donation. No additional donation is due.
                 </p>
               ) : (
                 <StripeCardField publishableKey={paymentConfig.stripePublishableKey || ""} onChange={setStripeCard} />
@@ -1100,8 +1100,8 @@ export default function CheckoutPage() {
 
         <p className="text-white/30 text-xs text-center mt-4">
           {noPaymentDue
-            ? "Your promo code covers the order; no card will be charged."
-            : "Payments processed securely via Quest’s Stripe account. Your card info never touches our servers."}
+            ? "Your promo code covers the vote donation; no additional donation is due."
+            : "Donations are processed securely by The Quest. Your card details never touch our servers."}
         </p>
 
         {showConfirmModal && (() => {
@@ -1130,7 +1130,7 @@ export default function CheckoutPage() {
               onConfirm={processCheckout}
               processing={processing}
               title="Confirm Vote Contribution"
-              description={noPaymentDue ? "Your promo code covers this contribution; no payment is due." : "Your payment adds votes and is not sent directly to a nonprofit. Please review the details before continuing."}
+              description={noPaymentDue ? "Your promo code covers this vote donation; no additional donation is due." : "Your donation adds votes and is received by The Quest, not sent directly to a nonprofit. Please review the details before continuing."}
               lineItems={lineItems}
               totalAmount={`$${total.toFixed(2)}`}
               confirmText={noPaymentDue ? "COMPLETE FREE VOTE SUPPORT" : `DONATE $${total.toFixed(2)} & VOTE`}

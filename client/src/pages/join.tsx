@@ -326,7 +326,7 @@ export default function JoinPage() {
           ? Boolean(paymentConfig.stripeConfigured && stripeLoaded && window.Stripe)
           : Boolean(paymentConfig && window.Accept);
       if (!ready) {
-        toast({ title: "Payment system not ready", variant: "destructive" });
+        toast({ title: "Donation processing is not ready", variant: "destructive" });
         return false;
       }
     }
@@ -402,7 +402,7 @@ export default function JoinPage() {
         await submitData(undefined, undefined, stripePaymentIntentId, undefined, ocPaymentId);
       } catch (error: any) {
         setProcessing(false);
-        toast({ title: "Stripe payment failed", description: error.message, variant: "destructive" });
+        toast({ title: "Donation could not be completed", description: error.message, variant: "destructive" });
       }
     } else if (needsPayment && paymentConfig?.provider === "paypal") {
       const paypalPayload = {
@@ -450,12 +450,12 @@ export default function JoinPage() {
       }, async (tokenResponse: any) => {
         if (tokenResponse.messages?.resultCode === "Error") {
           setProcessing(false);
-          toast({ title: "Payment Error", description: tokenResponse.messages.message[0]?.text, variant: "destructive" });
+          toast({ title: "Donation Error", description: tokenResponse.messages.message[0]?.text, variant: "destructive" });
           return;
         }
         if (!tokenResponse.opaqueData) {
           setProcessing(false);
-          toast({ title: "Payment Error", description: "Failed to tokenize card", variant: "destructive" });
+          toast({ title: "Donation Error", description: "Card details could not be securely prepared.", variant: "destructive" });
           return;
         }
         await submitData(tokenResponse.opaqueData.dataDescriptor, tokenResponse.opaqueData.dataValue);
@@ -475,7 +475,7 @@ export default function JoinPage() {
     apiRequest("POST", "/api/join/nominate", { ...JSON.parse(saved), paypalOrderId })
       .then(async (response) => {
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "PayPal payment could not be completed.");
+          if (!response.ok) throw new Error(data.message || "PayPal donation could not be completed.");
         sessionStorage.removeItem("quest_paypal_nomination");
         setSuccess(true);
         toast({
@@ -600,7 +600,7 @@ export default function JoinPage() {
                 <div>
                   <p className="font-bold text-white">{selectedCompetition.title}</p>
                   <p className="text-xs text-white/40">
-                    {selectedCompetition.category} | {selectedCompetition.status} | Nomination fee: ${(originalPaymentAmount / 100).toFixed(2)}
+                    {selectedCompetition.category} | {selectedCompetition.status} | Registration donation: ${(originalPaymentAmount / 100).toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -764,7 +764,7 @@ export default function JoinPage() {
                         title: applied.kind === "discount" ? "Discount applied" : "Referral tracked",
                         description: applied.kind === "discount"
                           ? `${applied.discountLabel || "Discount"}; $${(applied.finalAmountCents / 100).toFixed(2)} is due.`
-                          : "The referral is recorded without changing the nomination fee.",
+                          : "The referral is recorded without changing the registration donation.",
                       });
                     } catch (error: any) {
                       toast({
@@ -1050,7 +1050,7 @@ export default function JoinPage() {
                 data-testid="checkbox-nomination-fees"
               />
               <span>
-                I understand that being nominated or entering competitions may require a nomination or registration fee.
+                I understand that being nominated or entering competitions may require a registration donation.
               </span>
             </label>
             <div className="space-y-2">
@@ -1101,7 +1101,7 @@ export default function JoinPage() {
 
         {needsPayment && (
           <div className="mb-10">
-            <p className="text-[#5f5f5f] text-sm mb-1">Payment</p>
+            <p className="text-[#5f5f5f] text-sm mb-1">Registration donation</p>
             <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
               CARD DETAILS
             </h3>
@@ -1212,8 +1212,8 @@ export default function JoinPage() {
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-white/50">
                   {appliedPromo.kind === "discount"
-                    ? <>Original fee ${(originalPaymentAmount / 100).toFixed(2)}<span className="mx-2 text-white/25">·</span>Discount -${(appliedPromo.discountAmountCents / 100).toFixed(2)}{paymentAmount === 0 && <span className="ml-2 text-green-300">No payment required.</span>}</>
-                    : "Referral tracked; nomination fee is unchanged."}
+                    ? <>Original donation ${(originalPaymentAmount / 100).toFixed(2)}<span className="mx-2 text-white/25">·</span>Discount -${(appliedPromo.discountAmountCents / 100).toFixed(2)}{paymentAmount === 0 && <span className="ml-2 text-green-300">No donation is due.</span>}</>
+                    : "Referral tracked; registration donation is unchanged."}
                 </p>
                 <button
                   type="button"
@@ -1249,7 +1249,7 @@ export default function JoinPage() {
           {needsPayment ? (
             <>
               <CreditCard className="h-5 w-5" />
-              {processing ? "PROCESSING..." : `PAY $${(paymentAmount / 100).toFixed(2)} & NOMINATE`}
+              {processing ? "PROCESSING..." : `DONATE $${(paymentAmount / 100).toFixed(2)} & NOMINATE`}
             </>
           ) : (
             <>
@@ -1262,10 +1262,10 @@ export default function JoinPage() {
         {needsPayment && (
           <div className="mt-4 space-y-1 text-center">
             <p className="text-white/30 text-xs">
-              Payments are processed securely by Quest’s Stripe account.
+              Donations are processed securely by The Quest.
             </p>
             <p className="text-white/40 text-xs">
-              All fees are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By paying you agree to our{" "}
+              Registration donations are <span className="text-white/60 font-medium">non-refundable</span> once submitted. By donating you agree to our{" "}
               <a href="/thequest/about" className="underline underline-offset-2 text-white/50 hover:text-white/80 transition-colors">Terms & Conditions</a>.
             </p>
           </div>
@@ -1282,7 +1282,7 @@ export default function JoinPage() {
             lineItems={[
               { label: "Nominee", value: form.fullName || "" },
               { label: "Update email", value: nominatorForm.email?.trim() || "Anonymous submission" },
-              { label: promoValidated ? "Original nomination fee" : "Nomination Fee", value: `$${(originalPaymentAmount / 100).toFixed(2)}` },
+              { label: promoValidated ? "Original registration donation" : "Registration donation", value: `$${(originalPaymentAmount / 100).toFixed(2)}` },
               ...(promoValidated ? [
                 { label: `Promo code (${appliedPromo.code})`, value: `-$${(appliedPromo.discountAmountCents / 100).toFixed(2)}` },
                 { label: "Amount due", value: `$${(paymentAmount / 100).toFixed(2)}` },
@@ -1292,7 +1292,7 @@ export default function JoinPage() {
               ] : []),
             ]}
             totalAmount={`$${(paymentAmount / 100).toFixed(2)}`}
-            confirmText={paymentAmount > 0 ? `PAY $${(paymentAmount / 100).toFixed(2)} & NOMINATE` : "SUBMIT NOMINATION"}
+            confirmText={paymentAmount > 0 ? `DONATE $${(paymentAmount / 100).toFixed(2)} & NOMINATE` : "SUBMIT NOMINATION"}
             termsContext="nomination"
             termsFinePrint={platformSettings?.termsFinePrint}
           />

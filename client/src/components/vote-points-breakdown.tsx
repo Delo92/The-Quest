@@ -5,7 +5,7 @@ interface VotePointsBreakdownProps {
   className?: string;
 }
 
-/** Shows how votes become tournament points: each free vote is worth the multiplier, each paid vote is 1 point. */
+/** Shows how votes become tournament points: each free vote is worth the multiplier, each donation-supported vote is 1 point. */
 export function VotePointsBreakdown({ freeVotes, paidVotes, freeVoteMultiplier, className = "" }: VotePointsBreakdownProps) {
   const freePoints = freeVotes * freeVoteMultiplier;
   const paidPoints = paidVotes;
@@ -20,7 +20,7 @@ export function VotePointsBreakdown({ freeVotes, paidVotes, freeVoteMultiplier, 
         <dt className="flex items-center gap-1.5 text-white/60"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />Free votes</dt>
         <dd className="text-right text-white/50">{freeVotes.toLocaleString()} × {freeVoteMultiplier}</dd>
         <dd className="text-right font-medium text-white">{freePoints.toLocaleString()} pts</dd>
-        <dt className="flex items-center gap-1.5 text-white/60"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />Paid votes</dt>
+        <dt className="flex items-center gap-1.5 text-white/60"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />Donation-supported votes</dt>
         <dd className="text-right text-white/50">{paidVotes.toLocaleString()} × 1</dd>
         <dd className="text-right font-medium text-white">{paidPoints.toLocaleString()} pts</dd>
         <dt className="border-t border-white/10 pt-1 text-white/80">Total</dt>

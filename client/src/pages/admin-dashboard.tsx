@@ -38,6 +38,8 @@ import AdminPayrollSettings from "@/components/admin-payroll-settings";
 import AdminFinancialOverview, { type FinancialView } from "@/components/admin-financial-overview";
 import AdminMicrosoftEmail from "@/components/admin-microsoft-email";
 import AdminEmailActivity from "@/components/admin-email-activity";
+import AdminNonprofitGallery from "@/components/admin-nonprofit-gallery";
+import { NONPROFIT_PAGE_TEXT } from "@shared/nonprofit-page";
 
 type CompetitionWithCreator = Competition & { createdBy?: string | null; coverVideo?: string | null; contestantCount?: number; approvedCount?: number; };
 const MAX_LIVERY_VIDEO_BYTES = 35 * 1024 * 1024;
@@ -2371,9 +2373,11 @@ export default function AdminDashboard({ user }: { user: any }) {
               );
             })()}
 
+            {liverySubTab === "thequest" && <AdminNonprofitGallery />}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {liveryItems?.filter((item: any) => {
-                if (item.itemType === "text") return false;
+                if (item.itemType === "text" || item.itemType === "gallery") return false;
                 const isCBSlot = item.imageKey.startsWith("home_") || item.imageKey === "logo" || item.imageKey === "site_favicon";
                 return liverySubTab === "cbpublishing" ? isCBSlot : !isCBSlot;
               }).map((item: any) => {
@@ -2553,6 +2557,7 @@ export default function AdminDashboard({ user }: { user: any }) {
               const allGroups = [
                 { label: "Home Page (CB Publishing)", site: "cbpublishing", keys: ["home_hero_title", "home_hero_subtitle", "home_quote_left", "home_quote_body", "home_about_title", "home_about_body", "home_feature_1_title", "home_feature_1_subtitle", "home_feature_2_title", "home_feature_2_subtitle", "home_feature_3_title", "home_feature_3_subtitle", "home_feature_4_title", "home_feature_4_subtitle", "home_feature_5_title", "home_feature_5_subtitle"], pairs: null },
                 { label: "Hero Section", site: "thequest", keys: ["hero_title_top", "hero_title_main", "hero_summary"], pairs: null },
+                { label: "Nonprofit Page", site: "thequest", keys: NONPROFIT_PAGE_TEXT.map((item) => item.imageKey), pairs: null },
                 { label: "About Page", site: "thequest", keys: ["about_rules_text", "about_giving_title", "about_giving_text", "about_details_text"], pairs: null },
                 { label: "Contact Info", site: "thequest", keys: ["contact_email", "contact_phone", "contact_address"], pairs: null },
                 { label: "Social Links", site: "thequest", keys: ["social_facebook", "social_instagram", "social_twitter", "social_youtube", "social_tiktok"], pairs: null },
@@ -3145,7 +3150,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                   variant="ghost"
                                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10 gap-1.5"
                                   onClick={() => {
-                                     if (!window.confirm(`Remove promo code ${promo.code}? It will no longer be accepted for new nominations or paid vote contributions.`)) return;
+                                     if (!window.confirm(`Remove promo code ${promo.code}? It will no longer be accepted for new nominations or vote donations.`)) return;
                                     updateJoinSettingsMutation.mutate({
                                       nominationPromoCodes: (joinSettings.nominationPromoCodes || []).filter((item) => item.id !== promo.id),
                                     });
@@ -3266,7 +3271,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-white/60">Nomination Fee ($)</Label>
+                          <Label className="text-white/60">Registration Donation ($)</Label>
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-4 w-4 text-white/30" />
                             <Input
@@ -4485,7 +4490,7 @@ export default function AdminDashboard({ user }: { user: any }) {
 
                   <div className="rounded-md bg-white/5 border border-white/10 p-5 space-y-4">
                     <h4 className="text-xs uppercase tracking-widest text-orange-400 font-bold">Voting Rules</h4>
-                    <p className="text-[10px] text-white/25">Paid voting has no daily limit. Free votes have a daily cap.</p>
+                    <p className="text-[10px] text-white/25">Vote donations have no daily limit. Free votes have a daily cap.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                       <div>
                         <Label className="text-white/50 text-xs">Max Free Votes Per Day</Label>
@@ -4508,7 +4513,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                           className="bg-white/[0.08] border-white/20 text-white"
                           data-testid="input-free-vote-multiplier"
                         />
-                        <p className="text-white/30 text-[10px] mt-0.5">Each free vote earns this many ranking points. Paid votes earn 1 point each.</p>
+                        <p className="text-white/30 text-[10px] mt-0.5">Each free vote earns this many ranking points. Donation-supported votes earn 1 point each.</p>
                       </div>
                       <div>
                         <Label className="text-white/50 text-xs">Minimum Vote Cost ($)</Label>
@@ -4628,7 +4633,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         <p className="text-[10px] text-white/25 mt-1">Fee charged when a talent submits a join application (0 = free)</p>
                       </div>
                       <div>
-                        <Label className="text-white/50 text-xs">Nomination Fee ($)</Label>
+                        <Label className="text-white/50 text-xs">Registration Donation ($)</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -4795,7 +4800,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         placeholder="Enter the full legal terms and conditions here..."
                         data-testid="input-terms-fine-print"
                       />
-                      <p className="text-[10px] text-white/25 mt-1">Shown only after expanding the relevant disclosure. Use the headings Nomination Fees, Paid Vote Contributions, No Refund Policy, User Responsibility, Fraud Prevention &amp; Payment Security, Chargebacks &amp; Payment Disputes, and Agreement to Terms to keep payment types separate. Older saved vote-package headings remain supported.</p>
+                      <p className="text-[10px] text-white/25 mt-1">Shown only after expanding the relevant disclosure. Use the headings Registration Donations, Vote Donations, No Refund Policy, User Responsibility, Fraud Prevention &amp; Donation Processing, Chargebacks &amp; Donation Disputes, and Agreement to Terms to keep contribution types separate. Older saved vote-package headings remain supported.</p>
                     </div>
                   </div>
 
