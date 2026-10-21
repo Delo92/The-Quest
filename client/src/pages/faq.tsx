@@ -4,6 +4,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
+import { normalizeVoteSupportCopy } from "@shared/vote-support-copy";
 
 export default function FAQPage() {
   const { getText, getImage } = useLivery();
@@ -22,7 +23,10 @@ export default function FAQPage() {
     const q = getText(`faq_${i}_q`, "");
     const a = getText(`faq_${i}_a`, "");
     if (q.trim()) {
-      faqs.push({ question: q, answer: a });
+      faqs.push({
+        question: normalizeVoteSupportCopy(q),
+        answer: normalizeVoteSupportCopy(a),
+      });
     }
   }
 

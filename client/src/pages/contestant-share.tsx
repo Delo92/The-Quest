@@ -661,10 +661,10 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   href={`/checkout/${competition.id}/${contestant.id}`}
                   className="inline-flex min-h-12 items-center rounded-full border px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:brightness-110"
                   style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
-                  data-testid="button-buy-votes"
+                  data-testid="button-donate-votes"
                 >
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  Buy Votes
+                  <Heart className="mr-2 h-4 w-4" />
+                  Donate &amp; Vote
                 </Link>
               </div>
               </div>
@@ -751,10 +751,10 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   href={`/checkout/${competition.id}/${contestant.id}`}
                   className="inline-flex min-h-12 items-center rounded-full border px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:brightness-110"
                   style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
-                  data-testid="button-buy-votes"
+                  data-testid="button-donate-votes"
                 >
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  Buy Votes
+                  <Heart className="mr-2 h-4 w-4" />
+                  Donate &amp; Vote
                 </Link>
               </div>
             </div>

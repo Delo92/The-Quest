@@ -2286,7 +2286,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                       <Trophy className="h-5 w-5 text-orange-400" />
                       My Promo / Referral Code
                     </h3>
-                    <p className="text-sm text-white/40 mb-3">This is <strong className="text-white/70">your unique tracking code</strong>. It is automatically embedded in every link you share from this dashboard. Any time someone follows your link and buys a vote pack or submits a nomination, your code is recorded and you receive credit with CB Publishing &amp; Chronic Brands USA. You can customize it to anything you like — old codes remain active if you change it.</p>
+                    <p className="text-sm text-white/40 mb-3">This is <strong className="text-white/70">your unique tracking code</strong>. It is automatically embedded in every link you share from this dashboard. Any time someone follows your link and contributes to paid voting or submits a nomination, your code is recorded and you receive credit with CB Publishing &amp; Chronic Brands USA. You can customize it to anything you like — old codes remain active if you change it.</p>
                     {editingPromoCode ? (
                       <div className="flex items-center gap-2">
                         <Input
@@ -2373,7 +2373,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                       <Share2 className="h-5 w-5 text-orange-400" />
                       Vote Links — Share to Get Votes
                     </h3>
-                    <p className="text-sm text-white/40 mb-1">Send these links to your fans, followers, and supporters. When someone clicks your link and <strong className="text-white/60">casts a free vote</strong> or <strong className="text-white/60">buys a vote pack</strong>, it counts for you and your promo code gets credit. Post these on Instagram, TikTok, group chats — anywhere your fans are.</p>
+                    <p className="text-sm text-white/40 mb-1">Send these links to your fans, followers, and supporters. When someone clicks your link and <strong className="text-white/60">casts a free vote</strong> or <strong className="text-white/60">contributes to paid voting</strong>, it counts for you and your promo code gets credit. Post these on Instagram, TikTok, group chats — anywhere your fans are.</p>
                     <p className="text-xs text-orange-400/70 mb-3">→ Use this link to get votes. Use the Recruit button below to invite other competitors.</p>
                     <div className="space-y-2">
                       {approvedContests.map((contest: any) => {

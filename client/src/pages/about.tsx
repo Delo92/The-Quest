@@ -10,6 +10,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify } from "@shared/slugify";
 import type { Competition } from "@shared/schema";
+import { normalizeVoteSupportCopy } from "@shared/vote-support-copy";
 
 type CompetitionExt = Competition & { coverVideo?: string | null };
 
@@ -61,14 +62,14 @@ export default function AboutPage() {
       return da - db;
     });
 
-  const rulesText = getText("about_rules_text", "Welcome to The Quest! Our platform connects talent with audiences through fair, transparent competitions.\n\n**Rules & Guidelines:**\n\n1. All participants must be 18 years or older.\n2. Each competitor may only enter a competition once.\n3. Voting is limited per IP address daily to ensure fairness.\n4. Content must be original and appropriate for all audiences.\n5. Hosts are responsible for managing their events and enforcing rules.\n6. Vote purchases are non-refundable once processed.\n7. The Quest reserves the right to remove content that violates community standards.");
+  const rulesText = normalizeVoteSupportCopy(getText("about_rules_text", "Welcome to The Quest! Our platform connects talent with audiences through fair, transparent competitions.\n\n**Rules & Guidelines:**\n\n1. All participants must be 18 years or older.\n2. Each competitor may only enter a competition once.\n3. Voting is limited per IP address daily to ensure fairness.\n4. Content must be original and appropriate for all audiences.\n5. Hosts are responsible for managing their events and enforcing rules.\n6. Paid vote contributions are final once processed.\n7. The Quest reserves the right to remove content that violates community standards."));
 
-  const detailsText = getText("about_details_text", "");
+  const detailsText = normalizeVoteSupportCopy(getText("about_details_text", ""));
   const givingTitle = getText("about_giving_title", "Talent That Gives Back");
-  const givingText = getText(
+  const givingText = normalizeVoteSupportCopy(getText(
     "about_giving_text",
-    "Participants may select any eligible state- or nationally accredited nonprofit. Example partner organizations include It Stops Now, which supports families with incarcerated loved ones, and Event Pro Group Foundation, which supports education, workforce development, housing stability, and community support for veterans, underserved populations, and individuals in need."
-  );
+    "Contestants and hosts select an eligible nonprofit for their own contribution. Voters can learn how paid voting and the nonprofit program work on our dedicated nonprofit page."
+  ));
 
   const socialFacebook = getText("social_facebook", "");
   const socialInstagram = getText("social_instagram", "");
@@ -199,11 +200,18 @@ export default function AboutPage() {
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold uppercase text-white mb-4">{givingTitle}</h2>
               <p className="text-white/75 text-[15px] leading-relaxed mb-4">
-                Contestants and hosts choose their own nonprofit and a 1%–10% contribution rate in their account. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount to the nonprofit they selected. A nominator may suggest a nonprofit, but participants make the final choice of nonprofit and rate.
+                Contestants and hosts choose their own eligible nonprofit and a 1%–10% contribution rate from their eligible earnings. If they do not choose a rate, the 10% default applies. The Quest matches the same dollar amount, subject to its available share. A nominator may suggest a nonprofit, but participants make the final choice of nonprofit and rate.
               </p>
               <p className="text-white/75 text-[15px] leading-relaxed">
                 {renderGivingTextWithLinks(givingText)}
               </p>
+              <Link
+                href="/NonProfits"
+                className="mt-5 inline-flex min-h-11 items-center gap-2 border border-[#FF5A09]/60 px-4 py-2 text-sm font-bold uppercase tracking-wider text-[#ff8b55] transition-colors hover:border-[#FF5A09] hover:bg-[#FF5A09]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]"
+                data-testid="link-about-nonprofits"
+              >
+                Nonprofit program details <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
             </div>
           </div>
         </div>

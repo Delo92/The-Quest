@@ -40,12 +40,22 @@ Agreement to Terms
 
 Completion of any payment constitutes acceptance of this policy.`;
 
-test("vote purchase terms omit nomination-only language and hide cross-purchase lists", () => {
+test("paid vote terms omit nomination-only language and hide cross-payment lists", () => {
   const terms = getPaymentTermsForContext(currentTerms, "vote");
-  assert.match(terms, /Vote Package Purchases/);
+  assert.match(terms, /Paid Vote Contributions/);
   assert.match(terms, /All payments are final/);
   assert.doesNotMatch(terms, /Nomination Fees|nomination submission|Nomination fees/);
   assert.doesNotMatch(terms, /Payment & Purchase Policy|nominations and vote packages/);
+});
+
+test("new paid vote terms headings are included in the voter disclosure", () => {
+  const terms = getPaymentTermsForContext(
+    "Paid Vote Contributions\nYour contribution adds votes to the selected contestant.\n\nNomination Fees\nA separate nomination fee applies.",
+    "vote",
+  );
+  assert.match(terms, /Paid Vote Contributions/);
+  assert.match(terms, /adds votes/);
+  assert.doesNotMatch(terms, /Nomination Fees|separate nomination fee/);
 });
 
 test("nomination terms omit vote-package language", () => {

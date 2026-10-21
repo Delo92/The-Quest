@@ -1067,10 +1067,10 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                                className="flex min-h-11 flex-1 min-w-[120px] items-center justify-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-semibold transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                                style={{ backgroundColor: accentBg, color: accentText, borderColor: accentBg, outlineColor: accent }}
                               onClick={(e) => e.stopPropagation()}
-                              data-testid={`button-buy-votes-${contestant.id}`}
+                               data-testid={`button-donate-votes-${contestant.id}`}
                             >
-                              <ShoppingCart className="h-3.5 w-3.5 flex-shrink-0" />
-                              Buy Votes
+                               <Heart className="h-3.5 w-3.5 flex-shrink-0" />
+                               Donate &amp; Vote
                             </Link>
                           )}
                         </div>

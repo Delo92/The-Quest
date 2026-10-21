@@ -421,7 +421,7 @@ export default function CheckoutPage() {
         notifyVoteCountUpdated();
         setSuccess(true);
         setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
-        toast({ title: "Purchase successful!", description: `${data.votesAdded} votes added!` });
+        toast({ title: "Vote support complete", description: `${data.votesAdded} votes added!` });
       } catch (error: any) {
         toast({ title: "Checkout Failed", description: error.message?.replace(/^\d+:\s*/, "") || "Something went wrong", variant: "destructive" });
       } finally {
@@ -469,7 +469,7 @@ export default function CheckoutPage() {
         notifyVoteCountUpdated();
         setSuccess(true);
         setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
-        toast({ title: "Purchase successful!", description: `${data.votesAdded} votes added!` });
+        toast({ title: "Vote support complete", description: `${data.votesAdded} votes added!` });
       } catch (error: any) {
         toast({ title: "Checkout Failed", description: error.message?.replace(/^\d+:\s*/, "") || "Something went wrong", variant: "destructive" });
       } finally {
@@ -495,7 +495,7 @@ export default function CheckoutPage() {
           setSuccess(true);
           setSuccessData({ transactionId: data.transactionId, votesAdded: data.votesAdded });
           sessionStorage.removeItem("quest_paypal_checkout");
-          toast({ title: "Purchase successful!", description: `${data.votesAdded} votes added!` });
+          toast({ title: "Vote support complete", description: `${data.votesAdded} votes added!` });
         })
         .catch((error: any) => toast({ title: "PayPal checkout failed", description: error.message, variant: "destructive" }))
         .finally(() => setProcessing(false));
@@ -521,7 +521,7 @@ export default function CheckoutPage() {
             style={{ letterSpacing: "10px" }}
             data-testid="text-success-title"
           >
-            PURCHASE COMPLETE
+            VOTE SUPPORT COMPLETE
           </h2>
           <p className="text-white/60 mb-2" data-testid="text-votes-added">
             {successData.votesAdded} votes have been added for {contestant?.talentProfile?.displayName || "your chosen contestant"}!
@@ -543,7 +543,7 @@ export default function CheckoutPage() {
                 className="text-white/40 text-sm hover:text-white/60 transition-colors cursor-pointer"
                 data-testid="link-view-purchases"
               >
-                View Purchase History
+                View Vote Support History
               </span>
             </Link>
           </div>
@@ -601,7 +601,7 @@ export default function CheckoutPage() {
               {competition.title}
             </Link>
             <span className="mx-2">/</span>
-            Buy Votes
+              Donate &amp; Vote
           </p>
           <h2
             className="text-[24px] md:text-[30px] uppercase text-black/80 font-normal leading-none"
@@ -638,8 +638,18 @@ export default function CheckoutPage() {
           </div>
         </div>
 
+        <div className="mb-8 border border-emerald-300/35 bg-emerald-950/35 p-4 text-sm leading-relaxed text-emerald-50/85" data-testid="vote-nonprofit-disclosure">
+          <p className="font-semibold text-emerald-100">Your contribution supports voting—and a nonprofit program.</p>
+          <p className="mt-2">
+            This payment is processed by The Quest to add votes; it is not sent directly to a nonprofit at checkout. Contestants and hosts choose an eligible nonprofit and allocate 1%–10% of their eligible earnings (10% by default). The Quest matches those recorded contributions dollar-for-dollar, subject to available funds. Recipient and amount are set through the participant payout process, not by this checkout.
+          </p>
+          <Link href="/NonProfits" className="mt-3 inline-flex min-h-9 items-center font-semibold text-emerald-200 underline decoration-emerald-200/50 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200" data-testid="link-checkout-nonprofits">
+            See how nonprofit giving works
+          </Link>
+        </div>
+
         <div className="mb-10">
-          <CheckoutStepHeading number={1} title="Select package" hint="Choose one option" />
+          <CheckoutStepHeading number={1} title="Choose vote support" hint="Select a contribution amount" />
 
           <div
             className={`mb-4 overflow-hidden border transition-colors ${
@@ -670,7 +680,7 @@ export default function CheckoutPage() {
               </span>
               <span className="min-w-0">
                 <span className="block text-white font-bold uppercase text-sm tracking-[0.12em]">
-                  Buy Individual Votes
+                  Donate for Individual Votes
                 </span>
                 <span className="mt-0.5 block text-xs text-white/60">Add as many as you need</span>
               </span>
@@ -717,7 +727,7 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          <p className="pt-2 text-white/65 text-xs font-semibold uppercase tracking-[0.16em] mb-3">Or choose a vote package</p>
+          <p className="pt-2 text-white/65 text-xs font-semibold uppercase tracking-[0.16em] mb-3">Or choose a vote contribution</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {packages?.map((pkg) => (
@@ -872,7 +882,7 @@ export default function CheckoutPage() {
                 data-testid="checkbox-create-account"
               />
               <span className="text-white/80 text-sm">
-                Save my info to track purchases and vote history
+                 Save my info to track vote contributions and history
               </span>
             </label>
 
@@ -1026,7 +1036,7 @@ export default function CheckoutPage() {
           return (
             <div className="border border-white/20 border-l-4 border-l-[#FF5A09] bg-white/[0.025] p-5 mb-8">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white/60 text-sm uppercase tracking-wider">Order Summary</span>
+                <span className="text-white/60 text-sm uppercase tracking-wider">Vote contribution summary</span>
               </div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-white">{voteLabel}</span>
@@ -1078,13 +1088,13 @@ export default function CheckoutPage() {
           {processing
             ? "PROCESSING..."
             : (selectedPkg || isIndividual)
-              ? noPaymentDue ? "COMPLETE FREE CHECKOUT" : `PAY $${(totalAmountCents / 100).toFixed(2)}`
-              : "SELECT A VOTE OPTION"}
+              ? noPaymentDue ? "COMPLETE FREE VOTE SUPPORT" : `DONATE $${(totalAmountCents / 100).toFixed(2)} & VOTE`
+              : "SELECT A VOTE CONTRIBUTION"}
         </button>
 
         {!selectedPackage && (
-          <p className="text-white/55 text-xs text-center mt-2">
-            Choose a vote option above to see your total and continue.
+              <p className="text-white/55 text-xs text-center mt-2">
+            Choose a vote contribution above to see your total and continue.
           </p>
         )}
 
@@ -1119,11 +1129,11 @@ export default function CheckoutPage() {
               onClose={() => setShowConfirmModal(false)}
               onConfirm={processCheckout}
               processing={processing}
-              title="Confirm Vote Purchase"
-              description={noPaymentDue ? "Your promo code covers this order; no payment is due." : "Please review your order before proceeding."}
+              title="Confirm Vote Contribution"
+              description={noPaymentDue ? "Your promo code covers this contribution; no payment is due." : "Your payment adds votes and is not sent directly to a nonprofit. Please review the details before continuing."}
               lineItems={lineItems}
               totalAmount={`$${total.toFixed(2)}`}
-              confirmText={noPaymentDue ? "COMPLETE FREE CHECKOUT" : `PAY $${total.toFixed(2)}`}
+              confirmText={noPaymentDue ? "COMPLETE FREE VOTE SUPPORT" : `DONATE $${total.toFixed(2)} & VOTE`}
               termsContext="vote"
               termsFinePrint={platformSettings?.termsFinePrint}
             />

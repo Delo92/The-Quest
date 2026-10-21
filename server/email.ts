@@ -6,6 +6,7 @@ import { firestoreEmailActivity, firestoreLivery } from "./firestore-collections
 import { getFirebaseAuth } from "./firebase-admin";
 import { getMicrosoftEmailSettings } from "./microsoft-email-oauth";
 import { buildAccountLoginUrl } from "../shared/account-login-links";
+import { normalizeVoteSupportCopy } from "../shared/vote-support-copy";
 import {
   buildAccountAccessMessage,
   renderAccountEmailAccess,
@@ -48,6 +49,10 @@ async function getEmailTemplate(key: string, fallback: string): Promise<string> 
     if (item && item.textContent) return item.textContent;
   } catch {}
   return fallback;
+}
+
+async function normalizeVoteSupportTemplate(templatePromise: Promise<string>): Promise<string> {
+  return normalizeVoteSupportCopy(await templatePromise);
 }
 
 function applyPlaceholders(template: string, vars: Record<string, string>): string {
@@ -721,7 +726,7 @@ export async function sendNominationReceipt(opts: {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   4. VOTE PURCHASE RECEIPT  (sent to the buyer after buying vote packs)
+   4. VOTE CONTRIBUTION CONFIRMATION  (sent after supporting paid voting)
 ───────────────────────────────────────────────────────────────────────── */
 export async function sendPurchaseReceipt(opts: {
   to: string;
@@ -738,10 +743,10 @@ export async function sendPurchaseReceipt(opts: {
 
     const vars = { buyerName: opts.buyerName };
     const [subject, heading, body, footer] = await Promise.all([
-      getEmailTemplate("email_receipt_subject", "Your The Quest Purchase Receipt"),
-      getEmailTemplate("email_receipt_heading", "Vote Pack Receipt"),
-      getEmailTemplate("email_receipt_body", "Hi {buyerName}, thank you for your purchase!\n\nYour votes have been applied and are now live. Below are your transaction details."),
-      getEmailTemplate("email_receipt_footer", "If you have questions about this purchase, please contact us."),
+      normalizeVoteSupportTemplate(getEmailTemplate("email_receipt_subject", "Your The Quest Vote Support Confirmation")),
+      normalizeVoteSupportTemplate(getEmailTemplate("email_receipt_heading", "Vote Contribution Confirmation")),
+      normalizeVoteSupportTemplate(getEmailTemplate("email_receipt_body", "Hi {buyerName}, thank you for supporting voting on The Quest!\n\nYour votes have been applied and are now live. This payment was processed by The Quest to add votes; it was not sent directly to a nonprofit. Below are your transaction details.")),
+      normalizeVoteSupportTemplate(getEmailTemplate("email_receipt_footer", "If you have questions about this vote contribution, please contact us.")),
     ]);
 
     let itemsHtml = opts.items.map(item => `
@@ -778,7 +783,7 @@ export async function sendPurchaseReceipt(opts: {
 
     const html = wrapInTemplate(`
       <div style="text-align:center; margin-bottom: 28px;">
-        <span class="badge">Purchase Confirmed</span>
+        <span class="badge">Vote Support Confirmed</span>
       </div>
       <h2>${applyPlaceholders(heading, vars)}</h2>
       <p>${applyPlaceholders(body, vars)}</p>
@@ -844,7 +849,7 @@ export async function sendVoteThankYou(opts: {
         <p class="value">${opts.competitionName}</p>
       </div>
 
-      <p>Want to do more? Share the competition with friends and get more people to vote. You can also purchase additional votes to give your favorite an extra boost!</p>
+      <p>Want to do more? Share the competition with friends and get more people to vote. You can also make another vote contribution to give your favorite an extra boost!</p>
 
       <div class="btn-wrap">
         <a href="${compUrl}" class="btn">See the Leaderboard</a>

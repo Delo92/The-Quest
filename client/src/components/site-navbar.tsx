@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useViewerSession } from "@/hooks/use-viewer-session";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useLivery } from "@/hooks/use-livery";
-import { ShoppingCart, Radio } from "lucide-react";
+import { Heart, Radio } from "lucide-react";
 import { VOTE_COUNT_UPDATED_EVENT } from "@/lib/vote-count-events";
 
 function useAnimatedCounter(targetValue: number, duration: number = 800) {
@@ -182,6 +182,13 @@ export default function SiteNavbar() {
             Nominate
           </Link>
           <Link
+            href="/NonProfits"
+            className={desktopNavItemClass}
+            data-testid="link-nav-nonprofits"
+          >
+            Nonprofits
+          </Link>
+          <Link
             href="/about"
             className={desktopNavItemClass}
             data-testid="link-nav-about"
@@ -214,12 +221,12 @@ export default function SiteNavbar() {
           </Link>
           <Link
             href="/my-purchases"
-            aria-label="My purchases"
-            title="My purchases"
+            aria-label="My vote support"
+            title="My vote support"
             className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/15 bg-white/[0.045] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_4px_12px_rgba(0,0,0,0.3)] transition-transform duration-200 hover:-translate-y-0.5 hover:border-[var(--quest-brand)]/55 hover:bg-white/[0.09] hover:text-[var(--quest-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quest-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-black active:translate-y-0"
             data-testid="link-nav-cart"
           >
-            <ShoppingCart className="h-5 w-5" />
+            <Heart className="h-5 w-5" />
           </Link>
           {isLoggedIn ? (
             <Link
@@ -248,6 +255,7 @@ export default function SiteNavbar() {
               { href: homeHref, label: "Home", testid: "link-mobile-home", isAnchor: true },
               { href: "/competitions", label: "Competitions", testid: "link-mobile-competitions" },
               { href: "/nominate", label: "Nominate", testid: "link-mobile-join" },
+              { href: "/NonProfits", label: "Nonprofits", testid: "link-mobile-nonprofits" },
               { href: "/about", label: "About", testid: "link-mobile-about" },
               { href: "/faq", label: "FAQ", testid: "link-mobile-faq" },
             ].map(({ href, label, testid, isAnchor }) =>
@@ -277,8 +285,8 @@ export default function SiteNavbar() {
               onClick={() => setMenuOpen(false)}
               data-testid="link-mobile-cart"
             >
-              <ShoppingCart className="h-4 w-4" />
-              My Purchases
+              <Heart className="h-4 w-4" />
+              My Vote Support
             </Link>
             {isLoggedIn ? (
               <Link

@@ -41,6 +41,13 @@ export default function SiteFooter() {
             Host an Event
           </Link>
           <Link
+            href="/NonProfits"
+            className="text-white/60 text-sm uppercase tracking-widest transition-colors duration-300 hover:text-white"
+            data-testid="link-footer-nonprofits"
+          >
+            Nonprofits
+          </Link>
+          <Link
             href="/about"
             className="text-white/60 text-sm uppercase tracking-widest transition-colors duration-300 hover:text-white"
             data-testid="link-footer-about"

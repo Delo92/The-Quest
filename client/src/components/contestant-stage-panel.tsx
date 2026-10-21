@@ -275,7 +275,7 @@ export default function ContestantStagePanel({ competitionId }: Props) {
                 </div>
                 <div className="flex flex-wrap items-center gap-2 lg:max-w-[190px] lg:flex-col lg:items-stretch lg:justify-center">
                   <Button onClick={() => void castFreeVote(stage)} disabled={!votingOpen || !data?.contestantId} variant="outline" className="border-white/15 text-white hover:border-orange-400/50 hover:text-orange-200"><Heart className="mr-2 h-4 w-4" /> Free vote</Button>
-                  <Button onClick={() => { window.location.href = `/checkout/${competitionId}/${data?.contestantId}?stageId=${encodeURIComponent(stage.id)}`; }} disabled={!votingOpen || !data?.contestantId} className="bg-white/10 text-white hover:bg-white/15"><Clock3 className="mr-2 h-4 w-4" /> Buy votes</Button>
+                  <Button onClick={() => { window.location.href = `/checkout/${competitionId}/${data?.contestantId}?stageId=${encodeURIComponent(stage.id)}`; }} disabled={!votingOpen || !data?.contestantId} className="bg-white/10 text-white hover:bg-white/15"><Clock3 className="mr-2 h-4 w-4" /> Donate &amp; Vote</Button>
                   {stage.eliminationCount > 0 && <p className="text-center text-[11px] text-white/35">{stage.eliminationCount} eliminated after this day</p>}
                   {stage.isFinale && <p className="text-center text-[11px] text-amber-300/60">Host selects the winner</p>}
                 </div>

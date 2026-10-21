@@ -94,7 +94,7 @@ export default function MyPurchasesPage() {
             style={{ letterSpacing: "10px" }}
             data-testid="text-page-title"
           >
-            MY PURCHASES
+            MY VOTE SUPPORT
           </h2>
         </div>
       </section>
@@ -104,7 +104,7 @@ export default function MyPurchasesPage() {
           <>
             <div className="text-center mb-8">
               <p className="text-white/40 text-sm">
-                Look up your purchase history by entering the name and email you used at checkout.
+                Look up your vote contribution history with the name and email you used at checkout.
               </p>
             </div>
 
@@ -193,13 +193,13 @@ export default function MyPurchasesPage() {
                   <span className="text-white font-bold text-xl" data-testid="text-total-spent">
                     ${(result.viewer.totalSpent / 100).toFixed(2)}
                   </span>
-                  <p className="text-white/40 text-xs uppercase tracking-wider">Total Spent</p>
+                  <p className="text-white/40 text-xs uppercase tracking-wider">Total Vote Contributions</p>
                 </div>
               </div>
             </div>
 
             <div className="mb-4">
-              <p className="text-[#5f5f5f] text-sm mb-1">Purchase History</p>
+              <p className="text-[#5f5f5f] text-sm mb-1">Vote Contribution History</p>
               <h3 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "6px" }}>
                 TRANSACTIONS ({result.purchases.length})
               </h3>
@@ -245,7 +245,7 @@ export default function MyPurchasesPage() {
             ) : (
               <div className="text-center py-10">
                 <ShoppingCart className="h-12 w-12 text-white/10 mx-auto mb-4" />
-                <p className="text-white/40 text-sm">No purchases yet.</p>
+                <p className="text-white/40 text-sm">No vote contributions yet.</p>
               </div>
             )}
           </>

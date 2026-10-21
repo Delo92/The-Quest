@@ -97,7 +97,7 @@ export default function CodeLandingPage() {
           <p className="text-white/40 text-sm">
             Browse our active competitions below, then enter{" "}
             <strong className="text-[#FF5A09]">{data.code || slug}</strong> when
-            you're ready to buy votes.
+            you're ready to donate to support votes.
           </p>
         </div>
 

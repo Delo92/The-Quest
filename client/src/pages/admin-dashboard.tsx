@@ -4781,7 +4781,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         value={form.termsSummary ?? ""}
                         onChange={(e) => updateForm("termsSummary", e.target.value)}
                         className="bg-white/[0.08] border-white/20 text-white mt-2 min-h-[120px]"
-                        placeholder={"All fees are non-refundable once processed.\nBy proceeding, you agree to the official competition rules.\nVote purchases support the contestant's chosen nonprofit."}
+                        placeholder={"All fees are non-refundable once processed.\nBy proceeding, you agree to the official competition rules.\nPaid voting adds votes; it is not a direct nonprofit donation. See the nonprofit program disclosure."}
                         data-testid="input-terms-summary"
                       />
                       <p className="text-[10px] text-white/25 mt-1">Saved for compatibility with older settings; this summary is no longer repeated in payment confirmations.</p>
@@ -4795,7 +4795,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                         placeholder="Enter the full legal terms and conditions here..."
                         data-testid="input-terms-fine-print"
                       />
-                      <p className="text-[10px] text-white/25 mt-1">Shown only after expanding the relevant disclosure. Use the headings Nomination Fees, Vote Package Purchases, No Refund Policy, User Responsibility, Fraud Prevention &amp; Payment Security, Chargebacks &amp; Payment Disputes, and Agreement to Terms to keep payment types separate.</p>
+                      <p className="text-[10px] text-white/25 mt-1">Shown only after expanding the relevant disclosure. Use the headings Nomination Fees, Paid Vote Contributions, No Refund Policy, User Responsibility, Fraud Prevention &amp; Payment Security, Chargebacks &amp; Payment Disputes, and Agreement to Terms to keep payment types separate. Older saved vote-package headings remain supported.</p>
                     </div>
                   </div>
 

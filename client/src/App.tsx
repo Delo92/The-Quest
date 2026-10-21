@@ -26,6 +26,7 @@ const HostPage = lazy(() => import("@/pages/host"));
 const ContestantSharePage = lazy(() => import("@/pages/contestant-share"));
 const HostProfilePublic = lazy(() => import("@/pages/host-profile-public"));
 const AboutPage = lazy(() => import("@/pages/about"));
+const NonprofitsPage = lazy(() => import("@/pages/nonprofits"));
 const FAQPage = lazy(() => import("@/pages/faq"));
 const ViewerDashboard = lazy(() => import("@/pages/viewer-dashboard"));
 const AppDemoPage = lazy(() => import("@/pages/app-demo"));
@@ -54,6 +55,7 @@ function QuestRouter() {
       <Route path="/join">{() => <Redirect to="/nominate" />}</Route>
       <Route path="/host" component={HostPage} />
       <Route path="/about" component={AboutPage} />
+      <Route path="/NonProfits" component={NonprofitsPage} />
       <Route path="/faq" component={FAQPage} />
       <Route path="/host/:hostSlug" component={HostProfilePublic} />
       <Route path="/viewer" component={() => <ViewerDashboard />} />

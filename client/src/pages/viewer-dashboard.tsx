@@ -77,7 +77,7 @@ const DEMO_PURCHASES: PurchaseDetail[] = [
 export default function ViewerDashboard({ demoMode = false }: { demoMode?: boolean } = {}) {
   useSEO({
     title: "My Dashboard",
-    description: "View your voting history, purchases, and active competitions on The Quest.",
+    description: "View your voting history, vote contributions, and active competitions on The Quest.",
     canonical: "https://thequest-2dc77.firebaseapp.com/viewer",
   });
 
@@ -233,14 +233,14 @@ export default function ViewerDashboard({ demoMode = false }: { demoMode?: boole
                 <span className="text-3xl font-bold text-white" data-testid="text-total-votes">
                   {totalVotesPurchased.toLocaleString()}
                 </span>
-                <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Votes Purchased</p>
+                <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Votes Supported</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center hover:border-orange-500/30 transition-colors">
                 <Receipt className="h-6 w-6 text-[#FF5A09] mx-auto mb-2" />
                 <span className="text-3xl font-bold text-white" data-testid="text-total-spent">
                   ${(totalSpent / 100).toFixed(2)}
                 </span>
-                <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Total Spent</p>
+                <p className="text-white/50 text-xs uppercase tracking-wider mt-1">Total Vote Contributions</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 text-center hover:border-orange-500/30 transition-colors">
                 <Trophy className="h-6 w-6 text-[#FF5A09] mx-auto mb-2" />
@@ -285,7 +285,7 @@ export default function ViewerDashboard({ demoMode = false }: { demoMode?: boole
                               {totalVotes} votes
                             </span>
                             <span>${(totalAmount / 100).toFixed(2)} spent</span>
-                            <span>{compPurchases.length} purchase{compPurchases.length !== 1 ? "s" : ""}</span>
+                            <span>{compPurchases.length} vote contribution{compPurchases.length !== 1 ? "s" : ""}</span>
                           </div>
                         </div>
                       </Link>
@@ -298,7 +298,7 @@ export default function ViewerDashboard({ demoMode = false }: { demoMode?: boole
             <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
               <div className="flex flex-wrap items-end justify-between gap-2 mb-5">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-orange-300/70 mb-1">Purchase history</p>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-orange-300/70 mb-1">Vote contribution history</p>
                   <h3 className="text-xl text-white font-semibold">Transactions</h3>
                 </div>
                 <span className="text-xs text-white/35">{purchases.length} transaction{purchases.length !== 1 ? "s" : ""}</span>
@@ -344,7 +344,7 @@ export default function ViewerDashboard({ demoMode = false }: { demoMode?: boole
               ) : (
                 <div className="text-center py-10">
                   <ShoppingCart className="h-12 w-12 text-white/15 mx-auto mb-4" />
-                  <p className="text-white/50 text-sm mb-4">No purchases yet.</p>
+                  <p className="text-white/50 text-sm mb-4">No vote contributions yet.</p>
                   <Link
                     href="/competitions"
                     className="inline-flex items-center gap-2 bg-[#FF5A09] text-white font-bold text-sm uppercase px-6 leading-[43px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09]"

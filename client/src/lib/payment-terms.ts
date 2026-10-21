@@ -2,6 +2,7 @@ export type PaymentTermsContext = "vote" | "nomination" | "host";
 
 const SECTION_LABELS = [
   "Nomination Fees",
+  "Paid Vote Contributions",
   "Vote Package Purchases",
   "No Refund Policy",
   "User Responsibility",
@@ -12,6 +13,7 @@ const SECTION_LABELS = [
 
 const SECTIONS_BY_CONTEXT: Record<PaymentTermsContext, readonly string[]> = {
   vote: [
+    "Paid Vote Contributions",
     "Vote Package Purchases",
     "No Refund Policy",
     "User Responsibility",
@@ -35,7 +37,7 @@ const SECTIONS_BY_CONTEXT: Record<PaymentTermsContext, readonly string[]> = {
 };
 
 export const PAYMENT_TERMS_LABELS: Record<PaymentTermsContext, string> = {
-  vote: "vote purchase",
+  vote: "paid vote contribution",
   nomination: "nomination",
   host: "host application",
 };
@@ -79,7 +81,10 @@ export function getPaymentTermsForContext(
         lines = lines.filter((line) => !/nominee/i.test(line));
       }
 
-      return [section.label, ...lines].join("\n").trim();
+      const displayLabel = section.label === "Vote Package Purchases"
+        ? "Paid Vote Contributions"
+        : section.label;
+      return [displayLabel, ...lines].join("\n").trim();
     })
     .filter(Boolean)
     .join("\n\n");
