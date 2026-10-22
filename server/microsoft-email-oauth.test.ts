@@ -67,7 +67,10 @@ test("Microsoft device authorization does not replace the current sender before 
     const form = new URLSearchParams(String(init?.body || ""));
     if (url.endsWith("/devicecode")) {
       assert.equal(form.get("client_id"), CLIENT_ID);
-      assert.equal(form.get("scope"), "offline_access https://outlook.office.com/SMTP.Send");
+      assert.equal(
+        form.get("scope"),
+        "offline_access https://outlook.office.com/SMTP.Send https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send",
+      );
       return new Response(JSON.stringify({
         device_code: "private-device-code",
         user_code: "ABCD-EFGH",
@@ -129,6 +132,7 @@ test("Microsoft device authorization does not replace the current sender before 
     activeProvider: "microsoft365",
     encryptedRefreshToken: "encrypted:long-lived-refresh-token",
     connectedAt: new Date(now).toISOString(),
+    mailboxAccessGranted: true,
   });
   assert.equal(fixture.read("serverEmailAuthFlows", FLOW_ID), undefined);
 });
@@ -186,7 +190,10 @@ test("Microsoft device authorization uses server environment IDs without requiri
   });
 
   assert.equal(sentClientId, CLIENT_ID);
-  assert.equal(requestedScope, "offline_access https://outlook.office.com/SMTP.Send");
+  assert.equal(
+    requestedScope,
+    "offline_access https://outlook.office.com/SMTP.Send https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send",
+  );
   assert.equal(flow.flowId, FLOW_ID);
   assert.equal(fixture.read("serverEmailAuthFlows", FLOW_ID)?.tenantId, TENANT_ID);
 });

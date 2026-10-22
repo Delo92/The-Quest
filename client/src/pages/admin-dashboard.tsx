@@ -37,6 +37,7 @@ import AdminAnalyticsTab from "@/components/admin-analytics-tab";
 import AdminPayrollSettings from "@/components/admin-payroll-settings";
 import AdminFinancialOverview, { type FinancialView } from "@/components/admin-financial-overview";
 import AdminMicrosoftEmail from "@/components/admin-microsoft-email";
+import AdminMicrosoftInbox from "@/components/admin-microsoft-inbox";
 import AdminEmailActivity from "@/components/admin-email-activity";
 import AdminNonprofitGallery from "@/components/admin-nonprofit-gallery";
 import { NONPROFIT_PAGE_TEXT } from "@shared/nonprofit-page";
@@ -2290,10 +2291,11 @@ export default function AdminDashboard({ user }: { user: any }) {
               <div>
                 <h2 className="text-lg font-semibold text-white">Email</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Connect the outgoing mailbox and send a test only after Microsoft 365 is active.
+                  Manage the outgoing mailbox, open its inbox, and reply to messages.
                 </p>
               </div>
               <AdminMicrosoftEmail />
+              <AdminMicrosoftInbox />
               <GmailStatusPanel />
               <AdminEmailActivity />
             </div>

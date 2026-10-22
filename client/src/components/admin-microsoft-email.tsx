@@ -77,7 +77,7 @@ export default function AdminMicrosoftEmail() {
           await refetch();
           toast({
             title: "Microsoft mailbox connected",
-            description: "The Quest is now set to send from info@cbpublishing.live.",
+          description: "The Quest can now send from the mailbox and access its inbox for replies.",
           });
           return;
         }
@@ -277,7 +277,7 @@ export default function AdminMicrosoftEmail() {
       )}
 
       <p className="text-xs leading-relaxed text-white/50">
-        Microsoft OAuth requests the delegated <code className="text-orange-300">SMTP.Send</code> scope during sign-in. Public-client sign-in must be enabled; no client secret is needed. When prompted, sign in as <strong className="text-white/75">info@cbpublishing.live</strong>.
+        Microsoft OAuth requests delegated access to send email and read the inbox for replies. It does not request permission to delete or move messages. Public-client sign-in must be enabled; no client secret is needed. When prompted, sign in as <strong className="text-white/75">info@cbpublishing.live</strong>.
       </p>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

@@ -6,6 +6,8 @@ const MAILBOX_ADDRESS = "info@cbpublishing.live";
 const SETTINGS_COLLECTION = "serverEmailAuth";
 const FLOW_COLLECTION = "serverEmailAuthFlows";
 const SMTP_SCOPE = "https://outlook.office.com/SMTP.Send";
+const GRAPH_SCOPES = "https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send";
+const DEVICE_AUTH_SCOPES = `offline_access ${SMTP_SCOPE} ${GRAPH_SCOPES}`;
 const MICROSOFT_CLIENT_ID_ENV = "MICROSOFT_EMAIL_CLIENT_ID";
 const MICROSOFT_TENANT_ID_ENV = "MICROSOFT_EMAIL_TENANT_ID";
 
@@ -16,6 +18,7 @@ type MicrosoftEmailSettingsDocument = {
   activeProvider: "gmail" | "microsoft365";
   encryptedRefreshToken?: string | null;
   connectedAt?: string | null;
+  mailboxAccessGranted?: boolean;
 };
 
 export type MicrosoftEmailSettings = MicrosoftEmailSettingsDocument & {
@@ -52,6 +55,7 @@ type MicrosoftOAuthTestDependencies = Partial<{
 }>;
 
 let settingsCache: { value: MicrosoftEmailSettings | null; expiresAt: number } | null = null;
+let graphAccessTokenCache: { token: string; expiresAt: number; refreshToken: string } | null = null;
 
 function settingsRef(firestore = getFirestore()) {
   return firestore.collection(SETTINGS_COLLECTION).doc("microsoft365");
@@ -104,7 +108,7 @@ function explainMicrosoftOAuthError(code: string | undefined): string {
       return "Microsoft rejected the app registration. Check the tenant ID, client ID, and public-client setting.";
     case "consent_required":
     case "interaction_required":
-      return "Microsoft requires admin consent for the SMTP.Send permission before this mailbox can connect.";
+      return "Microsoft requires consent for sending mail and accessing the inbox before this mailbox can connect.";
     case "invalid_grant":
       return "Microsoft did not accept the authorization. Start a new connection attempt and sign in as info@cbpublishing.live.";
     default:
@@ -114,6 +118,7 @@ function explainMicrosoftOAuthError(code: string | undefined): string {
 
 export function invalidateMicrosoftEmailSettingsCache(): void {
   settingsCache = null;
+  graphAccessTokenCache = null;
 }
 
 export async function getMicrosoftEmailSettings(): Promise<MicrosoftEmailSettings | null> {
@@ -135,12 +140,75 @@ export async function getMicrosoftEmailSettings(): Promise<MicrosoftEmailSetting
     activeProvider: stored.activeProvider || "gmail",
     encryptedRefreshToken: stored.encryptedRefreshToken || null,
     connectedAt: stored.connectedAt || null,
+    mailboxAccessGranted: stored.mailboxAccessGranted === true,
     ...(stored.encryptedRefreshToken
       ? { refreshToken: decrypt(stored.encryptedRefreshToken) }
       : {}),
   };
   settingsCache = { value: settings, expiresAt: Date.now() + 10_000 };
   return settings;
+}
+
+export class MicrosoftMailboxPermissionError extends Error {
+  constructor() {
+    super("Reconnect Microsoft 365 in Admin → Email and approve the inbox and reply permissions.");
+    this.name = "MicrosoftMailboxPermissionError";
+  }
+}
+
+export async function getMicrosoftGraphAccessToken(): Promise<string> {
+  const settings = await getMicrosoftEmailSettings();
+  if (
+    !settings ||
+    settings.activeProvider !== "microsoft365" ||
+    !settings.refreshToken ||
+    !settings.mailboxAccessGranted
+  ) {
+    throw new MicrosoftMailboxPermissionError();
+  }
+
+  const now = Date.now();
+  if (
+    graphAccessTokenCache &&
+    graphAccessTokenCache.refreshToken === settings.refreshToken &&
+    graphAccessTokenCache.expiresAt > now + 60_000
+  ) {
+    return graphAccessTokenCache.token;
+  }
+
+  const response = await fetch(oauthEndpoint(settings.tenantId, "token"), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formBody({
+      client_id: settings.clientId,
+      grant_type: "refresh_token",
+      refresh_token: settings.refreshToken,
+      scope: `offline_access ${GRAPH_SCOPES}`,
+    }),
+  });
+  const result = await response.json() as MicrosoftTokenResponse;
+  if (!response.ok || !result.access_token) {
+    const code = result.error || "token_refresh_failed";
+    throw new Error(code === "invalid_grant"
+      ? "The Microsoft mailbox authorization expired. Reconnect Microsoft 365 in Admin → Email."
+      : "Microsoft could not authorize inbox access. Reconnect Microsoft 365 and approve the requested permissions.");
+  }
+
+  if (result.refresh_token && result.refresh_token !== settings.refreshToken) {
+    const encryptedRefreshToken = encrypt(result.refresh_token);
+    await settingsRef().set({
+      encryptedRefreshToken,
+    }, { merge: true });
+    settings.refreshToken = result.refresh_token;
+    settings.encryptedRefreshToken = encryptedRefreshToken;
+    settingsCache = { value: settings, expiresAt: Date.now() + 10_000 };
+  }
+  graphAccessTokenCache = {
+    token: result.access_token,
+    refreshToken: settings.refreshToken,
+    expiresAt: Date.now() + Math.max(60, Number(result.expires_in) || 3600) * 1000,
+  };
+  return result.access_token;
 }
 
 export async function getMicrosoftEmailOAuthStatus() {
@@ -170,6 +238,7 @@ export async function getMicrosoftEmailOAuthStatus() {
     configurationError,
     connected,
     active: settings?.activeProvider === "microsoft365" && connected,
+    mailboxAccessGranted: settings?.mailboxAccessGranted === true,
     connectedAt: settings?.connectedAt || null,
     encryptionReady: isEncryptionKeySet(),
   };
@@ -206,7 +275,7 @@ export async function startMicrosoftEmailDeviceAuthorization(input: {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: formBody({
       client_id: clientId,
-      scope: `offline_access ${SMTP_SCOPE}`,
+      scope: DEVICE_AUTH_SCOPES,
     }),
   });
   const result = await response.json() as MicrosoftTokenResponse & {
@@ -305,9 +374,11 @@ export async function pollMicrosoftEmailDeviceAuthorization(
       activeProvider: "microsoft365",
       encryptedRefreshToken: encryptValue(result.refresh_token),
       connectedAt: new Date(now()).toISOString(),
+      mailboxAccessGranted: true,
     }, { merge: true });
     await ref.delete();
     invalidateMicrosoftEmailSettingsCache();
+    graphAccessTokenCache = null;
     return { status: "connected" as const };
   }
 

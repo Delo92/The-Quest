@@ -113,7 +113,13 @@ import {
   getMicrosoftEmailOAuthStatus,
   pollMicrosoftEmailDeviceAuthorization,
   startMicrosoftEmailDeviceAuthorization,
+  MicrosoftMailboxPermissionError,
 } from "./microsoft-email-oauth";
+import {
+  getMicrosoftInboxMessage,
+  listMicrosoftInboxMessages,
+  replyToMicrosoftInboxMessage,
+} from "./microsoft-mailbox";
 import { logEmailDiagnostic } from "./email-diagnostics";
 import {
   uploadImageToDrive,
@@ -3550,6 +3556,49 @@ export async function registerRoutes(
       res.status(502).json({
         error: "Microsoft SMTP verification failed. Check SMTP Authentication and reconnect while signed in as info@cbpublishing.live.",
       });
+    }
+  });
+
+  app.get("/api/admin/microsoft-email/inbox", firebaseAuth, requireAdmin, async (_req, res) => {
+    try {
+      res.json(await listMicrosoftInboxMessages());
+    } catch (error) {
+      if (error instanceof MicrosoftMailboxPermissionError) {
+        return res.status(409).json({ error: error.message });
+      }
+      res.status(502).json({ error: "Could not load the Microsoft 365 inbox. Check the mailbox connection and permissions." });
+    }
+  });
+
+  app.get("/api/admin/microsoft-email/inbox/:id", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      res.json(await getMicrosoftInboxMessage(req.params.id));
+    } catch (error) {
+      if (error instanceof MicrosoftMailboxPermissionError) {
+        return res.status(409).json({ error: error.message });
+      }
+      if (error instanceof Error && error.message === "Invalid Microsoft message ID.") {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(502).json({ error: "Could not load this Microsoft 365 message." });
+    }
+  });
+
+  app.post("/api/admin/microsoft-email/inbox/:id/reply", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const comment = typeof req.body?.comment === "string" ? req.body.comment : "";
+      res.json(await replyToMicrosoftInboxMessage(req.params.id, comment));
+    } catch (error) {
+      if (error instanceof MicrosoftMailboxPermissionError) {
+        return res.status(409).json({ error: error.message });
+      }
+      if (
+        error instanceof Error &&
+        (error.message === "Invalid Microsoft message ID." || error.message.startsWith("Enter a reply"))
+      ) {
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(502).json({ error: "Could not send the reply through Microsoft 365." });
     }
   });
 
