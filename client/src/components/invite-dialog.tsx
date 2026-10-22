@@ -197,7 +197,10 @@ export function InviteDialog({ senderLevel }: { senderLevel: number }) {
           <Mail className="h-4 w-4 mr-1.5" /> Invite
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-zinc-900 border-white/10 text-white sm:max-w-lg" data-testid="invite-dialog">
+      <DialogContent
+        className="bg-zinc-900 border-white/10 text-white w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain sm:w-full sm:max-h-[calc(100dvh-2rem)] sm:max-w-lg"
+        data-testid="invite-dialog"
+      >
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">Invite User</DialogTitle>
         </DialogHeader>
