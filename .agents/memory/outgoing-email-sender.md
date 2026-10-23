@@ -20,3 +20,9 @@ The admin Email tab should prioritize daily inbox work over connection setup.
 **Why:** The owner wants the mailbox positioned higher on tab load rather than displaced by infrequently used authorization and test-email controls.
 
 **How to apply:** Keep connection settings available through a compact, initially collapsed chevron disclosure, while leaving sender status visible.
+
+The Microsoft mailbox is also the public support contact, not just an automated sender.
+
+**Why:** The owner wants visitors to know how to email the team directly.
+
+**How to apply:** Make the support address visible and clickable in public support/contact details. Do not let the legacy admin@thequest.com placeholder replace the real mailbox.

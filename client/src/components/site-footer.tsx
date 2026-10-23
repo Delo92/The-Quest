@@ -1,7 +1,11 @@
 import { Link } from "wouter";
 import CBLogo from "@/components/cb-logo";
+import { useLivery } from "@/hooks/use-livery";
+import { resolveSupportEmail } from "@shared/support-contact";
 
 export default function SiteFooter() {
+  const { getText } = useLivery();
+  const supportEmail = resolveSupportEmail(getText("contact_email", ""));
   const isQuestSection = window.location.pathname === "/thequest" || window.location.pathname.startsWith("/thequest/");
   const hostHref = isQuestSection ? "/host" : "/thequest/host";
 
@@ -67,6 +71,16 @@ export default function SiteFooter() {
         </p>
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 border-t border-white/5 pt-4">
+        <p className="mb-3 text-center text-sm text-white/65" data-testid="footer-support-details">
+          Need help? Email support:{" "}
+          <a
+            href={`mailto:${supportEmail}`}
+            className="inline-flex min-h-11 max-w-full items-center break-all rounded-sm font-medium text-orange-400 underline-offset-4 hover:text-orange-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+            data-testid="link-footer-support-email"
+          >
+            {supportEmail}
+          </a>
+        </p>
         <p className="text-[10px] text-white/20 text-center" data-testid="text-designed-by">Designed by : <a href="https://oraginalconcepts.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/40 transition-colors">Oraginal Concepts</a></p>
       </div>
     </footer>

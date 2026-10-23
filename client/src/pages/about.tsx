@@ -11,6 +11,7 @@ import { useSEO } from "@/hooks/use-seo";
 import { slugify } from "@shared/slugify";
 import type { Competition } from "@shared/schema";
 import { normalizeVoteSupportCopy } from "@shared/vote-support-copy";
+import { resolveSupportEmail } from "@shared/support-contact";
 
 type CompetitionExt = Competition & { coverVideo?: string | null };
 
@@ -76,7 +77,7 @@ export default function AboutPage() {
   const socialTwitter = getText("social_twitter", "");
   const socialYoutube = getText("social_youtube", "");
   const socialTiktok = getText("social_tiktok", "");
-  const contactEmail = getText("contact_email", "admin@thequest.com");
+  const contactEmail = resolveSupportEmail(getText("contact_email", ""));
   const contactPhone = getText("contact_phone", "");
   const contactAddress = getText("contact_address", "");
 

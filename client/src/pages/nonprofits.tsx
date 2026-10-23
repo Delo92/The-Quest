@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import NonprofitDirectoryWheel, { type NonprofitDirectoryEntry } from "@/components/nonprofit-directory-wheel";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
+import { resolveSupportEmail } from "@shared/support-contact";
 import { ensureVideoLoop } from "@/lib/media-utils";
 import { nonprofitLogoMediaKey } from "@shared/nonprofit-page";
 import "./nonprofits.css";
@@ -181,7 +182,7 @@ export default function NonprofitsPage() {
     refetchInterval: 60_000,
   });
   const galleryQuery = useQuery<GalleryItem[]>({ queryKey: ["/api/nonprofits/gallery"] });
-  const contactEmail = getText("contact_email", "admin@thequest.com") || "admin@thequest.com";
+  const contactEmail = resolveSupportEmail(getText("contact_email", ""));
   const liveryText = (key: string, fallback: string) => getText(`nonprofits_${key}`, fallback) || fallback;
   const inquiryHref = `mailto:${contactEmail}?subject=${encodeURIComponent("Nonprofit program inquiry")}&body=${encodeURIComponent("Hello The Quest,\\n\\nOur organization would like to ask about being considered for the nonprofit program.\\n\\nOrganization name:\\nWebsite:\\nContact name:\\nMission:")}`;
 

@@ -5,6 +5,7 @@ import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { normalizeVoteSupportCopy } from "@shared/vote-support-copy";
+import { resolveSupportEmail } from "@shared/support-contact";
 
 export default function FAQPage() {
   const { getText, getImage } = useLivery();
@@ -17,6 +18,7 @@ export default function FAQPage() {
   });
 
   const breadcrumbBg = getImage("breadcrumb_bg");
+  const supportEmail = resolveSupportEmail(getText("contact_email", ""));
 
   const faqs: { question: string; answer: string }[] = [];
   for (let i = 1; i <= 19; i++) {
@@ -93,6 +95,19 @@ export default function FAQPage() {
             <p className="text-white/40 text-sm">No FAQ items have been configured yet.</p>
           </div>
         )}
+        <section className="mt-10 border-t border-white/15 pt-6" aria-labelledby="faq-support-heading" data-testid="faq-support-details">
+          <h2 id="faq-support-heading" className="text-lg font-semibold text-white">Still need help?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-white/70">
+            For questions about your account, nominations, voting, or payments, email our support team.
+          </p>
+          <a
+            href={`mailto:${supportEmail}`}
+            className="mt-2 inline-flex min-h-11 max-w-full items-center break-all rounded-sm text-sm font-medium text-orange-400 underline-offset-4 hover:text-orange-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+            data-testid="link-faq-support-email"
+          >
+            {supportEmail}
+          </a>
+        </section>
       </div>
 
       <SiteFooter />

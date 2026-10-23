@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin, Zap } from "lucide-react";
 import MediaSlot from "@/components/media-slot";
 import CBLogo from "@/components/cb-logo";
+import { resolveSupportEmail } from "@shared/support-contact";
 
 function darkenHex(hex: string, amount = 0.15): string {
   const h = hex.replace("#", "");
@@ -355,9 +356,13 @@ export default function HomePage() {
                 <Mail className="w-5 h-5 text-[var(--cbp-brand)] mt-1 shrink-0" />
                 <div>
                   <h4 className="text-white font-semibold mb-1">Email</h4>
-                  <span className="text-gray-400 text-sm select-all">
-                    {getText("contact_email", "admin@thequest.com")}
-                  </span>
+                  <a
+                    href={`mailto:${resolveSupportEmail(getText("contact_email", ""))}`}
+                    className="inline-flex min-h-11 max-w-full items-center break-all rounded-sm text-gray-300 text-sm hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cbp-brand)]"
+                    data-testid="link-home-support-email"
+                  >
+                    {resolveSupportEmail(getText("contact_email", ""))}
+                  </a>
                 </div>
               </div>
               {getText("contact_phone", "") && (
