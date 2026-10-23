@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ExternalLink, Loader2, Mail, RefreshCw, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, ExternalLink, Loader2, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +39,7 @@ export default function AdminMicrosoftEmail() {
   const [testRecipient, setTestRecipient] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const { data: status, isLoading, refetch } = useQuery<MicrosoftEmailStatus>({
     queryKey: ["/api/admin/microsoft-email/status"],
@@ -200,19 +202,23 @@ export default function AdminMicrosoftEmail() {
         : "Gmail remains the active sender";
 
   return (
-    <section className="rounded-lg border border-white/15 bg-zinc-900 p-4 space-y-4" aria-labelledby="microsoft-email-heading">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-2.5">
-          <Mail className="mt-0.5 h-4 w-4 shrink-0 text-orange-400" aria-hidden="true" />
-          <div>
-            <h3 id="microsoft-email-heading" className="text-sm font-semibold text-white">
-              Microsoft 365 email
-            </h3>
-            <p className="mt-1 text-xs leading-relaxed text-white/55">
-              Connect {status?.mailboxAddress || "info@cbpublishing.live"} with Microsoft OAuth. The mailbox token is encrypted on the server and never shown here.
-            </p>
-          </div>
-        </div>
+    <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen} asChild>
+    <section className="rounded-lg border border-white/15 bg-zinc-900 p-4" aria-labelledby="microsoft-email-heading">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <h3 className="min-w-0 flex-1">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="group flex min-h-11 w-full items-center gap-2.5 rounded-md text-left text-sm font-semibold text-white hover:text-orange-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              data-testid="button-toggle-microsoft-email-settings"
+            >
+              <Mail className="h-4 w-4 shrink-0 text-orange-400" aria-hidden="true" />
+              <span id="microsoft-email-heading">Microsoft 365 email</span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-white/65 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+              <span className="sr-only">connection settings</span>
+            </button>
+          </CollapsibleTrigger>
+        </h3>
         <div className="flex items-center gap-2 text-xs text-white/65" aria-live="polite">
           <span className={`h-2 w-2 rounded-full ${status?.active ? "bg-green-500" : status?.connected ? "bg-amber-400" : "bg-zinc-500"}`} />
           <span>{statusText}</span>
@@ -229,6 +235,11 @@ export default function AdminMicrosoftEmail() {
           </Button>
         </div>
       </div>
+
+      <CollapsibleContent className="space-y-4 pt-4">
+      <p className="text-xs leading-relaxed text-white/55">
+        Connect {status?.mailboxAddress || "info@cbpublishing.live"} with Microsoft OAuth. The mailbox token is encrypted on the server and never shown here.
+      </p>
 
       {!status?.encryptionReady && (
         <p role="alert" className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
@@ -388,6 +399,8 @@ export default function AdminMicrosoftEmail() {
           ? "The Quest now sends through smtp.office365.com using OAuth."
           : "The current Gmail sender remains in use until Microsoft authorization completes."}
       </p>
+      </CollapsibleContent>
     </section>
+    </Collapsible>
   );
 }

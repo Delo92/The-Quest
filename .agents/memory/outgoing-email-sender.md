@@ -14,3 +14,9 @@ Never combine Outlook SMTP and Microsoft Graph scopes in one device authorizatio
 **Why:** Microsoft rejects the mixed-resource request with AADSTS28000, even if device-code creation initially appears successful. Existing consent may already allow each resource separately; a failed reconnect does not mean sending or inbox authorization is absent.
 
 **How to apply:** Obtain Graph approval separately and verify SMTP through a resource-specific refresh. Check granted permissions before enabling mailbox access or replacing the active sender. Resume transient checks from an encrypted approved refresh token rather than exchanging a consumed device code again.
+
+The admin Email tab should prioritize daily inbox work over connection setup.
+
+**Why:** The owner wants the mailbox positioned higher on tab load rather than displaced by infrequently used authorization and test-email controls.
+
+**How to apply:** Keep connection settings available through a compact, initially collapsed chevron disclosure, while leaving sender status visible.
