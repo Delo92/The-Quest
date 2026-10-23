@@ -2,7 +2,7 @@
 - [Weekly marketing consent](weekly-marketing-consent.md) — due Monday through Sunday in Central Time; signup acceptance satisfies that account’s current week
 - [The Quest artifact setup](the-quest-artifact.md) — dev command must cd to workspace root; PORT=22558 injected by artifact
 - [Render dependency portability](render-dependency-portability.md) — keep Replit-specific packages and internal registry URLs out of dependencies and npm locks
-- [Payment outcome handling](payment-outcome-handling.md) — uncertain Authorize.net outcomes stay locked; never make them automatically retryable
+- [Payment outcome handling](payment-outcome-handling.md) — uncertain outcomes stay locked; a missing nomination or reservation does not prove the card was not charged
 - [Payment security controls](payment-security-controls.md) — every paid path must use shared server-side velocity, billing, duplicate, and reservation controls
 - [Payment confirmation terms](payment-confirmation-terms.md) — keep checkout terms collapsed by default and scoped to the purchase type
 - [Quest payroll and tax ledger](payroll-ledger-architecture.md) — hosts and talent share one W-9 interface and encrypted tax contract; 1099 templates use Firebase Storage metadata

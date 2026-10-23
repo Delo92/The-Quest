@@ -112,7 +112,9 @@ function requestHash(request: PaymentRequest): string {
     .digest("hex");
 }
 
-export async function reservePayment(request: PaymentRequest): Promise<{
+export async function reservePayment(request: PaymentRequest, dependencies: {
+  firestore?: ReturnType<typeof getFirestore>;
+} = {}): Promise<{
   state: "reserved" | "processing" | "charged" | "completed";
   paymentId: string;
   response?: unknown;
@@ -123,10 +125,11 @@ export async function reservePayment(request: PaymentRequest): Promise<{
   }
 
   const paymentId = paymentDocId(request.idempotencyKey);
-  const ref = getFirestore().collection("paymentAttempts").doc(paymentId);
+  const db = dependencies.firestore ?? getFirestore();
+  const ref = db.collection("paymentAttempts").doc(paymentId);
   const hash = requestHash(request);
 
-  return getFirestore().runTransaction(async (tx) => {
+  return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (snap.exists) {
       const existing = snap.data()!;
@@ -147,6 +150,12 @@ export async function reservePayment(request: PaymentRequest): Promise<{
 
     tx.set(ref, {
       ...request,
+      // Non-voting purchases have no contestant, and host purchases may also
+      // have no competition. Firestore rejects explicit undefined values.
+      competitionId: request.competitionId ?? null,
+      contestantId: request.contestantId ?? null,
+      customerEmail: request.customerEmail ?? null,
+      customerName: request.customerName ?? null,
       idempotencyKeyHash: paymentId,
       requestHash: hash,
       status: "processing",

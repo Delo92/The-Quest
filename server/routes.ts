@@ -6293,7 +6293,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Payment failed: ${error.errorMessage}` });
       }
       if (error.status) return res.status(error.status).json({ message: error.message });
-      res.status(500).json({ message: "Nomination failed. Please try again." });
+      res.status(500).json({
+        message: "Nomination could not be completed. If your card shows a charge or hold, do not pay again. Contact The Quest to check the payment.",
+      });
     }
   });
 
