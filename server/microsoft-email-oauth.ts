@@ -7,7 +7,9 @@ const SETTINGS_COLLECTION = "serverEmailAuth";
 const FLOW_COLLECTION = "serverEmailAuthFlows";
 const SMTP_SCOPE = "https://outlook.office.com/SMTP.Send";
 const GRAPH_SCOPES = "https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/Mail.Send";
-const DEVICE_AUTH_SCOPES = `offline_access ${SMTP_SCOPE} ${GRAPH_SCOPES}`;
+// Microsoft issues a token for one resource at a time. SMTP consent is
+// checked separately after Graph approval, never mixed into this request.
+const DEVICE_AUTH_SCOPES = `offline_access ${GRAPH_SCOPES}`;
 const MICROSOFT_CLIENT_ID_ENV = "MICROSOFT_EMAIL_CLIENT_ID";
 const MICROSOFT_TENANT_ID_ENV = "MICROSOFT_EMAIL_TENANT_ID";
 
@@ -32,6 +34,7 @@ type DeviceFlowDocument = {
   expiresAtMs: number;
   intervalSeconds: number;
   nextPollAtMs: number;
+  encryptedApprovedRefreshToken?: string;
 };
 
 type MicrosoftTokenResponse = {
@@ -41,6 +44,8 @@ type MicrosoftTokenResponse = {
   error_description?: string;
   interval?: number;
   expires_in?: number;
+  scope?: string;
+  error_codes?: number[];
 };
 
 type MicrosoftOAuthTestDependencies = Partial<{
@@ -97,7 +102,10 @@ function formBody(values: Record<string, string>): URLSearchParams {
   return body;
 }
 
-function explainMicrosoftOAuthError(code: string | undefined): string {
+function explainMicrosoftOAuthError(code: string | undefined, errorCodes?: number[]): string {
+  if (errorCodes?.includes(28000)) {
+    return "Microsoft rejected a sign-in request that mixed inbox and SMTP permissions (AADSTS28000). Update The Quest and start a new connection.";
+  }
   switch (code) {
     case "authorization_declined":
       return "Microsoft authorization was declined.";
@@ -111,9 +119,19 @@ function explainMicrosoftOAuthError(code: string | undefined): string {
       return "Microsoft requires consent for sending mail and accessing the inbox before this mailbox can connect.";
     case "invalid_grant":
       return "Microsoft did not accept the authorization. Start a new connection attempt and sign in as info@cbpublishing.live.";
+    case "invalid_scope":
+    case "invalid_resource":
+      return "Microsoft did not accept the requested mail permissions. Check the app's delegated Mail.Read, Mail.Send, and SMTP.Send permissions.";
     default:
-      return "Microsoft could not complete authorization. Check the app registration and admin consent, then try again.";
+      const safeCode = code && /^[a-z_]{1,80}$/.test(code) ? ` (${code})` : "";
+      const aadCode = errorCodes?.find((value) => Number.isSafeInteger(value) && value > 0);
+      return `Microsoft could not complete authorization${safeCode}${aadCode ? ` (AADSTS${aadCode})` : ""}. Start a new connection attempt.`;
   }
+}
+
+function hasGrantedScopes(scope: string | undefined, required: string[]): boolean {
+  const granted = (scope || "").split(/\s+/).map((value) => value.slice(value.lastIndexOf("/") + 1));
+  return required.every((permission) => granted.includes(permission));
 }
 
 export function invalidateMicrosoftEmailSettingsCache(): void {
@@ -286,7 +304,7 @@ export async function startMicrosoftEmailDeviceAuthorization(input: {
     message?: string;
   };
   if (!response.ok || !result.device_code || !result.user_code || !result.verification_uri) {
-    throw new Error(explainMicrosoftOAuthError(result.error));
+    throw new Error(explainMicrosoftOAuthError(result.error, result.error_codes));
   }
 
   const flowId = createId();
@@ -351,52 +369,86 @@ export async function pollMicrosoftEmailDeviceAuthorization(
     nextPollAtMs: currentTime + intervalSeconds * 1000,
   });
 
-  const response = await fetcher(oauthEndpoint(flow.tenantId, "token"), {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: formBody({
-      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-      client_id: flow.clientId,
-      device_code: decryptValue(flow.encryptedDeviceCode),
-    }),
-  });
-  const result = await response.json() as MicrosoftTokenResponse;
+  let approvedRefreshToken = flow.encryptedApprovedRefreshToken
+    ? decryptValue(flow.encryptedApprovedRefreshToken)
+    : null;
+  if (!approvedRefreshToken) {
+    const response = await fetcher(oauthEndpoint(flow.tenantId, "token"), {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formBody({
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+        client_id: flow.clientId,
+        device_code: decryptValue(flow.encryptedDeviceCode),
+        scope: DEVICE_AUTH_SCOPES,
+      }),
+    });
+    const result = await response.json() as MicrosoftTokenResponse;
 
-  if (response.ok && result.access_token && result.refresh_token) {
+    if (result.error === "authorization_pending" || result.error === "temporarily_unavailable" || response.status >= 500) {
+      return { status: "pending" as const, retryAfterSeconds: intervalSeconds };
+    }
+    if (result.error === "slow_down") {
+      const slowerInterval = intervalSeconds + 5;
+      await ref.update({
+        intervalSeconds: slowerInterval,
+        nextPollAtMs: now() + slowerInterval * 1000,
+      });
+      return { status: "pending" as const, retryAfterSeconds: slowerInterval };
+    }
+    if (!response.ok || !result.access_token || !result.refresh_token) {
+      await ref.delete();
+      return { status: "failed" as const, message: explainMicrosoftOAuthError(result.error, result.error_codes) };
+    }
+    if (!hasGrantedScopes(result.scope, ["Mail.Read", "Mail.Send"])) {
+      await ref.delete();
+      return { status: "failed" as const, message: "Microsoft did not grant both inbox and reply permissions. Reconnect and approve Mail.Read and Mail.Send." };
+    }
     if (!encryptionKeyReady()) {
       await ref.delete();
       return { status: "failed" as const, message: "The Microsoft token could not be stored securely. Ask the site administrator to check the encryption setting." };
     }
-    await settingsRef(firestore).set({
-      tenantId: flow.tenantId,
-      clientId: flow.clientId,
-      mailboxAddress: MAILBOX_ADDRESS,
-      activeProvider: "microsoft365",
-      encryptedRefreshToken: encryptValue(result.refresh_token),
-      connectedAt: new Date(now()).toISOString(),
-      mailboxAccessGranted: true,
-    }, { merge: true });
-    await ref.delete();
-    invalidateMicrosoftEmailSettingsCache();
-    graphAccessTokenCache = null;
-    return { status: "connected" as const };
+    approvedRefreshToken = result.refresh_token;
+    // A consumed device code cannot be exchanged twice. Keep the approved
+    // refresh token encrypted so a transient SMTP check can be resumed.
+    await ref.update({ encryptedApprovedRefreshToken: encryptValue(approvedRefreshToken) });
   }
 
-  if (result.error === "authorization_pending") {
+  const smtpResponse = await fetcher(oauthEndpoint(flow.tenantId, "token"), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formBody({
+      grant_type: "refresh_token",
+      client_id: flow.clientId,
+      refresh_token: approvedRefreshToken,
+      scope: `offline_access ${SMTP_SCOPE}`,
+    }),
+  });
+  const smtpResult = await smtpResponse.json() as MicrosoftTokenResponse;
+  if (smtpResponse.status >= 500 || smtpResult.error === "temporarily_unavailable") {
     return { status: "pending" as const, retryAfterSeconds: intervalSeconds };
   }
-  if (result.error === "slow_down") {
-    const slowerInterval = intervalSeconds + 5;
-    await ref.update({
-      intervalSeconds: slowerInterval,
-      nextPollAtMs: now() + slowerInterval * 1000,
-    });
-    return { status: "pending" as const, retryAfterSeconds: slowerInterval };
+  if (!smtpResponse.ok || !smtpResult.access_token || !hasGrantedScopes(smtpResult.scope, ["SMTP.Send"])) {
+    await ref.delete();
+    return {
+      status: "failed" as const,
+      message: `Microsoft inbox approval finished, but SMTP sending permission could not be verified. The existing sender was not changed. Approve the app's delegated SMTP.Send permission, then reconnect.${smtpResult.error ? ` ${explainMicrosoftOAuthError(smtpResult.error, smtpResult.error_codes)}` : ""}`,
+    };
   }
-
+  if (!encryptionKeyReady()) {
+    await ref.delete();
+    return { status: "failed" as const, message: "The Microsoft token could not be stored securely. Ask the site administrator to check the encryption setting." };
+  }
+  await settingsRef(firestore).set({
+    tenantId: flow.tenantId,
+    clientId: flow.clientId,
+    mailboxAddress: MAILBOX_ADDRESS,
+    activeProvider: "microsoft365",
+    encryptedRefreshToken: encryptValue(smtpResult.refresh_token || approvedRefreshToken),
+    connectedAt: new Date(now()).toISOString(),
+    mailboxAccessGranted: true,
+  }, { merge: true });
   await ref.delete();
-  return {
-    status: "failed" as const,
-    message: explainMicrosoftOAuthError(result.error),
-  };
+  invalidateMicrosoftEmailSettingsCache();
+  return { status: "connected" as const };
 }
