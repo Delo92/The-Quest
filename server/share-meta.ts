@@ -9,6 +9,7 @@ interface ShareMeta {
   title: string;
   description: string;
   image?: string | null;
+  favicon?: string | null;
   url: string;
   canonical?: string;
   ogType?: string;
@@ -104,10 +105,23 @@ export function applyShareMeta(template: string, meta: ShareMeta) {
   page = replaceMeta(page, "property", "og:type", meta.ogType || "website");
   page = replaceMeta(page, "property", "og:site_name", "The Quest | CB Publishing");
   page = replaceMeta(page, "property", "og:image", meta.image || `${getPublicOrigin()}/cb-logo-favicon.png?v=cbp-20260905`);
+  if (meta.favicon) {
+    const favicon = escapeHtml(meta.favicon);
+    page = page.replace(
+      /<link\b(?=[^>]*\brel=(["'])(?:icon|shortcut icon|apple-touch-icon)\1)[^>]*\/?>/gi,
+      "",
+    );
+    page = page.replace("</head>", [
+      `<link rel="icon" href="${favicon}" />`,
+      `<link rel="shortcut icon" href="${favicon}" />`,
+      `<link rel="apple-touch-icon" href="${favicon}" />`,
+      "</head>",
+    ].join("\n"));
+  }
   // The base HTML uses the square brand icon's dimensions. Dynamic share images
   // have different dimensions, so do not advertise those stale values.
   page = page.replace(/<meta\s+property="og:image:(?:width|height)"\s+content="[^"]*"\s*\/?>/gi, "");
-  page = replaceMeta(page, "name", "twitter:card", meta.video ? "player" : "summary_large_image");
+  page = replaceMeta(page, "name", "twitter:card", meta.video?.playerUrl ? "player" : "summary_large_image");
   page = replaceMeta(page, "name", "twitter:title", meta.title);
   page = replaceMeta(page, "name", "twitter:description", description);
   page = replaceMeta(page, "name", "twitter:image", meta.image || `${getPublicOrigin()}/cb-logo-favicon.png?v=cbp-20260905`);
@@ -398,7 +412,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       name: `${name} — ${competition.title}`,
       description,
       thumbnailUrl: video.posterUrl,
-      embedUrl: video.playerUrl,
+      ...(video.playerUrl ? { embedUrl: video.playerUrl } : {}),
       ...(video.streamUrl ? { contentUrl: video.streamUrl } : {}),
       ...(video.uploadDate ? { uploadDate: video.uploadDate } : {}),
       ...(video.duration ? { duration: `PT${Math.round(video.duration)}S` } : {}),
@@ -490,7 +504,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       name: `${competition.title} competition video`,
       description,
       thumbnailUrl: video.posterUrl,
-      embedUrl: video.playerUrl,
+      ...(video.playerUrl ? { embedUrl: video.playerUrl } : {}),
       ...(video.streamUrl ? { contentUrl: video.streamUrl } : {}),
       ...(video.uploadDate ? { uploadDate: video.uploadDate } : {}),
       ...(video.duration ? { duration: `PT${Math.round(video.duration)}S` } : {}),
@@ -529,6 +543,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       title: `${competition.title} — ${competition.category} Competition`,
       description,
       image: competition.coverImage || video?.posterUrl || null,
+      favicon: competition.coverImage || video?.posterUrl || null,
       video,
       url: canonical,
       canonical,

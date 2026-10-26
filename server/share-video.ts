@@ -17,6 +17,7 @@ type Profile = Parameters<typeof getCompetitionScopedTalentVideos>[0] & {
 };
 type Competition = Parameters<typeof getCompetitionScopedTalentVideos>[1] & {
   coverVideo?: string | null;
+  coverImage?: string | null;
   promoVideos?: string[] | null;
 };
 type MediaDependencies = {
@@ -96,10 +97,18 @@ export async function getCompetitionShareVideo(
 ): Promise<VideoShareMetadata | null> {
   const sources = [competition.coverVideo, ...(competition.promoVideos || [])]
     .filter((source): source is string => typeof source === "string" && source.length > 0);
+  const directCoverMp4 = getDirectMp4Url(competition.coverVideo);
+  if (directCoverMp4) {
+    return {
+      streamUrl: directCoverMp4,
+      posterUrl: competition.coverImage || `${origin}/cb-logo-favicon.png?v=cbp-20260905`,
+      width: 1280,
+      height: 720,
+    };
+  }
   const videoIds = [...new Set(sources.map(extractVimeoVideoId).filter((id): id is string => !!id))];
-  if (!videoIds.length) return null;
 
-  const key = JSON.stringify([origin, competition.id, sources]);
+  const key = JSON.stringify([origin, competition.id, sources, competition.coverImage]);
   const cached = !Object.keys(dependencies).length && competitionVideoMetadataCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
@@ -133,6 +142,17 @@ export async function getCompetitionShareVideo(
         // Try the next saved competition video if one is unavailable.
       }
     }
+    const directPromoMp4 = (competition.promoVideos || [])
+      .map(getDirectMp4Url)
+      .find((url): url is string => !!url);
+    if (directPromoMp4) {
+      return {
+        streamUrl: directPromoMp4,
+        posterUrl: competition.coverImage || `${origin}/cb-logo-favicon.png?v=cbp-20260905`,
+        width: 1280,
+        height: 720,
+      };
+    }
     return null;
   };
 
@@ -144,6 +164,17 @@ export async function getCompetitionShareVideo(
     competitionVideoMetadataCache.set(key, { value, expiresAt: Date.now() + (value ? 60_000 : 15_000) });
   }
   return value;
+}
+
+function getDirectMp4Url(source: string | null | undefined): string | null {
+  if (!source || extractVimeoVideoId(source)) return null;
+  try {
+    const url = new URL(source);
+    if (url.protocol !== "https:" || !url.pathname.toLowerCase().endsWith(".mp4")) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
 }
 
 export async function resolveShareVideoStream(

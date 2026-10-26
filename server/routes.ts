@@ -27,7 +27,7 @@ import {
 } from "../shared/nonprofit-page";
 import { escapeXml, getPublicOrigin } from "./share-meta";
 import { getCompetitionScopedTalentVideos } from "./competition-videos";
-import { getContestantShareVideo, registerShareVideoRoutes } from "./share-video";
+import { getCompetitionShareVideo, getContestantShareVideo, registerShareVideoRoutes } from "./share-video";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
@@ -8891,6 +8891,9 @@ export async function registerRoutes(
 
       const contestantsData = await storage.getContestantsByCompetition(comp.id);
       const totalVotes = await storage.getTotalVotesByCompetition(comp.id);
+      const shareVideo = comp.status === "draft"
+        ? null
+        : await getCompetitionShareVideo(comp, getPublicOrigin());
 
       const enrichedContestants = contestantsData.map((contestant) => ({
         ...contestant,
@@ -8924,6 +8927,7 @@ export async function registerRoutes(
         totalVotes,
         hostedBy,
         hostedByProfileSlug,
+        shareVideo,
       });
     } catch (error: any) {
       console.error("Competition slug resolution error:", error);

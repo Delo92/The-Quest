@@ -18,6 +18,7 @@ import { useSEO } from "@/hooks/use-seo";
 import { slugify, slugifyWithId } from "@shared/slugify";
 import { preserveReferralQuery } from "@/lib/referral";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION, getCompetitionCropImageStyle } from "@shared/image-crop";
+import type { VideoShareMetadata } from "@shared/video-share";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import CompetitionTrackingPanel, { type CompetitionTrackingContestant } from "@/components/competition-tracking-panel";
 import CompetitionShareLinks from "@/components/competition-share-links";
@@ -153,6 +154,7 @@ interface CompetitionDetail {
   coverImage: string | null;
   coverVideo: string | null;
   promoVideos?: string[] | null;
+  shareVideo?: VideoShareMetadata | null;
   status: string;
   voteCost: number;
   maxVotesPerDay: number;
@@ -303,8 +305,11 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   useSEO({
     title: competition ? `${competition.title} - ${competition.category} Competition` : "Competition",
     description: competition?.description || (competition ? `Vote in the ${competition.title} ${competition.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!` : undefined),
-    ogImage: competition?.coverImage || undefined,
+    ogImage: competition?.coverImage || competition?.shareVideo?.posterUrl || undefined,
+    ogVideo: competition?.shareVideo || undefined,
+    favicon: competition ? competition.coverImage || competition.shareVideo?.posterUrl || undefined : undefined,
     canonical: competition ? `https://thequest-2dc77.firebaseapp.com/${slugify(competition.category)}/${slugify(competition.title)}` : undefined,
+    pending: !competition && isLoading,
   });
 
   const voteMutation = useMutation({

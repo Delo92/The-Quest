@@ -153,6 +153,25 @@ test("competition share metadata uses its saved promo video with stable player a
   assert.equal(meta.streamUrl, "https://quest.example/api/share-competition-video/71/123456.mp4");
 });
 
+test("uploaded competition MP4 covers are shared directly as video without an invalid HTML player tag", async () => {
+  const directUrl = "https://storage.example/covers/71-hype.mp4?token=public";
+  const meta = await getCompetitionShareVideo({
+    ...competition,
+    coverImage: "https://images.example/competition-cover.jpg",
+    coverVideo: directUrl,
+  }, "https://quest.example", {
+    getVideoById: async () => { throw new Error("Vimeo lookup must not run for an uploaded MP4"); },
+  });
+  assert.ok(meta);
+  assert.equal(meta.streamUrl, directUrl);
+  assert.equal(meta.playerUrl, undefined);
+  assert.equal(meta.posterUrl, "https://images.example/competition-cover.jpg");
+  const tags = videoShareTags(meta, "https://quest.example");
+  assert.deepEqual(tags.filter((tag) => tag.key === "og:video:type").map((tag) => tag.value), ["video/mp4"]);
+  assert.equal(tags.some((tag) => tag.key === "twitter:player"), false);
+  assert.equal(tags.some((tag) => tag.key === "twitter:player:stream"), false);
+});
+
 test("Vimeo player metadata and real poster remain available without MP4 access", async () => {
   const meta = await getContestantShareVideo(competition, profile, "https://quest.example", {
     getVideos: async () => [video], getPlayUrls: async () => { throw new Error("No progressive access"); },
@@ -224,16 +243,19 @@ test("video cards advertise both MP4 and HTML players with the correct portrait 
 });
 
 test("server HTML contains playable video tags and escaped video poster, not profile artwork", () => {
-  const template = '<html><head><title>Old</title><meta name="twitter:card" content="summary_large_image" /><meta property="og:image:width" content="120" /><meta property="og:image:height" content="98" /><meta property="og:video" content="stale" /><link rel="canonical" href="https://old.example" /></head><body><div id="root"></div></body></html>';
+  const template = '<html><head><title>Old</title><meta name="twitter:card" content="summary_large_image" /><meta property="og:image:width" content="120" /><meta property="og:image:height" content="98" /><meta property="og:video" content="stale" /><link rel="icon" href="/cb-logo-favicon.png" /><link rel="apple-touch-icon" href="/cb-logo-favicon.png" /><link rel="canonical" href="https://old.example" /></head><body><div id="root"></div></body></html>';
   const poster = "https://i.vimeocdn.com/video/frame.jpg?a=1&b=2";
   const html = applyShareMeta(template, {
     title: "Artist's competition video", description: "Watch and vote", url: "https://quest.example/entry",
-    image: poster, ogType: "video.other",
+    image: poster, favicon: poster, ogType: "video.other",
     video: { playerUrl: video.player_embed_url, streamUrl: "https://quest.example/api/share-video/71/81/123456.mp4", posterUrl: poster, width: 1080, height: 1920 },
   });
   assert.match(html, /name="twitter:card" content="player"/);
   assert.match(html, /property="og:video:type" content="video\/mp4"/);
   assert.match(html, /property="og:image" content="https:\/\/i.vimeocdn.com\/video\/frame.jpg\?a=1&amp;b=2"/);
+  assert.match(html, /<link rel="icon" href="https:\/\/i\.vimeocdn\.com\/video\/frame\.jpg\?a=1&amp;b=2"/);
+  assert.match(html, /<link rel="apple-touch-icon" href="https:\/\/i\.vimeocdn\.com\/video\/frame\.jpg\?a=1&amp;b=2"/);
+  assert.doesNotMatch(html, /cb-logo-favicon\.png/);
   assert.doesNotMatch(html, /og:image:(?:width|height)/);
   assert.doesNotMatch(html, /content="stale"|expires=soon/);
   const plain = applyShareMeta(html, { title: "Normal page", description: "Text", url: "https://quest.example" });

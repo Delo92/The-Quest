@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect, useSearch, useParams } from "wouter";
+import { Switch, Route, Redirect, useSearch, useParams, useLocation } from "wouter";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -80,9 +80,13 @@ function QuestApplication() {
 
 function DynamicFavicon() {
   const { getImage, isLoading } = useLivery();
+  const [location] = useLocation();
 
   useEffect(() => {
     if (isLoading) return;
+    // Competition pages set their own icon from the competition image after
+    // resolving competition data; do not overwrite it with the site logo.
+    if (/^\/thequest\/[^/]+\/[^/]+\/?$/.test(location)) return;
     const uploadedUrl = getImage("site_favicon", "");
     const faviconUrl = uploadedUrl || "/cb-logo-favicon.png";
     document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"], link[rel="shortcut icon"]').forEach(el => el.remove());
@@ -94,7 +98,7 @@ function DynamicFavicon() {
     apple.rel = "apple-touch-icon";
     apple.href = faviconUrl;
     document.head.appendChild(apple);
-  }, [isLoading, getImage]);
+  }, [isLoading, getImage, location]);
 
   return null;
 }

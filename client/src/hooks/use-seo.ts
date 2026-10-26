@@ -6,6 +6,7 @@ interface SEOOptions {
   description?: string;
   canonical?: string;
   ogImage?: string;
+  favicon?: string;
   ogType?: string;
   ogVideo?: VideoShareMetadata;
   pending?: boolean;
@@ -33,6 +34,19 @@ function setCanonical(url: string) {
     document.head.appendChild(el);
   }
   el.setAttribute("href", url);
+}
+
+function setFavicon(url: string) {
+  const rels = ["icon", "shortcut icon", "apple-touch-icon"];
+  for (const rel of rels) {
+    let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = rel;
+      document.head.appendChild(link);
+    }
+    link.href = url;
+  }
 }
 
 function normalizeCanonical(canonical?: string) {
@@ -66,7 +80,7 @@ function clearVideoTags() {
     .forEach((element) => element.remove());
 }
 
-export function useSEO({ title, description, canonical, ogImage, ogType, ogVideo, pending }: SEOOptions) {
+export function useSEO({ title, description, canonical, ogImage, favicon, ogType, ogVideo, pending }: SEOOptions) {
   useEffect(() => {
     // Preserve the server's contestant video card until the bundle has loaded.
     if (pending) return;
@@ -84,12 +98,13 @@ export function useSEO({ title, description, canonical, ogImage, ogType, ogVideo
     const defaultOgImage = "https://cbpublishing.live/cb-logo-favicon.png?v=cbp-20260905";
     setMetaTag("og:image", ogImage || defaultOgImage, true);
     setMetaTag("twitter:image", ogImage || defaultOgImage);
+    if (favicon) setFavicon(favicon);
 
     const url = normalizeCanonical(canonical);
     setCanonical(url);
     setMetaTag("og:url", url, true);
     clearVideoTags();
-    setMetaTag("twitter:card", ogVideo ? "player" : "summary_large_image");
+    setMetaTag("twitter:card", ogVideo?.playerUrl ? "player" : "summary_large_image");
     if (ogVideo) {
       for (const { attr, key, value } of videoShareTags(ogVideo, new URL(url).origin)) {
         // Open Graph accepts multiple media alternatives; do not overwrite
@@ -118,5 +133,5 @@ export function useSEO({ title, description, canonical, ogImage, ogType, ogVideo
       setCanonical(fallbackUrl);
     };
   }, [title, description, canonical, ogImage, ogType, ogVideo?.playerUrl, ogVideo?.streamUrl,
-    ogVideo?.width, ogVideo?.height, ogVideo?.duration, pending]);
+    ogVideo?.width, ogVideo?.height, ogVideo?.duration, favicon, pending]);
 }
