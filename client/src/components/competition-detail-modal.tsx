@@ -39,6 +39,7 @@ interface CompDetailResponse {
     vimeoFolderUrl: string | null;
     coverImage: string | null;
     coverVideo: string | null;
+    promoVideos?: string[] | null;
     themeColor?: string | null;
     contestantImageCropPositions?: Record<string, Record<string, ImageCropPosition>>;
     stages?: CompetitionStage[];

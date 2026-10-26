@@ -14,7 +14,6 @@ import { applyShareMeta } from "./share-meta";
 import {
   shareCompetitionVideoPath,
   shareCompetitionVideoPlayerPath,
-  getCompetitionVideoEmbedCode,
   shareVideoPath,
   shareVideoPlayerPath,
   videoShareTags,
@@ -172,19 +171,6 @@ test("the public share player is responsive, uses native video, and escapes medi
   assert.doesNotMatch(html, /<iframe|<script|expires=soon/);
 });
 
-test("website embed code uses the player URL, keeps the video ratio, and escapes attributes", () => {
-  const code = getCompetitionVideoEmbedCode(
-    'Starr Struck "Highlight"',
-    "https://cbpublishing.live/api/share-competition-video/11/123456.html?source=share&view=web",
-    360,
-    640,
-  );
-  assert.match(code, /<iframe src="https:\/\/cbpublishing\.live\/api\/share-competition-video\/11\/123456\.html\?source=share&amp;view=web"/);
-  assert.match(code, /title="Starr Struck &quot;Highlight&quot; competition video"/);
-  assert.match(code, /aspect-ratio:360\/640/);
-  assert.match(code, /allowfullscreen loading="lazy"/);
-});
-
 test("an entry without a video cannot borrow another entry's media", async () => {
   const meta = await getContestantShareVideo(competition, profile, "https://quest.example", {
     getVideos: async () => [], getPlayUrls: async () => { throw new Error("Must not run"); },
@@ -232,24 +218,28 @@ test("video cards advertise both MP4 and HTML players with the correct portrait 
     posterUrl: play.thumbnailUrl!, width: 1080, height: 1920, duration: 34,
   }, "https://quest.example");
   assert.deepEqual(tags.filter((tag) => tag.key === "og:video:type").map((tag) => tag.value), ["video/mp4", "text/html"]);
+  assert.equal(tags.find((tag) => tag.key === "og:video:url")?.value, "https://quest.example/api/share-video/71/81/123456.mp4");
   assert.equal(tags.find((tag) => tag.key === "twitter:player:height")?.value, "1920");
   assert.equal(tags.find((tag) => tag.key === "twitter:player:stream")?.value, "https://quest.example/api/share-video/71/81/123456.mp4");
   assert.throws(() => videoShareTags({ playerUrl: "javascript:alert(1)", posterUrl: "", width: 1, height: 1 }, "https://quest.example"), /HTTPS/);
 });
 
-test("server HTML contains playable video tags and escaped video poster, not profile artwork", () => {
+test("server HTML keeps the profile photo separate from its embedded video", () => {
   const template = '<html><head><title>Old</title><meta name="twitter:card" content="summary_large_image" /><meta property="og:image:width" content="120" /><meta property="og:image:height" content="98" /><meta property="og:video" content="stale" /><link rel="icon" href="/cb-logo-favicon.png" /><link rel="apple-touch-icon" href="/cb-logo-favicon.png" /><link rel="canonical" href="https://old.example" /></head><body><div id="root"></div></body></html>';
   const poster = "https://i.vimeocdn.com/video/frame.jpg?a=1&b=2";
+  const profileImage = "https://storage.example/contestant-profile.jpg";
   const html = applyShareMeta(template, {
     title: "Artist's competition video", description: "Watch and vote", url: "https://quest.example/entry",
-    image: poster, favicon: poster, ogType: "video.other",
+    image: profileImage, favicon: profileImage, ogType: "video.other",
     video: { playerUrl: video.player_embed_url, streamUrl: "https://quest.example/api/share-video/71/81/123456.mp4", posterUrl: poster, width: 1080, height: 1920 },
   });
   assert.match(html, /name="twitter:card" content="player"/);
   assert.match(html, /property="og:video:type" content="video\/mp4"/);
-  assert.match(html, /property="og:image" content="https:\/\/i.vimeocdn.com\/video\/frame.jpg\?a=1&amp;b=2"/);
-  assert.match(html, /<link rel="icon" href="https:\/\/i\.vimeocdn\.com\/video\/frame\.jpg\?a=1&amp;b=2"/);
-  assert.match(html, /<link rel="apple-touch-icon" href="https:\/\/i\.vimeocdn\.com\/video\/frame\.jpg\?a=1&amp;b=2"/);
+  assert.match(html, /property="og:image" content="https:\/\/storage\.example\/contestant-profile\.jpg"/);
+  assert.match(html, /property="og:video:url" content="https:\/\/quest\.example\/api\/share-video\/71\/81\/123456\.mp4"/);
+  assert.match(html, /<link rel="icon" href="https:\/\/storage\.example\/contestant-profile\.jpg"/);
+  assert.match(html, /<link rel="apple-touch-icon" href="https:\/\/storage\.example\/contestant-profile\.jpg"/);
+  assert.doesNotMatch(html, /og:image" content="https:\/\/i\.vimeocdn\.com/);
   assert.doesNotMatch(html, /cb-logo-favicon\.png/);
   assert.doesNotMatch(html, /og:image:(?:width|height)/);
   assert.doesNotMatch(html, /content="stale"|expires=soon/);

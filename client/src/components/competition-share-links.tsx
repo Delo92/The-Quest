@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Copy, ExternalLink, Link2 } from "lucide-react";
+import { Check, Copy, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { slugify } from "@shared/slugify";
-import { getCompetitionVideoEmbedCode } from "@shared/video-share";
 
 interface CompetitionShareLinksProps {
   competition: {
     id: number;
     title: string;
     category: string;
+    coverVideo?: string | null;
+    promoVideos?: string[] | null;
     themeColor?: string | null;
   };
   compact?: boolean;
@@ -27,25 +28,18 @@ export function getCompetitionShareLinks(competition: CompetitionShareLinksProps
 export default function CompetitionShareLinks({ competition, compact = false }: CompetitionShareLinksProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState<string | null>(null);
-  const { data: shareData, isLoading: shareDataLoading, isError: shareDataError } = useQuery<{
+  const { data: shareData } = useQuery<{
     referralCode: string | null;
     referralOwnerName: string | null;
-    videoPlayerUrl: string | null;
-    videoWidth: number | null;
-    videoHeight: number | null;
   }>({
     queryKey: ["/api/competitions", competition.id, "share-links"],
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
   });
   const links = getCompetitionShareLinks(competition, shareData?.referralCode);
-  const videoEmbedCode = shareData?.videoPlayerUrl
-    ? getCompetitionVideoEmbedCode(
-        competition.title,
-        shareData.videoPlayerUrl,
-        shareData.videoWidth || 640,
-        shareData.videoHeight || 360,
-      )
-    : null;
+  const hasCompetitionVideo = Boolean(competition.coverVideo || competition.promoVideos?.length);
+  const competitionLinkLabel = hasCompetitionVideo
+    ? "Competition page + promo video"
+    : "Competition page";
 
   const copyValue = async (key: string, value: string, label: string) => {
     try {
@@ -69,56 +63,30 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
         <Link2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: competition.themeColor || "#FF5A09" }} />
         <div>
           <h3 className="text-sm font-semibold text-white/90">Share this competition</h3>
-          {!compact && <p className="mt-1 text-sm leading-relaxed text-white/75">Share the public page, copy a playable video link, or embed the video on a website. Messaging apps may still show a thumbnail for page links.</p>}
+          {!compact && <p className="mt-1 text-sm leading-relaxed text-white/75">Use the public competition link to share its page and video, or the host link to track referrals.</p>}
         </div>
       </div>
 
       <div className={compact ? "space-y-2" : "grid gap-3 md:grid-cols-2"}>
         <ShareLinkRow
-          label="Competition page"
+          label={competitionLinkLabel}
           value={links.competitionUrl}
+          description={hasCompetitionVideo
+            ? "Public page link with this competition’s promo video and share preview data."
+            : "Public page link for this competition."}
           onCopy={() => copyValue("competitionUrl", links.competitionUrl, "Competition link")}
           copied={copied === "competitionUrl"}
           compact={compact}
         />
         <ShareLinkRow
-          label={`Host link · ${links.promoCode}`}
+          label={`Host referral link · ${links.promoCode}`}
           value={links.nominationUrl}
-          onCopy={() => copyValue("nominationUrl", links.nominationUrl, "Nomination link")}
+          description="Tracks nominations and votes from this host link."
+          onCopy={() => copyValue("nominationUrl", links.nominationUrl, "Host referral link")}
           copied={copied === "nominationUrl"}
           compact={compact}
         />
-        {shareData?.videoPlayerUrl && (
-          <ShareLinkRow
-            label="Playable video link"
-            value={shareData.videoPlayerUrl}
-            openUrl={shareData.videoPlayerUrl}
-            onCopy={() => copyValue("videoPlayerUrl", shareData.videoPlayerUrl!, "Video link")}
-            copied={copied === "videoPlayerUrl"}
-            compact={compact}
-          />
-        )}
-        {videoEmbedCode && (
-          <ShareLinkRow
-            label="Website embed code"
-            value={videoEmbedCode}
-            isCode
-            onCopy={() => copyValue("videoEmbedCode", videoEmbedCode, "Embed code")}
-            copied={copied === "videoEmbedCode"}
-            compact={compact}
-          />
-        )}
       </div>
-      {!shareData?.videoPlayerUrl && !shareDataLoading && !shareDataError && (
-        <p className="mt-3 text-xs leading-relaxed text-white/65">
-          No playable competition video is available to embed. Add a cover or promo video to this competition first.
-        </p>
-      )}
-      {!shareData?.videoPlayerUrl && shareDataError && (
-        <p role="status" className="mt-3 text-xs leading-relaxed text-amber-200/80">
-          Video sharing details could not be loaded. Try again shortly.
-        </p>
-      )}
     </section>
   );
 }
@@ -126,16 +94,14 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
 function ShareLinkRow({
   label,
   value,
-  openUrl,
-  isCode = false,
+  description,
   onCopy,
   copied,
   compact,
 }: {
   label: string;
   value: string;
-  openUrl?: string;
-  isCode?: boolean;
+  description: string;
   onCopy: () => void;
   copied: boolean;
   compact: boolean;
@@ -143,15 +109,11 @@ function ShareLinkRow({
   return (
     <div className="min-w-0">
       <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-white/75">{label}</p>
+      <p className="mb-2 text-xs leading-relaxed text-white/60">{description}</p>
       <div className="flex min-w-0 items-center gap-2 border border-white/10 bg-white/[0.04] px-2.5 py-2">
         <span className={`min-w-0 flex-1 truncate font-mono text-white/80 ${compact ? "text-xs" : "text-sm"}`} title={value}>
           {value}
         </span>
-        {openUrl && !isCode && (
-          <a href={openUrl} target="_blank" rel="noreferrer" className="flex h-11 w-11 shrink-0 items-center justify-center text-white/70 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={`Open ${label}`}>
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        )}
         <button type="button" onClick={onCopy} className="flex h-11 w-11 shrink-0 items-center justify-center text-white/70 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={`Copy ${label}`} data-testid={`copy-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         </button>

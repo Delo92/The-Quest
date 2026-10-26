@@ -8,22 +8,6 @@ export interface VideoShareMetadata {
   uploadDate?: string;
 }
 
-export function getCompetitionVideoEmbedCode(
-  title: string,
-  videoPlayerUrl: string,
-  width = 640,
-  height = 360,
-) {
-  const escapeAttribute = (value: string) => value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  const safeWidth = Math.max(1, Math.round(width));
-  const safeHeight = Math.max(1, Math.round(height));
-  return `<iframe src="${escapeAttribute(videoPlayerUrl)}" title="${escapeAttribute(`${title} competition video`)}" width="${safeWidth}" height="${safeHeight}" style="width:100%;max-width:100%;aspect-ratio:${safeWidth}/${safeHeight};border:0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>`;
-}
-
 export function shareVideoPath(competitionId: number, talentProfileId: number, videoId: string): string {
   return `/api/share-video/${competitionId}/${talentProfileId}/${videoId}.mp4`;
 }
@@ -56,6 +40,7 @@ export function videoShareTags(video: VideoShareMetadata, origin: string) {
   if (video.streamUrl) {
     const stream = httpsUrl(video.streamUrl);
     add("property", "og:video", stream);
+    add("property", "og:video:url", stream);
     add("property", "og:video:secure_url", stream);
     add("property", "og:video:type", "video/mp4");
     add("property", "og:video:width", width);
@@ -65,6 +50,7 @@ export function videoShareTags(video: VideoShareMetadata, origin: string) {
   }
   const player = httpsUrl(video.playerUrl);
   add("property", "og:video", player);
+  add("property", "og:video:url", player);
   add("property", "og:video:secure_url", player);
   add("property", "og:video:type", "text/html");
   add("property", "og:video:width", width);

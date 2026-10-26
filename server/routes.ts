@@ -2010,15 +2010,9 @@ export async function registerRoutes(
       if (!competition) return res.status(404).json({ message: "Competition not found" });
 
       const referral = await getOrCreateCompetitionReferralCode(competition);
-      const video = competition.status === "draft"
-        ? null
-        : await getCompetitionShareVideo(competition, getPublicOrigin());
       res.json({
         referralCode: referral?.code || null,
         referralOwnerName: referral?.ownerName || null,
-        videoPlayerUrl: video?.playerUrl || null,
-        videoWidth: video?.width || null,
-        videoHeight: video?.height || null,
       });
     } catch (error: any) {
       console.error("Competition share link error:", error);

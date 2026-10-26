@@ -161,7 +161,6 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const seoTalentSlug = seoProfile ? slugifyWithId(seoName || "contestant", seoProfile.id) : talentSlug;
   const seoVideo = mediaData?.videos?.[0];
   const seoShareVideo = bundleData?.shareVideo;
-  const seoPoster = seoShareVideo?.posterUrl || seoVideo?.thumbnail || mediaData?.videoThumbnail;
   useSEO({
     title: demoMode ? "The Quest app demo" : seoName && data
       ? `${seoName} — ${data.competition.title} | The Quest`
@@ -172,7 +171,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
       ? `/thequest/${categorySlug}/${compSlug}/${seoTalentSlug}`
       : undefined,
     ogType: seoShareVideo ? "video.other" : "profile",
-    ogImage: seoPoster || seoProfile?.imageUrls?.[0] || data?.competition.coverImage || undefined,
+    ogImage: seoProfile?.imageUrls?.[0] || data?.competition.coverImage || undefined,
     pending: isLoading,
     ogVideo: seoShareVideo || undefined,
   });
@@ -398,15 +397,21 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
 
   const getShareData = () => {
     const shareUrl = `${window.location.origin}/thequest/${categorySlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
-    const shareText = `Vote for ${profile.stageName || profile.displayName} in ${competition.title} on The Quest!`;
-    return { shareUrl, shareText };
+    const contestantName = profile.stageName || profile.displayName;
+    const hasVideo = Boolean(seoShareVideo || currentVideo);
+    const shareKind = hasVideo ? "Contestant profile + video" : "Contestant profile";
+    const shareTitle = `${shareKind}: ${contestantName} — ${competition.title}`;
+    const shareText = hasVideo
+      ? `Watch ${contestantName}'s video and view their profile in ${competition.title} on The Quest.`
+      : `View ${contestantName}'s contestant profile in ${competition.title} on The Quest.`;
+    return { shareUrl, shareTitle, shareText, shareKind };
   };
 
   const handleShare = async () => {
-    const { shareUrl, shareText } = getShareData();
+    const { shareUrl, shareTitle, shareText, shareKind } = getShareData();
     if (navigator.share) {
       try {
-        await navigator.share({ title: shareText, url: shareUrl });
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
         return;
       } catch { /* fall through to copy */ }
     }
@@ -423,7 +428,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
       document.body.removeChild(textarea);
     }
     setCopied(true);
-    toast({ title: "Link copied!", description: "Share link copied to clipboard. Paste it anywhere!" });
+    toast({ title: `${shareKind} link copied`, description: "Paste it to share this contestant." });
     setTimeout(() => setCopied(false), 3000);
   };
 
@@ -828,9 +833,10 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
               className="inline-flex items-center gap-2 bg-white/5 text-white/70 font-bold text-sm uppercase px-8 leading-[47px] rounded-full border border-white/20 transition-all duration-500 hover:bg-white/10 hover:text-white hover:border-white/40 cursor-pointer"
               style={{ letterSpacing: "2px" }}
               data-testid="button-share"
+              aria-label={seoShareVideo || currentVideo ? "Share contestant profile and video" : "Share contestant profile"}
             >
               {copied ? <Check className="h-4 w-4 text-green-400" /> : <Share2 className="h-4 w-4" />}
-              {copied ? "Copied!" : "Share"}
+              {copied ? "Copied!" : seoShareVideo || currentVideo ? "Share profile + video" : "Share profile"}
             </button>
           </div>
 

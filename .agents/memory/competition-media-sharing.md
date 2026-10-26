@@ -3,15 +3,17 @@ name: Competition media sharing
 description: The user's expectation for competition-specific browser icons and link-share media.
 ---
 
-Every public competition link should use that competition's cover artwork for both its browser favicon and `og:image`. Its saved cover video should be the primary share video, with the first configured promo video as fallback. Use Vimeo's returned player, poster, dimensions, and available MP4 stream metadata rather than inferring them from filenames. Keep server-rendered crawler metadata and client-side navigation metadata consistent. Social platforms may choose whether they display the video inline; the app can provide correct metadata but cannot force a platform's rendering choice.
+Every public competition link should use that competition's cover artwork for its browser favicon. When a competition video is configured, use its Vimeo poster as the share image and include its player/stream metadata; otherwise use the cover artwork. Its saved cover video is primary, with the first configured promo video as fallback. Keep server metadata and client navigation metadata aligned. Social platforms may still choose whether to play video inline.
 
 **Why:** The user explicitly wants every competition link to carry that event's identity and hype video rather than CB Publishing's global branding, and clarified that Vimeo supplies the video's actual share format.
 
-Competition-page links and embeddable-player links are separate products: social crawlers may use the poster even when video metadata exists, so provide a distinct player URL and copyable iframe embed code for websites.
+Keep competition sharing to two clearly labeled URLs: one public competition-page link that carries the selected video/share data, and one host-referral link that tracks nominations and votes. Do not add separate player-URL or iframe-code fields unless explicitly requested.
 
-**Why:** The user expects a literal playable video embed, not only Open Graph metadata or a link to a competition page; Messenger and text-message preview behavior is controlled by the platform.
+**Why:** The user wants the useful video and share metadata combined under the public page link rather than four separate copy fields; a separate embed snippet was out of scope.
 
-**How to apply:** Make changes for all non-draft competition pages, not one named event. Keep the cover image in the preview as the video poster, include video metadata separately, and expose the player URL/embed code in sharing controls.
+Contestant profile share links should use the original profile photo as the preview image, or the competition image when the profile has no photo. If the contestant has a video, keep its direct MP4/player metadata so platforms can embed it separately from the preview image. Clearly identify profile/video shares.
+
+**How to apply:** Keep the cover image as the competition favicon, use the contestant photo then competition artwork for preview images, and retain video tags separately. Label the competition-page and host-referral links by purpose. Social apps may ignore video playback metadata and show only the poster.
 
 When the user compares multiple competition links and says only one has a video, identify and investigate that link; do not treat the other competition's lack of video as a defect or ask them to attach one unless they request it.
 

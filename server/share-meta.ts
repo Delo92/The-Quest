@@ -777,7 +777,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     return {
       title: `${name} — ${competition.title} | The Quest`,
       description,
-      image: video?.posterUrl || profile.imageUrls?.[0] || competition.coverImage || null,
+      image: profile.imageUrls?.[0] || competition.coverImage || null,
       video,
       url: canonical,
       canonical,
@@ -915,7 +915,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     return {
       title: `${competition.title} — ${competition.category} Competition`,
       description,
-      image: competition.coverImage || video?.posterUrl || null,
+      image: video?.posterUrl || competition.coverImage || null,
       favicon: competition.coverImage || video?.posterUrl || null,
       video,
       url: canonical,
