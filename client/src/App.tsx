@@ -52,7 +52,7 @@ function QuestRouter() {
       <Route path="/checkout/:competitionId/:contestantId" component={CheckoutPage} />
       <Route path="/my-purchases" component={MyPurchasesPage} />
       <Route path="/nominate" component={JoinPage} />
-      <Route path="/join">{() => <Redirect to="/nominate" />}</Route>
+      <Route path="/join">{() => <Redirect to={`/nominate${window.location.search}`} />}</Route>
       <Route path="/host" component={HostPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/NonProfits" component={NonprofitsPage} />
