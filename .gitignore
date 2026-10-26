@@ -68,6 +68,8 @@ attached_assets/**
 # Existing tracked images remain tracked so the app's current assets are preserved.
 *.png
 !client/public/irs-w9-page-1.png
+!client/public/cb-publishing-social.png
+!client/public/cb-publishing-logo.png
 *.jpg
 *.jpeg
 *.gif

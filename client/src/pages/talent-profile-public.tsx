@@ -10,6 +10,7 @@ import type { TalentProfile } from "@shared/schema";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
+import { useSEO } from "@/hooks/use-seo";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import { formatVideoTitle } from "@/lib/media-utils";
@@ -45,6 +46,25 @@ export default function TalentProfilePublic() {
     staleTime: 60_000,
   });
 
+  const profileName = profile?.stageName?.trim() || profile?.displayName?.trim() || "";
+  const fallbackDefault = getImage("talent_profile_fallback") || "";
+  const mainImage = profile?.imageUrls?.[0] || fallbackDefault;
+  const mainImageFallback = profile
+    ? getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, 0) || fallbackDefault
+    : fallbackDefault;
+  const canIndexProfile = String(profile?.role || "").toLowerCase() === "talent";
+
+  useSEO({
+    title: profileName ? `${profileName} | Artist Profile on The Quest` : "Artist Profile | The Quest",
+    description: profile?.bio?.trim()
+      || (profileName ? `${profileName} is an artist on The Quest. Explore their public profile, work, and competition entries.` : "Explore artist and competitor profiles on The Quest."),
+    canonical: id ? `/thequest/talent/${encodeURIComponent(id)}` : undefined,
+    ogType: "profile",
+    ogImage: profile?.imageUrls?.[0] || undefined,
+    robots: !profile || !canIndexProfile ? "noindex, follow" : undefined,
+    pending: isLoading,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black">
@@ -75,9 +95,6 @@ export default function TalentProfilePublic() {
     );
   }
 
-  const fallbackDefault = getImage("talent_profile_fallback") || "";
-  const mainImage = profile.imageUrls?.[0] || fallbackDefault;
-  const mainImageFallback = getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, 0) || fallbackDefault;
   const accentColor = (profile as any).profileColor || "#FF5A09";
 
   return (
@@ -99,13 +116,13 @@ export default function TalentProfilePublic() {
         <div className="absolute inset-0 bg-black/65" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]" style={{ borderTop: `4px solid ${accentColor}` }}>
           <p className="text-black/50 text-base leading-relaxed mb-1">Talent Profile</p>
-          <h2
+          <h1
             className="text-[24px] md:text-[30px] uppercase font-normal leading-none"
             style={{ letterSpacing: "10px", color: accentColor }}
             data-testid="text-profile-name"
           >
-            {profile.stageName || profile.displayName}
-          </h2>
+            {profileName}
+          </h1>
         </div>
       </section>
 
@@ -248,7 +265,7 @@ export default function TalentProfilePublic() {
                   <FallbackImage
                     src={url}
                     fallbackSrc={getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, i)}
-                    alt=""
+                    alt={`${profileName} photo ${i + 1}`}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     style={{
                       objectPosition: `${profile.imageCropPositions?.[i]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[i]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,

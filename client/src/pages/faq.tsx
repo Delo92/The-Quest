@@ -12,8 +12,8 @@ export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   useSEO({
-    title: "FAQ - The Quest",
-    description: "Frequently asked questions about the HI FIT Competition platform. Learn about voting, nominations, fees, and how to participate.",
+    title: "The Quest FAQ | Competitions, Voting & Nominations",
+    description: "Get answers about The Quest competitions, voting, nominations, fees, and how artists and audiences can participate.",
     canonical: "https://thequest-2dc77.firebaseapp.com/faq",
   });
 
@@ -49,7 +49,7 @@ export default function FAQPage() {
             Frequently Asked Questions
           </h1>
           <p className="text-white/50 text-sm uppercase tracking-wider">
-            Everything you need to know about the HI FIT Competition
+            Answers about The Quest competitions, voting, nominations, and participation
           </p>
         </div>
       </div>

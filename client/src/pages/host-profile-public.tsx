@@ -61,6 +61,8 @@ export default function HostProfilePublic() {
       : hostSlug ? `${window.location.origin}/thequest/host/${hostSlug}` : undefined,
     ogType: "profile",
     ogImage: seoHost?.profileImageUrl || seoHost?.imageUrls?.[0] || undefined,
+    robots: !isLoading && !seoHost ? "noindex, follow" : undefined,
+    pending: isLoading,
   });
 
   if (isLoading) {

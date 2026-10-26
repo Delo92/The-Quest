@@ -9,6 +9,7 @@ interface SEOOptions {
   favicon?: string;
   ogType?: string;
   ogVideo?: VideoShareMetadata;
+  robots?: string;
   pending?: boolean;
 }
 
@@ -80,7 +81,7 @@ function clearVideoTags() {
     .forEach((element) => element.remove());
 }
 
-export function useSEO({ title, description, canonical, ogImage, favicon, ogType, ogVideo, pending }: SEOOptions) {
+export function useSEO({ title, description, canonical, ogImage, favicon, ogType, ogVideo, robots, pending }: SEOOptions) {
   useEffect(() => {
     // Preserve the server's contestant video card until the bundle has loaded.
     if (pending) return;
@@ -94,8 +95,9 @@ export function useSEO({ title, description, canonical, ogImage, favicon, ogType
     setMetaTag("twitter:title", fullTitle);
     setMetaTag("twitter:description", desc);
 
+    setMetaTag("robots", robots || "index, follow");
     setMetaTag("og:type", ogType || "website", true);
-    const defaultOgImage = "https://cbpublishing.live/cb-logo-favicon.png?v=cbp-20260905";
+    const defaultOgImage = "https://cbpublishing.live/cb-publishing-social.png";
     setMetaTag("og:image", ogImage || defaultOgImage, true);
     setMetaTag("twitter:image", ogImage || defaultOgImage);
     if (favicon) setFavicon(favicon);
@@ -130,8 +132,9 @@ export function useSEO({ title, description, canonical, ogImage, favicon, ogType
       setMetaTag("twitter:title", DEFAULT_TITLE);
       setMetaTag("twitter:description", DEFAULT_DESC);
       setMetaTag("twitter:image", defaultOgImage);
+      setMetaTag("robots", "index, follow");
       setCanonical(fallbackUrl);
     };
   }, [title, description, canonical, ogImage, ogType, ogVideo?.playerUrl, ogVideo?.streamUrl,
-    ogVideo?.width, ogVideo?.height, ogVideo?.duration, favicon, pending]);
+    ogVideo?.width, ogVideo?.height, ogVideo?.duration, favicon, robots, pending]);
 }

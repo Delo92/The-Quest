@@ -9284,9 +9284,22 @@ export async function registerRoutes(
       ]);
       const markdownLabel = (value: string) => value.replace(/[\\[\]()]/g, "\\$&");
       const publicCompetitions = competitions
-        .filter((competition) => competition.status !== "draft")
-        .slice(0, 40);
-      const publicHosts = hostProfiles.slice(0, 40);
+        .filter((competition) => competition.status !== "draft");
+      const publicHosts = hostProfiles;
+      const publicArtistsById = new Map<number, { id: number; name: string }>();
+      for (const competition of publicCompetitions) {
+        const contestants = await storage.getContestantsByCompetition(competition.id);
+        for (const contestant of contestants) {
+          const profile = contestant.talentProfile;
+          const name = String(profile.stageName || profile.displayName || "").trim();
+          if (String(profile.role || "").toLowerCase() === "talent" && profile.id && name) {
+            publicArtistsById.set(profile.id, { id: profile.id, name });
+          }
+        }
+      }
+      const publicArtists = [...publicArtistsById.values()]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 100);
       const lines = [
         "# The Quest",
         "",
@@ -9297,8 +9310,11 @@ export async function registerRoutes(
         "## Start here",
         `- [The Quest](${baseUrl}/thequest)`,
         `- [Browse competitions](${baseUrl}/thequest/competitions)`,
-        `- [Competition hosts](${baseUrl}/thequest/host)`,
+        `- [Host a competition](${baseUrl}/thequest/host)`,
         `- [About The Quest](${baseUrl}/thequest/about)`,
+        `- [Frequently asked questions](${baseUrl}/thequest/faq)`,
+        `- [Nominate talent](${baseUrl}/thequest/nominate)`,
+        `- [Nonprofit program](${baseUrl}/thequest/NonProfits)`,
         `- [XML sitemap](${baseUrl}/sitemap.xml)`,
         "",
         "## Public competitions",
@@ -9306,13 +9322,18 @@ export async function registerRoutes(
           `- [${markdownLabel(competition.title)} — ${markdownLabel(competition.category)}](${baseUrl}/thequest/${slugify(competition.category)}/${slugify(competition.title)})`
         ),
         "",
-        "## Public hosts",
+        "## Public host profiles",
         ...publicHosts.map((profile) => {
           const name = profile.stageName || profile.displayName;
           return `- [${markdownLabel(name)}](${baseUrl}/thequest/host/${slugifyWithId(name, profile.id)})`;
         }),
         "",
-        "Individual competition and competitor pages contain the current public descriptions, dates, images, and profile links.",
+        "## Public artist profiles",
+        ...publicArtists.map((artist) =>
+          `- [${markdownLabel(artist.name)}](${baseUrl}/thequest/talent/${artist.id})`
+        ),
+        "",
+        "The XML sitemap contains the complete set of current public competition and artist URLs.",
       ];
       res.type("text/plain; charset=utf-8").send(lines.join("\n"));
     } catch (error) {
@@ -9358,10 +9379,11 @@ export async function registerRoutes(
         `${baseUrl}/thequest/host`,
         `${baseUrl}/thequest/about`,
         `${baseUrl}/thequest/faq`,
+        `${baseUrl}/thequest/NonProfits`,
       ].forEach((loc) => addUrl(loc));
 
       for (const profile of hostProfiles) {
-        const name = profile.stageName || profile.displayName;
+        const name = String(profile.stageName || profile.displayName || "").trim();
         const hostSlug = slugifyWithId(name, profile.id);
         if (!hostSlug) continue;
         const hostUrl = `${baseUrl}/thequest/host/${hostSlug}`;
@@ -9374,6 +9396,7 @@ export async function registerRoutes(
         });
       }
 
+      const publicArtistProfiles = new Map<number, any>();
       for (const comp of activeComps) {
         const categorySlug = slugify(comp.category);
         const compSlug = slugify(comp.title);
@@ -9391,6 +9414,9 @@ export async function registerRoutes(
           const name = profile.stageName || profile.displayName;
           const talentSlug = slugifyWithId(name, profile.id);
           if (!talentSlug) continue;
+          if (String(profile.role || "").toLowerCase() === "talent") {
+            publicArtistProfiles.set(profile.id, profile);
+          }
           const talentUrl = `${compUrl}/${talentSlug}`;
           addUrl(talentUrl, {
             lastmod: toLastmod((profile as any).updatedAt || (contestant as any).updatedAt || (profile as any).createdAt),
@@ -9398,6 +9424,15 @@ export async function registerRoutes(
             imageTitle: name,
           });
         }
+      }
+
+      for (const profile of publicArtistProfiles.values()) {
+        const name = String(profile.stageName || profile.displayName || "").trim();
+        addUrl(`${baseUrl}/thequest/talent/${profile.id}`, {
+          lastmod: toLastmod(profile.updatedAt || profile.createdAt),
+          image: profile.imageUrls?.[0],
+          imageTitle: name,
+        });
       }
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n` +
