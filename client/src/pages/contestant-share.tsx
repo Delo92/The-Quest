@@ -46,6 +46,7 @@ interface ResolvedData {
     id: number;
     competitionId: number;
     talentProfileId: number;
+    contestantDivision?: string | null;
     voteCount: number;
     tournamentPoints?: number;
     videoThumbnail: string | null;
@@ -158,15 +159,22 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const competitionData = bundleData ? { contestants: bundleData.contestants } : undefined;
   const seoProfile = data?.contestant.talentProfile;
   const seoName = seoProfile?.stageName || seoProfile?.displayName;
+  const seoDivision = data?.contestant.contestantDivision;
+  const seoCompetitionContext = [seoDivision, data?.competition.title].filter(Boolean).join(" — ");
   const seoTalentSlug = seoProfile ? slugifyWithId(seoName || "contestant", seoProfile.id) : talentSlug;
   const seoVideo = mediaData?.videos?.[0];
   const seoShareVideo = bundleData?.shareVideo;
   useSEO({
     title: demoMode ? "The Quest app demo" : seoName && data
-      ? `${seoName} — ${data.competition.title} | The Quest`
+      ? `${seoName} — ${seoCompetitionContext} | The Quest`
       : "Contestant Profile | The Quest",
-    description: seoProfile?.bio
-      || (seoName && data ? `${seoName} is competing in ${data.competition.title}, a ${data.competition.category} competition on The Quest.` : undefined),
+    description: seoName && data
+      ? [
+          seoDivision ? `${seoDivision} division` : "",
+          seoProfile?.bio?.trim()
+            || `${seoName} is competing in ${data.competition.title}, a ${data.competition.category} competition on The Quest.`,
+        ].filter(Boolean).join(" · ")
+      : undefined,
     canonical: categorySlug && compSlug && seoTalentSlug
       ? `/thequest/${categorySlug}/${compSlug}/${seoTalentSlug}`
       : undefined,
@@ -198,7 +206,9 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
 
   useEffect(() => {
     if (data && !demoMode) {
-      document.title = `${data.contestant.talentProfile.stageName || data.contestant.talentProfile.displayName} - ${data.competition.title} | The Quest`;
+      const division = data.contestant.contestantDivision;
+      const competitionContext = [division, data.competition.title].filter(Boolean).join(" — ");
+      document.title = `${data.contestant.talentProfile.stageName || data.contestant.talentProfile.displayName} - ${competitionContext} | The Quest`;
     }
     return () => { document.title = "The Quest - Talent Competition & Voting Platform"; };
   }, [data]);
@@ -400,10 +410,12 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
     const contestantName = profile.stageName || profile.displayName;
     const hasVideo = Boolean(seoShareVideo || currentVideo);
     const shareKind = hasVideo ? "Contestant profile + video" : "Contestant profile";
-    const shareTitle = `${shareKind}: ${contestantName} — ${competition.title}`;
+    const division = contestant.contestantDivision;
+    const shareCompetitionName = [division, competition.title].filter(Boolean).join(" — ");
+    const shareTitle = `${shareKind}: ${contestantName} — ${shareCompetitionName}`;
     const shareText = hasVideo
-      ? `Watch ${contestantName}'s video and view their profile in ${competition.title} on The Quest.`
-      : `View ${contestantName}'s contestant profile in ${competition.title} on The Quest.`;
+      ? `Watch ${contestantName}'s video and view their profile${division ? ` in the ${division} division` : ""} of ${competition.title} on The Quest.`
+      : `View ${contestantName}'s contestant profile${division ? ` in the ${division} division` : ""} of ${competition.title} on The Quest.`;
     return { shareUrl, shareTitle, shareText, shareKind };
   };
 
@@ -601,7 +613,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
             />
           </div>
           <p className="mb-1 text-xs uppercase" style={{ letterSpacing: "4px", color: accentColor }} data-testid="text-competition-context">
-            {competition.title}
+            {[contestant.contestantDivision, competition.title].filter(Boolean).join(" · ")}
           </p>
           <h1
             className="text-[28px] font-normal uppercase leading-none text-white md:text-[40px]"
@@ -636,7 +648,9 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
               <div className="mx-auto max-w-3xl">
                 <div className="mb-3 text-center">
                   <p className="text-[11px] uppercase tracking-[3px] text-white/45">This competition</p>
-                  <h2 className="mt-1 text-sm font-semibold text-white/85">{competition.title}</h2>
+                  <h2 className="mt-1 text-sm font-semibold text-white/85">
+                    {[contestant.contestantDivision, competition.title].filter(Boolean).join(" · ")}
+                  </h2>
                 </div>
                 <ProfileScrollDepthCard
                   className={`relative mx-auto w-full overflow-hidden rounded-xl bg-black ${currentVideo.height && currentVideo.width && currentVideo.height > currentVideo.width ? "aspect-[9/16] max-h-[72dvh] max-w-sm" : "aspect-video max-w-3xl"}`}

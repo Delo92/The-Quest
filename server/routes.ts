@@ -8,6 +8,12 @@ import {
   normalizeNonprofitContributionRate,
 } from "@shared/nonprofit-policy";
 import {
+  getCompetitionPublicDescription,
+  getContestantDivisionLabel,
+  getContestantDivisionOptions,
+  resolveContestantDivision,
+} from "@shared/competition-divisions";
+import {
   MARKETING_GUIDELINES_ACKNOWLEDGMENT_VERSION,
   VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_VERSION,
   type WeeklyConsentRole,
@@ -1727,6 +1733,8 @@ export async function registerRoutes(
             : null;
           return {
             ...c,
+            description: getCompetitionPublicDescription(c),
+            contestantDivisions: getContestantDivisionOptions(c),
             hostedBy,
             contestantCount,
             approvedCount,
@@ -1991,8 +1999,13 @@ export async function registerRoutes(
 
       return {
         ...comp,
+        description: getCompetitionPublicDescription(comp),
+        contestantDivisions: getContestantDivisionOptions(comp),
         hostedBy,
-        contestants: enrichedContestants,
+        contestants: enrichedContestants.map((contestant) => ({
+          ...contestant,
+          contestantDivision: getContestantDivisionLabel(comp, contestant.contestantDivision),
+        })),
         totalVotes,
         totalRawVotes,
       };
@@ -2556,6 +2569,13 @@ export async function registerRoutes(
     const comp = await storage.getCompetition(compId);
     if (!comp) return res.status(404).json({ message: "Competition not found" });
 
+    const divisionSelection = resolveContestantDivision(
+      comp,
+      req.body?.contestantDivision,
+      getContestantDivisionOptions(comp).length > 0,
+    );
+    if (divisionSelection.error) return res.status(400).json({ message: divisionSelection.error });
+
     const existing = await storage.getContestant(compId, profile.id);
     if (existing) return res.status(400).json({ message: "Already applied to this competition" });
 
@@ -2579,6 +2599,7 @@ export async function registerRoutes(
     const contestant = await storage.createContestant({
       competitionId: compId,
       talentProfileId: profile.id,
+      contestantDivision: divisionSelection.contestantDivision,
       applicationStatus,
       appliedAt: new Date().toISOString(),
     });
@@ -5917,6 +5938,7 @@ export async function registerRoutes(
 
       const {
         fullName, email, phone, bio, category, competitionId, nominatorEmail, suggestedNonprofit,
+        contestantDivision,
         dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
         mediaUrls, imageCropPositions, promoCode, referralCode, billingAddress,
         nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged,
@@ -5965,6 +5987,12 @@ export async function registerRoutes(
       if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
         return res.status(400).json({ message: "This competition is not accepting nominations" });
       }
+      const divisionSelection = resolveContestantDivision(
+        targetCompetition,
+        contestantDivision,
+        getContestantDivisionOptions(targetCompetition).length > 0,
+      );
+      if (divisionSelection.error) return res.status(400).json({ message: divisionSelection.error });
       const nominationQuote = await resolveProviderPaymentAmount({
         purpose: "nominate",
         competitionId: targetCompetition.id,
@@ -6065,6 +6093,7 @@ export async function registerRoutes(
               const newContestant = await storage.createContestant({
                 competitionId: Number(competitionId),
                 talentProfileId,
+                contestantDivision: divisionSelection.contestantDivision,
                 applicationStatus: "approved",
                 appliedAt: new Date().toISOString(),
               });
@@ -6119,6 +6148,7 @@ export async function registerRoutes(
 
       const submission = await firestoreJoinSubmissions.create({
         competitionId: competitionId || null,
+        contestantDivision: divisionSelection.contestantDivision,
         fullName: nomineeName,
         email: nomineeEmail,
         phone: phone || null,
@@ -6351,6 +6381,7 @@ export async function registerRoutes(
       if (competition && !await storage.getContestant(competition.id, profile.id)) {
         await storage.createContestant({
           competitionId: competition.id, talentProfileId: profile.id,
+          contestantDivision: resolveContestantDivision(competition, submission.contestantDivision).contestantDivision,
           applicationStatus: "approved", appliedAt: new Date().toISOString(),
         });
       }
@@ -8866,6 +8897,7 @@ export async function registerRoutes(
             contestantId: contestant.id,
             displayName: contestant.talentProfile.displayName,
             stageName: contestant.talentProfile.stageName || null,
+            contestantDivision: getContestantDivisionLabel(comp, contestant.contestantDivision),
             voteCount: contestant.rawVoteCount,
             tournamentPoints: contestant.voteCount,
             votePercentage: totalPoints > 0 ? Math.round((contestant.voteCount / totalPoints) * 10000) / 100 : 0,
@@ -8909,6 +8941,7 @@ export async function registerRoutes(
 
       const enrichedContestants = contestantsData.map((contestant) => ({
         ...contestant,
+        contestantDivision: getContestantDivisionLabel(comp, contestant.contestantDivision),
         voteCount: contestant.rawVoteCount,
         tournamentPoints: contestant.voteCount,
         videoThumbnail: null,
@@ -8935,6 +8968,8 @@ export async function registerRoutes(
 
       res.json({
         ...comp,
+        description: getCompetitionPublicDescription(comp),
+        contestantDivisions: getContestantDivisionOptions(comp),
         contestants: enrichedContestants,
         totalVotes,
         hostedBy,
@@ -9139,9 +9174,14 @@ export async function registerRoutes(
 
       setPublicCacheHeaders(res, 30);
       res.json({
-        competition: comp,
+        competition: {
+          ...comp,
+          description: getCompetitionPublicDescription(comp),
+          contestantDivisions: getContestantDivisionOptions(comp),
+        },
         contestant: {
           ...contestant,
+          contestantDivision: getContestantDivisionLabel(comp, contestant.contestantDivision),
           voteCount: contestant.rawVoteCount,
           tournamentPoints: contestant.voteCount,
           videoThumbnail: media?.videoThumbnail ?? null,
@@ -9181,9 +9221,14 @@ export async function registerRoutes(
       const totalVotes = await storage.getTotalVotesByCompetition(comp.id);
 
       res.json({
-        competition: comp,
+        competition: {
+          ...comp,
+          description: getCompetitionPublicDescription(comp),
+          contestantDivisions: getContestantDivisionOptions(comp),
+        },
         contestant: {
           ...contestant,
+          contestantDivision: getContestantDivisionLabel(comp, contestant.contestantDivision),
           voteCount: contestant.rawVoteCount,
           tournamentPoints: contestant.voteCount,
           videoThumbnail: null,

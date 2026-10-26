@@ -6,6 +6,7 @@ export interface CompetitionTrackingContestant {
   contestantId: number;
   displayName: string;
   stageName?: string | null;
+  contestantDivision?: string | null;
   voteCount: number;
   tournamentPoints: number;
   votePercentage: number;
@@ -334,6 +335,11 @@ export default function CompetitionTrackingPanel({
                           {contestant.stageName && contestant.displayName !== contestant.stageName && (
                             <p className="truncate text-sm text-white/75">{contestant.displayName}</p>
                           )}
+                          {contestant.contestantDivision && (
+                            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-[#edbd9f]">
+                              {contestant.contestantDivision}
+                            </p>
+                          )}
                           <div className="mt-2 h-1.5 w-full min-w-[100px] max-w-[280px] overflow-hidden rounded-full bg-white/[0.08]" role="progressbar" aria-label={`${name} vote share`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage}>
                             <div
                               className={`h-full rounded-full transition-transform duration-300 ease-out ${isLeader ? "bg-[#db6d2f]" : "bg-[#a95731]"}`}
@@ -371,6 +377,11 @@ export default function CompetitionTrackingPanel({
                     <h3 className="truncate text-xl font-semibold tracking-[-0.03em] text-white" data-testid="text-leader-name">{leaderName}</h3>
                     {leader.stageName && leader.displayName !== leader.stageName && (
                       <p className="mt-1 truncate text-sm text-white/75">{leader.displayName}</p>
+                    )}
+                    {leader.contestantDivision && (
+                      <p className="mt-1 truncate text-xs font-semibold uppercase tracking-wide text-[#edbd9f]">
+                        {leader.contestantDivision}
+                      </p>
                     )}
                   </div>
                 </div>

@@ -92,6 +92,7 @@ export interface FirestoreCompetition {
   vimeoFolderUrl: string | null;
   chronicBrandsPromotionEnabled: boolean;
   chronicBrandsPromotionUrl?: string | null;
+  contestantDivisions?: string[] | null;
   themeColor?: string | null;
   contestantImageCropPositions?: Record<string, Record<string, { x: number; y: number; zoom?: number }>>;
   stages?: CompetitionStage[];
@@ -169,6 +170,7 @@ export interface FirestoreContestant {
   id: number;
   competitionId: number;
   talentProfileId: number;
+  contestantDivision?: string | null;
   applicationStatus: string;
   appliedAt: string | null;
   stageResults?: Record<string, "active" | "eliminated" | "finalist" | "winner">;
@@ -324,6 +326,7 @@ export interface FirestoreJoinSubmission {
   accessEmailLastAttemptAt?: string;
   id: string;
   competitionId: number | null;
+  contestantDivision?: string | null;
   fullName: string;
   email: string;
   phone: string | null;

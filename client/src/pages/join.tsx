@@ -96,6 +96,7 @@ export default function JoinPage() {
   const [stripeLoaded, setStripeLoaded] = useState(false);
   const searchString = useSearch();
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
+  const [selectedDivision, setSelectedDivision] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [compSearch, setCompSearch] = useState("");
   const [referralCode, setReferralCode] = useState("");
@@ -124,6 +125,10 @@ export default function JoinPage() {
       setSelectedCompetitionId(parseInt(compId, 10));
     }
   }, [searchString]);
+
+  useEffect(() => {
+    setSelectedDivision("");
+  }, [selectedCompetitionId]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -298,6 +303,10 @@ export default function JoinPage() {
       toast({ title: "Please select a competition", variant: "destructive" });
       return false;
     }
+    if (selectedCompetition?.contestantDivisions?.length && !selectedDivision) {
+      toast({ title: "Please choose a contestant division", variant: "destructive" });
+      return false;
+    }
     if (!form.fullName?.trim()) {
       toast({ title: "Nominee's name is required", variant: "destructive" });
       return false;
@@ -347,6 +356,7 @@ export default function JoinPage() {
           bio: form.bio || "",
           category: form.category || "",
           competitionId: selectedCompetitionId,
+          contestantDivision: selectedDivision || undefined,
           nominatorEmail: nominatorForm.email?.trim() || undefined,
           suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
           referralCode: appliedReferralCode || undefined,
@@ -417,6 +427,7 @@ export default function JoinPage() {
         votedArtistReminderAcknowledged,
         nonprofitProceedsAcknowledged,
         competitionId: selectedCompetitionId,
+        contestantDivision: selectedDivision || undefined,
         nominatorEmail: nominatorForm.email?.trim() || undefined,
         suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
         referralCode: appliedReferralCode || undefined,
@@ -681,6 +692,38 @@ export default function JoinPage() {
             </>
           )}
         </div>
+
+        {selectedCompetition?.contestantDivisions && selectedCompetition.contestantDivisions.length > 0 && (
+          <fieldset className="mb-10 border-t border-white/10 pt-6" data-testid="fieldset-contestant-division">
+            <legend className="text-sm uppercase tracking-[3px] text-white">Choose Your Division</legend>
+            <p className="mt-2 text-sm leading-relaxed text-white/55">
+              Your division appears on your contestant card. Everyone stays together on the same standings list.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {selectedCompetition.contestantDivisions.map((division) => (
+                <label
+                  key={division}
+                  className={`flex min-h-12 cursor-pointer items-center gap-3 border px-4 py-3 transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#FF5A09] ${
+                    selectedDivision === division
+                      ? "border-[#FF5A09] bg-[#FF5A09]/10 text-white"
+                      : "border-white/15 bg-white/[0.04] text-white/75 hover:border-white/30"
+                  }`}
+                  data-testid={`option-division-${division.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                >
+                  <input
+                    type="radio"
+                    name="contestantDivision"
+                    value={division}
+                    checked={selectedDivision === division}
+                    onChange={() => setSelectedDivision(division)}
+                    className="h-4 w-4 accent-[#FF5A09]"
+                  />
+                  <span className="text-sm font-semibold">{division}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         <div className="space-y-5 mb-10">
             <div className="flex items-start gap-3 bg-white/[0.06] border border-white/10 rounded-sm px-4 py-3 mb-6">

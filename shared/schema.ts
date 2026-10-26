@@ -39,6 +39,7 @@ export interface Competition {
   vimeoFolderUrl: string | null;
   chronicBrandsPromotionEnabled: boolean;
   chronicBrandsPromotionUrl?: string | null;
+  contestantDivisions?: string[] | null;
   stages?: CompetitionStage[];
   isFeatured?: boolean;
   themeColor?: string | null;

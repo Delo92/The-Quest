@@ -5,6 +5,7 @@ import { parsePublicLinks } from "../shared/public-links";
 import { videoShareTags, type VideoShareMetadata } from "../shared/video-share";
 import { getCompetitionShareVideo, getContestantShareVideo } from "./share-video";
 import { normalizeVoteSupportCopy } from "../shared/vote-support-copy";
+import { getCompetitionPublicDescription, getContestantDivisionLabel } from "../shared/competition-divisions";
 
 interface ShareMeta {
   title: string;
@@ -756,16 +757,20 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
 
     const profile = contestant.talentProfile;
     const name = (profile.stageName || profile.displayName || "Contestant").trim();
+    const division = getContestantDivisionLabel(competition, contestant.contestantDivision);
     const talentSlug = slugifyWithId(name, profile.id);
     const compUrl = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
     const canonical = `${compUrl}/${talentSlug}`;
     const links = parsePublicLinks(profile.socialLinks);
-    const description = profile.bio?.trim()
-      || `${name} is competing in ${competition.title}, a ${competition.category} competition on The Quest.`;
+    const description = [
+      division ? `${division} division` : "",
+      profile.bio?.trim() || `${name} is competing in ${competition.title}, a ${competition.category} competition on The Quest.`,
+    ].filter(Boolean).join(" · ");
     const video = await getContestantShareVideo(competition, profile, origin);
+    const shareTitle = `${name}${division ? ` — ${division}` : ""} — ${competition.title}`;
     const videoSchema = video ? {
       "@type": "VideoObject",
-      name: `${name} — ${competition.title}`,
+      name: shareTitle,
       description,
       thumbnailUrl: video.posterUrl,
       embedUrl: video.playerUrl,
@@ -775,7 +780,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     } : undefined;
 
     return {
-      title: `${name} — ${competition.title} | The Quest`,
+      title: `${shareTitle} | The Quest`,
       description,
       image: profile.imageUrls?.[0] || competition.coverImage || null,
       video,
@@ -787,7 +792,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
           "@context": "https://schema.org",
           "@type": "ProfilePage",
           url: canonical,
-          name: `${name} — ${competition.title}`,
+          name: shareTitle,
           ...(videoSchema ? { video: videoSchema } : {}),
           mainEntity: {
             "@type": "Person",
@@ -808,7 +813,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
         ]),
       ],
       fallbackHtml: fallbackHtml(
-        `${name} — ${competition.title}`,
+        shareTitle,
         description,
         [
           { label: `${competition.title} competition`, url: compUrl },
@@ -817,6 +822,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
         ],
         [
           { label: "Category", value: competition.category },
+          ...(division ? [{ label: "Division", value: division }] : []),
           ...(profile.location ? [{ label: "Location", value: profile.location }] : []),
         ],
       ),
@@ -841,7 +847,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       };
     }
     const canonical = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
-    const description = competition.description
+    const description = getCompetitionPublicDescription(competition)
       || `View contestants, competition details, and voting for ${competition.title} on The Quest.`;
     const [contestants, hostProfiles, video] = await Promise.all([
       storage.getContestantsByCompetition(competition.id),
@@ -976,7 +982,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     if (!competition || competition.status === "draft") return null;
 
     const canonical = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
-    const description = competition.description
+    const description = getCompetitionPublicDescription(competition)
       || `View contestants, competition details, and voting for ${competition.title} on The Quest.`;
     const video = await getCompetitionShareVideo(competition, origin);
     return {

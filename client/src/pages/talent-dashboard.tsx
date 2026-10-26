@@ -321,10 +321,13 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
 
   const [leaveTarget, setLeaveTarget] = useState<{ contestantId: number; title: string } | null>(null);
   const [leaveConfirmText, setLeaveConfirmText] = useState("");
+  const [selectedDivisionByCompetition, setSelectedDivisionByCompetition] = useState<Record<number, string>>({});
 
   const applyMutation = useMutation({
-    mutationFn: async (competitionId: number) => {
-      await apiRequest("POST", `/api/competitions/${competitionId}/apply`);
+    mutationFn: async (input: { competitionId: number; contestantDivision?: string }) => {
+      await apiRequest("POST", `/api/competitions/${input.competitionId}/apply`, {
+        contestantDivision: input.contestantDivision,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contestants/me"] });
@@ -2615,10 +2618,42 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                           ) : hasActiveEntry ? (
                             <Badge className="bg-white/10 text-white/30 border-0">Already in a competition</Badge>
                           ) : (
-                            <Button onClick={() => applyMutation.mutate(comp.id)} disabled={applyMutation.isPending}
-                              data-testid={`button-apply-${comp.id}`} className="bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white">
-                              Apply
-                            </Button>
+                            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-end">
+                              {comp.contestantDivisions && comp.contestantDivisions.length > 0 && (
+                                <div className="w-full sm:w-52">
+                                  <Label htmlFor={`apply-division-${comp.id}`} className="mb-1 block text-xs text-white/55">
+                                    Contestant division
+                                  </Label>
+                                  <Select
+                                    value={selectedDivisionByCompetition[comp.id] || ""}
+                                    onValueChange={(value) => setSelectedDivisionByCompetition((current) => ({
+                                      ...current,
+                                      [comp.id]: value,
+                                    }))}
+                                  >
+                                    <SelectTrigger id={`apply-division-${comp.id}`} className="min-h-11 border-white/20 bg-black/30 text-white">
+                                      <SelectValue placeholder="Choose a division" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {comp.contestantDivisions.map((division) => (
+                                        <SelectItem key={division} value={division}>{division}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                              <Button
+                                onClick={() => applyMutation.mutate({
+                                  competitionId: comp.id,
+                                  contestantDivision: selectedDivisionByCompetition[comp.id],
+                                })}
+                                disabled={applyMutation.isPending || Boolean(comp.contestantDivisions?.length && !selectedDivisionByCompetition[comp.id])}
+                                data-testid={`button-apply-${comp.id}`}
+                                className="min-h-11 bg-gradient-to-r from-orange-500 to-amber-500 border-0 text-white"
+                              >
+                                Apply
+                              </Button>
+                            </div>
                           )}
                         </div>
                       ))}

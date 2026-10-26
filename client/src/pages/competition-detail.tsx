@@ -79,6 +79,7 @@ interface ContestantWithProfile {
   id: number;
   competitionId: number;
   talentProfileId: number;
+  contestantDivision?: string | null;
   applicationStatus: string;
   voteCount: number;
   tournamentPoints?: number;
@@ -170,6 +171,7 @@ interface CompetitionDetail {
   hostedByProfileSlug?: string | null;
   themeColor?: string | null;
   contestantImageCropPositions?: Record<string, Record<string, ImageCropPosition>>;
+  contestantDivisions?: string[] | null;
   stages?: CompetitionStage[];
 }
 
@@ -827,6 +829,11 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                       </div>
                     )}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent px-1.5 pb-1.5 pt-8">
+                      {contestant.contestantDivision && (
+                        <p className="mb-0.5 truncate text-[8px] font-semibold uppercase tracking-wide text-orange-300">
+                          {contestant.contestantDivision}
+                        </p>
+                      )}
                       <p className="line-clamp-2 text-xs font-semibold leading-tight text-white">{name}</p>
                       <p className="mt-0.5 text-[11px] text-white/80">{voteCount} {selectedStage ? "stage votes" : "votes"}</p>
                     </div>
@@ -986,6 +993,11 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                   </Link>
                   )}
                    <div className="bg-[#141414] px-4 py-5 text-center">
+                    {contestant.contestantDivision && (
+                      <span className="mb-2 inline-flex max-w-full truncate rounded-full border border-orange-400/30 bg-orange-400/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-orange-200">
+                        {contestant.contestantDivision}
+                      </span>
+                    )}
                     <Link
                       href={contestantHref}
                        className="inline-flex min-h-10 items-center justify-center rounded-sm text-white transition-colors hover:text-white/70 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
