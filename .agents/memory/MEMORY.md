@@ -62,4 +62,5 @@
 - [Host contestant admin](host-contestant-admin.md) — hosts reuse admin profile dialog scoped to own events; phone kept in private collection; Competitor URL aliases talent page
 - [Promo videos and Vimeo hash](promo-videos-vimeo-hash.md) — resolve ?h= server-side on save; host role cannot call the admin lookup
 - [TypeScript check memory limit](typecheck-memory-limit.md) — broad root checks can exceed the default Node heap; use focused tests and module transforms when that happens
+- [React types across workspaces](react-type-resolution.md) — keep React 18 type resolution local; the separate React 19 artifacts must not inherit a workspace-wide override.
 - [Nonprofit directory wheel](nonprofit-directory-wheel.md) — keep featured and participant organizations in one growing cover-flow directory, not separate hero art and list sections

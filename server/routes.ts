@@ -7079,18 +7079,32 @@ export async function registerRoutes(
 
   async function validateCheckoutCode(input: z.infer<typeof paymentCodeValidationSchema>) {
     const code = input.code.trim().toUpperCase();
-    const baseCharge: any = input.purpose === "vote"
-      ? await resolveGuestVoteCharge({ ...input, promoCode: undefined })
-      : await resolveProviderPaymentAmount({ ...input, promoCode: undefined });
-    const subtotalCents = input.purpose === "vote"
-      ? baseCharge.subtotalCents
-      : baseCharge.amountCents;
+    let voteCharge: Awaited<ReturnType<typeof resolveGuestVoteCharge>> | null = null;
+    let amountCents: number;
+    let subtotalCents: number;
+    if (input.purpose === "vote") {
+      if (!input.competitionId || !input.contestantId || !input.packageId) {
+        throw Object.assign(new Error("Vote payment details are incomplete"), { status: 400 });
+      }
+      voteCharge = await resolveGuestVoteCharge({
+        competitionId: input.competitionId,
+        contestantId: input.contestantId,
+        stageId: input.stageId,
+        packageId: input.packageId,
+        packageIndex: input.packageIndex,
+        individualVoteCount: input.individualVoteCount,
+      });
+      amountCents = voteCharge.amountCents;
+      subtotalCents = voteCharge.subtotalCents;
+    } else {
+      const providerCharge = await resolveProviderPaymentAmount({ ...input, promoCode: undefined });
+      amountCents = providerCharge.amountCents;
+      subtotalCents = providerCharge.amountCents;
+    }
 
     const appPromo = await resolveAppManagedPromoDiscountForCheckout(code, subtotalCents);
     if (appPromo) {
-      const quote = input.purpose === "vote"
-        ? applyGuestVoteDiscount(baseCharge, appPromo)
-        : null;
+      const quote = voteCharge ? applyGuestVoteDiscount(voteCharge, appPromo) : null;
       const discountAmountCents = Math.min(subtotalCents, appPromo.discountAmountCents);
       const totalAmountCents = quote?.amountCents ?? subtotalCents - discountAmountCents;
       return {
@@ -7116,8 +7130,8 @@ export async function registerRoutes(
         subtotalCents,
         discountAmountCents: 0,
         discountedSubtotalCents: subtotalCents,
-        taxAmountCents: input.purpose === "vote" ? baseCharge.taxAmountCents : 0,
-        totalAmountCents: baseCharge.amountCents,
+        taxAmountCents: voteCharge?.taxAmountCents ?? 0,
+        totalAmountCents: amountCents,
       };
     }
 
@@ -7129,9 +7143,7 @@ export async function registerRoutes(
       return { valid: false, message: "This promo or referral code is invalid or inactive." };
     }
 
-    const quote = input.purpose === "vote"
-      ? applyGuestVoteDiscount(baseCharge, stripePromo)
-      : null;
+    const quote = voteCharge ? applyGuestVoteDiscount(voteCharge, stripePromo) : null;
     const discountAmountCents = Math.min(subtotalCents, stripePromo.discountAmountCents);
     return {
       valid: true,

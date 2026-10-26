@@ -395,6 +395,9 @@ export interface FirestoreHostSubmission {
   status: "pending" | "approved" | "rejected";
   transactionId: string | null;
   amountPaid: number;
+  promoCode?: string | null;
+  promoDiscountAmount?: number;
+  referralCode?: string | null;
   selectedPackageName?: string | null;
   selectedPackagePrice?: number | null;
   createdAt: string;

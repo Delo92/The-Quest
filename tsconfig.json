@@ -19,7 +19,11 @@
     "paths": {
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"],
-      "@workspace/api-client-react": ["./lib/api-client-react/src/index.ts"]
+      "@workspace/api-client-react": ["./lib/api-client-react/src/index.ts"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "react-dom": ["./node_modules/@types/react-dom/index.d.ts"],
+      "react-dom/*": ["./node_modules/@types/react-dom/*"]
     }
   }
 }

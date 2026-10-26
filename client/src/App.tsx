@@ -63,7 +63,7 @@ function QuestRouter() {
       <Route path="/admin" component={Dashboard} />
       <Route path="/admin/forms" component={AdminFormsPage} />
       <Route path="/f/:slug" component={PublicFormPage} />
-      <Route path="/:categorySlug/:compSlug/:talentSlug" component={ContestantSharePage} />
+      <Route path="/:categorySlug/:compSlug/:talentSlug" component={() => <ContestantSharePage />} />
       <Route path="/:categorySlug/:compSlug" component={() => <CompetitionDetail />} />
       <Route component={NotFound} />
     </Switch>
