@@ -12,3 +12,9 @@ Competition-page links and embeddable-player links are separate products: social
 **Why:** The user expects a literal playable video embed, not only Open Graph metadata or a link to a competition page; Messenger and text-message preview behavior is controlled by the platform.
 
 **How to apply:** Make changes for all non-draft competition pages, not one named event. Keep the cover image in the preview as the video poster, include video metadata separately, and expose the player URL/embed code in sharing controls.
+
+When the user compares multiple competition links and says only one has a video, identify and investigate that link; do not treat the other competition's lack of video as a defect or ask them to attach one unless they request it.
+
+**Why:** The user clarified that Starr Struck was not expected to have a video; the identified video link was Chronic Cuties of Hawaii.
+
+**How to apply:** Follow the user's link/image identification precisely and keep any unrelated competition data out of scope.
