@@ -153,25 +153,6 @@ test("competition share metadata uses its saved promo video with stable player a
   assert.equal(meta.streamUrl, "https://quest.example/api/share-competition-video/71/123456.mp4");
 });
 
-test("uploaded competition MP4 covers are shared directly as video without an invalid HTML player tag", async () => {
-  const directUrl = "https://storage.example/covers/71-hype.mp4?token=public";
-  const meta = await getCompetitionShareVideo({
-    ...competition,
-    coverImage: "https://images.example/competition-cover.jpg",
-    coverVideo: directUrl,
-  }, "https://quest.example", {
-    getVideoById: async () => { throw new Error("Vimeo lookup must not run for an uploaded MP4"); },
-  });
-  assert.ok(meta);
-  assert.equal(meta.streamUrl, directUrl);
-  assert.equal(meta.playerUrl, undefined);
-  assert.equal(meta.posterUrl, "https://images.example/competition-cover.jpg");
-  const tags = videoShareTags(meta, "https://quest.example");
-  assert.deepEqual(tags.filter((tag) => tag.key === "og:video:type").map((tag) => tag.value), ["video/mp4"]);
-  assert.equal(tags.some((tag) => tag.key === "twitter:player"), false);
-  assert.equal(tags.some((tag) => tag.key === "twitter:player:stream"), false);
-});
-
 test("Vimeo player metadata and real poster remain available without MP4 access", async () => {
   const meta = await getContestantShareVideo(competition, profile, "https://quest.example", {
     getVideos: async () => [video], getPlayUrls: async () => { throw new Error("No progressive access"); },

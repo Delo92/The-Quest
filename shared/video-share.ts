@@ -1,5 +1,5 @@
 export interface VideoShareMetadata {
-  playerUrl?: string;
+  playerUrl: string;
   streamUrl?: string;
   posterUrl: string;
   width: number;
@@ -44,22 +44,18 @@ export function videoShareTags(video: VideoShareMetadata, origin: string) {
     add("property", "og:video:type", "video/mp4");
     add("property", "og:video:width", width);
     add("property", "og:video:height", height);
-    if (video.playerUrl) {
-      add("name", "twitter:player:stream", stream);
-      add("name", "twitter:player:stream:content_type", "video/mp4");
-    }
+    add("name", "twitter:player:stream", stream);
+    add("name", "twitter:player:stream:content_type", "video/mp4");
   }
-  if (video.playerUrl) {
-    const player = httpsUrl(video.playerUrl);
-    add("property", "og:video", player);
-    add("property", "og:video:secure_url", player);
-    add("property", "og:video:type", "text/html");
-    add("property", "og:video:width", width);
-    add("property", "og:video:height", height);
-    add("name", "twitter:player", player);
-    add("name", "twitter:player:width", width);
-    add("name", "twitter:player:height", height);
-  }
+  const player = httpsUrl(video.playerUrl);
+  add("property", "og:video", player);
+  add("property", "og:video:secure_url", player);
+  add("property", "og:video:type", "text/html");
+  add("property", "og:video:width", width);
+  add("property", "og:video:height", height);
+  add("name", "twitter:player", player);
+  add("name", "twitter:player:width", width);
+  add("name", "twitter:player:height", height);
   if (video.duration && video.duration > 0) add("property", "video:duration", Math.round(video.duration));
   return tags;
 }

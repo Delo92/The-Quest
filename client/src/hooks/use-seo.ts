@@ -104,7 +104,7 @@ export function useSEO({ title, description, canonical, ogImage, favicon, ogType
     setCanonical(url);
     setMetaTag("og:url", url, true);
     clearVideoTags();
-    setMetaTag("twitter:card", ogVideo?.playerUrl ? "player" : "summary_large_image");
+    setMetaTag("twitter:card", ogVideo ? "player" : "summary_large_image");
     if (ogVideo) {
       for (const { attr, key, value } of videoShareTags(ogVideo, new URL(url).origin)) {
         // Open Graph accepts multiple media alternatives; do not overwrite

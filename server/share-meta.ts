@@ -121,7 +121,7 @@ export function applyShareMeta(template: string, meta: ShareMeta) {
   // The base HTML uses the square brand icon's dimensions. Dynamic share images
   // have different dimensions, so do not advertise those stale values.
   page = page.replace(/<meta\s+property="og:image:(?:width|height)"\s+content="[^"]*"\s*\/?>/gi, "");
-  page = replaceMeta(page, "name", "twitter:card", meta.video?.playerUrl ? "player" : "summary_large_image");
+  page = replaceMeta(page, "name", "twitter:card", meta.video ? "player" : "summary_large_image");
   page = replaceMeta(page, "name", "twitter:title", meta.title);
   page = replaceMeta(page, "name", "twitter:description", description);
   page = replaceMeta(page, "name", "twitter:image", meta.image || `${getPublicOrigin()}/cb-logo-favicon.png?v=cbp-20260905`);
@@ -412,7 +412,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       name: `${name} — ${competition.title}`,
       description,
       thumbnailUrl: video.posterUrl,
-      ...(video.playerUrl ? { embedUrl: video.playerUrl } : {}),
+      embedUrl: video.playerUrl,
       ...(video.streamUrl ? { contentUrl: video.streamUrl } : {}),
       ...(video.uploadDate ? { uploadDate: video.uploadDate } : {}),
       ...(video.duration ? { duration: `PT${Math.round(video.duration)}S` } : {}),
@@ -504,7 +504,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       name: `${competition.title} competition video`,
       description,
       thumbnailUrl: video.posterUrl,
-      ...(video.playerUrl ? { embedUrl: video.playerUrl } : {}),
+      embedUrl: video.playerUrl,
       ...(video.streamUrl ? { contentUrl: video.streamUrl } : {}),
       ...(video.uploadDate ? { uploadDate: video.uploadDate } : {}),
       ...(video.duration ? { duration: `PT${Math.round(video.duration)}S` } : {}),

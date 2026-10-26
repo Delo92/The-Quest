@@ -34,6 +34,7 @@
 - [Firebase Storage access](firebase-storage-access.md) — restore project storage access before changing UI media rendering; disabled billing makes stored media URLs fail
 - [Stage voting isolation](stage-voting-isolation.md) — stage vote records and legacy cumulative totals use separate count keys and query paths
 - [Competition share links](competition-share-links.md) — guest join CTAs go to the selected competition’s nomination form and preserve referral attribution
+- [Competition media sharing](competition-media-sharing.md) — each public competition uses its own artwork for its favicon/share image and its saved video for share metadata
 - [Host platform referral codes](host-platform-referral-codes.md) — every host should have a global `?ref=CODE` link separate from competition-specific codes
 - [Referral-use privacy](referral-use-privacy.md) — code owners receive aggregate counts only; never expose referrers' names or contact details.
 - [Centralized error logging](chronicdocs-error-logging.md) — install API capture before routes; cover JSON and non-JSON errors without persisting request values or response bodies
