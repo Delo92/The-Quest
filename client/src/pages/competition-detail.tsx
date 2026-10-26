@@ -238,11 +238,15 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
     new URLSearchParams(window.location.search).get("view") === "tracking" ? "tracking" : "contestants"
   );
   const [selectedStageId, setSelectedStageId] = useState("overview");
+  const [divisionFilter, setDivisionFilter] = useState("all");
   const [mobileStageMenuOpen, setMobileStageMenuOpen] = useState(false);
   const { data: competition, isLoading } = useQuery<CompetitionDetail>({
     queryKey: ["/api/resolve/competition", categorySlug, compSlug],
     enabled: !!categorySlug && !!compSlug,
   });
+  useEffect(() => {
+    setDivisionFilter("all");
+  }, [competition?.id]);
   const saveContestantCrop = async () => {
     if (!editingContestantCrop || !competition || savingContestantCrop) return;
     setSavingContestantCrop(true);
@@ -390,6 +394,23 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
       ? getContestantVoteCount(b) - getContestantVoteCount(a)
       : (b.tournamentPoints ?? b.voteCount) - (a.tournamentPoints ?? a.voteCount)
   );
+  const divisionOptions = competition.contestantDivisions || [];
+  const hasDivisionFilters = divisionOptions.length > 1;
+  const visibleContestants = hasDivisionFilters && divisionFilter !== "all"
+    ? sorted.filter((contestant) => contestant.contestantDivision === divisionFilter)
+    : sorted;
+  const globalRankByContestantId = new Map(
+    sorted.map((contestant, index) => [contestant.id, index + 1] as const),
+  );
+  const divisionFilters = [
+    { value: "all", label: "All", count: sorted.length },
+    ...divisionOptions.map((division) => ({
+      value: division,
+      label: division.replace(/^Chronic\s+/i, ""),
+      count: sorted.filter((contestant) => contestant.contestantDivision === division).length,
+    })),
+  ];
+  const nominationHref = `/nominate?competition=${competition.id}${preserveReferralQuery(window.location.search).replace(/^\?/, "&")}`;
   const selectStage = (stageId: string) => {
     setSelectedStageId(stageId);
     setActiveSection("contestants");
@@ -750,9 +771,62 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
             {accentFont ? "★ The Cast ★" : "See what's new"}
           </p>
           <h2 className="uppercase leading-none" style={{ fontFamily: accentFont || "inherit", fontSize: accentFont ? "clamp(2.2rem, 5vw, 3.5rem)" : "1.125rem", letterSpacing: accentFont ? "0.12em" : "10px", color: "#fff", fontWeight: accentFont ? 400 : 400 }}>
-             {selectedStage ? selectedStage.name : "Contestants"} <span style={{ color: accentFont ? accent : "inherit" }}>({sorted.length})</span>
+             {selectedStage ? selectedStage.name : "Contestants"} <span style={{ color: accentFont ? accent : "inherit" }}>({visibleContestants.length})</span>
           </h2>
          </div>}
+
+         {activeSection === "contestants" && hasDivisionFilters && (
+           <div className="mx-auto mb-8 max-w-4xl">
+             <div
+               className="mb-4 grid grid-cols-3 gap-2"
+               role="group"
+               aria-label="Filter contestants by division"
+               data-testid="division-filters"
+             >
+               {divisionFilters.map((filter) => {
+                 const isActive = divisionFilter === filter.value;
+                 return (
+                   <button
+                     key={filter.value}
+                     type="button"
+                     aria-label={`Show ${filter.value === "all" ? "all" : `Chronic ${filter.label}`} contestants (${filter.count})`}
+                     aria-pressed={isActive}
+                     onClick={() => setDivisionFilter(filter.value)}
+                     className="flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-[11px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f0f] sm:gap-2 sm:px-4 sm:text-sm"
+                     style={{
+                       borderColor: isActive ? accent : "rgba(255,255,255,0.16)",
+                       backgroundColor: isActive ? `${accent}20` : "rgba(255,255,255,0.025)",
+                       color: isActive ? accent : "rgba(255,255,255,0.78)",
+                       outlineColor: accent,
+                     }}
+                     data-testid={`button-division-filter-${filter.value === "all" ? "all" : filter.label.toLowerCase()}`}
+                   >
+                     <span className="truncate">{filter.label}</span>
+                     <span className="shrink-0 font-mono tabular-nums opacity-75">{filter.count}</span>
+                   </button>
+                 );
+               })}
+             </div>
+             <p className="mb-4 text-center text-xs leading-relaxed text-white/70">
+               This view filter keeps the same shared votes and overall ranking. Chronic Hunks are welcome—choose Chronic Hunks when nominating.
+             </p>
+             <div
+               className="flex flex-col items-center justify-between gap-3 rounded-md border px-4 py-3 text-center sm:flex-row sm:text-left"
+               style={{ borderColor: `${accent}55`, backgroundColor: accentMuted }}
+             >
+               <p className="text-sm font-semibold text-white">Chronic Hunks are welcome to join this competition.</p>
+               <Link
+                 href={nominationHref}
+                 className="inline-flex min-h-10 items-center justify-center gap-1 rounded-sm border px-4 text-xs font-bold uppercase tracking-wide transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f0f]"
+                 style={{ borderColor: accent, backgroundColor: accent, color: accentText, outlineColor: accent }}
+                 data-testid="link-nominate-chronic-hunk"
+               >
+                 Start nominating
+                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
+               </Link>
+             </div>
+           </div>
+         )}
 
          {activeSection === "tracking" ? (
            <CompetitionTrackingPanel
@@ -767,13 +841,14 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
              isLoading={trackingQuery.isLoading}
              error={trackingQuery.error instanceof Error ? trackingQuery.error.message : null}
            />
-         ) : sorted.length > 0 ? (
+          ) : visibleContestants.length > 0 ? (
           <>
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:hidden" data-testid="grid-contestants-compact">
-            {sorted.map((contestant, index) => {
+             {visibleContestants.map((contestant, index) => {
               const voteCount = getContestantVoteCount(contestant);
               const name = contestant.talentProfile.stageName || contestant.talentProfile.displayName;
-              const rankColor = index === 0 ? "text-yellow-400" : index === 1 ? "text-gray-300" : index === 2 ? "text-orange-400" : "";
+               const globalRank = globalRankByContestantId.get(contestant.id) ?? index + 1;
+               const rankColor = globalRank === 1 ? "text-yellow-400" : globalRank === 2 ? "text-gray-300" : globalRank === 3 ? "text-orange-400" : "";
               const stageSubmission = selectedStage ? stageSubmissions.get(contestant.id) : null;
               const stageResult = selectedStage ? contestant.stageResults?.[selectedStage.id] : null;
               const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
@@ -839,7 +914,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                     </div>
                     {rankColor && (
                       <span className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/75">
-                        {index === 0 ? <Crown className={`h-3.5 w-3.5 ${rankColor}`} /> : <Award className={`h-3.5 w-3.5 ${rankColor}`} />}
+                        {globalRank === 1 ? <Crown className={`h-3.5 w-3.5 ${rankColor}`} /> : <Award className={`h-3.5 w-3.5 ${rankColor}`} />}
                       </span>
                     )}
                     {stageResult && stageResult !== "active" && (
@@ -853,10 +928,11 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
             })}
           </ul>
           <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {sorted.map((contestant, index) => {
+            {visibleContestants.map((contestant, index) => {
+               const globalRank = globalRankByContestantId.get(contestant.id) ?? index + 1;
                const voteCount = getContestantVoteCount(contestant);
                const pct = maxVotes > 0 ? (voteCount / maxVotes) * 100 : 0;
-              const rankIcon = index === 0 ? <Crown className="h-4 w-4 text-yellow-400" /> : index === 1 ? <Award className="h-4 w-4 text-gray-300" /> : index === 2 ? <Award className="h-4 w-4 text-orange-400" /> : null;
+              const rankIcon = globalRank === 1 ? <Crown className="h-4 w-4 text-yellow-400" /> : globalRank === 2 ? <Award className="h-4 w-4 text-gray-300" /> : globalRank === 3 ? <Award className="h-4 w-4 text-orange-400" /> : null;
               const videos = contestantVideos.get(contestant.id) || [];
                const primaryProfileImage = contestant.talentProfile.imageUrls?.[0];
                const backupProfileImage = getBackupUrl(contestant.talentProfile.imageUrls, contestant.talentProfile.imageBackupUrls, 0);
@@ -1108,9 +1184,11 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
           <div className="text-center py-20">
             <Users className="h-12 w-12 text-white/10 mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-2">No contestants yet</h3>
-            <p className="text-sm text-white/75 mb-6">Be the first to apply!</p>
+            <p className="text-sm text-white/75 mb-6">
+              {divisionFilter === "all" ? "Be the first to apply!" : `No ${divisionFilter} entrants yet. Be the first to join this shared competition.`}
+            </p>
             <Link
-              href={`/nominate?competition=${competition.id}${preserveReferralQuery(window.location.search).replace(/^\?/, "&")}`}
+              href={nominationHref}
               className="inline-flex min-h-[48px] min-w-[212px] max-w-full items-center justify-center border border-white bg-black px-6 text-center text-base font-bold text-white transition-colors duration-200 hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f0f] sm:px-8"
               data-testid="button-apply-login"
             >
