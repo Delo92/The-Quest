@@ -2,9 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { getCompetitionScopedTalentVideos } from "./competition-videos";
-import { getContestantShareVideo, registerShareVideoRoutes, renderShareVideoPlayer, resolveShareVideoStream } from "./share-video";
+import {
+  getCompetitionShareVideo,
+  getContestantShareVideo,
+  registerShareVideoRoutes,
+  renderShareVideoPlayer,
+  resolveCompetitionShareVideoStream,
+  resolveShareVideoStream,
+} from "./share-video";
 import { applyShareMeta } from "./share-meta";
-import { shareVideoPath, shareVideoPlayerPath, videoShareTags } from "../shared/video-share";
+import {
+  shareCompetitionVideoPath,
+  shareCompetitionVideoPlayerPath,
+  shareVideoPath,
+  shareVideoPlayerPath,
+  videoShareTags,
+} from "../shared/video-share";
 import type { VimeoVideo, VimeoPlayUrls } from "./vimeo";
 
 const competition = { id: 71, title: "Competition A", status: "active", vimeoFolderUrl: "https://vimeo.com/showcase/71" };
@@ -83,6 +96,35 @@ test("public video endpoint supports GET/HEAD and refuses unavailable or malform
   }
 });
 
+test("public competition video endpoint serves its current MP4 and HTML player", async () => {
+  const app = express();
+  registerShareVideoRoutes(
+    app,
+    async () => null,
+    async () => play,
+    async (competitionId, videoId) => {
+      assert.equal(competitionId, 71);
+      return videoId === "123456" ? play.progressive[0].link : null;
+    },
+  );
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    const mp4 = await fetch(`${base}${shareCompetitionVideoPath(71, "123456")}`, { redirect: "manual" });
+    assert.equal(mp4.status, 302);
+    assert.equal(mp4.headers.get("location"), play.progressive[0].link);
+    const player = await fetch(`${base}${shareCompetitionVideoPlayerPath(71, "123456")}`);
+    assert.equal(player.status, 200);
+    assert.match(await player.text(), /<source src="\/api\/share-competition-video\/71\/123456\.mp4" type="video\/mp4">/);
+    assert.equal((await fetch(`${base}${shareCompetitionVideoPath(71, "987654")}`)).status, 404);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
 test("share metadata uses the video's poster and stable first-party player/MP4 paths", async () => {
   const meta = await getContestantShareVideo(competition, profile, "https://quest.example", {
     getVideos: async () => [video], getPlayUrls: async () => play,
@@ -93,6 +135,22 @@ test("share metadata uses the video's poster and stable first-party player/MP4 p
   assert.equal(meta.streamUrl, "https://quest.example/api/share-video/71/81/123456.mp4");
   assert.doesNotMatch(JSON.stringify(meta), /expires=soon|987654/);
   assert.equal(meta.height, 1920);
+});
+
+test("competition share metadata uses its saved promo video with stable player and MP4 paths", async () => {
+  const promoCompetition = {
+    ...competition,
+    coverVideo: null,
+    promoVideos: ["https://player.vimeo.com/video/123456?h=competition-hash"],
+  };
+  const meta = await getCompetitionShareVideo(promoCompetition, "https://quest.example", {
+    getVideoById: async (id) => { assert.equal(id, "123456"); return video; },
+    getPlayUrls: async () => play,
+  });
+  assert.ok(meta);
+  assert.equal(meta.posterUrl, play.thumbnailUrl);
+  assert.equal(meta.playerUrl, "https://quest.example/api/share-competition-video/71/123456.html");
+  assert.equal(meta.streamUrl, "https://quest.example/api/share-competition-video/71/123456.mp4");
 });
 
 test("Vimeo player metadata and real poster remain available without MP4 access", async () => {
@@ -131,6 +189,21 @@ test("stable stream resolves the current approved entry to a fresh signed CDN UR
   assert.equal(await resolveShareVideoStream(71, 81, "123456", streamDependencies()), play.progressive[0].link);
 });
 
+test("competition stream only resolves videos still saved on a public competition", async () => {
+  const dependencies = {
+    getCompetition: async () => ({
+      ...competition,
+      coverVideo: null,
+      promoVideos: ["https://player.vimeo.com/video/123456?h=competition-hash"],
+    }),
+    getPlayUrls: async () => play,
+  } as unknown as NonNullable<Parameters<typeof resolveCompetitionShareVideoStream>[2]>;
+  assert.equal(await resolveCompetitionShareVideoStream(71, "123456", dependencies), play.progressive[0].link);
+  assert.equal(await resolveCompetitionShareVideoStream(71, "987654", dependencies), null);
+  dependencies.getCompetition = async () => ({ ...competition, status: "draft" } as any);
+  assert.equal(await resolveCompetitionShareVideoStream(71, "123456", dependencies), null);
+});
+
 test("stream refuses another video's ID, a missing contestant, and draft competitions", async () => {
   assert.equal(await resolveShareVideoStream(71, 81, "987654", streamDependencies()), null);
   assert.equal(await resolveShareVideoStream(71, 99, "123456", streamDependencies()), null);
@@ -151,7 +224,7 @@ test("video cards advertise both MP4 and HTML players with the correct portrait 
 });
 
 test("server HTML contains playable video tags and escaped video poster, not profile artwork", () => {
-  const template = '<html><head><title>Old</title><meta name="twitter:card" content="summary_large_image" /><meta property="og:video" content="stale" /><link rel="canonical" href="https://old.example" /></head><body><div id="root"></div></body></html>';
+  const template = '<html><head><title>Old</title><meta name="twitter:card" content="summary_large_image" /><meta property="og:image:width" content="120" /><meta property="og:image:height" content="98" /><meta property="og:video" content="stale" /><link rel="canonical" href="https://old.example" /></head><body><div id="root"></div></body></html>';
   const poster = "https://i.vimeocdn.com/video/frame.jpg?a=1&b=2";
   const html = applyShareMeta(template, {
     title: "Artist's competition video", description: "Watch and vote", url: "https://quest.example/entry",
@@ -161,6 +234,7 @@ test("server HTML contains playable video tags and escaped video poster, not pro
   assert.match(html, /name="twitter:card" content="player"/);
   assert.match(html, /property="og:video:type" content="video\/mp4"/);
   assert.match(html, /property="og:image" content="https:\/\/i.vimeocdn.com\/video\/frame.jpg\?a=1&amp;b=2"/);
+  assert.doesNotMatch(html, /og:image:(?:width|height)/);
   assert.doesNotMatch(html, /content="stale"|expires=soon/);
   const plain = applyShareMeta(html, { title: "Normal page", description: "Text", url: "https://quest.example" });
   assert.doesNotMatch(plain, /property="og:video"|name="twitter:player/);

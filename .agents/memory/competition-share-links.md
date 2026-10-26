@@ -29,8 +29,14 @@ Vote registration keeps attribution domains separate: preserve an incoming `?ref
 
 **How to apply:** Carry `?ref` through account creation, derive the target contestant code only when no inbound referral exists, and keep `promoCode` on ticket links.
 
-Contestant profile URLs must keep their own social preview metadata even when `?ref` is present. A contestant slug such as `vivian-40` is not necessarily a host referral code; profile media and identity come from the path.
+Contestant profile URLs must keep their own social preview metadata even when `?ref` is present. A contestant slug such as `vivian-40` is not necessarily a host referral code; profile identity and video come from the path and selected competition.
 
 **Why:** A failed host-code lookup previously returned generic site metadata for shared contestant links, so Facebook displayed the wrong title and no contestant media.
 
-**How to apply:** Resolve profile paths before query-string referral metadata; keep the original `ref` query intact for attribution and use the contestant's public image as the share image.
+**How to apply:** Resolve profile paths before query-string referral metadata; keep the original `ref` query intact for attribution and use the selected competition video's poster as the share image when available, then the contestant's public image.
+
+Competition-page share cards use the competition cover as `og:image` and the competition's own video metadata: cover video first, otherwise its first configured promo video. Never substitute an arbitrary contestant's clip. Keep the browser favicon as the site brand icon; it is separate from social-card imagery. Facebook documents secure `og:video` URLs as eligible for inline Feed playback, but says playback is not guaranteed.
+
+**Why:** A competition page represents the event, and some active competitions have a promo video even when no cover video is set. The cover image remains the social thumbnail; an incorrect inherited square icon dimension can degrade that preview.
+
+**How to apply:** Resolve event-owned video sources server-side, use a stable validated URL that refreshes signed CDN redirects, and preserve the cover image for `og:image`. Treat Facebook inline playback as eligibility, not a promise; other platforms apply their own preview rules.

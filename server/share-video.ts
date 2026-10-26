@@ -1,17 +1,27 @@
 import type { Express } from "express";
 import { storage } from "./storage";
 import { getCompetitionScopedTalentVideos } from "./competition-videos";
-import { extractVimeoVideoId, getVideoPlayUrls } from "./vimeo";
-import { shareVideoPath, shareVideoPlayerPath, type VideoShareMetadata } from "../shared/video-share";
+import { extractVimeoVideoId, getVideoById, getVideoPlayUrls } from "./vimeo";
+import {
+  shareCompetitionVideoPath,
+  shareCompetitionVideoPlayerPath,
+  shareVideoPath,
+  shareVideoPlayerPath,
+  type VideoShareMetadata,
+} from "../shared/video-share";
 
 type Profile = Parameters<typeof getCompetitionScopedTalentVideos>[0] & {
   id: number;
   displayName: string;
   stageName?: string | null;
 };
-type Competition = Parameters<typeof getCompetitionScopedTalentVideos>[1];
+type Competition = Parameters<typeof getCompetitionScopedTalentVideos>[1] & {
+  coverVideo?: string | null;
+  promoVideos?: string[] | null;
+};
 type MediaDependencies = {
   getVideos?: typeof getCompetitionScopedTalentVideos;
+  getVideoById?: typeof getVideoById;
   getPlayUrls?: typeof getVideoPlayUrls;
 };
 const metadataCache = new Map<string, { expiresAt: number; value: VideoShareMetadata | null }>();
@@ -77,6 +87,65 @@ export async function getContestantShareVideo(
   }
 }
 
+const competitionVideoMetadataCache = new Map<string, { expiresAt: number; value: VideoShareMetadata | null }>();
+
+export async function getCompetitionShareVideo(
+  competition: Competition,
+  origin: string,
+  dependencies: Pick<MediaDependencies, "getVideoById" | "getPlayUrls"> = {},
+): Promise<VideoShareMetadata | null> {
+  const sources = [competition.coverVideo, ...(competition.promoVideos || [])]
+    .filter((source): source is string => typeof source === "string" && source.length > 0);
+  const videoIds = [...new Set(sources.map(extractVimeoVideoId).filter((id): id is string => !!id))];
+  if (!videoIds.length) return null;
+
+  const key = JSON.stringify([origin, competition.id, sources]);
+  const cached = !Object.keys(dependencies).length && competitionVideoMetadataCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const load = async (): Promise<VideoShareMetadata | null> => {
+    for (const videoId of videoIds) {
+      try {
+        const video = await (dependencies.getVideoById || getVideoById)(videoId);
+        if (!video.player_embed_url?.startsWith("https://player.vimeo.com/video/")) continue;
+        let posterUrl = [...(video.pictures?.sizes || [])].sort((a, b) => b.width - a.width)[0]?.link;
+        let hasStream = false;
+        try {
+          const play = await (dependencies.getPlayUrls || getVideoPlayUrls)(videoId);
+          posterUrl = play.thumbnailUrl || posterUrl;
+          hasStream = play.progressive.length > 0;
+        } catch {
+          // The saved Vimeo player and thumbnail can still provide a valid fallback.
+        }
+        if (!posterUrl) continue;
+        return {
+          playerUrl: hasStream
+            ? `${origin}${shareCompetitionVideoPlayerPath(competition.id, videoId)}`
+            : video.player_embed_url,
+          ...(hasStream ? { streamUrl: `${origin}${shareCompetitionVideoPath(competition.id, videoId)}` } : {}),
+          posterUrl,
+          width: video.width || 640,
+          height: video.height || 360,
+          duration: video.duration,
+          uploadDate: video.created_time,
+        };
+      } catch {
+        // Try the next saved competition video if one is unavailable.
+      }
+    }
+    return null;
+  };
+
+  const value = await load();
+  if (!Object.keys(dependencies).length) {
+    if (competitionVideoMetadataCache.size >= 256) {
+      competitionVideoMetadataCache.delete(competitionVideoMetadataCache.keys().next().value!);
+    }
+    competitionVideoMetadataCache.set(key, { value, expiresAt: Date.now() + (value ? 60_000 : 15_000) });
+  }
+  return value;
+}
+
 export async function resolveShareVideoStream(
   competitionId: number,
   talentProfileId: number,
@@ -105,6 +174,28 @@ export async function resolveShareVideoStream(
   return target.href;
 }
 
+export async function resolveCompetitionShareVideoStream(
+  competitionId: number,
+  videoId: string,
+  dependencies: Pick<typeof storage, "getCompetition"> & Pick<MediaDependencies, "getPlayUrls"> = storage,
+): Promise<string | null> {
+  const competition = await dependencies.getCompetition(competitionId);
+  if (!competition || competition.status === "draft") return null;
+  const currentVideoIds = [competition.coverVideo, ...(competition.promoVideos || [])]
+    .filter((source): source is string => typeof source === "string")
+    .map(extractVimeoVideoId)
+    .filter((id): id is string => !!id);
+  if (!currentVideoIds.includes(videoId)) return null;
+  const play = await (dependencies.getPlayUrls || getVideoPlayUrls)(videoId);
+  const rendition = play.progressive.find((item) => item.rendition === "360p")
+    || play.progressive.find((item) => item.rendition === "480p")
+    || play.progressive[0];
+  if (!rendition) return null;
+  const target = new URL(rendition.link);
+  if (target.protocol !== "https:") return null;
+  return target.href;
+}
+
 export function renderShareVideoPlayer(streamPath: string, posterUrl: string): string {
   const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
     .replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -123,6 +214,7 @@ export function registerShareVideoRoutes(
   app: Express,
   resolveStream = resolveShareVideoStream,
   getPlayUrls = getVideoPlayUrls,
+  resolveCompetitionStream = resolveCompetitionShareVideoStream,
 ) {
   // Stable metadata URL; Vimeo's signed CDN destination is refreshed server-side.
   // Express also handles HEAD using this GET handler. Redirects preserve Range
@@ -155,6 +247,37 @@ export function registerShareVideoRoutes(
       res.redirect(302, stream);
     } catch {
       res.status(503).json({ message: "The shared video is temporarily unavailable" });
+    }
+  });
+
+  app.get("/api/share-competition-video/:competitionId/:videoFile", async (req, res) => {
+    const { competitionId, videoFile } = req.params;
+    const match = /^(\d+)\.(mp4|html)$/.exec(videoFile);
+    if (!/^[1-9]\d*$/.test(competitionId) || !match) {
+      res.status(400).json({ message: "Invalid shared competition video" });
+      return;
+    }
+    try {
+      const stream = await resolveCompetitionStream(Number(competitionId), match[1]);
+      if (!stream) {
+        res.status(404).json({ message: "This competition video is not available" });
+        return;
+      }
+      res.setHeader("Cache-Control", "no-store");
+      if (match[2] === "html") {
+        const play = await getPlayUrls(match[1]);
+        res.removeHeader("X-Frame-Options");
+        res.setHeader("Content-Security-Policy", "default-src 'none'; media-src 'self' https:; img-src https:; style-src 'unsafe-inline'; frame-ancestors https:; base-uri 'none'; form-action 'none'");
+        res.setHeader("X-Robots-Tag", "noindex");
+        res.type("html").send(renderShareVideoPlayer(
+          shareCompetitionVideoPath(Number(competitionId), match[1]),
+          play.thumbnailUrl || "",
+        ));
+        return;
+      }
+      res.redirect(302, stream);
+    } catch {
+      res.status(503).json({ message: "The competition video is temporarily unavailable" });
     }
   });
 }

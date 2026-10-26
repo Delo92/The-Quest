@@ -16,6 +16,14 @@ export function shareVideoPlayerPath(competitionId: number, talentProfileId: num
   return `/api/share-video/${competitionId}/${talentProfileId}/${videoId}.html`;
 }
 
+export function shareCompetitionVideoPath(competitionId: number, videoId: string): string {
+  return `/api/share-competition-video/${competitionId}/${videoId}.mp4`;
+}
+
+export function shareCompetitionVideoPlayerPath(competitionId: number, videoId: string): string {
+  return `/api/share-competition-video/${competitionId}/${videoId}.html`;
+}
+
 /** Keep server-rendered cards and hydrated page metadata in agreement. */
 export function videoShareTags(video: VideoShareMetadata, origin: string) {
   const tags: Array<{ attr: "property" | "name"; key: string; value: string }> = [];

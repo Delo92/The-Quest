@@ -3,7 +3,7 @@ import { firestoreInvitations, firestoreReferrals } from "./firestore-collection
 import { extractIdFromSlug, slugify, slugifyWithId } from "../shared/slugify";
 import { parsePublicLinks } from "../shared/public-links";
 import { videoShareTags, type VideoShareMetadata } from "../shared/video-share";
-import { getContestantShareVideo } from "./share-video";
+import { getCompetitionShareVideo, getContestantShareVideo } from "./share-video";
 
 interface ShareMeta {
   title: string;
@@ -104,6 +104,9 @@ export function applyShareMeta(template: string, meta: ShareMeta) {
   page = replaceMeta(page, "property", "og:type", meta.ogType || "website");
   page = replaceMeta(page, "property", "og:site_name", "The Quest | CB Publishing");
   page = replaceMeta(page, "property", "og:image", meta.image || `${getPublicOrigin()}/cb-logo-favicon.png?v=cbp-20260905`);
+  // The base HTML uses the square brand icon's dimensions. Dynamic share images
+  // have different dimensions, so do not advertise those stale values.
+  page = page.replace(/<meta\s+property="og:image:(?:width|height)"\s+content="[^"]*"\s*\/?>/gi, "");
   page = replaceMeta(page, "name", "twitter:card", meta.video ? "player" : "summary_large_image");
   page = replaceMeta(page, "name", "twitter:title", meta.title);
   page = replaceMeta(page, "name", "twitter:description", description);
@@ -456,9 +459,10 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const canonical = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
     const description = competition.description
       || `View contestants, competition details, and voting for ${competition.title} on The Quest.`;
-    const [contestants, hostProfiles] = await Promise.all([
+    const [contestants, hostProfiles, video] = await Promise.all([
       storage.getContestantsByCompetition(competition.id),
       storage.getHostProfiles(),
+      getCompetitionShareVideo(competition, origin),
     ]);
     const hostProfile = competition.createdBy
       ? hostProfiles.find((profile) => profile.userId === competition.createdBy)
@@ -481,6 +485,16 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const startDate = competition.startDate ? new Date(competition.startDate) : null;
     const endDate = competition.endDate ? new Date(competition.endDate) : null;
     const hasValidStartDate = startDate && Number.isFinite(startDate.getTime());
+    const videoSchema = video ? {
+      "@type": "VideoObject",
+      name: `${competition.title} competition video`,
+      description,
+      thumbnailUrl: video.posterUrl,
+      embedUrl: video.playerUrl,
+      ...(video.streamUrl ? { contentUrl: video.streamUrl } : {}),
+      ...(video.uploadDate ? { uploadDate: video.uploadDate } : {}),
+      ...(video.duration ? { duration: `PT${Math.round(video.duration)}S` } : {}),
+    } : undefined;
     const mainEntity = hasValidStartDate
       ? {
           "@type": "Event",
@@ -500,6 +514,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
                 sameAs: Object.values(parsePublicLinks((hostProfile as any).socialLinks)),
               }
             : { "@type": "Organization", name: "CB Publishing", url: origin },
+          ...(videoSchema ? { video: videoSchema } : {}),
         }
       : {
           "@type": "CreativeWork",
@@ -507,14 +522,17 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
           description,
           url: canonical,
           image: competition.coverImage || undefined,
+          ...(videoSchema ? { video: videoSchema } : {}),
         };
 
     return {
       title: `${competition.title} — ${competition.category} Competition`,
       description,
-      image: competition.coverImage,
+      image: competition.coverImage || video?.posterUrl || null,
+      video,
       url: canonical,
       canonical,
+      ogType: video ? "video.other" : undefined,
       structuredData: [
         {
           "@context": "https://schema.org",
@@ -572,12 +590,15 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const canonical = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
     const description = competition.description
       || `View contestants, competition details, and voting for ${competition.title} on The Quest.`;
+    const video = await getCompetitionShareVideo(competition, origin);
     return {
       title: `${competition.title} — ${competition.category} Competition`,
       description,
-      image: competition.coverImage,
+      image: competition.coverImage || video?.posterUrl || null,
+      video,
       url: canonical,
       canonical,
+      ogType: video ? "video.other" : undefined,
       fallbackHtml: fallbackHtml(
         `${competition.title} — ${competition.category} Competition`,
         description,
