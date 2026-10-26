@@ -2,6 +2,8 @@ import { storage } from "./storage";
 import { firestoreInvitations, firestoreReferrals } from "./firestore-collections";
 import { extractIdFromSlug, slugify, slugifyWithId } from "../shared/slugify";
 import { parsePublicLinks } from "../shared/public-links";
+import { videoShareTags, type VideoShareMetadata } from "../shared/video-share";
+import { getContestantShareVideo } from "./share-video";
 
 interface ShareMeta {
   title: string;
@@ -10,6 +12,7 @@ interface ShareMeta {
   url: string;
   canonical?: string;
   ogType?: string;
+  video?: VideoShareMetadata | null;
   structuredData?: unknown[];
   fallbackHtml?: string;
 }
@@ -101,10 +104,16 @@ export function applyShareMeta(template: string, meta: ShareMeta) {
   page = replaceMeta(page, "property", "og:type", meta.ogType || "website");
   page = replaceMeta(page, "property", "og:site_name", "The Quest | CB Publishing");
   page = replaceMeta(page, "property", "og:image", meta.image || `${getPublicOrigin()}/cb-logo-favicon.png?v=cbp-20260905`);
-  page = replaceMeta(page, "name", "twitter:card", "summary_large_image");
+  page = replaceMeta(page, "name", "twitter:card", meta.video ? "player" : "summary_large_image");
   page = replaceMeta(page, "name", "twitter:title", meta.title);
   page = replaceMeta(page, "name", "twitter:description", description);
   page = replaceMeta(page, "name", "twitter:image", meta.image || `${getPublicOrigin()}/cb-logo-favicon.png?v=cbp-20260905`);
+  page = page.replace(/<meta\s+(?:property|name)="(?:og:video(?::[^"]*)?|video:duration|twitter:player(?::[^"]*)?)"\s+content="[^"]*"\s*\/?>/gi, "");
+  if (meta.video) {
+    const tags = videoShareTags(meta.video, getPublicOrigin())
+      .map(({ attr, key, value }) => `<meta ${attr}="${key}" content="${escapeHtml(value)}" />`).join("\n");
+    page = page.replace("</head>", `${tags}\n</head>`);
+  }
   page = page.replace(
     /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i,
     `<link rel="canonical" href="${escapeHtml(meta.canonical || meta.url)}" />`,
@@ -380,20 +389,33 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const links = parsePublicLinks(profile.socialLinks);
     const description = profile.bio?.trim()
       || `${name} is competing in ${competition.title}, a ${competition.category} competition on The Quest.`;
+    const video = await getContestantShareVideo(competition, profile, origin);
+    const videoSchema = video ? {
+      "@type": "VideoObject",
+      name: `${name} — ${competition.title}`,
+      description,
+      thumbnailUrl: video.posterUrl,
+      embedUrl: video.playerUrl,
+      ...(video.streamUrl ? { contentUrl: video.streamUrl } : {}),
+      ...(video.uploadDate ? { uploadDate: video.uploadDate } : {}),
+      ...(video.duration ? { duration: `PT${Math.round(video.duration)}S` } : {}),
+    } : undefined;
 
     return {
       title: `${name} — ${competition.title} | The Quest`,
       description,
-      image: profile.imageUrls?.[0] || competition.coverImage || null,
+      image: video?.posterUrl || profile.imageUrls?.[0] || competition.coverImage || null,
+      video,
       url: canonical,
       canonical,
-      ogType: "profile",
+      ogType: video ? "video.other" : "profile",
       structuredData: [
         {
           "@context": "https://schema.org",
           "@type": "ProfilePage",
           url: canonical,
           name: `${name} — ${competition.title}`,
+          ...(videoSchema ? { video: videoSchema } : {}),
           mainEntity: {
             "@type": "Person",
             name,

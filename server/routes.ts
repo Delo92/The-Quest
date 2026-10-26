@@ -26,6 +26,8 @@ import {
   nonprofitPageTextLiveryDefaults,
 } from "../shared/nonprofit-page";
 import { escapeXml, getPublicOrigin } from "./share-meta";
+import { getCompetitionScopedTalentVideos } from "./competition-videos";
+import { getContestantShareVideo, registerShareVideoRoutes } from "./share-video";
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
@@ -211,28 +213,6 @@ async function getVimeoCoverThumbnail(coverVideo: string | null | undefined): Pr
   }
 
   return `https://vumbnail.com/${videoId}.jpg`;
-}
-
-async function getCompetitionScopedTalentVideos(profile: any, competition: any, talentName: string): Promise<any[]> {
-  const hiddenUris = new Set<string>(Array.isArray(profile?.hiddenVideoUris) ? profile.hiddenVideoUris : []);
-  const selectedUri = profile?.competitionVideoUris?.[String(competition.id)];
-  if (typeof selectedUri === "string" && selectedUri && !hiddenUris.has(selectedUri)) {
-    const videoId = extractVimeoVideoId(selectedUri);
-    if (videoId) {
-      try {
-        const selectedVideo = await getVideoById(videoId);
-        if (selectedVideo?.uri) return [selectedVideo];
-      } catch {
-        // A just-uploaded video may not be indexed yet; try the competition folder below.
-      }
-    }
-  }
-
-  const folderVideos = await listTalentVideos(competition.title, talentName, competition.vimeoFolderUrl);
-  return folderVideos
-    .filter((video) => video.uri && !hiddenUris.has(video.uri))
-    .sort((a, b) => Date.parse(b.created_time || "") - Date.parse(a.created_time || ""))
-    .slice(0, 1);
 }
 
 function normalizeCategoryArtworkUrl(url: string | null | undefined): string | null {
@@ -1700,6 +1680,8 @@ export async function registerRoutes(
       res.status(502).json({ message: "Could not fetch Vimeo play URLs" });
     }
   });
+
+  registerShareVideoRoutes(app);
 
   app.get("/api/stats/total-votes", async (req, res) => {
     try {
@@ -9095,7 +9077,13 @@ export async function registerRoutes(
               height: v.height,
               thumbnail: await resolveVideoThumbnail(v).catch(() => getVideoThumbnail(v)),
             })));
-            return { videoThumbnail: videos[0]?.thumbnail || null, videos };
+            return {
+              videoThumbnail: videos[0]?.thumbnail || null,
+              videos,
+              shareVideo: await getContestantShareVideo(comp, contestant.talentProfile, getPublicOrigin(), {
+                getVideos: async () => talentVideos,
+              }),
+            };
           }
         ),
         (async () => {
@@ -9143,6 +9131,7 @@ export async function registerRoutes(
           videoThumbnail: media?.videoThumbnail ?? null,
           videos: media?.videos ?? [],
         },
+        shareVideo: media?.shareVideo ?? null,
         totalVotes,
         contestants,
         hostedBy: hostedByProfile,

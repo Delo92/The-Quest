@@ -18,4 +18,8 @@ All video players should loop after playback ends so viewers do not need to pres
 - `video.embedUrl` = `player_embed_url` from Vimeo API, already on every video object in bundle response — no extra API call needed
 
 ## Account capability confirmed
+Exception: public social-card embeds may use a first-party native-video player backed by a stable, approved competition-entry stream URL. Do not apply this exception to normal contestant-page players.
+
+**Why:** External share previews cannot rely on Vimeo's domain-restricted iframe, and cached cards outlive signed CDN links. See [competition share links](competition-share-links.md).
+
 Progressive MP4 links are available on this Vimeo account: 240p, 360p, 540p, 720p all returned by `GET /api/vimeo/:id/play`. resolveDirectVideoUrl prefers 360p for background use.

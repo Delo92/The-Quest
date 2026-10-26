@@ -13,6 +13,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
+import type { VideoShareMetadata } from "@shared/video-share";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { extractIdFromSlug, slugify, slugifyWithId } from "@shared/slugify";
 import { parsePublicLinks } from "@shared/public-links";
@@ -25,6 +26,7 @@ import ProfileScrollDepthCard from "@/components/profile-scroll-depth-card";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 
 interface ResolvedData {
+  shareVideo?: VideoShareMetadata | null;
   competition: {
     id: number;
     title: string;
@@ -157,6 +159,9 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const seoProfile = data?.contestant.talentProfile;
   const seoName = seoProfile?.stageName || seoProfile?.displayName;
   const seoTalentSlug = seoProfile ? slugifyWithId(seoName || "contestant", seoProfile.id) : talentSlug;
+  const seoVideo = mediaData?.videos?.[0];
+  const seoShareVideo = bundleData?.shareVideo;
+  const seoPoster = seoShareVideo?.posterUrl || seoVideo?.thumbnail || mediaData?.videoThumbnail;
   useSEO({
     title: demoMode ? "The Quest app demo" : seoName && data
       ? `${seoName} — ${data.competition.title} | The Quest`
@@ -166,8 +171,10 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
     canonical: categorySlug && compSlug && seoTalentSlug
       ? `/thequest/${categorySlug}/${compSlug}/${seoTalentSlug}`
       : undefined,
-    ogType: "profile",
-    ogImage: seoProfile?.imageUrls?.[0] || data?.competition.coverImage || undefined,
+    ogType: seoShareVideo ? "video.other" : "profile",
+    ogImage: seoPoster || seoProfile?.imageUrls?.[0] || data?.competition.coverImage || undefined,
+    pending: isLoading,
+    ogVideo: seoShareVideo || undefined,
   });
 
   const { data: myRefCode } = useQuery<{ code: string } | null>({

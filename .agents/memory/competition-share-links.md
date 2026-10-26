@@ -11,6 +11,12 @@ Public competition pages should invite visitors directly to the competition-spec
 
 **How to apply:** Carry the selected competition and any incoming referral through nomination navigation; only require sign-in if the nomination flow itself reaches a step that needs an account.
 
+Contestant share links should feature that contestant's video for the selected competition across all sharing channels, not the event artwork or a shared profile photo.
+
+**Why:** The owner explicitly wants the competition video to be the shared media everywhere. Platforms ultimately decide whether to render a playable card; an image-only platform should receive a frame from that same video.
+
+**How to apply:** Keep server HTML and hydrated metadata aligned. Preserve competition-scoped ownership and attribution. Use stable, approved-entry media URLs in cached cards rather than expiring signed CDN URLs. Social-card players may use a first-party native-video embed; this is separate from the in-app Vimeo player policy and must not require changing Vimeo privacy.
+
 **Why:** Hosts need one link for viewers and a separate attribution link for recruiting nominations.
 
 **How to apply:** Keep both links visible anywhere hosts manage or promote a competition, and preserve the existing referral capture path when changing nomination navigation. A global/custom code with no single competition cannot use the event-specific landing endpoint without a general landing fallback.

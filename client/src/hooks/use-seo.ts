@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { videoShareTags, type VideoShareMetadata } from "@shared/video-share";
 
 interface SEOOptions {
   title: string;
@@ -6,6 +7,8 @@ interface SEOOptions {
   canonical?: string;
   ogImage?: string;
   ogType?: string;
+  ogVideo?: VideoShareMetadata;
+  pending?: boolean;
 }
 
 const DEFAULT_TITLE = "The Quest - Competition & Voting Platform";
@@ -58,8 +61,15 @@ function normalizeCanonical(canonical?: string) {
   return `${url.origin}${url.pathname === "/" ? "" : url.pathname}`;
 }
 
-export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOptions) {
+function clearVideoTags() {
+  document.querySelectorAll('meta[property^="og:video"], meta[property="video:duration"], meta[name^="twitter:player"]')
+    .forEach((element) => element.remove());
+}
+
+export function useSEO({ title, description, canonical, ogImage, ogType, ogVideo, pending }: SEOOptions) {
   useEffect(() => {
+    // Preserve the server's contestant video card until the bundle has loaded.
+    if (pending) return;
     const fullTitle = title.includes("The Quest") ? title : `${title} | The Quest`;
     document.title = fullTitle;
 
@@ -78,8 +88,22 @@ export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOp
     const url = normalizeCanonical(canonical);
     setCanonical(url);
     setMetaTag("og:url", url, true);
+    clearVideoTags();
+    setMetaTag("twitter:card", ogVideo ? "player" : "summary_large_image");
+    if (ogVideo) {
+      for (const { attr, key, value } of videoShareTags(ogVideo, new URL(url).origin)) {
+        // Open Graph accepts multiple media alternatives; do not overwrite
+        // the direct MP4 entry when adding the Vimeo player alternative.
+        const tag = document.createElement("meta");
+        tag.setAttribute(attr, key);
+        tag.setAttribute("content", value);
+        document.head.appendChild(tag);
+      }
+    }
 
     return () => {
+      clearVideoTags();
+      setMetaTag("twitter:card", "summary_large_image");
       const fallbackUrl = normalizeCanonical();
       document.title = DEFAULT_TITLE;
       setMetaTag("description", DEFAULT_DESC);
@@ -93,5 +117,6 @@ export function useSEO({ title, description, canonical, ogImage, ogType }: SEOOp
       setMetaTag("twitter:image", defaultOgImage);
       setCanonical(fallbackUrl);
     };
-  }, [title, description, canonical, ogImage, ogType]);
+  }, [title, description, canonical, ogImage, ogType, ogVideo?.playerUrl, ogVideo?.streamUrl,
+    ogVideo?.width, ogVideo?.height, ogVideo?.duration, pending]);
 }

@@ -284,6 +284,7 @@ export async function listTalentVideos(
   competitionName: string,
   talentName: string,
   folderUrl?: string | null,
+  options: { competitionOnly?: boolean } = {},
 ): Promise<VimeoVideo[]> {
   const displayTalentName = talentName.replace(/\s+/g, " ").trim();
   const safeTalentName = talentName.replace(/[^a-zA-Z0-9_\-\s]/g, "_").trim();
@@ -307,6 +308,9 @@ export async function listTalentVideos(
     const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
     return (data.data || []).filter(isTalentVideo);
   } catch {
+    // Public entry/share media must never fall back to a same-name video
+    // from a different competition when this folder is unavailable.
+    if (options.competitionOnly) return [];
     try {
       const searchTerms = [...new Set([displayTalentName, safeTalentName].filter(Boolean))];
       const results = await Promise.all(searchTerms.map(async (term) => {
