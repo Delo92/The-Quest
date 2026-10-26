@@ -7,4 +7,8 @@ Every public competition link should use that competition's cover artwork for bo
 
 **Why:** The user explicitly wants every competition link to carry that event's identity and hype video rather than CB Publishing's global branding, and clarified that Vimeo supplies the video's actual share format.
 
-**How to apply:** Make changes for all non-draft competition pages, not one named event. Keep the cover image in the preview as the video poster, while including video metadata separately.
+Competition-page links and embeddable-player links are separate products: social crawlers may use the poster even when video metadata exists, so provide a distinct player URL and copyable iframe embed code for websites.
+
+**Why:** The user expects a literal playable video embed, not only Open Graph metadata or a link to a competition page; Messenger and text-message preview behavior is controlled by the platform.
+
+**How to apply:** Make changes for all non-draft competition pages, not one named event. Keep the cover image in the preview as the video poster, include video metadata separately, and expose the player URL/embed code in sharing controls.

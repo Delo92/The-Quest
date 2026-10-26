@@ -14,6 +14,7 @@ import { applyShareMeta } from "./share-meta";
 import {
   shareCompetitionVideoPath,
   shareCompetitionVideoPlayerPath,
+  getCompetitionVideoEmbedCode,
   shareVideoPath,
   shareVideoPlayerPath,
   videoShareTags,
@@ -169,6 +170,19 @@ test("the public share player is responsive, uses native video, and escapes medi
   assert.match(html, /width:100%;height:100%;object-fit:contain/);
   assert.match(html, /a=1&amp;b=&quot;x&quot;/);
   assert.doesNotMatch(html, /<iframe|<script|expires=soon/);
+});
+
+test("website embed code uses the player URL, keeps the video ratio, and escapes attributes", () => {
+  const code = getCompetitionVideoEmbedCode(
+    'Starr Struck "Highlight"',
+    "https://cbpublishing.live/api/share-competition-video/11/123456.html?source=share&view=web",
+    360,
+    640,
+  );
+  assert.match(code, /<iframe src="https:\/\/cbpublishing\.live\/api\/share-competition-video\/11\/123456\.html\?source=share&amp;view=web"/);
+  assert.match(code, /title="Starr Struck &quot;Highlight&quot; competition video"/);
+  assert.match(code, /aspect-ratio:360\/640/);
+  assert.match(code, /allowfullscreen loading="lazy"/);
 });
 
 test("an entry without a video cannot borrow another entry's media", async () => {
