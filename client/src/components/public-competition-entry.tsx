@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Play, Radio } from "lucide-react";
 import { Link } from "wouter";
 import { getVimeoId, formatVideoTitle } from "@/lib/media-utils";
-import { slugify, slugifyWithId } from "@shared/slugify";
+import { slugify, slugifyWithId , competitionSlug as competitionSlugOf } from "@shared/slugify";
 
 export interface PublicCompetition {
   id: number;
@@ -98,7 +98,7 @@ function statusPresentation(status: string) {
 export default function PublicCompetitionEntry({ competition, video, videoThumbnail, contestantName, contestantId, index }: Props) {
   const accent = competition.themeColor || "#f36b2b";
   const categorySlug = slugify(competition.category || "competition");
-  const competitionSlug = slugify(competition.title);
+  const competitionSlug = competitionSlugOf(competition);
   const contestantSlug = slugifyWithId(contestantName, contestantId);
   const contestantRoute = `/${categorySlug}/${competitionSlug}/${contestantSlug}`;
   const state = statusPresentation(competition.status);

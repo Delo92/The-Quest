@@ -15,7 +15,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import type { VideoShareMetadata } from "@shared/video-share";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
-import { extractIdFromSlug, slugify, slugifyWithId } from "@shared/slugify";
+import { extractIdFromSlug, slugify, slugifyWithId , competitionSlug } from "@shared/slugify";
 import { parsePublicLinks } from "@shared/public-links";
 import { preserveReferralQuery } from "@/lib/referral";
 import { formatVideoTitle } from "@/lib/media-utils";
@@ -554,7 +554,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   </button>
                 )}
                 {!nextContestant && !isVotingOpen && (
-                  <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
+                  <Link href={`/${slugify(competition.category)}/${competitionSlug(competition)}`}>
                     <span className="flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold uppercase text-white/70 transition-colors hover:bg-white/5 hover:text-white px-6"
                       style={{ letterSpacing: "2px" }}>
                       View Competition
@@ -870,7 +870,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
 
           {/* Bottom nav */}
           {!demoMode && <div className="flex flex-wrap items-center justify-center gap-4 pb-10">
-            <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`}>
+            <Link href={`/${slugify(competition.category)}/${competitionSlug(competition)}`}>
               <span
                 className="inline-block bg-transparent text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer text-center"
                 data-testid="button-back-competition"

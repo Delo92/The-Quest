@@ -7,7 +7,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { slugify, slugifyWithId } from "@shared/slugify";
+import { slugify, slugifyWithId , competitionSlug } from "@shared/slugify";
 import { preserveReferralQuery } from "@/lib/referral";
 import { parsePublicLinks } from "@shared/public-links";
 
@@ -177,7 +177,7 @@ export default function HostProfilePublic() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {competitions.map((comp) => (
-                <Link key={comp.id} href={`/${slugify(comp.category)}/${slugify(comp.title)}${preserveReferralQuery(window.location.search)}`}>
+                <Link key={comp.id} href={`/${slugify(comp.category)}/${competitionSlug(comp)}${preserveReferralQuery(window.location.search)}`}>
                   <div className="group cursor-pointer transition-all duration-500 hover:shadow-[0_5px_80px_0_rgba(0,0,0,0.2)]" data-testid={`card-comp-${comp.id}`}>
                     <div className="overflow-hidden relative h-44">
                       <img

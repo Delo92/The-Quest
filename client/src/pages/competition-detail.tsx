@@ -15,7 +15,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { slugify, slugifyWithId } from "@shared/slugify";
+import { slugify, slugifyWithId , competitionSlug } from "@shared/slugify";
 import { preserveReferralQuery } from "@/lib/referral";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION, getCompetitionCropImageStyle } from "@shared/image-crop";
 import type { VideoShareMetadata } from "@shared/video-share";
@@ -156,6 +156,8 @@ interface CompetitionDetail {
   coverVideo: string | null;
   headerVideo?: string | null;
   titleLogo?: string | null;
+  /** Optional public URL slug that overrides the title-derived slug. */
+  slug?: string | null;
   promoVideos?: string[] | null;
   shareVideo?: VideoShareMetadata | null;
   status: string;
@@ -316,7 +318,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
     ogImage: (competition?.titleLogo ? competition.coverImage : null) || competition?.shareVideo?.posterUrl || competition?.coverImage || undefined,
     ogType: "website",
     favicon: competition ? competition.coverImage || competition.shareVideo?.posterUrl || undefined : undefined,
-    canonical: competition ? `https://thequest-2dc77.firebaseapp.com/${slugify(competition.category)}/${slugify(competition.title)}` : undefined,
+    canonical: competition ? `https://thequest-2dc77.firebaseapp.com/${slugify(competition.category)}/${competitionSlug(competition)}` : undefined,
     pending: !competition && isLoading,
   });
 
@@ -911,7 +913,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                 ? [competition.coverImage, genericContestantFallback]
                 : cardImageCandidates.slice(2);
               const referralQuery = preserveReferralQuery(window.location.search);
-              const href = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugifyWithId(name, contestant.talentProfile.id)}${referralQuery}`;
+              const href = `/${slugify(competition.category)}/${competitionSlug(competition)}/${slugifyWithId(name, contestant.talentProfile.id)}${referralQuery}`;
               return (
                 <li key={contestant.id} data-testid={`card-contestant-compact-${contestant.id}`}>
                   <Link
@@ -989,7 +991,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                const cardImageFallbacks = cardImageCandidates.slice(2);
                const showVideoPreview = videos.length > 0;
     const referralQuery = preserveReferralQuery(window.location.search);
-    const contestantHref = `/${slugify(competition.category)}/${slugify(competition.title)}/${slugifyWithId(contestant.talentProfile.stageName || contestant.talentProfile.displayName, contestant.talentProfile.id)}${referralQuery}`;
+    const contestantHref = `/${slugify(competition.category)}/${competitionSlug(competition)}/${slugifyWithId(contestant.talentProfile.stageName || contestant.talentProfile.displayName, contestant.talentProfile.id)}${referralQuery}`;
 
               return (
                 <div

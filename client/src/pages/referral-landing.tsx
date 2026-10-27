@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import { useSEO } from "@/hooks/use-seo";
-import { slugify } from "@shared/slugify";
+import { slugify , competitionSlug } from "@shared/slugify";
 
 interface ReferralLandingResponse {
   referralCode: string;
@@ -40,7 +40,7 @@ export default function ReferralLandingPage() {
   useSEO({
     title: data?.competition ? `${data.competition.title} — ${data.hostName}` : "The Quest — Talent Competition & Voting Platform",
     description: data?.competition?.description || (data?.competition ? `Join ${data.competition.title}, hosted by ${data.hostName}.` : "Browse competitions, nominate talent, and vote on The Quest."),
-    canonical: data?.competition ? `${window.location.origin}/thequest/${slugify(data.competition.category)}/${slugify(data.competition.title)}` : `${window.location.origin}/thequest`,
+    canonical: data?.competition ? `${window.location.origin}/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}` : `${window.location.origin}/thequest`,
     ogImage: data?.competition?.coverImage || data?.hostImageUrl || undefined,
   });
 
@@ -72,7 +72,7 @@ export default function ReferralLandingPage() {
     );
   }
 
-  const competitionPath = `/thequest/${slugify(data.competition.category)}/${slugify(data.competition.title)}`;
+  const competitionPath = `/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}`;
   const nominatePath = `/thequest/nominate?competition=${data.competition.id}&ref=${encodeURIComponent(data.referralCode)}`;
 
   return (

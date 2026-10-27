@@ -14,7 +14,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { ShoppingCart, CreditCard, CheckCircle, ArrowLeft, Heart, Package } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import { FallbackImage } from "@/components/fallback-image";
-import { slugify } from "@shared/slugify";
+import { slugify , competitionSlug } from "@shared/slugify";
 import { confirmStripeCardPayment, type StripeInstance, type StripeCardHandle } from "@/lib/buyer-payment";
 import { StripeCardField } from "@/components/stripe-card-field";
 import { notifyVoteCountUpdated } from "@/lib/vote-count-events";
@@ -530,7 +530,7 @@ export default function CheckoutPage() {
             Transaction ID: {successData.transactionId}
           </p>
           <div className="flex flex-col items-center gap-4">
-            <Link href={competition ? `/${slugify(competition.category)}/${slugify(competition.title)}` : "/competitions"}>
+            <Link href={competition ? `/${slugify(competition.category)}/${competitionSlug(competition)}` : "/competitions"}>
               <span
                 className="inline-block bg-[#FF5A09] text-white font-bold text-sm uppercase px-8 leading-[47px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer"
                 data-testid="button-back-competition"
@@ -597,7 +597,7 @@ export default function CheckoutPage() {
         <div className="absolute inset-0 bg-black/65" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-8 pb-5 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]">
           <p className="text-black/50 text-base leading-relaxed mb-1">
-            <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`} className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back-comp">
+            <Link href={`/${slugify(competition.category)}/${competitionSlug(competition)}`} className="hover:text-[#FF5A09] transition-colors text-black/50" data-testid="link-back-comp">
               {competition.title}
             </Link>
             <span className="mx-2">/</span>
@@ -614,7 +614,7 @@ export default function CheckoutPage() {
       </section>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-        <Link href={`/${slugify(competition.category)}/${slugify(competition.title)}`} className="inline-flex min-h-10 items-center gap-2 text-white/65 text-sm mb-8 underline decoration-white/30 underline-offset-4 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]" data-testid="link-back">
+        <Link href={`/${slugify(competition.category)}/${competitionSlug(competition)}`} className="inline-flex min-h-10 items-center gap-2 text-white/65 text-sm mb-8 underline decoration-white/30 underline-offset-4 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A09]" data-testid="link-back">
           <ArrowLeft className="h-4 w-4" />
           Back to competition
         </Link>

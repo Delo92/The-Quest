@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import PublicCompetitionEntry, { type CompetitionVideo, type PublicCompetition } from "@/components/public-competition-entry";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
-import { extractIdFromSlug, slugify, slugifyWithId } from "@shared/slugify";
+import { extractIdFromSlug, slugify, slugifyWithId , competitionSlug as competitionSlugOf } from "@shared/slugify";
 
 interface PublicTalentProfile {
   id: number;
@@ -144,7 +144,7 @@ export default function TalentProfilePublic() {
   const mediaQueries = useQueries({
     queries: competitions.map((competition) => {
       const categorySlug = slugify(competition.category || "competition");
-      const competitionSlug = slugify(competition.title);
+      const competitionSlug = competitionSlugOf(competition);
       const contestantSlug = slugifyWithId(profile?.stageName?.trim() || profile?.displayName?.trim() || "", profile?.id || 0);
       return {
         queryKey: ["/api/resolve", categorySlug, competitionSlug, contestantSlug, "videos"],

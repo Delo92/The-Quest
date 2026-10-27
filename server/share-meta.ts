@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { firestoreInvitations, firestoreReferrals } from "./firestore-collections";
-import { extractIdFromSlug, slugify, slugifyWithId } from "../shared/slugify";
+import { extractIdFromSlug, slugify, slugifyWithId , competitionSlug } from "../shared/slugify";
 import { parsePublicLinks } from "../shared/public-links";
 import { videoShareTags, type VideoShareMetadata } from "../shared/video-share";
 import { getCompetitionShareVideo, getContestantShareVideo } from "./share-video";
@@ -184,7 +184,7 @@ export function applyShareMeta(template: string, meta: ShareMeta) {
 async function getCompetitionBySlugs(categorySlug: string, titleSlug: string) {
   const competitions = await storage.getCompetitions();
   return competitions.find((competition) =>
-    slugify(competition.category) === categorySlug && slugify(competition.title) === titleSlug
+    slugify(competition.category) === categorySlug && competitionSlug(competition) === titleSlug
   ) || null;
 }
 
@@ -228,7 +228,7 @@ async function getTalentProfileShareMeta(
       )
       .map((competition) => ({
         label: competition.title,
-        url: `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`,
+        url: `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`,
       }));
   } catch {
     console.warn("[share-meta] Public artist competition links are temporarily unavailable");
@@ -306,7 +306,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
         description: competition.description || `Join ${competition.title}, hosted by ${hostName}.`,
         image: competition.coverImage,
         url: `${origin}/?ref=${encodeURIComponent(referral.code)}`,
-        canonical: `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`,
+        canonical: `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`,
       };
     }
   }
@@ -337,7 +337,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
           title,
           description,
           competition
-            ? [{ label: `${competitionTitle} competition`, url: `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}` }]
+            ? [{ label: `${competitionTitle} competition`, url: `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}` }]
             : [{ label: "Explore The Quest", url: `${origin}/thequest` }],
         ),
       };
@@ -444,7 +444,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const canonical = `${origin}/thequest/competitions`;
     const links = competitions.map((competition) => ({
       label: `${competition.title} — ${competition.category}`,
-      url: `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`,
+      url: `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`,
     }));
     const description = "Browse public talent competitions on The Quest, including music, modeling, dance, fitness, and other categories.";
     return {
@@ -684,7 +684,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       .filter((competition) => competition.status !== "draft");
     const competitionLinks = hostCompetitions.map((competition) => ({
       label: competition.title,
-      url: `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`,
+      url: `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`,
     }));
     const externalLinks = Object.entries(links).map(([label, href]) => ({
       label,
@@ -804,7 +804,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const name = (profile.stageName || profile.displayName || "Contestant").trim();
     const division = getContestantDivisionLabel(competition, contestant.contestantDivision);
     const talentSlug = slugifyWithId(name, profile.id);
-    const compUrl = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
+    const compUrl = `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`;
     const canonical = `${compUrl}/${talentSlug}`;
     const links = parsePublicLinks(profile.socialLinks);
     const description = [
@@ -891,7 +891,7 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
         ),
       };
     }
-    const canonical = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
+    const canonical = `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`;
     const description = getCompetitionPublicDescription(competition)
       || `View contestants, competition details, and voting for ${competition.title} on The Quest.`;
     const [contestants, hostProfiles, video] = await Promise.all([
@@ -1025,10 +1025,10 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const competitions = await storage.getCompetitions();
     const competition = competitionId
       ? competitions.find((item) => Number(item.id) === competitionId)
-      : competitions.find((item) => slugify(item.title) === parts[1]);
+      : competitions.find((item) => competitionSlug(item) === parts[1]);
     if (!competition || competition.status === "draft") return null;
 
-    const canonical = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
+    const canonical = `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`;
     const description = getCompetitionPublicDescription(competition)
       || `View contestants, competition details, and voting for ${competition.title} on The Quest.`;
     const video = await getCompetitionShareVideo(competition, origin);

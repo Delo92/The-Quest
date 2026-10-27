@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { slugify } from "@shared/slugify";
+import { slugify , competitionSlug } from "@shared/slugify";
 
 interface CompetitionShareLinksProps {
   competition: {
@@ -18,7 +18,7 @@ interface CompetitionShareLinksProps {
 
 export function getCompetitionShareLinks(competition: CompetitionShareLinksProps["competition"], referralCode?: string | null) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const competitionUrl = `${origin}/thequest/${slugify(competition.category)}/${slugify(competition.title)}`;
+  const competitionUrl = `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`;
   const promoCode = referralCode || competition.title.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   const nominationUrl = `${origin}/?ref=${encodeURIComponent(promoCode)}`;
 

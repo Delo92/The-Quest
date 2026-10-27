@@ -22,6 +22,12 @@ export interface Competition {
   coverVideo: string | null;
   headerVideo?: string | null;
   titleLogo?: string | null;
+  /** Optional public URL slug that overrides the title-derived slug. */
+  slug?: string | null;
+  /** Optional looping video used on the competition card instead of the cover image. */
+  cardVideo?: string | null;
+  /** Extra marketing URL slugs that redirect to the canonical competition URL. */
+  slugAliases?: string[] | null;
   promoVideos?: string[] | null;
   status: string;
   voteCost: number;

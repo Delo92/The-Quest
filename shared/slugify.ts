@@ -19,3 +19,8 @@ export function extractIdFromSlug(slug: string): { baseSlug: string; id: number 
   }
   return { baseSlug: slug, id: null };
 }
+
+/** Public URL slug for a competition: an explicit override wins over the title-derived slug. */
+export function competitionSlug(competition: { title: string; slug?: string | null }): string {
+  return competition.slug?.trim() ? slugify(competition.slug) : slugify(competition.title);
+}

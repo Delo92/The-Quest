@@ -8,7 +8,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { slugify } from "@shared/slugify";
+import { slugify , competitionSlug } from "@shared/slugify";
 import type { Competition } from "@shared/schema";
 import { normalizeVoteSupportCopy } from "@shared/vote-support-copy";
 import { resolveSupportEmail } from "@shared/support-contact";
@@ -290,7 +290,7 @@ export default function AboutPage() {
                 return (
                   <Link
                     key={comp.id}
-                    href={`/${slugify(comp.category)}/${slugify(comp.title)}`}
+                    href={`/${slugify(comp.category)}/${competitionSlug(comp)}`}
                     data-testid={`calendar-comp-${comp.id}`}
                   >
                     <div className="flex items-stretch bg-black border border-white/10 hover:border-[#FF5A09]/50 transition-all duration-300 cursor-pointer group">

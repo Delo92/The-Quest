@@ -3,10 +3,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, Users, Search, Megaphone, ArrowRight, Star, Clock3 } from "lucide-react";
 import { Link } from "wouter";
 import type { Competition } from "@shared/schema";
-import { slugify } from "@shared/slugify";
+import { slugify , competitionSlug } from "@shared/slugify";
 
 type CompetitionExt = Competition & {
   coverVideo?: string | null;
+  cardVideo?: string | null;
   coverVideoThumbnail?: string | null;
   directVideoUrl?: string | null;
   hostedBy?: string | null;
@@ -193,7 +194,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
       data-testid={`card-competition-${competition.id}`}
     >
       <Link
-        href={`/${slugify(competition.category)}/${slugify(competition.title)}`}
+        href={`/${slugify(competition.category)}/${competitionSlug(competition)}`}
         className="block rounded-t-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#FF5A09]"
       >
         <div className="cursor-pointer">
@@ -210,7 +211,19 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
                 Schedule pending
               </div>
             )}
-            {competition.directVideoUrl ? (
+            {competition.cardVideo ? (
+              <video
+                src={competition.cardVideo}
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                poster={competition.coverImage || undefined}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                data-testid={`video-card-${competition.id}`}
+              />
+            ) : competition.directVideoUrl ? (
               /* Direct progressive MP4 — native <video>, GPU-decoded, no Vimeo JS */
               <video
                 src={competition.directVideoUrl}

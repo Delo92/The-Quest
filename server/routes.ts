@@ -190,7 +190,7 @@ import {
   savePrivateContact,
 } from "./host-contestant-access";
 import QRCode from "qrcode";
-import { slugify, slugifyWithId, extractIdFromSlug } from "../shared/slugify";
+import { slugify, slugifyWithId, extractIdFromSlug , competitionSlug as competitionSlugOf } from "../shared/slugify";
 import type { CompetitionStage } from "../shared/schema";
 
 function generateUniqueFilename(originalName: string): string {
@@ -258,7 +258,7 @@ async function getOrCreateCompetitionReferralCode(competition: any) {
   const ownerType = !competition.createdBy
     ? "custom"
     : profile?.role === "admin" ? "admin" : "host";
-  const baseCode = slugify(competition.title).replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 16) || `COMP${competition.id}`;
+  const baseCode = competitionSlugOf(competition).replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 16) || `COMP${competition.id}`;
 
   let code = baseCode;
   const collision = await firestoreReferrals.getCodeByCode(code);
@@ -988,6 +988,25 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   installApiErrorTelemetry(app);
+
+  // Marketing aliases (competition.slugAliases) redirect to the competition's canonical URL.
+  app.get(/^\/thequest\/([^/]+)\/([^/]+)(\/.*)?$/, async (req, res, next) => {
+    try {
+      const [, categorySlug, aliasRaw, rest = ""] = req.path.match(/^\/thequest\/([^/]+)\/([^/]+)(\/.*)?$/) || [];
+      const alias = slugify(decodeURIComponent(aliasRaw || ""));
+      if (!alias) return next();
+      const competitions = await getCachedPublicResponse("competition-slug-aliases", 30_000, () => storage.getCompetitions());
+      const target = competitions.find((c) =>
+        slugify(c.category) === slugify(categorySlug) &&
+        (c.slugAliases || []).some((a) => slugify(a) === alias) &&
+        competitionSlugOf(c) !== alias);
+      if (!target) return next();
+      const query = req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "";
+      return res.redirect(302, `/thequest/${slugify(target.category)}/${competitionSlugOf(target)}${rest}${query}`);
+    } catch {
+      return next();
+    }
+  });
   registerQuestPayrollAdmin(app);
   registerQuestTaxAndDonations(app);
   registerQuestForms(app);
@@ -1915,7 +1934,7 @@ export async function registerRoutes(
 
           let competitionSlug: string | null = null;
            if (displayCompetition) {
-             competitionSlug = slugify(displayCompetition.title);
+             competitionSlug = competitionSlugOf(displayCompetition);
            }
 
           // Resolve a direct progressive MP4 URL for native <video> playback.
@@ -2461,7 +2480,7 @@ export async function registerRoutes(
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
       const categorySlug = slugify(comp.category);
-      const compSlug = slugify(comp.title);
+      const compSlug = competitionSlugOf(comp);
       const baseUrl = process.env.BASE_URL || `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host || "thequest-2dc77.firebaseapp.com"}`;
       const votingUrl = `${baseUrl}/thequest/${categorySlug}/${compSlug}?source=in_person`;
 
@@ -9095,7 +9114,7 @@ export async function registerRoutes(
         async () => {
           const competitions = await storage.getCompetitions();
           const comp = competitions.find(c =>
-            slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+            slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
           );
           if (!comp) return null;
 
@@ -9131,7 +9150,7 @@ export async function registerRoutes(
       const { categorySlug, compSlug } = req.params;
       const competitions = await storage.getCompetitions();
       const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
       );
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
@@ -9180,7 +9199,7 @@ export async function registerRoutes(
       const { categorySlug, compSlug } = req.params;
       const competitions = await storage.getCompetitions();
       const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
       );
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
@@ -9291,7 +9310,7 @@ export async function registerRoutes(
         async () => {
           const competitions = await storage.getCompetitions();
           const comp = competitions.find(c =>
-            slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+            slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
           );
           if (!comp) return null;
 
@@ -9342,7 +9361,7 @@ export async function registerRoutes(
       // 1. Resolve competition
       const competitions = await storage.getCompetitions();
       const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
       );
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
@@ -9455,7 +9474,7 @@ export async function registerRoutes(
       const { categorySlug, compSlug, talentSlug } = req.params;
       const competitions = await storage.getCompetitions();
       const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && slugify(c.title) === compSlug
+        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
       );
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
@@ -9627,7 +9646,7 @@ export async function registerRoutes(
         "",
         "## Public competitions",
         ...publicCompetitions.map((competition) =>
-          `- [${markdownLabel(competition.title)} — ${markdownLabel(competition.category)}](${baseUrl}/thequest/${slugify(competition.category)}/${slugify(competition.title)})`
+          `- [${markdownLabel(competition.title)} — ${markdownLabel(competition.category)}](${baseUrl}/thequest/${slugify(competition.category)}/${competitionSlugOf(competition)})`
         ),
         "",
         "## Public host profiles",
@@ -9707,7 +9726,7 @@ export async function registerRoutes(
       const publicArtistProfiles = new Map<number, any>();
       for (const comp of activeComps) {
         const categorySlug = slugify(comp.category);
-        const compSlug = slugify(comp.title);
+        const compSlug = competitionSlugOf(comp);
         if (!categorySlug || !compSlug) continue;
         const compUrl = `${baseUrl}/thequest/${categorySlug}/${compSlug}`;
         addUrl(compUrl, {
@@ -10379,7 +10398,7 @@ export async function registerRoutes(
       const competitions = await storage.getCompetitions();
       const comp = compId
         ? competitions.find(c => c.id === compId)
-        : competitions.find(c => slugify(c.title) === slug);
+        : competitions.find(c => competitionSlugOf(c) === slug);
       if (!comp) return next();
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -10424,7 +10443,7 @@ export async function registerRoutes(
       if (!socialCrawlerPattern.test(ua)) return next();
 
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c => slugify(c.category) === categorySlug && slugify(c.title) === compSlug);
+      const comp = competitions.find(c => slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug);
       if (!comp) return next();
 
       const contestants = await storage.getContestantsByCompetition(comp.id);
@@ -10479,7 +10498,7 @@ export async function registerRoutes(
       if (!socialCrawlerPattern.test(ua)) return next();
 
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c => slugify(c.category) === categorySlug && slugify(c.title) === compSlug);
+      const comp = competitions.find(c => slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug);
       if (!comp) return next();
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -10529,7 +10548,7 @@ export async function registerRoutes(
       const competitions = await storage.getCompetitions();
       const comp = compId
         ? competitions.find(c => c.id === compId)
-        : competitions.find(c => slugify(c.title) === compSlug);
+        : competitions.find(c => competitionSlugOf(c) === compSlug);
       if (!comp) return next();
 
       const contestants = await storage.getContestantsByCompetition(comp.id);
