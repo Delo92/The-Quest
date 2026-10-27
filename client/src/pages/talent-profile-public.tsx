@@ -1,19 +1,17 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useLocation, useParams } from "wouter";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { Link, useLocation, useParams } from "wouter";
+import { ArrowDown, ArrowRight, ArrowUpRight, ChevronRight, ExternalLink, LockKeyhole, MapPin, Tag, X } from "lucide-react";
+import { SiFacebook, SiInstagram, SiTiktok, SiYoutube } from "react-icons/si";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Trophy, MapPin, Tag, ChevronRight, ExternalLink, X, LockKeyhole } from "lucide-react";
-import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
-import { Link } from "wouter";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
-import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
-import { formatVideoTitle } from "@/lib/media-utils";
 import { useAuth } from "@/hooks/use-auth";
+import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
+import PublicCompetitionEntry, { type CompetitionVideo, type PublicCompetition } from "@/components/public-competition-entry";
+import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import { extractIdFromSlug, slugify, slugifyWithId } from "@shared/slugify";
 
 interface PublicTalentProfile {
@@ -34,6 +32,80 @@ interface PublicTalentProfile {
   profileBgImage?: string | null;
 }
 
+interface CompetitionMedia {
+  videoThumbnail: string | null;
+  videos: CompetitionVideo[];
+}
+
+function imageSourceKey(source: string | null | undefined) {
+  return (source || "").split(/[?#]/, 1)[0].trim().toLowerCase();
+}
+
+function SectionHeading({ eyebrow, title, index }: { eyebrow: string; title: string; index?: string }) {
+  return (
+    <div className="mb-9 flex items-end justify-between gap-5 border-b border-white/[0.1] pb-5 sm:mb-12">
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[.24em] text-[#ff9b58]">{eyebrow}</p>
+        <h2 className="font-display text-3xl leading-none tracking-[-.035em] text-[#f7f3ed] sm:text-5xl">{title}</h2>
+      </div>
+      {index && <span className="pb-1 font-mono text-xs tracking-widest text-white/35">{index}</span>}
+    </div>
+  );
+}
+
+function SocialLinks({ profile, accentColor }: { profile: PublicTalentProfile; accentColor: string }) {
+  let socialObj: Record<string, any> = {};
+  try {
+    const raw = profile.socialLinks;
+    if (raw) socialObj = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    socialObj = {};
+  }
+  const platforms = [
+    { key: "youtube", icon: SiYoutube, label: "YouTube" },
+    { key: "instagram", icon: SiInstagram, label: "Instagram" },
+    { key: "tiktok", icon: SiTiktok, label: "TikTok" },
+    { key: "facebook", icon: SiFacebook, label: "Facebook" },
+  ];
+  const active = platforms.filter((platform) => socialObj[platform.key] && /^https?:\/\//i.test(socialObj[platform.key]));
+  const customLinks: { label: string; url: string }[] = Array.isArray(socialObj.customLinks)
+    ? socialObj.customLinks.filter((link: any) => link.label && link.url && /^https?:\/\//i.test(link.url))
+    : [];
+  if (!active.length && !customLinks.length) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3" data-testid="social-links">
+      {active.map(({ key, icon: Icon, label }) => (
+        <a
+          key={key}
+          href={socialObj[key]}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={label}
+          aria-label={label}
+          className="grid h-11 w-11 place-items-center rounded-full border border-white/15 bg-white/[0.04] text-white/70 transition-transform duration-200 hover:-translate-y-0.5 hover:border-white/35 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          data-testid={`link-social-${key}`}
+        >
+          <Icon className="h-[17px] w-[17px]" />
+        </a>
+      ))}
+      {customLinks.map((link, index) => (
+        <a
+          key={`${link.url}-${index}`}
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ borderColor: `${accentColor}66` }}
+          className="inline-flex min-h-11 items-center gap-2 rounded-full border bg-white/[0.035] px-4 text-xs font-semibold text-white/85 transition-colors hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          data-testid={`link-custom-${index}`}
+        >
+          {link.label}<ExternalLink className="h-3.5 w-3.5 text-white/50" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export default function TalentProfilePublic() {
   const params = useParams<{ id?: string; profileSlug?: string }>();
   const idFromSlug = params?.profileSlug ? extractIdFromSlug(params.profileSlug).id : null;
@@ -50,7 +122,7 @@ export default function TalentProfilePublic() {
     setShowSignInPrompt(window.localStorage.getItem(`quest-tax-signin-dismissed-${id}`) !== "1");
   }, [id, isAuthenticated]);
 
-  const { data: profile, isLoading, isError } = useQuery<PublicTalentProfile>({
+  const { data: profile, isLoading, isError, refetch } = useQuery<PublicTalentProfile>({
     queryKey: ["/api/talent-profiles", id, "public"],
     queryFn: async () => {
       const response = await fetch(`/api/talent-profiles/${encodeURIComponent(id!)}/public`);
@@ -59,26 +131,42 @@ export default function TalentProfilePublic() {
     },
     enabled: !!id,
   });
-  const { data: videos = [] } = useQuery<any[]>({
-    queryKey: ["/api/talent-profiles", id, "videos"],
+  const { data: competitions = [], isLoading: competitionsLoading, isError: competitionsError, refetch: refetchCompetitions } = useQuery<PublicCompetition[]>({
+    queryKey: ["/api/talent-profiles", id, "competitions"],
+    queryFn: async () => {
+      const response = await fetch(`/api/talent-profiles/${encodeURIComponent(id!)}/competitions`);
+      if (!response.ok) throw new Error("Competition entries could not be loaded");
+      return response.json();
+    },
     enabled: !!id,
     staleTime: 60_000,
   });
-
-  const { data: competitions = [] } = useQuery<{ id: number; title: string; category: string | null }[]>({
-    queryKey: ["/api/talent-profiles", id, "competitions"],
-    enabled: !!id,
-    staleTime: 60_000,
+  const mediaQueries = useQueries({
+    queries: competitions.map((competition) => {
+      const categorySlug = slugify(competition.category || "competition");
+      const competitionSlug = slugify(competition.title);
+      const contestantSlug = slugifyWithId(profile?.stageName?.trim() || profile?.displayName?.trim() || "", profile?.id || 0);
+      return {
+        queryKey: ["/api/resolve", categorySlug, competitionSlug, contestantSlug, "videos"],
+        queryFn: async (): Promise<CompetitionMedia> => {
+          const response = await fetch(`/api/resolve/${encodeURIComponent(categorySlug)}/${encodeURIComponent(competitionSlug)}/${encodeURIComponent(contestantSlug)}/videos`);
+          if (response.status === 404) return { videoThumbnail: null, videos: [] };
+          if (!response.ok) throw new Error("Competition video could not be loaded");
+          return response.json();
+        },
+        enabled: !!profile && !!competition.category,
+        staleTime: 60_000,
+      };
+    }),
   });
 
   const profileName = profile?.stageName?.trim() || profile?.displayName?.trim() || "";
   const fallbackDefault = getImage("talent_profile_fallback") || "";
   const mainImage = profile?.imageUrls?.[0] || fallbackDefault;
   const mainImageFallback = profile
-    ? getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, 0) || fallbackDefault
+    ? getBackupUrl(profile.imageUrls, profile.imageBackupUrls, 0) || fallbackDefault
     : fallbackDefault;
   const canIndexProfile = String(profile?.role || "").toLowerCase() === "talent";
-
   useEffect(() => {
     if (!profile || !profileName) return;
     const canonicalSlug = slugifyWithId(profileName, profile.id);
@@ -99,12 +187,12 @@ export default function TalentProfilePublic() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black">
+      <div className="min-h-[100dvh] bg-[#111113]">
         <SiteNavbar />
-        <div className="max-w-4xl mx-auto px-4 py-32">
-          <Skeleton className="h-40 w-40 mx-auto mb-6 bg-white/5" />
-          <Skeleton className="h-8 w-1/3 mx-auto mb-4 bg-white/10" />
-          <Skeleton className="h-4 w-1/2 mx-auto bg-white/10" />
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
+          <Skeleton className="mb-8 h-[min(65vw,580px)] w-full rounded-[2rem] bg-white/[0.06]" />
+          <Skeleton className="mb-4 h-10 w-1/3 bg-white/[0.07]" />
+          <Skeleton className="h-5 w-1/2 bg-white/[0.05]" />
         </div>
       </div>
     );
@@ -112,266 +200,218 @@ export default function TalentProfilePublic() {
 
   if (isError || !profile) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+      <div className="min-h-[100dvh] bg-[#111113] text-white">
         <SiteNavbar />
-        <div className="text-center">
-          <Trophy className="h-12 w-12 text-white/20 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold" data-testid="status-profile-not-found">Profile not found</h3>
-          <Link href="/competitions">
-            <span className="inline-block mt-4 text-white/60 hover:text-white transition-colors cursor-pointer">
-              Back to Competitions
-            </span>
-          </Link>
-        </div>
+        <main className="mx-auto flex min-h-[65vh] max-w-xl flex-col items-center justify-center px-6 text-center">
+          <span className="mb-4 font-mono text-xs uppercase tracking-[.22em] text-[#ff9958]">The Quest / Profile</span>
+          <h1 className="font-display text-4xl">This page isn&apos;t here.</h1>
+          <p className="mt-3 text-sm text-white/55">The profile may have moved, or the link may be out of date.</p>
+          <button type="button" onClick={() => refetch()} className="mt-7 rounded-full border border-white/20 px-6 py-3 text-xs font-semibold uppercase tracking-[.14em] transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" data-testid="button-retry-profile">
+            Try again
+          </button>
+          <Link href="/competitions" className="mt-5 text-sm text-white/55 underline decoration-white/20 underline-offset-4 hover:text-white">Browse competitions</Link>
+        </main>
+        <SiteFooter />
       </div>
     );
   }
 
-  const accentColor = (profile as any).profileColor || "#FF5A09";
+  const accentColor = profile.profileColor || "#ff7135";
+  const mainImageKey = imageSourceKey(mainImage);
+  const additionalImages = profile.imageUrls.filter((url) => imageSourceKey(url) !== mainImageKey);
+  const savedBackground = profile.profileBgImage?.trim() || "";
+  const backgroundImage = savedBackground && imageSourceKey(savedBackground) !== mainImageKey
+    ? savedBackground
+    : additionalImages[0] || mainImage;
+  const backgroundImageKey = imageSourceKey(backgroundImage);
+  const backgroundFallback = additionalImages.find((url) => imageSourceKey(url) !== backgroundImageKey) || fallbackDefault;
+  const crop = profile.imageCropPositions?.[0] ?? DEFAULT_TALENT_IMAGE_CROP_POSITION;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="profile-depth-page min-h-[100dvh] overflow-hidden text-[#f7f3ed]">
+      <style>{`
+        @keyframes profile-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        .profile-reveal { animation: profile-rise .65s cubic-bezier(.2,.75,.2,1) both; }
+        .profile-reveal-delay { animation-delay: .14s; }
+        .profile-reveal-late { animation-delay: .25s; }
+        @media (prefers-reduced-motion: reduce) { .profile-reveal { animation: none; } }
+      `}</style>
       <SiteNavbar />
-
-      <section
-        className="relative h-[270px] md:h-[340px] overflow-hidden"
-      >
-        <FallbackImage
-          src={mainImage}
-          fallbackSrc={mainImageFallback}
-          alt={profile.stageName || profile.displayName || "Talent"}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            objectPosition: `${profile.imageCropPositions?.[0]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[0]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
-          }}
-        />
-        <div className="absolute inset-0 bg-black/65" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]" style={{ borderTop: `4px solid ${accentColor}` }}>
-          <p className="text-black/50 text-base leading-relaxed mb-1">Personal Portfolio</p>
-          <h1
-            className="text-[24px] md:text-[30px] uppercase font-normal leading-none"
-            style={{ letterSpacing: "10px", color: accentColor }}
-            data-testid="text-profile-name"
-          >
-            {profileName}
-          </h1>
-        </div>
-      </section>
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {profile.role === "talent" && !isAuthenticated && showSignInPrompt && (
-          <aside className="mb-8 flex flex-col gap-3 rounded-xl border border-orange-400/20 bg-orange-400/[0.06] p-4 sm:flex-row sm:items-center" aria-label="Contestant sign-in prompt">
-            <LockKeyhole className="h-5 w-5 flex-none text-orange-300" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-white">Are you this contestant?</p>
-              <p className="mt-1 text-sm text-white/55">Sign in to manage your earnings and enter tax details before your competition’s final-voting cutoff.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link href="/login?section=tax">
-                <Button className="min-h-10 bg-orange-500 text-white hover:bg-orange-400">Sign in</Button>
-              </Link>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-10 text-white/55 hover:bg-white/10 hover:text-white"
-                onClick={() => {
-                  window.localStorage.setItem(`quest-tax-signin-dismissed-${id}`, "1");
-                  setShowSignInPrompt(false);
-                }}
-                aria-label="Dismiss sign-in prompt"
-              >
-                <X className="mr-1 h-4 w-4" /> Dismiss
-              </Button>
-            </div>
-          </aside>
-        )}
-        <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40 mb-10">
-          {profile.category && (
-            <span className="flex items-center gap-1.5" data-testid="text-category">
-              <Tag className="h-4 w-4" style={{ color: accentColor }} /> {profile.category}
-            </span>
-          )}
-          {profile.location && (
-            <span className="flex items-center gap-1.5" data-testid="text-location">
-              <MapPin className="h-4 w-4" style={{ color: accentColor }} /> {profile.location}
-            </span>
-          )}
-        </div>
-
-        {profile.bio && (
-          <div className="mb-10 text-center">
-            <p className="text-white/50 leading-relaxed text-base max-w-2xl mx-auto" data-testid="text-bio">
-              {profile.bio}
-            </p>
+      <main>
+        <section className="relative isolate min-h-[740px] overflow-hidden sm:min-h-[830px]" aria-labelledby="text-profile-name">
+          <div className="profile-depth-backdrop absolute -inset-[5%]">
+            <FallbackImage
+              src={backgroundImage}
+              fallbackSrc={backgroundFallback}
+              alt=""
+              aria-hidden="true"
+              className="h-full w-full scale-[1.02] object-cover opacity-[.25] grayscale blur-[2px]"
+              style={{ objectPosition: `${crop.x}% ${crop.y}%` }}
+            />
           </div>
-        )}
-
-        {profile.showEmail === true && profile.email && (
-          <p className="mb-8 text-center text-sm text-white/60" data-testid="text-public-email">
-            <a className="underline decoration-white/30 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" href={`mailto:${profile.email}`} data-testid="link-public-email">
-              Contact {profileName}
-            </a>
-          </p>
-        )}
-
-        <div className="mb-10 flex justify-center">
-          <Link href={`/nominate?profileId=${encodeURIComponent(String(profile.id))}`}>
-            <span
-              className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#ff5a09] px-7 text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#e94f00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              data-testid="link-nominate-profile"
-            >
-              Nominate {profileName || "this contestant"} <ChevronRight className="h-4 w-4" />
-            </span>
-          </Link>
-        </div>
-
-        {(() => {
-          let socialObj: Record<string, any> = {};
-          try {
-            const raw = (profile as any).socialLinks;
-            if (raw) socialObj = typeof raw === "string" ? JSON.parse(raw) : raw;
-          } catch {}
-          const platforms = [
-            { key: "youtube", icon: SiYoutube, label: "YouTube", color: "text-[#FF0000] hover:text-[#FF0000]/80" },
-            { key: "instagram", icon: SiInstagram, label: "Instagram", color: "text-[#E4405F] hover:text-[#E4405F]/80" },
-            { key: "tiktok", icon: SiTiktok, label: "TikTok", color: "text-[#00F2EA] hover:text-[#00F2EA]/80" },
-            { key: "facebook", icon: SiFacebook, label: "Facebook", color: "text-[#1877F2] hover:text-[#1877F2]/80" },
-          ];
-          const active = platforms.filter(p => socialObj[p.key] && /^https?:\/\//i.test(socialObj[p.key]));
-          const customLinks: { label: string; url: string }[] = Array.isArray(socialObj.customLinks)
-            ? socialObj.customLinks.filter((l: any) => l.label && l.url && /^https?:\/\//i.test(l.url))
-            : [];
-          if (active.length === 0 && customLinks.length === 0) return null;
-          return (
-            <div className="flex flex-col items-center gap-5 mb-10" data-testid="social-links">
-              {/* Platform icons */}
-              {active.length > 0 && (
-                <div className="flex flex-wrap items-center justify-center gap-5">
-                  {active.map(({ key, icon: Icon, label, color }) => (
-                    <a key={key} href={socialObj[key]} target="_blank" rel="noopener noreferrer"
-                      className={`${color} transition-colors duration-300`}
-                      data-testid={`link-social-${key}`} title={label}>
-                      <Icon className="h-6 w-6" />
-                    </a>
-                  ))}
-                </div>
-              )}
-              {/* Custom CTA buttons */}
-              {customLinks.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-3">
-                  {customLinks.map((link, i) => (
-                    <a
-                      key={i}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ borderColor: accentColor, color: accentColor }}
-                      className="inline-flex items-center gap-1.5 rounded-full border px-5 py-2 text-sm font-semibold transition-all hover:opacity-80 hover:scale-105"
-                      data-testid={`link-custom-${i}`}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {competitions.length > 0 && (
-          <div className="mb-10" data-testid="profile-competitions">
-            <div className="text-center mb-6">
-              <p className="text-sm mb-1" style={{ color: accentColor }}>Explore their appearances</p>
-              <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>Competitions</h2>
-            </div>
-            <div className="flex flex-col items-stretch gap-3 max-w-md mx-auto">
-              {competitions.map((c) => (
-                <Link key={c.id} href={c.category ? `/${slugify(c.category)}/${slugify(c.title)}` : "/competitions"}>
-                  <span
-                    className="flex min-h-12 items-center justify-between gap-3 rounded-full border px-5 py-3 text-sm font-semibold cursor-pointer transition-all hover:opacity-80"
-                    style={{ borderColor: accentColor, color: accentColor }}
-                    data-testid={`link-profile-competition-${c.id}`}
-                  >
-                    <span className="truncate">{c.title}</span>
-                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                  </span>
+          <div className="profile-depth-vignette absolute inset-0" />
+          <div className="profile-depth-grid pointer-events-none absolute inset-0" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_42%,color-mix(in_srgb,var(--profile-accent)_24%,transparent),transparent_40%)]" style={{ ["--profile-accent" as string]: accentColor }} />
+          <div className="absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#111113] to-transparent" />
+          <div className="relative mx-auto grid min-h-[740px] max-w-[1440px] grid-cols-1 items-center gap-10 px-5 pb-20 pt-12 sm:min-h-[830px] sm:px-8 lg:grid-cols-[.92fr_1.08fr] lg:gap-16 lg:px-14">
+            <div className="order-2 max-w-2xl pb-4 lg:order-1 lg:pb-14">
+              <div className="profile-reveal mb-7 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[.25em] text-white/60">
+                <span className="h-px w-9 bg-[#ff8b4c]" /> The Quest artist profile
+              </div>
+              <h1 id="text-profile-name" data-testid="text-profile-name" className="profile-reveal profile-reveal-delay max-w-4xl break-words font-display text-[clamp(3.4rem,9vw,8.4rem)] leading-[.82] tracking-[-.055em] text-white [text-shadow:0_12px_45px_rgba(0,0,0,.24)]">
+                {profileName}
+              </h1>
+              <p className="profile-reveal profile-reveal-late mt-7 max-w-xl text-base leading-7 text-white/72 sm:text-lg sm:leading-8">
+                {profile.bio || "A performer on The Quest. Explore the work, find the competition, and make some noise."}
+              </p>
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs font-medium text-white/55">
+                {profile.category && <span className="inline-flex items-center gap-2" data-testid="text-category"><Tag className="h-3.5 w-3.5" style={{ color: accentColor }} />{profile.category}</span>}
+                {profile.location && <span className="inline-flex items-center gap-2" data-testid="text-location"><MapPin className="h-3.5 w-3.5" style={{ color: accentColor }} />{profile.location}</span>}
+                <span className="inline-flex items-center gap-2 uppercase tracking-[.14em]"><span className="h-1.5 w-1.5 rounded-full bg-[#f8894e]" />On The Quest</span>
+              </div>
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <a href="#entries" className="inline-flex min-h-12 items-center gap-3 rounded-full bg-[#f47a3c] px-6 text-[11px] font-bold uppercase tracking-[.16em] text-[#171313] shadow-[0_10px_35px_rgba(244,122,60,.22)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" data-testid="link-explore-entries">
+                  Explore their entries<ArrowDown className="h-4 w-4" />
+                </a>
+                <Link href={`/nominate?profileId=${encodeURIComponent(String(profile.id))}`} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/25 bg-black/20 px-6 text-[11px] font-bold uppercase tracking-[.15em] text-white backdrop-blur-sm transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" data-testid="link-nominate-profile">
+                  Nominate<ArrowUpRight className="h-4 w-4" />
                 </Link>
-              ))}
+              </div>
+              {profile.showEmail === true && profile.email && (
+                <a className="mt-5 inline-block text-sm text-white/55 underline decoration-white/30 underline-offset-4 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" href={`mailto:${profile.email}`} data-testid="link-public-email">
+                  Contact {profileName}
+                </a>
+              )}
             </div>
-          </div>
-        )}
-
-        {profile.imageUrls && profile.imageUrls.length > 0 && (
-          <div className="mb-10">
-            <div className="text-center mb-10">
-              <p className="text-sm mb-1" style={{ color: accentColor }}>See what&apos;s new</p>
-              <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
-                Gallery
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {profile.imageUrls.map((url, i) => (
-                <div key={i} className="relative aspect-square overflow-hidden group cursor-pointer">
-                  <FallbackImage
-                    src={url}
-                    fallbackSrc={getBackupUrl(profile.imageUrls, (profile as any).imageBackupUrls, i)}
-                    alt={`${profileName} photo ${i + 1}`}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    style={{
-                      objectPosition: `${profile.imageCropPositions?.[i]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[i]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%`,
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-500" />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {videos.length > 0 && (
-          <div className="mb-10">
-            <div className="text-center mb-10">
-              <p className="text-sm mb-1" style={{ color: accentColor }}>Watch performances</p>
-              <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>
-                Videos
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {videos.map((video: any, i: number) => (
-                <div key={video.uri || i} className="relative" data-testid={`video-item-${i}`}>
-                  <div className={video.height > video.width ? "aspect-[9/16]" : "aspect-video"}>
-                    <iframe
-                      src={`${video.embedUrl}${video.embedUrl.includes("?") ? "&" : "?"}autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0&title=0&byline=0&portrait=0`}
-                      className="w-full h-full"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                      title={formatVideoTitle(video.name)}
-                    />
+            <div className="profile-reveal relative order-1 mx-auto w-full max-w-[420px] lg:order-2 lg:max-w-none">
+              <div className="absolute -inset-7 rounded-[48%] bg-[#df763e]/[.12] blur-3xl" />
+              <div className="relative mx-auto aspect-[.82] w-[min(76vw,390px)] rotate-[1.5deg] overflow-hidden rounded-[46%_46%_2rem_2rem] border border-white/20 bg-[#292629] shadow-[0_35px_100px_rgba(0,0,0,.52)] sm:w-[min(70vw,430px)]">
+                <FallbackImage
+                  src={mainImage}
+                  fallbackSrc={mainImageFallback}
+                  alt={profileName}
+                  className="h-full w-full object-cover"
+                  style={{ objectPosition: `${crop.x}% ${crop.y}%` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-white/[.05]" />
+                <div className="absolute inset-x-6 bottom-7 flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-[.24em] text-white/60">In the spotlight</p>
+                    <p className="mt-1 font-display text-2xl text-white">{profile.stageName || profile.displayName}</p>
                   </div>
-                  <p className="text-white/50 text-sm mt-2 text-center truncate">{formatVideoTitle(video.name)}</p>
-                  {video.competitionFolder && (
-                    <p className="text-white/30 text-xs text-center">{video.competitionFolder}</p>
-                  )}
                 </div>
-              ))}
+              </div>
+              <div className="absolute -bottom-6 -left-2 rounded-full border border-white/15 bg-[#1e1d1e]/90 px-4 py-3 text-[9px] font-semibold uppercase tracking-[.16em] text-white/75 shadow-xl backdrop-blur-lg sm:-left-8">
+                Real work. Real stages.
+              </div>
+              <div className="absolute right-0 top-[18%] hidden rotate-90 text-[9px] font-mono uppercase tracking-[.25em] text-white/45 sm:block">THE QUEST / {String(profile.id).padStart(4, "0")}</div>
             </div>
           </div>
-        )}
+          <div className="absolute bottom-8 left-1/2 hidden -translate-x-1/2 items-center gap-2 text-[9px] font-semibold uppercase tracking-[.2em] text-white/35 lg:flex">
+            Scroll to discover <span className="h-px w-9 bg-white/25" />
+          </div>
+        </section>
 
-        <div className="text-center pb-10">
-          <Link href="/competitions">
-            <span
-              className="inline-block bg-transparent font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] border transition-all duration-500 cursor-pointer hover:text-white"
-              style={{ color: accentColor, borderColor: accentColor }}
-              data-testid="button-back"
-            >
-              Back to Competitions <ChevronRight className="inline h-4 w-4 ml-1" /><ChevronRight className="inline h-4 w-4 -ml-2" />
-            </span>
-          </Link>
+        <div className="relative z-10 mx-auto max-w-[1240px] px-5 sm:px-8 lg:px-12">
+          {profile.role === "talent" && !isAuthenticated && showSignInPrompt && (
+            <aside className="relative -mt-4 mb-16 flex flex-col gap-4 rounded-[1.5rem] border border-[#ed8a4a]/25 bg-[linear-gradient(115deg,rgba(237,138,74,.13),rgba(255,255,255,.035))] p-5 shadow-[0_22px_65px_rgba(0,0,0,.25)] backdrop-blur-xl sm:flex-row sm:items-center sm:p-6" aria-label="Contestant sign-in prompt">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#ed8a4a]/30 bg-[#ed8a4a]/10 text-[#ffad71]"><LockKeyhole className="h-4 w-4" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-white">Are you this contestant?</p>
+                <p className="mt-1 text-sm leading-6 text-white/55">Sign in to manage your earnings and enter tax details before your competition&apos;s final-voting cutoff.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href="/login?section=tax" className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#f47a3c] px-6 text-[10px] font-bold uppercase tracking-[.15em] text-[#171313] transition-transform hover:-translate-y-0.5" data-testid="link-sign-in">Sign in</Link>
+                <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" onClick={() => { window.localStorage.setItem(`quest-tax-signin-dismissed-${id}`, "1"); setShowSignInPrompt(false); }} aria-label="Dismiss sign-in prompt" data-testid="button-dismiss-sign-in">
+                  <X className="h-4 w-4" /> Dismiss
+                </button>
+              </div>
+            </aside>
+          )}
+
+          <section id="entries" className="scroll-mt-16 pb-24 pt-20 sm:pb-32 sm:pt-28" data-testid="profile-competitions">
+            <SectionHeading eyebrow="Where the work meets the stage" title="Competition entries" index={`${String(competitions.length).padStart(2, "0")} ENTRIES`} />
+            <p className="mb-9 max-w-2xl text-sm leading-6 text-white/48 sm:mb-12 sm:text-base">
+              Every performance has its own stage. Watch the entry, then head to that competition to show your support.
+            </p>
+            {competitionsLoading ? (
+              <div className={competitions.length === 1 ? "mx-auto grid max-w-5xl gap-6" : "grid gap-6 lg:grid-cols-2"}>
+                {[0, 1].map((item) => <Skeleton key={item} className="aspect-[1.2] rounded-[1.35rem] bg-white/[0.05]" />)}
+              </div>
+            ) : competitionsError ? (
+              <div className="rounded-[1.4rem] border border-white/10 bg-white/[.03] p-8 text-center">
+                <p className="text-sm text-white/65">We couldn&apos;t load the competition entries just now.</p>
+                <button onClick={() => refetchCompetitions()} className="mt-4 rounded-full border border-white/20 px-5 py-2.5 text-xs uppercase tracking-widest text-white/75 hover:bg-white/10" data-testid="button-retry-competitions">Try again</button>
+              </div>
+            ) : competitions.length > 0 ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                {competitions.map((competition, index) => (
+                  <PublicCompetitionEntry
+                    key={competition.id}
+                    competition={competition}
+                    video={mediaQueries[index]?.data?.videos?.[0]}
+                    videoThumbnail={mediaQueries[index]?.data?.videoThumbnail}
+                    contestantName={profileName}
+                    contestantId={profile.id}
+                    index={index}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="relative overflow-hidden rounded-[1.6rem] border border-white/[.1] bg-[radial-gradient(ellipse_at_90%_0%,rgba(230,116,62,.13),transparent_45%),#171719] px-6 py-12 text-center sm:px-12 sm:py-16">
+                <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-[#f59a64]">The next stage is ahead</p>
+                <h3 className="mt-3 font-display text-3xl text-white">No entries just yet.</h3>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/50">Stay close. New competition appearances will show up here as they are approved.</p>
+              </div>
+            )}
+          </section>
+
+          {profile.imageUrls && profile.imageUrls.length > 0 && (
+            <section className="pb-24 sm:pb-32" aria-labelledby="profile-gallery-heading">
+              <SectionHeading eyebrow="Outside the frame" title="A closer look" index={`${String(profile.imageUrls.length).padStart(2, "0")} PHOTOS`} />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+                {profile.imageUrls.map((url, index) => (
+                  <figure key={`${url}-${index}`} className={`group relative overflow-hidden rounded-[1.1rem] border border-white/[.08] bg-[#242326] shadow-[0_20px_55px_rgba(0,0,0,.22)] ${index === 0 ? "col-span-2 row-span-2 aspect-[1.22] sm:aspect-auto" : "aspect-square"}`} data-testid={`img-profile-gallery-${index}`}>
+                    <FallbackImage
+                      src={url}
+                      fallbackSrc={getBackupUrl(profile.imageUrls, profile.imageBackupUrls, index)}
+                      alt={`${profileName} photo ${index + 1}`}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                      style={{ objectPosition: `${profile.imageCropPositions?.[index]?.x ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.x}% ${profile.imageCropPositions?.[index]?.y ?? DEFAULT_TALENT_IMAGE_CROP_POSITION.y}%` }}
+                    />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-70 transition-opacity group-hover:opacity-100" />
+                    <figcaption className="absolute bottom-3 left-3 font-mono text-[9px] uppercase tracking-[.18em] text-white/65 sm:bottom-4 sm:left-4">FRAME / {String(index + 1).padStart(2, "0")}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="relative mb-24 overflow-hidden rounded-[1.75rem] border border-white/[.1] bg-[linear-gradient(120deg,#211c1b,#171719_55%,#201817)] px-6 py-9 sm:mb-32 sm:px-10 sm:py-12">
+            <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full border border-[#f08a51]/15" />
+            <div className="pointer-events-none absolute -right-2 -top-12 h-48 w-48 rounded-full border border-[#f08a51]/10" />
+            <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <p className="text-[10px] font-semibold uppercase tracking-[.23em] text-[#f59a64]">Keep following the work</p>
+                <h2 className="mt-3 font-display text-3xl leading-tight text-white sm:text-4xl">The next performance could be their biggest yet.</h2>
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <SocialLinks profile={profile} accentColor={accentColor} />
+                <Link href={`/nominate?profileId=${encodeURIComponent(String(profile.id))}`} className="inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-[#f47a3c] px-6 text-[10px] font-bold uppercase tracking-[.16em] text-[#171313] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" data-testid="link-nominate-profile-bottom">
+                  Nominate {profileName || "this artist"}<ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <div className="pb-16 text-center">
+            <Link href="/competitions" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 px-5 text-[10px] font-semibold uppercase tracking-[.17em] text-white/55 transition-colors hover:border-white/35 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" data-testid="button-back">
+              Discover all competitions<ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
-      </div>
-
+      </main>
       <SiteFooter />
     </div>
   );

@@ -37,6 +37,13 @@ export default function SiteFooter() {
           >
             Nominate
           </Link>
+          <a
+            href="/thequest/nominationindex"
+            className="text-white/60 text-sm uppercase tracking-widest transition-colors duration-300 hover:text-white"
+            data-testid="link-footer-talent-directory"
+          >
+            Talent Directory
+          </a>
           <Link
             href={hostHref}
             className="text-white/60 text-sm uppercase tracking-widest transition-colors duration-300 hover:text-white"

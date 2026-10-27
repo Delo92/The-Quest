@@ -24,6 +24,7 @@ const LoginPage = lazy(() => import("@/pages/login"));
 const CheckoutPage = lazy(() => import("@/pages/checkout"));
 const MyPurchasesPage = lazy(() => import("@/pages/my-purchases"));
 const JoinPage = lazy(() => import("@/pages/join"));
+const NominationIndexPage = lazy(() => import("@/pages/nomination-index"));
 const HostPage = lazy(() => import("@/pages/host"));
 const ContestantSharePage = lazy(() => import("@/pages/contestant-share"));
 const HostProfilePublic = lazy(() => import("@/pages/host-profile-public"));
@@ -53,6 +54,7 @@ function QuestRouter() {
       <Route path="/Competitor/:name" component={CompetitorByName} />
       <Route path="/checkout/:competitionId/:contestantId" component={CheckoutPage} />
       <Route path="/my-purchases" component={MyPurchasesPage} />
+      <Route path="/nominationindex" component={NominationIndexPage} />
       <Route path="/nominate" component={JoinPage} />
       <Route path="/join">{() => <Redirect to={`/nominate${window.location.search}`} />}</Route>
       <Route path="/host" component={HostPage} />

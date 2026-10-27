@@ -2844,6 +2844,104 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/public/talent-directory", async (_req, res) => {
+    try {
+      const directory = await getCachedPublicResponse(
+        "public-talent-directory:v1",
+        60_000,
+        async () => {
+          const [allProfiles, contestantEntries, competitions] = await Promise.all([
+            storage.getAllTalentProfiles(),
+            firestoreContestants.getAll(),
+            storage.getCompetitions(),
+          ]);
+          const profiles = allProfiles.filter(
+            (profile) => String(profile.role || "").toLowerCase() === "talent",
+          );
+          const competitionsById = new Map(competitions.map((competition) => [competition.id, competition]));
+          const entriesByProfile = new Map<number, Array<{ id: number; title: string; category: string | null; status: string }>>();
+
+          for (const entry of contestantEntries) {
+            if (entry.applicationStatus !== "approved") continue;
+            const competition = competitionsById.get(entry.competitionId);
+            if (!competition || competition.status === "draft") continue;
+            const profileEntries = entriesByProfile.get(entry.talentProfileId) || [];
+            profileEntries.push({
+              id: competition.id,
+              title: competition.title,
+              category: competition.category || null,
+              status: competition.status,
+            });
+            entriesByProfile.set(entry.talentProfileId, profileEntries);
+          }
+
+          const publicEntries: Array<{
+            id: number;
+            name: string;
+            profileSlug: string;
+            imageUrl: string | null;
+            category: string | null;
+            location: string | null;
+            hasOfficialEntry: boolean;
+            needsNomination: boolean;
+            nominationCompetition: { id: number; title: string; category: string | null; status: string } | null;
+            officialCompetitions: Array<{ id: number; title: string; category: string | null; status: string }>;
+          }> = [];
+
+          for (let start = 0; start < profiles.length; start += 25) {
+            const batch = profiles.slice(start, start + 25);
+            const batchEntries = await Promise.all(batch.map(async (profile) => {
+              const name = profile.stageName?.trim() || profile.displayName?.trim();
+              if (!name) return null;
+
+              const user = await storage.getUser(profile.userId);
+              const sourceCompetitionId = Number(user?.signupReferralCompetitionId);
+              const sourceCompetition = Number.isSafeInteger(sourceCompetitionId)
+                ? competitionsById.get(sourceCompetitionId) || null
+                : null;
+              const officialCompetitions = entriesByProfile.get(profile.id) || [];
+              const hasEntryInSourceCompetition = sourceCompetition
+                ? officialCompetitions.some((entry) => entry.id === sourceCompetition.id)
+                : false;
+              const nominationCompetition = sourceCompetition && !hasEntryInSourceCompetition
+                ? {
+                    id: sourceCompetition.id,
+                    title: sourceCompetition.title,
+                    category: sourceCompetition.category || null,
+                    status: sourceCompetition.status,
+                  }
+                : null;
+
+              return {
+                id: profile.id,
+                name,
+                profileSlug: slugifyWithId(name, profile.id),
+                imageUrl: Array.isArray(profile.imageUrls) ? profile.imageUrls[0] || null : null,
+                category: profile.category || null,
+                location: profile.location || null,
+                hasOfficialEntry: officialCompetitions.length > 0,
+                needsNomination: nominationCompetition !== null || officialCompetitions.length === 0,
+                nominationCompetition,
+                officialCompetitions: [...officialCompetitions].sort((a, b) => a.title.localeCompare(b.title)),
+              };
+            }));
+
+            publicEntries.push(...batchEntries.filter(
+              (entry): entry is NonNullable<typeof entry> => entry !== null,
+            ));
+          }
+
+          return publicEntries.sort((a, b) => a.name.localeCompare(b.name));
+        },
+      );
+      setPublicCacheHeaders(res, 60);
+      res.json(directory);
+    } catch (error) {
+      console.error("Public talent directory error:", error);
+      res.status(500).json({ message: "Could not load the talent directory" });
+    }
+  });
+
   app.get("/api/talent-profiles/by-name/:name", async (req, res) => {
     const wanted = slugify(String(req.params.name || ""));
     if (!wanted) return res.status(400).json({ message: "Name is required" });
@@ -2861,7 +2959,14 @@ export async function registerRoutes(
     const comps = await Promise.all(approved.map((e) => storage.getCompetition(e.competitionId)));
     res.json(comps
       .filter((c): c is NonNullable<typeof c> => !!c && c.status !== "draft")
-      .map((c) => ({ id: c.id, title: c.title, category: c.category || null })));
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        category: c.category || null,
+        status: c.status,
+        coverImage: c.coverImage || null,
+        themeColor: c.themeColor || null,
+      })));
   });
 
   app.get("/api/talent-profiles/:id/public", async (req, res) => {

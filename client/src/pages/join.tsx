@@ -14,7 +14,7 @@ import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
-import { CheckCircle, CreditCard, Search, Trophy, UserPlus, Upload, X, Loader2, ImageIcon, Sparkles, Crop } from "lucide-react";
+import { ArrowRight, CheckCircle, CreditCard, Search, Trophy, UserPlus, Upload, X, Loader2, ImageIcon, Sparkles, Crop } from "lucide-react";
 import PaymentConfirmationModal from "@/components/payment-confirmation-modal";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
@@ -676,6 +676,19 @@ export default function JoinPage() {
         <p className="text-white/40 text-sm mb-8 max-w-xl" data-testid="text-page-description">
           {settings.pageDescription}
         </p>
+        <div className="mb-9 flex flex-col gap-3 border border-white/10 bg-white/[.035] p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5" data-testid="nomination-directory-prompt">
+          <div>
+            <p className="text-sm font-semibold text-white">Have someone in mind?</p>
+            <p className="mt-1 text-xs leading-5 text-white/50">Browse public profiles and start a nomination connected to their Quest profile.</p>
+          </div>
+          <a
+            href="/thequest/nominationindex"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 border border-[#FF5A09]/60 px-4 text-[10px] font-bold uppercase tracking-[.13em] text-[#ff8a52] transition-colors hover:bg-[#FF5A09]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a52]"
+            data-testid="link-nomination-directory"
+          >
+            Discover talent <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
 
         <div className="mb-10" ref={competitionSectionRef}>
           <p className="text-[#5f5f5f] text-sm mb-1">Select Competition</p>
