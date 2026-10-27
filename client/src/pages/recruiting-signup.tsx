@@ -153,7 +153,7 @@ export default function RecruitingSignupPage() {
       <SiteNavbar />
       <main className="relative isolate overflow-hidden">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[430px] bg-[radial-gradient(ellipse_at_top,rgba(255,90,9,0.17),transparent_64%)]" />
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-4 pt-28 pb-8 sm:px-6 md:pt-32 md:pb-12 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16 lg:px-8 lg:pt-16 lg:pb-16">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-4 pt-28 pb-8 sm:px-6 md:pt-32 md:pb-12 lg:grid-cols-[0.82fr_1.18fr] lg:gap-16 lg:px-8 lg:pt-32 lg:pb-16">
           <section className="lg:sticky lg:top-8 lg:self-start" aria-labelledby="signup-title">
             <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#ff8957]">
               <span className="h-px w-7 bg-[#ff5a09]" /> The Quest · Contestant profile
