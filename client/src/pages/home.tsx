@@ -1,3 +1,4 @@
+import "./home.css";
 import { useLivery } from "@/hooks/use-livery";
 import { useState, useEffect } from "react";
 import { Facebook, Twitter, Youtube, Instagram, Menu, X, ChevronRight, Trophy, Music, Star, Users, Mail, Phone, MapPin, Zap } from "lucide-react";
@@ -12,6 +13,22 @@ function darkenHex(hex: string, amount = 0.15): string {
   const b = parseInt(h.slice(4, 6), 16);
   const f = 1 - amount;
   return `#${Math.round(r * f).toString(16).padStart(2, "0")}${Math.round(g * f).toString(16).padStart(2, "0")}${Math.round(b * f).toString(16).padStart(2, "0")}`;
+}
+function lightenHex(hex: string, amount = 0.2): string {
+  const h = hex.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(h)) return hex;
+  const channels = [0, 2, 4].map((offset) => parseInt(h.slice(offset, offset + 2), 16));
+  return `#${channels.map((channel) => Math.round(channel + (255 - channel) * amount).toString(16).padStart(2, "0")).join("")}`;
+}
+function getReadableTextColor(hex: string): string {
+  const h = hex.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(h)) return "#ffffff";
+  const channels = [0, 2, 4].map((offset) => parseInt(h.slice(offset, offset + 2), 16) / 255);
+  const linear = channels.map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+  const luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  const whiteContrast = 1.05 / (luminance + 0.05);
+  const blackContrast = (luminance + 0.05) / 0.05;
+  return blackContrast >= whiteContrast ? "#101510" : "#ffffff";
 }
 function hexAlpha(hex: string, opacity: number): string {
   const base = hex.startsWith("#") && hex.length === 7 ? hex : (hex.length === 6 ? `#${hex}` : hex.slice(0, 7));
@@ -31,13 +48,13 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
           </a>
 
           <button
-            className="md:hidden text-white p-2"
+            className="lg:hidden text-white p-2"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-8">
             <a href="#home" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Home</a>
             <a href="#feature" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">Features</a>
             <a href="#about" className="text-white text-sm font-semibold uppercase tracking-wider hover:text-[var(--cbp-brand)] transition-colors">About</a>
@@ -47,22 +64,25 @@ function HomeNavbar({ scrolled }: { scrolled: boolean }) {
 
           <a
             href="/thequest"
-            className="hidden md:inline-flex items-center gap-2 border border-[var(--cbp-brand)] text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-widest px-5 py-2.5 rounded-full hover:bg-[var(--cbp-brand)]/10 transition-colors"
+            className="cbp-quest-cta group hidden min-h-11 lg:inline-flex items-center gap-2 px-5 py-2.5 text-xs font-extrabold uppercase tracking-[0.12em] rounded-full"
           >
-            Explore The Quest <span className="text-base leading-none">›</span>
+            Explore The Quest <ChevronRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-1" />
           </a>
         </div>
       </div>
 
       {menuOpen && (
-        <div className="md:hidden bg-black/95 border-t border-white/10 px-4 py-4 space-y-1">
+        <div className="lg:hidden bg-black/95 border-t border-white/10 px-4 py-4 space-y-1">
           {[["#home", "Home"], ["#feature", "Features"], ["#about", "About"], ["/thequest/NonProfits", "Nonprofits"], ["#contact", "Contact"]].map(([href, label]) => (
             <a key={href} href={href} onClick={() => setMenuOpen(false)}
               className="block py-2 text-white font-semibold uppercase tracking-wider text-sm hover:text-[var(--cbp-brand)]"
               data-testid={label === "Nonprofits" ? "link-mobile-nonprofits" : undefined}>{label}</a>
           ))}
-          <a href="/thequest" className="block py-2 text-[var(--cbp-brand)] font-bold uppercase tracking-wider text-sm">
-            The Quest →
+          <a
+            href="/thequest"
+            className="cbp-quest-cta group mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em]"
+          >
+            Explore The Quest <ChevronRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-1" />
           </a>
         </div>
       )}
@@ -145,10 +165,14 @@ export default function HomePage() {
     const root = document.documentElement;
     root.style.setProperty("--cbp-brand", brandColor);
     root.style.setProperty("--cbp-brand-dark", darkenHex(brandColor));
+    root.style.setProperty("--cbp-brand-light", lightenHex(brandColor));
+    root.style.setProperty("--cbp-brand-foreground", getReadableTextColor(brandColor));
     root.style.setProperty("--cbp-feat-overlay-bg", hexAlpha(brandColor, 0.7));
     return () => {
       root.style.removeProperty("--cbp-brand");
       root.style.removeProperty("--cbp-brand-dark");
+      root.style.removeProperty("--cbp-brand-light");
+      root.style.removeProperty("--cbp-brand-foreground");
       root.style.removeProperty("--cbp-feat-overlay-bg");
     };
   }, [brandColor]);
@@ -195,9 +219,9 @@ export default function HomePage() {
           </p>
           <a
             href="/thequest"
-            className="mt-6 inline-flex items-center gap-2 border border-[var(--cbp-brand)] text-[var(--cbp-brand)] font-bold text-sm uppercase tracking-widest px-7 py-3 rounded-full hover:bg-[var(--cbp-brand)]/10 transition-colors"
+            className="cbp-quest-cta group mt-6 inline-flex min-h-12 items-center gap-2 px-7 py-3 rounded-full text-xs sm:text-sm font-extrabold uppercase tracking-[0.14em]"
           >
-            See More <span className="text-base leading-none">›</span>
+            Explore The Quest <ChevronRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-1" />
           </a>
         </div>
       </section>
