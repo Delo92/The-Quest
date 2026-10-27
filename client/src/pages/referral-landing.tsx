@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearch } from "wouter";
 import { useEffect } from "react";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import CBLogo from "@/components/cb-logo";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify , competitionSlug } from "@shared/slugify";
 
@@ -40,8 +41,8 @@ export default function ReferralLandingPage() {
   }, [data, setLocation]);
 
   useSEO({
-    title: data?.competition ? `${data.competition.title} — ${data.hostName}` : "The Quest — Talent Competition & Voting Platform",
-    description: data?.competition?.description || (data?.competition ? `Join ${data.competition.title}, hosted by ${data.hostName}.` : "Browse competitions, nominate talent, and vote on The Quest."),
+    title: data?.competition ? data.competition.title : "The Quest — Talent Competition & Voting Platform",
+    description: data?.competition?.description || (data?.competition ? `Join ${data.competition.title} on The Quest.` : "Browse competitions, nominate talent, and vote on The Quest."),
     canonical: data?.competition ? `${window.location.origin}/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}` : `${window.location.origin}/thequest`,
     ogImage: data?.competition?.coverImage || undefined,
   });
@@ -113,14 +114,6 @@ export default function ReferralLandingPage() {
 
         <section className="mt-10 overflow-hidden border border-white/10 bg-black">
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-black sm:aspect-[16/9]">
-            {data.competition.coverImage && (
-              <img
-                src={data.competition.coverImage}
-                alt=""
-                className="absolute inset-0 h-full w-full object-contain"
-                data-testid="img-referral-competition-cover"
-              />
-            )}
             {heroVideo && (
               <video
                 src={heroVideo}
@@ -135,12 +128,12 @@ export default function ReferralLandingPage() {
                 data-testid="video-referral-competition"
               />
             )}
-            {data.competition.titleLogo && (
+            {!heroVideo && data.competition.coverImage && (
               <img
-                src={data.competition.titleLogo}
+                src={data.competition.coverImage}
                 alt={data.competition.title}
-                className="absolute left-1/2 top-1/2 z-10 max-h-[72%] w-auto max-w-[74%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_6px_24px_rgba(0,0,0,0.8)]"
-                data-testid="img-referral-competition-title"
+                className="h-full w-full object-contain"
+                data-testid="img-referral-competition-cover"
               />
             )}
             <div className="pointer-events-none absolute inset-0 bg-black/15" />
