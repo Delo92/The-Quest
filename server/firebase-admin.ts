@@ -96,6 +96,7 @@ export interface FirestoreUser {
     updatedAt: string | null;
   } | null;
   competitionEntryFeesAcknowledgedAt?: string;
+  signupReferralCompetitionId?: number;
   hostEventFeesAcknowledgedAt?: string;
   marketingGuidelinesAcknowledgedAt?: string;
   marketingGuidelinesAcknowledgedVersion?: string;
@@ -121,6 +122,7 @@ export async function createFirestoreUser(data: {
   profileImageUrl?: string;
   stageName?: string;
   socialLinks?: Record<string, string>;
+  signupReferralCompetitionId?: number;
   competitionEntryFeesAcknowledgedAt?: string;
   hostEventFeesAcknowledgedAt?: string;
   marketingGuidelinesAcknowledgedAt?: string;

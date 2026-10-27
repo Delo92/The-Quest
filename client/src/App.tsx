@@ -17,6 +17,7 @@ const Landing = lazy(() => import("@/pages/landing"));
 const Competitions = lazy(() => import("@/pages/competitions"));
 const CompetitionDetail = lazy(() => import("@/pages/competition-detail"));
 const TalentProfilePublic = lazy(() => import("@/pages/talent-profile-public"));
+const RecruitingSignupPage = lazy(() => import("@/pages/recruiting-signup"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const LoginPage = lazy(() => import("@/pages/login"));
 const CheckoutPage = lazy(() => import("@/pages/checkout"));
@@ -63,6 +64,7 @@ function QuestRouter() {
       <Route path="/admin" component={Dashboard} />
       <Route path="/admin/forms" component={AdminFormsPage} />
       <Route path="/f/:slug" component={PublicFormPage} />
+      <Route path="/:categorySlug/:compSlug/recruiting" component={RecruitingSignupPage} />
       <Route path="/:categorySlug/:compSlug/:talentSlug" component={() => <ContestantSharePage />} />
       <Route path="/:categorySlug/:compSlug" component={() => <CompetitionDetail />} />
       <Route component={NotFound} />

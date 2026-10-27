@@ -402,6 +402,12 @@ export function useAuth() {
       marketingGuidelinesAcknowledged?: boolean;
       votedArtistReminderAcknowledged?: boolean;
       referralCode?: string;
+      recruitingCompetitionId?: number;
+      stageName?: string;
+      bio?: string;
+      category?: string;
+      location?: string;
+      socialLinks?: Record<string, string>;
     },
   ) => {
     if (demoMode) throw new Error("Account creation is disabled in the public demo.");
@@ -437,6 +443,9 @@ export function useAuth() {
           setCachedUser(userData);
         }
       }
+      return {
+        talentProfileId: typeof result.talentProfileId === "number" ? result.talentProfileId : undefined,
+      };
     } catch (err: any) {
       const msg = err.code === "auth/email-already-in-use" ? "Email already in use"
         : err.code === "auth/weak-password" ? "Password must be at least 6 characters"

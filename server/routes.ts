@@ -1334,6 +1334,7 @@ export async function registerRoutes(
 
   app.post("/api/auth/register", async (req, res) => {
     let createdUid: string | null = null;
+    let createdTalentProfileId: number | null = null;
     try {
       const {
         email,
@@ -1349,6 +1350,10 @@ export async function registerRoutes(
         hostEventFeesAcknowledged,
         marketingGuidelinesAcknowledged,
         votedArtistReminderAcknowledged,
+        bio,
+        category,
+        location,
+        recruitingCompetitionId,
       } = req.body || {};
       const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
       const normalizedDisplayName = typeof displayName === "string" ? displayName.trim() : "";
@@ -1356,7 +1361,33 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Name, email, and a password of at least 6 characters are required" });
       }
 
-      let level = requestedLevel === undefined || requestedLevel === null ? 1 : Number(requestedLevel);
+      const hasRecruitingReferral = recruitingCompetitionId !== undefined
+        && recruitingCompetitionId !== null
+        && recruitingCompetitionId !== "";
+      if (hasRecruitingReferral && inviteToken) {
+        return res.status(400).json({ message: "Recruiting signup cannot be combined with an invitation" });
+      }
+      if (hasRecruitingReferral && requestedLevel !== undefined && requestedLevel !== null && Number(requestedLevel) !== 2) {
+        return res.status(400).json({ message: "Recruiting signup is for Competitor/Contestant accounts only" });
+      }
+
+      let recruitingCompetition: Awaited<ReturnType<typeof storage.getCompetition>> = null;
+      if (hasRecruitingReferral) {
+        const parsedCompetitionId = Number(recruitingCompetitionId);
+        if (!Number.isInteger(parsedCompetitionId) || parsedCompetitionId < 1) {
+          return res.status(400).json({ message: "A valid recruiting competition is required" });
+        }
+        recruitingCompetition = await storage.getCompetition(parsedCompetitionId);
+        if (!recruitingCompetition || recruitingCompetition.status === "draft") {
+          return res.status(404).json({ message: "Recruiting competition not found" });
+        }
+      }
+
+      let level = hasRecruitingReferral
+        ? 2
+        : requestedLevel === undefined || requestedLevel === null
+          ? 1
+          : Number(requestedLevel);
       if (![1, 2, 3].includes(level)) {
         return res.status(400).json({ message: "Choose a valid account type" });
       }
@@ -1389,6 +1420,23 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Please acknowledge the marketing guidelines" });
       }
 
+      let normalizedRecruitingSocialLinks: Record<string, string> | undefined;
+      if (hasRecruitingReferral) {
+        const submittedSocialLinks = socialLinks && typeof socialLinks === "object" && !Array.isArray(socialLinks)
+          ? socialLinks as Record<string, unknown>
+          : {};
+        normalizedRecruitingSocialLinks = {};
+        for (const platform of ["youtube", "instagram", "tiktok", "facebook"] as const) {
+          const value = submittedSocialLinks[platform];
+          if (typeof value !== "string" || !value.trim()) continue;
+          const safeUrl = safeExternalHttpUrl(value);
+          if (!safeUrl) {
+            return res.status(400).json({ message: `Enter a valid ${platform} link` });
+          }
+          normalizedRecruitingSocialLinks[platform] = safeUrl;
+        }
+      }
+
       const firebaseUser = await createFirebaseUser(normalizedEmail, password, normalizedDisplayName);
       createdUid = firebaseUser.uid;
       await setUserLevel(firebaseUser.uid, level);
@@ -1399,8 +1447,9 @@ export async function registerRoutes(
         displayName: normalizedDisplayName,
         stageName: typeof stageName === "string" ? stageName.trim() || undefined : undefined,
         level,
-        socialLinks: socialLinks || undefined,
+        socialLinks: hasRecruitingReferral ? normalizedRecruitingSocialLinks : socialLinks || undefined,
         billingAddress: billingAddress || undefined,
+        signupReferralCompetitionId: recruitingCompetition?.id,
         competitionEntryFeesAcknowledgedAt: level === 2 ? new Date().toISOString() : undefined,
         hostEventFeesAcknowledgedAt: level === 3 ? new Date().toISOString() : undefined,
         marketingGuidelinesAcknowledgedAt: [2, 3].includes(level) ? new Date().toISOString() : undefined,
@@ -1421,18 +1470,25 @@ export async function registerRoutes(
 
       const roleMap: Record<number, string> = { 1: "viewer", 2: "talent", 3: "host", 4: "admin" };
       if (level >= 2) {
-        await storage.createTalentProfile({
+        const profileSocialLinks = hasRecruitingReferral
+          ? normalizedRecruitingSocialLinks
+          : socialLinks && typeof socialLinks === "object" && !Array.isArray(socialLinks)
+            ? socialLinks as Record<string, string>
+            : undefined;
+
+        const createdProfile = await storage.createTalentProfile({
           userId: firebaseUser.uid,
           displayName: normalizedDisplayName,
-          stageName: stageName || null,
-          bio: null,
-          category: null,
-          location: null,
+          stageName: typeof stageName === "string" ? stageName.trim() || null : null,
+          bio: hasRecruitingReferral && typeof bio === "string" ? bio.trim() || null : null,
+          category: hasRecruitingReferral && typeof category === "string" ? category.trim() || null : null,
+          location: hasRecruitingReferral && typeof location === "string" ? location.trim() || null : null,
           imageUrls: [],
           videoUrls: [],
-          socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
+          socialLinks: profileSocialLinks ? JSON.stringify(profileSocialLinks) : null,
           role: roleMap[level],
         });
+        createdTalentProfileId = createdProfile.id;
       }
 
       const customToken = await getFirebaseAuth().createCustomToken(firebaseUser.uid);
@@ -1476,6 +1532,7 @@ export async function registerRoutes(
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
         level,
+        talentProfileId: createdTalentProfileId,
         customToken,
       });
     } catch (error: any) {
@@ -2803,8 +2860,47 @@ export async function registerRoutes(
     const approved = entries.filter((e) => e.applicationStatus === "approved");
     const comps = await Promise.all(approved.map((e) => storage.getCompetition(e.competitionId)));
     res.json(comps
-      .filter((c): c is NonNullable<typeof c> => !!c && (c.status === "active" || c.status === "voting"))
+      .filter((c): c is NonNullable<typeof c> => !!c && c.status !== "draft")
       .map((c) => ({ id: c.id, title: c.title, category: c.category || null })));
+  });
+
+  app.get("/api/talent-profiles/:id/public", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ message: "Invalid profile ID" });
+    const profile = await storage.getTalentProfile(id);
+    if (!profile || String(profile.role || "").toLowerCase() !== "talent") {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    let socialLinks: Record<string, string> = {};
+    let customLinks: Array<{ label: string; url: string }> = [];
+    try {
+      socialLinks = parsePublicLinks(profile.socialLinks);
+      customLinks = parseCustomPublicLinks(profile.socialLinks);
+    } catch {}
+    const safeSocialLinks = JSON.stringify({
+      ...socialLinks,
+      ...(customLinks.length ? { customLinks } : {}),
+    });
+
+    setPublicCacheHeaders(res, 60);
+    res.json({
+      id: profile.id,
+      role: profile.role,
+      displayName: profile.displayName,
+      stageName: profile.stageName || null,
+      bio: profile.bio || null,
+      category: profile.category || null,
+      location: profile.location || null,
+      email: profile.showEmail === true ? profile.email || null : null,
+      showEmail: profile.showEmail === true,
+      imageUrls: Array.isArray(profile.imageUrls) ? profile.imageUrls : [],
+      imageBackupUrls: Array.isArray(profile.imageBackupUrls) ? profile.imageBackupUrls : [],
+      imageCropPositions: Array.isArray(profile.imageCropPositions) ? profile.imageCropPositions : [],
+      socialLinks: safeSocialLinks,
+      profileColor: profile.profileColor || null,
+      profileBgImage: profile.profileBgImage || null,
+    });
   });
 
   app.get("/api/talent-profiles/:id", async (req, res) => {
@@ -5938,30 +6034,67 @@ export async function registerRoutes(
 
       const {
         fullName, email, phone, bio, category, competitionId, nominatorEmail, suggestedNonprofit,
+        talentProfileId: requestedTalentProfileId,
         contestantDivision,
         dataDescriptor, dataValue, stripePaymentIntentId, paypalOrderId, ocPaymentId: nominateOcPaymentId,
         mediaUrls, imageCropPositions, promoCode, referralCode, billingAddress,
         nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged,
         nonprofitProceedsAcknowledged,
       } = req.body;
-      const nomineeImageUrls = Array.isArray(mediaUrls) ? mediaUrls : [];
+      const hasProfileTarget = requestedTalentProfileId !== undefined
+        && requestedTalentProfileId !== null
+        && requestedTalentProfileId !== "";
+      let profileTarget: any = null;
+      let profileTargetAuthUser: any = null;
+      if (hasProfileTarget) {
+        const parsedProfileId = Number(requestedTalentProfileId);
+        if (!Number.isSafeInteger(parsedProfileId) || parsedProfileId < 1) {
+          return res.status(400).json({ message: "Invalid contestant profile" });
+        }
+        profileTarget = await storage.getTalentProfile(parsedProfileId);
+        if (!profileTarget || String(profileTarget.role || "").toLowerCase() !== "talent") {
+          return res.status(404).json({ message: "Contestant profile not found" });
+        }
+        try {
+          profileTargetAuthUser = await getFirebaseAuth().getUser(profileTarget.userId);
+        } catch {
+          return res.status(404).json({ message: "Contestant account not found" });
+        }
+        if (typeof profileTargetAuthUser.email !== "string" || !profileTargetAuthUser.email.trim()) {
+          return res.status(400).json({ message: "This contestant account cannot receive nomination updates" });
+        }
+      }
+      const nomineeName = profileTarget
+        ? String(profileTarget.stageName || profileTarget.displayName || "").trim()
+        : typeof fullName === "string" ? fullName.trim() : "";
+      const nomineeEmail = profileTarget
+        ? String(profileTargetAuthUser.email).trim().toLowerCase()
+        : typeof email === "string" ? email.trim().toLowerCase() : "";
+      const normalizedNominatorEmail = typeof nominatorEmail === "string" ? nominatorEmail.trim().toLowerCase() : "";
+      const nonprofitSuggestion = typeof suggestedNonprofit === "string" ? suggestedNonprofit.trim() : "";
+      if (!nomineeName || !nomineeEmail) {
+        return res.status(400).json({
+          message: profileTarget ? "Contestant account details are incomplete" : "Nominee name and email are required",
+        });
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nomineeEmail)) {
+        return res.status(400).json({ message: "Enter a valid nominee email" });
+      }
+      const requestedNomineeImageUrls = Array.isArray(mediaUrls) ? mediaUrls : [];
+      const nomineeImageUrls = profileTarget
+        ? (Array.isArray(profileTarget.imageUrls) ? profileTarget.imageUrls : [])
+        : requestedNomineeImageUrls;
       const normalizedNominationImageCropPositions = normalizeImageCropPositions(
-        imageCropPositions,
+        profileTarget ? profileTarget.imageCropPositions : imageCropPositions,
         nomineeImageUrls.length,
       );
       if (!normalizedNominationImageCropPositions) {
         return res.status(400).json({ message: "Invalid image framing settings" });
       }
-      const nomineeName = typeof fullName === "string" ? fullName.trim() : "";
-      const nomineeEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
-      const normalizedNominatorEmail = typeof nominatorEmail === "string" ? nominatorEmail.trim().toLowerCase() : "";
-      const nonprofitSuggestion = typeof suggestedNonprofit === "string" ? suggestedNonprofit.trim() : "";
-      if (!nomineeName || !nomineeEmail) {
-        return res.status(400).json({ message: "Nominee name and email are required" });
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nomineeEmail)) {
-        return res.status(400).json({ message: "Enter a valid nominee email" });
-      }
+      const nomineePhone = profileTarget ? null : phone || null;
+      const nomineeBio = profileTarget ? profileTarget.bio || null : bio || null;
+      const nomineeCategory = profileTarget ? profileTarget.category || null : category || null;
+      const nomineeSocialLinks = profileTarget ? profileTarget.socialLinks || null : null;
       if (normalizedNominatorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedNominatorEmail)) {
         return res.status(400).json({ message: "Enter a valid email for nomination updates or leave it blank" });
       }
@@ -5986,6 +6119,12 @@ export async function registerRoutes(
       const targetCompetition = await storage.getCompetition(Number(competitionId));
       if (!targetCompetition || ["completed", "cancelled", "draft"].includes(targetCompetition.status)) {
         return res.status(400).json({ message: "This competition is not accepting nominations" });
+      }
+      if (profileTarget) {
+        const existingContestant = await storage.getContestant(targetCompetition.id, profileTarget.id);
+        if (existingContestant) {
+          return res.status(409).json({ message: `${nomineeName} is already in ${targetCompetition.title}` });
+        }
       }
       const divisionSelection = resolveContestantDivision(
         targetCompetition,
@@ -6040,30 +6179,36 @@ export async function registerRoutes(
       let contestantId: number | null = null;
       let contestantIsActive = false;
       let emailSent = false;
+      let nomineeAccountCreated = false;
 
       try {
-        let existingUser: any = null;
-        try {
-          existingUser = await getFirebaseAuth().getUserByEmail(nomineeEmail);
-          firebaseUid = existingUser.uid;
-        } catch (e: any) {
-          if (e.code === "auth/user-not-found") {
-            const newUser = await createFirebaseUser(nomineeEmail, DEFAULT_PASSWORD, nomineeName);
-            firebaseUid = newUser.uid;
-            await setUserLevel(firebaseUid, 2);
-            await createFirestoreUser({
-              uid: firebaseUid,
-              email: nomineeEmail,
-              displayName: nomineeName,
-              level: 2,
-            });
-          } else {
-            throw e;
+        let existingUser: any = profileTargetAuthUser || null;
+        if (profileTarget) {
+          firebaseUid = profileTarget.userId;
+        } else {
+          try {
+            existingUser = await getFirebaseAuth().getUserByEmail(nomineeEmail);
+            firebaseUid = existingUser.uid;
+          } catch (e: any) {
+            if (e.code === "auth/user-not-found") {
+              const newUser = await createFirebaseUser(nomineeEmail, DEFAULT_PASSWORD, nomineeName);
+              firebaseUid = newUser.uid;
+              nomineeAccountCreated = true;
+              await setUserLevel(firebaseUid, 2);
+              await createFirestoreUser({
+                uid: firebaseUid,
+                email: nomineeEmail,
+                displayName: nomineeName,
+                level: 2,
+              });
+            } else {
+              throw e;
+            }
           }
         }
 
         if (firebaseUid) {
-          let existingProfile = await storage.getTalentProfileByUserId(firebaseUid);
+          let existingProfile = profileTarget || await storage.getTalentProfileByUserId(firebaseUid);
           if (!existingProfile) {
             existingProfile = await storage.createTalentProfile({
               userId: firebaseUid,
@@ -6151,14 +6296,14 @@ export async function registerRoutes(
         contestantDivision: divisionSelection.contestantDivision,
         fullName: nomineeName,
         email: nomineeEmail,
-        phone: phone || null,
+        phone: nomineePhone,
         address: null,
         city: null,
         state: null,
         zip: null,
-        bio: bio || null,
-        category: category || null,
-        socialLinks: null,
+        bio: nomineeBio,
+        category: nomineeCategory,
+        socialLinks: nomineeSocialLinks,
         mediaUrls: nomineeImageUrls,
         imageCropPositions: normalizedNominationImageCropPositions,
         transactionId,
@@ -6271,7 +6416,8 @@ export async function registerRoutes(
 
       const response = {
         ...submission,
-        accountCreated: !!firebaseUid,
+        accountCreated: nomineeAccountCreated,
+        nominationForExistingProfile: Boolean(profileTarget),
         talentProfileId,
         contestantId,
         emailSent,

@@ -53,6 +53,16 @@ interface AppliedNominationPromo {
   finalAmountCents: number;
 }
 
+interface PublicNominationProfile {
+  id: number;
+  displayName: string;
+  stageName: string | null;
+  bio: string | null;
+  category: string | null;
+  imageUrls: string[];
+  imageCropPositions?: Array<{ x: number; y: number; zoom?: number }>;
+}
+
 const FIELD_LABELS: Record<string, string> = {
   fullName: "Nominee's Name",
   email: "Email",
@@ -95,6 +105,14 @@ export default function JoinPage() {
   const [acceptLoaded, setAcceptLoaded] = useState(false);
   const [stripeLoaded, setStripeLoaded] = useState(false);
   const searchString = useSearch();
+  const profileIdParam = new URLSearchParams(searchString).get("profileId");
+  const parsedProfileId = profileIdParam ? Number(profileIdParam) : null;
+  const profileTargetId = parsedProfileId !== null
+    && Number.isSafeInteger(parsedProfileId)
+    && parsedProfileId > 0
+    ? parsedProfileId
+    : null;
+  const invalidProfileTarget = Boolean(profileIdParam) && profileTargetId === null;
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
   const [selectedDivision, setSelectedDivision] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -154,6 +172,30 @@ export default function JoinPage() {
   const { data: competitions } = useQuery<Competition[]>({
     queryKey: ["/api/competitions"],
   });
+
+  const {
+    data: profileTarget,
+    isLoading: isProfileTargetLoading,
+    isError: isProfileTargetError,
+  } = useQuery<PublicNominationProfile>({
+    queryKey: ["/api/talent-profiles", profileTargetId, "public"],
+    queryFn: async () => {
+      const response = await fetch(`/api/talent-profiles/${profileTargetId}/public`);
+      if (!response.ok) throw new Error("Contestant profile could not be loaded");
+      return response.json();
+    },
+    enabled: profileTargetId !== null,
+  });
+
+  useEffect(() => {
+    if (!profileTarget) return;
+    setForm((previous) => ({
+      ...previous,
+      fullName: profileTarget.stageName?.trim() || profileTarget.displayName,
+      bio: profileTarget.bio || "",
+      category: profileTarget.category || "",
+    }));
+  }, [profileTarget]);
 
   const { data: firestoreCategories } = useQuery<any[]>({
     queryKey: ["/api/categories"],
@@ -279,6 +321,14 @@ export default function JoinPage() {
 
   const validateForm = useCallback(() => {
     if (!settings) return false;
+    if (invalidProfileTarget) {
+      toast({ title: "This contestant profile link is invalid", variant: "destructive" });
+      return false;
+    }
+    if (profileTargetId !== null && (isProfileTargetLoading || isProfileTargetError || !profileTarget)) {
+      toast({ title: "Contestant profile is not ready", description: "Reload the profile link and try again.", variant: "destructive" });
+      return false;
+    }
     if (promoCode.trim() && !appliedPromo) {
       toast({ title: "Apply or clear the promo or referral code before submitting", variant: "destructive" });
       return false;
@@ -307,11 +357,11 @@ export default function JoinPage() {
       toast({ title: "Please choose a contestant division", variant: "destructive" });
       return false;
     }
-    if (!form.fullName?.trim()) {
+    if (profileTargetId === null && !form.fullName?.trim()) {
       toast({ title: "Nominee's name is required", variant: "destructive" });
       return false;
     }
-    if (!form.email?.trim()) {
+    if (profileTargetId === null && !form.email?.trim()) {
       toast({ title: "Nominee's email is required", variant: "destructive" });
       return false;
     }
@@ -340,7 +390,7 @@ export default function JoinPage() {
       }
     }
     return true;
-  }, [settings, promoCode, appliedPromo, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
+  }, [settings, invalidProfileTarget, profileTargetId, isProfileTargetLoading, isProfileTargetError, profileTarget, promoCode, appliedPromo, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged, form, nominatorForm, selectedCompetitionId, needsPayment, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, stripeLoaded, stripeCard, toast]);
 
   const processPayment = useCallback(async () => {
     setShowConfirmModal(false);
@@ -350,18 +400,23 @@ export default function JoinPage() {
       try {
         const nominationResponse = await apiRequest("POST", "/api/join/nominate", {
           idempotencyKey: paymentIdempotencyKey.current,
-          fullName: form.fullName,
-          email: form.email,
+          talentProfileId: profileTarget?.id,
+          fullName: profileTarget ? profileTarget.stageName?.trim() || profileTarget.displayName : form.fullName,
+          email: profileTarget ? "" : form.email,
           phone: form.phone || "",
-          bio: form.bio || "",
-          category: form.category || "",
+          bio: profileTarget?.bio || form.bio || "",
+          category: profileTarget?.category || form.category || "",
           competitionId: selectedCompetitionId,
           contestantDivision: selectedDivision || undefined,
           nominatorEmail: nominatorForm.email?.trim() || undefined,
           suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
           referralCode: appliedReferralCode || undefined,
-          mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
-          imageCropPositions: nominationImageUrl ? [nominationImageCropPosition] : [],
+          mediaUrls: profileTarget?.imageUrls?.length
+            ? profileTarget.imageUrls
+            : nominationImageUrl ? [nominationImageUrl] : [],
+          imageCropPositions: profileTarget?.imageUrls?.length
+            ? profileTarget.imageCropPositions || []
+            : nominationImageUrl ? [nominationImageCropPosition] : [],
           promoCode: promoValidated ? promoCode : undefined,
           dataDescriptor,
           dataValue,
@@ -374,13 +429,21 @@ export default function JoinPage() {
           votedArtistReminderAcknowledged,
           nonprofitProceedsAcknowledged,
         });
-        setSuccess(true);
         const nominationResult = await nominationResponse.json();
+        setForm((previous) => ({
+          ...previous,
+          fullName: nominationResult.fullName || previous.fullName || "",
+        }));
+        setSuccess(true);
         toast({
           title: nominationResult.emailSent === false ? "Nomination saved; email needs attention" : "Nomination submitted!",
           description: nominationResult.emailSent === false
-            ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions."
-            : `The nominee was emailed login and account access instructions.${appliedReferralCode ? ` Referral tracked: ${appliedReferralCode}.` : ""}`,
+            ? nominationResult.nominationForExistingProfile
+              ? "The contestant could not be notified. Contact The Quest for help."
+              : "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions."
+            : nominationResult.nominationForExistingProfile
+              ? `The contestant was notified of the nomination.${appliedReferralCode ? ` Referral tracked: ${appliedReferralCode}.` : ""}`
+              : `The nominee was emailed login and account access instructions.${appliedReferralCode ? ` Referral tracked: ${appliedReferralCode}.` : ""}`,
           variant: nominationResult.emailSent === false ? "destructive" : "default",
           diagnosticContext: nominationResult.emailDiagnosticId
             ? { diagnosticId: nominationResult.emailDiagnosticId }
@@ -401,6 +464,7 @@ export default function JoinPage() {
           intentPayload: {
             idempotencyKey: paymentIdempotencyKey.current,
             competitionId: selectedCompetitionId,
+            talentProfileId: profileTarget?.id,
             promoCode: promoValidated ? promoCode : undefined,
             referralCode: appliedReferralCode || undefined,
           },
@@ -417,11 +481,12 @@ export default function JoinPage() {
     } else if (needsPayment && paymentConfig?.provider === "paypal") {
       const paypalPayload = {
         idempotencyKey: paymentIdempotencyKey.current,
-        fullName: form.fullName,
-        email: form.email,
+        talentProfileId: profileTarget?.id,
+        fullName: profileTarget ? profileTarget.stageName?.trim() || profileTarget.displayName : form.fullName,
+        email: profileTarget ? "" : form.email,
         phone: form.phone || "",
-        bio: form.bio || "",
-        category: form.category || "",
+        bio: profileTarget?.bio || form.bio || "",
+        category: profileTarget?.category || form.category || "",
         nominationFeeAcknowledged,
         marketingGuidelinesAcknowledged,
         votedArtistReminderAcknowledged,
@@ -431,8 +496,12 @@ export default function JoinPage() {
         nominatorEmail: nominatorForm.email?.trim() || undefined,
         suggestedNonprofit: form.suggestedNonprofit?.trim() || undefined,
         referralCode: appliedReferralCode || undefined,
-        mediaUrls: nominationImageUrl ? [nominationImageUrl] : [],
-        imageCropPositions: nominationImageUrl ? [nominationImageCropPosition] : [],
+        mediaUrls: profileTarget?.imageUrls?.length
+          ? profileTarget.imageUrls
+          : nominationImageUrl ? [nominationImageUrl] : [],
+        imageCropPositions: profileTarget?.imageUrls?.length
+          ? profileTarget.imageCropPositions || []
+          : nominationImageUrl ? [nominationImageCropPosition] : [],
         promoCode: promoValidated ? promoCode : undefined,
         billingAddress,
       };
@@ -441,8 +510,8 @@ export default function JoinPage() {
         await createPayPalRedirect({
           purpose: "nominate",
           payload: paypalPayload,
-          returnUrl: `${window.location.origin}/join?paypalReturn=1`,
-          cancelUrl: `${window.location.origin}/join?paypalCancel=1`,
+          returnUrl: `${window.location.origin}/thequest/nominate?paypalReturn=1`,
+          cancelUrl: `${window.location.origin}/thequest/nominate?paypalCancel=1`,
         });
       } catch (error: any) {
         sessionStorage.removeItem("quest_paypal_nomination");
@@ -474,7 +543,7 @@ export default function JoinPage() {
     } else {
       await submitData();
     }
-  }, [settings, form, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, appliedReferralCode, stripeLoaded, stripeCard, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged]);
+  }, [settings, form, profileTarget, nominatorForm, mode, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, toast, selectedCompetitionId, needsPayment, nominationImageUrl, promoCode, promoValidated, appliedReferralCode, stripeLoaded, stripeCard, nominationFeeAcknowledged, marketingGuidelinesAcknowledged, votedArtistReminderAcknowledged, nonprofitProceedsAcknowledged]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -488,10 +557,20 @@ export default function JoinPage() {
         const data = await response.json();
           if (!response.ok) throw new Error(data.message || "PayPal donation could not be completed.");
         sessionStorage.removeItem("quest_paypal_nomination");
+        setForm((previous) => ({
+          ...previous,
+          fullName: data.fullName || previous.fullName || "",
+        }));
         setSuccess(true);
         toast({
           title: data.emailSent === false ? "Nomination saved; email needs attention" : "Nomination submitted!",
-          description: data.emailSent === false ? "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions." : "The nominee was emailed login and account access instructions.",
+          description: data.emailSent === false
+            ? data.nominationForExistingProfile
+              ? "The contestant could not be notified. Contact The Quest for help."
+              : "The nominee's login email could not be sent. Contact The Quest so an admin can resend account access instructions."
+            : data.nominationForExistingProfile
+              ? "The contestant was notified of the nomination."
+              : "The nominee was emailed login and account access instructions.",
           variant: data.emailSent === false ? "destructive" : "default",
           diagnosticContext: data.emailDiagnosticId
             ? { diagnosticId: data.emailDiagnosticId }
@@ -521,7 +600,7 @@ export default function JoinPage() {
             NOMINATION SUBMITTED
           </h2>
           <p className="text-white/60 mb-8">
-            Thank you for nominating {form.fullName}! Our team will review the nomination and reach out to them.
+            Thank you for nominating {form.fullName || "this contestant"}! The nomination is now connected to their Quest profile.
           </p>
           <a href="/competitions">
             <span className="inline-block bg-[#FF5A09] text-white font-bold text-sm uppercase px-8 leading-[47px] border border-[#FF5A09] transition-all duration-500 hover:bg-transparent hover:text-[#FF5A09] cursor-pointer" data-testid="button-browse">
@@ -561,7 +640,7 @@ export default function JoinPage() {
     );
   }
 
-  const activeFields = ["fullName", "email", "phone", "bio", "category"];
+  const activeFields = profileIdParam ? [] : ["fullName", "email", "phone", "bio", "category"];
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -726,13 +805,15 @@ export default function JoinPage() {
         )}
 
         <div className="space-y-5 mb-10">
-            <div className="flex items-start gap-3 bg-white/[0.06] border border-white/10 rounded-sm px-4 py-3 mb-6">
-              <Sparkles className="h-4 w-4 text-[#FF5A09] mt-0.5 shrink-0" />
-              <p className="text-white/70 text-sm leading-relaxed">
-                Want to put yourself in the spotlight?{" "}
-                <span className="text-white font-medium">You can nominate yourself</span> — just fill in your own details below.
-              </p>
-            </div>
+            {!profileIdParam && (
+              <div className="flex items-start gap-3 bg-white/[0.06] border border-white/10 rounded-sm px-4 py-3 mb-6">
+                <Sparkles className="h-4 w-4 text-[#FF5A09] mt-0.5 shrink-0" />
+                <p className="text-white/70 text-sm leading-relaxed">
+                  Want to put yourself in the spotlight?{" "}
+                  <span className="text-white font-medium">You can nominate yourself</span> — just fill in your own details below.
+                </p>
+              </div>
+            )}
             <p className="text-[#5f5f5f] text-sm mb-1">Optional Contact</p>
             <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
               NOMINATION UPDATES
@@ -843,6 +924,52 @@ export default function JoinPage() {
           <h3 className="text-lg uppercase text-white font-normal mb-6" style={{ letterSpacing: "6px" }}>
             WHO ARE YOU NOMINATING?
           </h3>
+
+          {profileIdParam && (
+            <div
+              className="mb-6 rounded-xl border border-[#FF5A09]/30 bg-[#FF5A09]/[0.06] p-4"
+              aria-busy={isProfileTargetLoading}
+              data-testid="nomination-profile-target"
+            >
+              {invalidProfileTarget ? (
+                <p role="alert" className="text-sm text-red-200" data-testid="status-invalid-profile-target">
+                  This contestant profile link is invalid.
+                </p>
+              ) : isProfileTargetLoading ? (
+                <p role="status" className="text-sm text-white/60" data-testid="status-profile-target-loading">
+                  Loading contestant profile…
+                </p>
+              ) : isProfileTargetError || !profileTarget ? (
+                <p role="alert" className="text-sm text-red-200" data-testid="status-profile-target-error">
+                  This contestant profile could not be loaded. Return to their profile and try again.
+                </p>
+              ) : (
+                <div className="flex items-center gap-4" data-testid="nomination-profile-summary">
+                  {profileTarget.imageUrls?.[0] ? (
+                    <img
+                      src={profileTarget.imageUrls[0]}
+                      alt=""
+                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-white/5 text-[#FF5A09]">
+                      <Trophy className="h-7 w-7" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-wider text-white/45">Contestant profile</p>
+                    <p className="mt-1 truncate font-semibold text-white" data-testid="text-nomination-profile-name">
+                      {profileTarget.stageName?.trim() || profileTarget.displayName}
+                    </p>
+                    {profileTarget.category && <p className="mt-1 text-xs text-white/50">{profileTarget.category}</p>}
+                    <p className="mt-2 text-xs leading-5 text-white/50">
+                      Their saved profile and public content will stay connected. Their email remains private.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {activeFields.map((field) => {
             const required = field === "fullName" || field === "email";

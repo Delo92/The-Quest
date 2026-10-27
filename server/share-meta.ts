@@ -343,6 +343,42 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     }
   }
 
+  if (parts.length === 4 && parts[0] === "thequest" && parts[3] === "recruiting") {
+    const [categorySlug, compSlug] = parts.slice(1, 3);
+    const competition = await getCompetitionBySlugs(categorySlug, compSlug);
+    const canonical = `${origin}/thequest/${categorySlug}/${compSlug}/recruiting`;
+    if (!competition || competition.status === "draft") {
+      return {
+        title: "Recruiting page unavailable | The Quest",
+        description: "This competition recruiting page is not available.",
+        url: canonical,
+        canonical,
+        robots: "noindex, follow",
+        fallbackHtml: fallbackHtml(
+          "Recruiting page unavailable",
+          "This competition recruiting page is not available.",
+          [{ label: "Browse competitions", url: `${origin}/thequest/competitions` }],
+        ),
+      };
+    }
+
+    const title = `Create Your Contestant Profile — ${competition.title}`;
+    const description = `Create a free contestant account through ${competition.title} on The Quest. No competition entry or payment is required now.`;
+    return {
+      title,
+      description,
+      image: competition.coverImage,
+      url: canonical,
+      canonical,
+      ogType: "website",
+      fallbackHtml: fallbackHtml(
+        title,
+        description,
+        [{ label: `${competition.title} competition`, url: `${origin}/thequest/${categorySlug}/${compSlug}` }],
+      ),
+    };
+  }
+
   if (url.pathname === "/") {
     const canonical = origin;
     const description = "CB Publishing develops artists and brands, promotes music, and produces The Quest, a talent competition and voting platform.";

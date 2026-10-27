@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Trophy, MapPin, Tag, ChevronRight, ExternalLink, X, LockKeyhole } from "lucide-react";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import { Link } from "wouter";
-import type { TalentProfile } from "@shared/schema";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
 import { useLivery } from "@/hooks/use-livery";
@@ -15,6 +14,25 @@ import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { useAuth } from "@/hooks/use-auth";
+import { slugify } from "@shared/slugify";
+
+interface PublicTalentProfile {
+  id: number;
+  role: string;
+  displayName: string;
+  stageName: string | null;
+  bio: string | null;
+  category: string | null;
+  location: string | null;
+  email?: string | null;
+  showEmail?: boolean;
+  imageUrls: string[];
+  imageBackupUrls?: string[];
+  imageCropPositions?: Array<{ x: number; y: number; zoom?: number }>;
+  socialLinks: string | Record<string, any> | null;
+  profileColor?: string | null;
+  profileBgImage?: string | null;
+}
 
 export default function TalentProfilePublic() {
   const params = useParams<{ id: string }>();
@@ -30,8 +48,13 @@ export default function TalentProfilePublic() {
     setShowSignInPrompt(window.localStorage.getItem(`quest-tax-signin-dismissed-${id}`) !== "1");
   }, [id, isAuthenticated]);
 
-  const { data: profile, isLoading } = useQuery<TalentProfile & { videos?: any[] }>({
-    queryKey: ["/api/talent-profiles", id],
+  const { data: profile, isLoading, isError } = useQuery<PublicTalentProfile>({
+    queryKey: ["/api/talent-profiles", id, "public"],
+    queryFn: async () => {
+      const response = await fetch(`/api/talent-profiles/${encodeURIComponent(id!)}/public`);
+      if (!response.ok) throw new Error("Public profile could not be loaded");
+      return response.json();
+    },
     enabled: !!id,
   });
   const { data: videos = [] } = useQuery<any[]>({
@@ -40,7 +63,7 @@ export default function TalentProfilePublic() {
     staleTime: 60_000,
   });
 
-  const { data: activeCompetitions = [] } = useQuery<{ id: number; title: string; category: string | null }[]>({
+  const { data: competitions = [] } = useQuery<{ id: number; title: string; category: string | null }[]>({
     queryKey: ["/api/talent-profiles", id, "competitions"],
     enabled: !!id,
     staleTime: 60_000,
@@ -78,13 +101,13 @@ export default function TalentProfilePublic() {
     );
   }
 
-  if (!profile) {
+  if (isError || !profile) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-white">
         <SiteNavbar />
         <div className="text-center">
           <Trophy className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold">Profile not found</h3>
+            <h3 className="text-lg font-semibold" data-testid="status-profile-not-found">Profile not found</h3>
           <Link href="/competitions">
             <span className="inline-block mt-4 text-white/60 hover:text-white transition-colors cursor-pointer">
               Back to Competitions
@@ -174,6 +197,25 @@ export default function TalentProfilePublic() {
           </div>
         )}
 
+        {profile.showEmail === true && profile.email && (
+          <p className="mb-8 text-center text-sm text-white/60" data-testid="text-public-email">
+            <a className="underline decoration-white/30 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500" href={`mailto:${profile.email}`} data-testid="link-public-email">
+              Contact {profileName}
+            </a>
+          </p>
+        )}
+
+        <div className="mb-10 flex justify-center">
+          <Link href={`/nominate?profileId=${encodeURIComponent(String(profile.id))}`}>
+            <span
+              className="inline-flex min-h-12 items-center justify-center gap-2 bg-[#ff5a09] px-7 text-sm font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#e94f00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              data-testid="link-nominate-profile"
+            >
+              Nominate {profileName || "this contestant"} <ChevronRight className="h-4 w-4" />
+            </span>
+          </Link>
+        </div>
+
         {(() => {
           let socialObj: Record<string, any> = {};
           try {
@@ -228,19 +270,19 @@ export default function TalentProfilePublic() {
           );
         })()}
 
-        {activeCompetitions.length > 0 && (
-          <div className="mb-10" data-testid="active-competitions">
+        {competitions.length > 0 && (
+          <div className="mb-10" data-testid="profile-competitions">
             <div className="text-center mb-6">
-              <p className="text-sm mb-1" style={{ color: accentColor }}>Vote now</p>
-              <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>Competing in</h2>
+              <p className="text-sm mb-1" style={{ color: accentColor }}>Explore their appearances</p>
+              <h2 className="text-lg uppercase text-white font-normal" style={{ letterSpacing: "10px" }}>Competitions</h2>
             </div>
             <div className="flex flex-col items-stretch gap-3 max-w-md mx-auto">
-              {activeCompetitions.map((c) => (
-                <Link key={c.id} href={`/competitions/${c.id}`}>
+              {competitions.map((c) => (
+                <Link key={c.id} href={c.category ? `/${slugify(c.category)}/${slugify(c.title)}` : "/competitions"}>
                   <span
                     className="flex min-h-12 items-center justify-between gap-3 rounded-full border px-5 py-3 text-sm font-semibold cursor-pointer transition-all hover:opacity-80"
                     style={{ borderColor: accentColor, color: accentColor }}
-                    data-testid={`link-active-competition-${c.id}`}
+                    data-testid={`link-profile-competition-${c.id}`}
                   >
                     <span className="truncate">{c.title}</span>
                     <ChevronRight className="h-4 w-4 flex-shrink-0" />
