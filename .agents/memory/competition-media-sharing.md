@@ -3,15 +3,13 @@ name: Competition media sharing
 description: The user's expectation for competition-specific browser icons and link-share media.
 ---
 
-Every public competition link should use that competition's cover artwork for its browser favicon. When a competition video is configured, use its Vimeo poster as the share image and include its player/stream metadata; otherwise use the cover artwork. Its saved cover video is primary, with the first configured promo video as fallback. Keep server metadata and client navigation metadata aligned. Social platforms may still choose whether to play video inline.
+Every public competition link should use that competition's cover artwork for its browser favicon. For Facebook-style sharing, the user wants a standard clickable image-and-title card like DistroKid's example, using the competition video's Vimeo poster as the image; the video remains on the competition page rather than being advertised as an inline social player. Its saved cover video is primary, with the first configured promo video as fallback. Keep server metadata and client navigation metadata aligned.
 
-**Why:** The user explicitly wants every competition link to carry that event's identity and hype video rather than CB Publishing's global branding, and clarified that Vimeo supplies the video's actual share format.
+**Why:** The user compared the Facebook comments directly and said they want the competition URL to work like DistroKid. The example is a clickable artwork/title card, not an iframe.
 
-For Facebook, the user expects competition links to be clickable and include video preview metadata where the platform supports it. Do not switch to poster-only sharing without approval. Facebook controls linkification and does not allow the site to embed an iframe inside a comment.
+Keep the competition URL copyable; do not add a Facebook-specific share button unless requested. Facebook still controls comment linkification and cache refresh, so do not promise that page metadata alone makes a posted comment clickable.
 
-**Why:** The user compared a competition URL with a playable music-service preview in a Facebook comment and explicitly asked for both a clickable link and video preview.
-
-**How to apply:** Preserve server-side Open Graph video and poster tags. If adding a Facebook share action, explain that it opens Facebook's share composer as a post; it cannot force an iframe or link preview inside an existing comment.
+**How to apply:** Use a normal website link card with the competition poster and title, retain video playback on the destination page, and verify the Facebook scrape after the production host is updated.
 
 Keep competition sharing to two clearly labeled URLs: one public competition-page link that carries the selected video/share data, and one host-referral link that tracks nominations and votes. Do not add separate player-URL or iframe-code fields unless explicitly requested.
 
@@ -19,7 +17,7 @@ Keep competition sharing to two clearly labeled URLs: one public competition-pag
 
 Contestant profile share links should use the original profile photo as the preview image, or the competition image when the profile has no photo. If the contestant has a video, keep its direct MP4/player metadata so platforms can embed it separately from the preview image. Clearly identify profile/video shares.
 
-**How to apply:** Keep the cover image as the competition favicon, use the contestant photo then competition artwork for preview images, and retain video tags separately. Label the competition-page and host-referral links by purpose. Social apps may ignore video playback metadata and show only the poster.
+**How to apply:** Keep the cover image as the competition favicon, use the contestant photo then competition artwork for profile preview images, and retain video tags for contestant profiles separately. Label the competition-page and host-referral links by purpose.
 
 When the user compares multiple competition links and says only one has a video, identify and investigate that link; do not treat the other competition's lack of video as a defect or ask them to attach one unless they request it.
 

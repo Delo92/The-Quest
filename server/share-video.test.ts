@@ -247,3 +247,25 @@ test("server HTML keeps the profile photo separate from its embedded video", () 
   assert.doesNotMatch(plain, /property="og:video"|name="twitter:player/);
   assert.match(plain, /name="twitter:card" content="summary_large_image"/);
 });
+
+test("competition link cards use a poster and title without advertising an inline player", () => {
+  const template = '<html><head><title>Old</title><meta property="og:type" content="video.other" /><meta name="twitter:card" content="player" /><meta property="og:video" content="https://old.example/video.mp4" /><meta name="twitter:player" content="https://old.example/player" /><link rel="canonical" href="https://old.example" /></head><body><div id="root"></div></body></html>';
+  const url = "https://quest.example/thequest/music/raplahoma";
+  const poster = "https://images.example/raplahoma.jpg";
+  const html = applyShareMeta(template, {
+    title: "Raplahoma — Music Competition",
+    description: "Watch the competition video, meet the artists, and vote.",
+    image: poster,
+    url,
+    canonical: url,
+    ogType: "website",
+  });
+
+  assert.match(html, /property="og:type" content="website"/);
+  assert.match(html, /property="og:title" content="Raplahoma — Music Competition"/);
+  assert.match(html, /property="og:image" content="https:\/\/images\.example\/raplahoma\.jpg"/);
+  assert.match(html, /property="og:url" content="https:\/\/quest\.example\/thequest\/music\/raplahoma"/);
+  assert.match(html, /rel="canonical" href="https:\/\/quest\.example\/thequest\/music\/raplahoma"/);
+  assert.match(html, /name="twitter:card" content="summary_large_image"/);
+  assert.doesNotMatch(html, /property="og:video|name="twitter:player|content="video\.other"/);
+});

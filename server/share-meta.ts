@@ -923,10 +923,11 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
       description,
       image: video?.posterUrl || competition.coverImage || null,
       favicon: competition.coverImage || video?.posterUrl || null,
-      video,
       url: canonical,
       canonical,
-      ogType: video ? "video.other" : undefined,
+      // Share the competition as a normal link card. Its video remains on
+      // the destination page and in the structured data, not the social player.
+      ogType: "website",
       structuredData: [
         {
           "@context": "https://schema.org",

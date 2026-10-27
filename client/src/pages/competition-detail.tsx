@@ -312,7 +312,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
     title: competition ? `${competition.title} - ${competition.category} Competition` : "Competition",
     description: competition?.description || (competition ? `Vote in the ${competition.title} ${competition.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!` : undefined),
     ogImage: competition?.shareVideo?.posterUrl || competition?.coverImage || undefined,
-    ogVideo: competition?.shareVideo || undefined,
+    ogType: "website",
     favicon: competition ? competition.coverImage || competition.shareVideo?.posterUrl || undefined : undefined,
     canonical: competition ? `https://thequest-2dc77.firebaseapp.com/${slugify(competition.category)}/${slugify(competition.title)}` : undefined,
     pending: !competition && isLoading,
