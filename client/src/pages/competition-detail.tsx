@@ -704,6 +704,13 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
           </>
         )}
 
+        <h2
+          className="mx-auto mb-4 max-w-3xl text-center text-base font-semibold leading-snug text-white sm:text-lg"
+          data-testid="text-competition-share-title"
+        >
+          {competition.title}
+        </h2>
+
         <div className="mb-8">
           <CompetitionShareLinks competition={competition} />
         </div>

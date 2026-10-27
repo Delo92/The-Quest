@@ -79,6 +79,9 @@ export interface FirestoreCompetition {
   titleLogo?: string | null;
   /** Optional public URL slug that overrides the title-derived slug. */
   slug?: string | null;
+  /** Optional partner-attribution code shown with the competition share links. */
+  partnerReferralCode?: string | null;
+  partnerReferralName?: string | null;
   /** Optional looping video used on the competition card instead of the cover image. */
   cardVideo?: string | null;
   /** Extra marketing URL slugs that redirect to the canonical competition URL. */
@@ -217,11 +220,13 @@ export interface FirestoreReferralCode {
 export interface FirestoreReferralStats {
   code: string;
   ownerId: string;
-  ownerType: "talent" | "host" | "admin";
+  ownerType: "talent" | "host" | "admin" | "custom";
   ownerName: string;
   totalVotesDriven: number;
   uniqueVoters: number;
   totalUses?: number;
+  /** Successful talent nominations attributed to this code. */
+  totalNominations?: number;
   voterIps: string[];
   updatedAt: admin.firestore.Timestamp;
 }
@@ -1969,6 +1974,31 @@ export const firestoreReferrals = {
   async getAllStats(): Promise<FirestoreReferralStats[]> {
     const snapshot = await db().collection(COLLECTIONS.REFERRAL_STATS).get();
     return snapshot.docs.map(doc => doc.data() as FirestoreReferralStats);
+  },
+
+  async getStatsByCode(code: string): Promise<FirestoreReferralStats | null> {
+    const snapshot = await db().collection(COLLECTIONS.REFERRAL_STATS).doc(code).get();
+    return snapshot.exists ? snapshot.data() as FirestoreReferralStats : null;
+  },
+
+  async trackReferralNomination(refCode: string, competitionId: number): Promise<number | null> {
+    const referral = await this.resolveCode(refCode);
+    if (!referral) return null;
+    const competitionIds = [
+      ...(referral.competitionId ? [referral.competitionId] : []),
+      ...(referral.competitionIds || []),
+    ];
+    if (competitionIds.length && !competitionIds.includes(competitionId)) return null;
+
+    const statsRef = db().collection(COLLECTIONS.REFERRAL_STATS).doc(referral.code);
+    return db().runTransaction(async (transaction) => {
+      const statsDoc = await transaction.get(statsRef);
+      if (!statsDoc.exists) return null;
+      const data = statsDoc.data() as FirestoreReferralStats;
+      const totalNominations = Math.max(0, data.totalNominations || 0) + 1;
+      transaction.update(statsRef, { totalNominations, updatedAt: now() });
+      return totalNominations;
+    });
   },
 
   async trackReferralCodeUse(refCode: string): Promise<number | null> {

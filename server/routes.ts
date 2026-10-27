@@ -274,6 +274,30 @@ async function getOrCreateCompetitionReferralCode(competition: any) {
   });
 }
 
+async function getOrCreatePartnerCompetitionReferralCode(competition: any) {
+  const configuredCode = typeof competition.partnerReferralCode === "string"
+    ? competition.partnerReferralCode.trim().toUpperCase()
+    : "";
+  if (!configuredCode) return null;
+
+  const ownerName = competition.partnerReferralName?.trim() || "Competition Partner";
+  const ownerId = `competition:${competition.id}:partner:${configuredCode}`;
+  const existing = await firestoreReferrals.getCodeByCode(configuredCode);
+  if (existing) {
+    if (existing.ownerId !== ownerId || existing.competitionId !== competition.id) {
+      throw new Error(`Partner referral code ${configuredCode} is already in use`);
+    }
+    return existing;
+  }
+
+  return firestoreReferrals.generateCode(ownerId, "custom", ownerName, null, {
+    customCode: configuredCode,
+    competitionId: competition.id,
+    competitionIds: [competition.id],
+    skipDuplicateCheck: true,
+  });
+}
+
 async function getOrCreateUserReferralCode(
   uid: string,
   ownerTypeOverride?: "talent" | "host" | "admin",
@@ -2099,9 +2123,16 @@ export async function registerRoutes(
       if (!competition) return res.status(404).json({ message: "Competition not found" });
 
       const referral = await getOrCreateCompetitionReferralCode(competition);
+      const partnerReferral = await getOrCreatePartnerCompetitionReferralCode(competition);
+      const partnerReferralStats = partnerReferral
+        ? await firestoreReferrals.getStatsByCode(partnerReferral.code)
+        : null;
       res.json({
         referralCode: referral?.code || null,
         referralOwnerName: referral?.ownerName || null,
+        partnerReferralCode: partnerReferral?.code || null,
+        partnerReferralName: partnerReferral?.ownerName || null,
+        partnerNominationCount: partnerReferralStats?.totalNominations || 0,
       });
     } catch (error: any) {
       console.error("Competition share link error:", error);
@@ -6498,6 +6529,9 @@ export async function registerRoutes(
             console.warn("[Referral] Internal nomination tracking failed (non-blocking):", err.message);
             return null;
           });
+        firestoreReferrals
+          .trackReferralNomination(resolvedRef, Number(competitionId))
+          .catch((err: any) => console.warn("[Referral] Nomination count update failed (non-blocking):", err.message));
 
         // CBUSA report
         trackChronicBrandsPromo({

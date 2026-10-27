@@ -31,9 +31,12 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
   const { data: shareData } = useQuery<{
     referralCode: string | null;
     referralOwnerName: string | null;
+    partnerReferralCode: string | null;
+    partnerReferralName: string | null;
+    partnerNominationCount: number;
   }>({
     queryKey: ["/api/competitions", competition.id, "share-links"],
-    staleTime: 5 * 60_000,
+    staleTime: 15_000,
   });
   const links = getCompetitionShareLinks(competition, shareData?.referralCode);
   const hasCompetitionVideo = Boolean(competition.coverVideo || competition.promoVideos?.length);
@@ -86,6 +89,20 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
           copied={copied === "nominationUrl"}
           compact={compact}
         />
+        {shareData?.partnerReferralCode && (
+          <ShareLinkRow
+            label={`Partner referral link · ${shareData.partnerReferralName || "Partner"} (${shareData.partnerReferralCode})`}
+            value={`${typeof window !== "undefined" ? window.location.origin : ""}/?ref=${encodeURIComponent(shareData.partnerReferralCode)}`}
+            description={`${(shareData.partnerNominationCount || 0).toLocaleString()} model/talent nominations attributed to this partner code. This code tracks referrals and does not apply a discount.`}
+            onCopy={() => copyValue(
+              "partnerReferralUrl",
+              `${window.location.origin}/?ref=${encodeURIComponent(shareData.partnerReferralCode!)}`,
+              "Partner referral link",
+            )}
+            copied={copied === "partnerReferralUrl"}
+            compact={compact}
+          />
+        )}
       </div>
     </section>
   );

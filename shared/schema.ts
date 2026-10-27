@@ -24,6 +24,8 @@ export interface Competition {
   titleLogo?: string | null;
   /** Optional public URL slug that overrides the title-derived slug. */
   slug?: string | null;
+  partnerReferralCode?: string | null;
+  partnerReferralName?: string | null;
   /** Optional looping video used on the competition card instead of the cover image. */
   cardVideo?: string | null;
   /** Extra marketing URL slugs that redirect to the canonical competition URL. */
