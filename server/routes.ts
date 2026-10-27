@@ -2249,6 +2249,9 @@ export async function registerRoutes(
           category: competition.category,
           description: competition.description,
           coverImage: competition.coverImage,
+          headerVideo: competition.headerVideo || null,
+          titleLogo: competition.titleLogo || null,
+          cardVideo: competition.cardVideo || null,
         },
       });
     } catch (error: any) {

@@ -12,6 +12,9 @@ export function serveStatic(app: Express) {
   }
 
   app.use(express.static(distPath, {
+    // Root must reach the metadata-aware fallback below; otherwise index.html
+    // is served directly and referral links show generic site share metadata.
+    index: false,
     setHeaders: (res, filePath) => {
       const normalizedPath = filePath.replace(/\\/g, "/");
       if (normalizedPath.includes("/assets/")) {

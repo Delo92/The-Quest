@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearch } from "wouter";
 import { useEffect } from "react";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
-import CBLogo from "@/components/cb-logo";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify , competitionSlug } from "@shared/slugify";
 
@@ -18,6 +17,9 @@ interface ReferralLandingResponse {
     category: string;
     description?: string | null;
     coverImage?: string | null;
+    headerVideo?: string | null;
+    titleLogo?: string | null;
+    cardVideo?: string | null;
   } | null;
 }
 
@@ -41,7 +43,7 @@ export default function ReferralLandingPage() {
     title: data?.competition ? `${data.competition.title} — ${data.hostName}` : "The Quest — Talent Competition & Voting Platform",
     description: data?.competition?.description || (data?.competition ? `Join ${data.competition.title}, hosted by ${data.hostName}.` : "Browse competitions, nominate talent, and vote on The Quest."),
     canonical: data?.competition ? `${window.location.origin}/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}` : `${window.location.origin}/thequest`,
-    ogImage: data?.competition?.coverImage || data?.hostImageUrl || undefined,
+    ogImage: data?.competition?.coverImage || undefined,
   });
 
   if (isLoading) {
@@ -74,16 +76,17 @@ export default function ReferralLandingPage() {
 
   const competitionPath = `/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}`;
   const nominatePath = `/thequest/nominate?competition=${data.competition.id}&ref=${encodeURIComponent(data.referralCode)}`;
+  const heroVideo = data.competition.headerVideo || data.competition.cardVideo;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#080006] text-white">
-      {(data.competition.coverImage || data.hostImageUrl) && (
+      {data.competition.coverImage && (
         <>
           <div
             aria-hidden="true"
             className="absolute inset-[-32px] z-0 scale-105 bg-cover bg-center opacity-35 blur-[18px]"
             style={{
-              backgroundImage: `url(${data.competition.coverImage || data.hostImageUrl})`,
+              backgroundImage: `url(${data.competition.coverImage})`,
             }}
           />
           <div aria-hidden="true" className="absolute inset-0 z-10 bg-[#080006]/72" />
@@ -95,21 +98,52 @@ export default function ReferralLandingPage() {
       )}
       <div className="relative z-20 mx-auto flex min-h-screen w-full max-w-5xl flex-col px-5 py-8 sm:px-8">
         <header className="flex items-center justify-between">
-          <CBLogo size="sm" showText />
+          {data.competition.titleLogo ? (
+            <img
+              src={data.competition.titleLogo}
+              alt={data.competition.title}
+              className="h-12 w-auto max-w-[60vw] object-contain"
+              data-testid="img-referral-competition-logo"
+            />
+          ) : (
+            <span className="max-w-[65vw] text-sm font-semibold text-white">{data.competition.title}</span>
+          )}
           <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/35">Event invitation</span>
         </header>
 
         <section className="mt-10 overflow-hidden border border-white/10 bg-black">
-          <div className="relative aspect-[4/3] w-full bg-black sm:aspect-[16/9]">
-            {data.competition.coverImage ? (
-              <img src={data.competition.coverImage} alt={`${data.competition.title} cover`} className="h-full w-full object-contain" />
-            ) : data.hostImageUrl ? (
-              <img src={data.hostImageUrl} alt={`${data.hostName} profile`} className="h-full w-full object-contain" />
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <CBLogo size="lg" showText />
-              </div>
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-black sm:aspect-[16/9]">
+            {data.competition.coverImage && (
+              <img
+                src={data.competition.coverImage}
+                alt=""
+                className="absolute inset-0 h-full w-full object-contain"
+                data-testid="img-referral-competition-cover"
+              />
             )}
+            {heroVideo && (
+              <video
+                src={heroVideo}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={data.competition.coverImage || undefined}
+                aria-label={`${data.competition.title} video`}
+                className="absolute inset-0 h-full w-full object-cover"
+                data-testid="video-referral-competition"
+              />
+            )}
+            {data.competition.titleLogo && (
+              <img
+                src={data.competition.titleLogo}
+                alt={data.competition.title}
+                className="absolute left-1/2 top-1/2 z-10 max-h-[72%] w-auto max-w-[74%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_6px_24px_rgba(0,0,0,0.8)]"
+                data-testid="img-referral-competition-title"
+              />
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-black/15" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
           </div>
           <div className="border-t border-white/10 bg-[#110008] px-6 py-8 sm:px-12 sm:py-10">

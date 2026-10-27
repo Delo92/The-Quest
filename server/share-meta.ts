@@ -300,10 +300,10 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     const referral = await firestoreReferrals.resolveCode(ref);
     const competition = referral?.competitionId ? await storage.getCompetition(referral.competitionId) : null;
     if (referral && competition) {
-      const hostName = referral.ownerName || competition.title;
       return {
-        title: `${competition.title} — Hosted by ${hostName}`,
-        description: competition.description || `Join ${competition.title}, hosted by ${hostName}.`,
+        title: competition.title,
+        description: getCompetitionPublicDescription(competition)
+          || `Join ${competition.title} on The Quest.`,
         image: competition.coverImage,
         url: `${origin}/?ref=${encodeURIComponent(referral.code)}`,
         canonical: `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`,
