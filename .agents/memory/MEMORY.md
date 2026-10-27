@@ -68,3 +68,4 @@
 - [Contestant recruiting signup](contestant-recruiting-signup.md) — recruiting links create free profiles; portfolio URLs use readable name-ID slugs, not opaque IDs or competition routes
 - [Portfolio image distinction](portfolio-image-distinction.md) — keep the hero backdrop and featured portrait on different source images when alternatives exist
 - [Curves&Confidence attribution](curves-confidence-referral.md) — partner code is competition-bound, attribution-only, and counts talent nominations separately from votes and discounts
+- [Chronic Cuties prize terms](chronic-cuties-prize.md) — use the updated 5-day, 4-night Hawaiʻi Expo trip wording, not the former 4-day, 3-night copy
