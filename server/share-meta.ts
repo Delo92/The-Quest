@@ -966,7 +966,8 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
     return {
       title: `${competition.title} — ${competition.category} Competition`,
       description,
-      image: video?.posterUrl || competition.coverImage || null,
+      // Competitions with partner branding share their branded artwork, not the video poster.
+      image: (competition.titleLogo ? competition.coverImage : null) || video?.posterUrl || competition.coverImage || null,
       favicon: competition.coverImage || video?.posterUrl || null,
       url: canonical,
       canonical,

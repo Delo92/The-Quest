@@ -20,6 +20,8 @@ export interface Competition {
   category: string;
   coverImage: string | null;
   coverVideo: string | null;
+  headerVideo?: string | null;
+  titleLogo?: string | null;
   promoVideos?: string[] | null;
   status: string;
   voteCost: number;

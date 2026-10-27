@@ -154,6 +154,8 @@ interface CompetitionDetail {
   category: string;
   coverImage: string | null;
   coverVideo: string | null;
+  headerVideo?: string | null;
+  titleLogo?: string | null;
   promoVideos?: string[] | null;
   shareVideo?: VideoShareMetadata | null;
   status: string;
@@ -311,7 +313,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   useSEO({
     title: competition ? `${competition.title} - ${competition.category} Competition` : "Competition",
     description: competition?.description || (competition ? `Vote in the ${competition.title} ${competition.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!` : undefined),
-    ogImage: competition?.shareVideo?.posterUrl || competition?.coverImage || undefined,
+    ogImage: (competition?.titleLogo ? competition.coverImage : null) || competition?.shareVideo?.posterUrl || competition?.coverImage || undefined,
     ogType: "website",
     favicon: competition ? competition.coverImage || competition.shareVideo?.posterUrl || undefined : undefined,
     canonical: competition ? `https://thequest-2dc77.firebaseapp.com/${slugify(competition.category)}/${slugify(competition.title)}` : undefined,
@@ -446,6 +448,16 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
         </Link>
         <span className="mx-2">/</span>{competition.category}
       </p>
+      {competition.titleLogo ? (
+        <h2 className="mx-auto" data-testid="text-competition-title">
+          <img
+            src={competition.titleLogo}
+            alt={competition.title}
+            className="mx-auto h-auto max-h-[200px] w-auto max-w-[78vw] object-contain drop-shadow-[0_6px_24px_rgba(0,0,0,0.85)] sm:max-h-[250px] md:max-h-[300px]"
+            data-testid="img-competition-title-logo"
+          />
+        </h2>
+      ) : (
       <h2
         className="mx-auto max-w-full uppercase leading-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
         style={{
@@ -459,6 +471,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
       >
         {competition.title}
       </h2>
+      )}
     </>
   );
 
@@ -468,6 +481,28 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
 
       <section className="relative overflow-hidden">
         {(() => {
+          if (competition.headerVideo) {
+            return (
+              <div className="relative min-h-[360px] overflow-hidden md:min-h-[460px]" data-testid="header-video">
+                {competition.coverImage && (
+                  <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />
+                )}
+                <video
+                  src={competition.headerVideo}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  aria-hidden="true"
+                />
+                <div className="absolute inset-0 bg-black/45" />
+                <div className="relative z-20 mx-auto flex min-h-[360px] w-full max-w-4xl flex-col justify-end px-4 pb-8 pt-28 text-center sm:px-6 md:min-h-[460px]">
+                  {competitionTitleContent}
+                </div>
+              </div>
+            );
+          }
           if (competition.coverImage) {
             return (
               <>

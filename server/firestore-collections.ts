@@ -73,6 +73,10 @@ export interface FirestoreCompetition {
   category: string;
   coverImage: string | null;
   coverVideo: string | null;
+  /** Optional looping video behind the competition page title. */
+  headerVideo?: string | null;
+  /** Optional transparent logo shown in place of the competition title text. */
+  titleLogo?: string | null;
   promoVideos?: string[] | null;
   status: string;
   voteCost: number;
