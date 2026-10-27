@@ -7,6 +7,12 @@ Every public competition link should use that competition's cover artwork for it
 
 **Why:** The user explicitly wants every competition link to carry that event's identity and hype video rather than CB Publishing's global branding, and clarified that Vimeo supplies the video's actual share format.
 
+For Facebook, the user expects competition links to be clickable and include video preview metadata where the platform supports it. Do not switch to poster-only sharing without approval. Facebook controls linkification and does not allow the site to embed an iframe inside a comment.
+
+**Why:** The user compared a competition URL with a playable music-service preview in a Facebook comment and explicitly asked for both a clickable link and video preview.
+
+**How to apply:** Preserve server-side Open Graph video and poster tags. If adding a Facebook share action, explain that it opens Facebook's share composer as a post; it cannot force an iframe or link preview inside an existing comment.
+
 Keep competition sharing to two clearly labeled URLs: one public competition-page link that carries the selected video/share data, and one host-referral link that tracks nominations and votes. Do not add separate player-URL or iframe-code fields unless explicitly requested.
 
 **Why:** The user wants the useful video and share metadata combined under the public page link rather than four separate copy fields; a separate embed snippet was out of scope.
