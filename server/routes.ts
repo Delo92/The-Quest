@@ -9533,7 +9533,7 @@ export async function registerRoutes(
         "",
         "## Public artist profiles",
         ...publicArtists.map((artist) =>
-          `- [${markdownLabel(artist.name)}](${baseUrl}/thequest/talent/${artist.id})`
+          `- [${markdownLabel(artist.name)}](${baseUrl}/thequest/${slugifyWithId(artist.name, artist.id)})`
         ),
         "",
         "The XML sitemap contains the complete set of current public competition and artist URLs.",
@@ -9631,7 +9631,7 @@ export async function registerRoutes(
 
       for (const profile of publicArtistProfiles.values()) {
         const name = String(profile.stageName || profile.displayName || "").trim();
-        addUrl(`${baseUrl}/thequest/talent/${profile.id}`, {
+        addUrl(`${baseUrl}/thequest/${slugifyWithId(name, profile.id)}`, {
           lastmod: toLastmod(profile.updatedAt || profile.createdAt),
           image: profile.imageUrls?.[0],
           imageTitle: name,

@@ -9,6 +9,7 @@ import { useLivery } from "@/hooks/use-livery";
 import { useGATracking } from "@/hooks/use-ga-tracking";
 import { installClientErrorHandlers } from "@/lib/client-error-logger";
 import { WeeklyConsentGate } from "@/components/weekly-consent-gate";
+import { slugifyWithId } from "@shared/slugify";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const CodeLandingPage = lazy(() => import("@/pages/code-landing"));
@@ -64,6 +65,7 @@ function QuestRouter() {
       <Route path="/admin" component={Dashboard} />
       <Route path="/admin/forms" component={AdminFormsPage} />
       <Route path="/f/:slug" component={PublicFormPage} />
+      <Route path="/:profileSlug" component={NamedTalentProfileRoute} />
       <Route path="/:categorySlug/:compSlug/recruiting" component={RecruitingSignupPage} />
       <Route path="/:categorySlug/:compSlug/:talentSlug" component={() => <ContestantSharePage />} />
       <Route path="/:categorySlug/:compSlug" component={() => <CompetitionDetail />} />
@@ -118,9 +120,14 @@ function CompetitorByName() {
       .catch(() => { if (!cancelled) setState({ missing: true }); });
     return () => { cancelled = true; };
   }, [name]);
-  if (state.id) return <Redirect to={`/talent/${state.id}`} replace />;
+  if (state.id) return <Redirect to={`/${slugifyWithId(name, state.id)}`} replace />;
   if (state.missing) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Competitor not found</div>;
   return <div className="min-h-screen bg-black" aria-busy="true" />;
+}
+
+function NamedTalentProfileRoute() {
+  const params = useParams<{ profileSlug: string }>();
+  return /^.+-\d+$/.test(params.profileSlug || "") ? <TalentProfilePublic /> : <NotFound />;
 }
 
 // Redirect bare /talent/:id links to the correct /thequest/talent/:id path.

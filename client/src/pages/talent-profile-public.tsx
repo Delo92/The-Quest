@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Trophy, MapPin, Tag, ChevronRight, ExternalLink, X, LockKeyhole } from "lucide-react";
@@ -14,7 +14,7 @@ import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { useAuth } from "@/hooks/use-auth";
-import { slugify } from "@shared/slugify";
+import { extractIdFromSlug, slugify, slugifyWithId } from "@shared/slugify";
 
 interface PublicTalentProfile {
   id: number;
@@ -35,8 +35,10 @@ interface PublicTalentProfile {
 }
 
 export default function TalentProfilePublic() {
-  const params = useParams<{ id: string }>();
-  const id = params?.id;
+  const params = useParams<{ id?: string; profileSlug?: string }>();
+  const idFromSlug = params?.profileSlug ? extractIdFromSlug(params.profileSlug).id : null;
+  const id = params?.id || (idFromSlug ? String(idFromSlug) : undefined);
+  const [, navigate] = useLocation();
   const { getImage } = useLivery();
   const { isAuthenticated } = useAuth();
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
@@ -77,11 +79,18 @@ export default function TalentProfilePublic() {
     : fallbackDefault;
   const canIndexProfile = String(profile?.role || "").toLowerCase() === "talent";
 
+  useEffect(() => {
+    if (!profile || !profileName) return;
+    const canonicalSlug = slugifyWithId(profileName, profile.id);
+    if (!params?.id && params?.profileSlug === canonicalSlug) return;
+    navigate(`/${canonicalSlug}${window.location.search}`, { replace: true });
+  }, [params?.id, params?.profileSlug, profile, profileName, navigate]);
+
   useSEO({
-    title: profileName ? `${profileName} | Artist Profile on The Quest` : "Artist Profile | The Quest",
+    title: profileName ? `${profileName} | Personal Portfolio on The Quest` : "Personal Portfolio | The Quest",
     description: profile?.bio?.trim()
       || (profileName ? `${profileName} is an artist on The Quest. Explore their public profile, work, and competition entries.` : "Explore artist and competitor profiles on The Quest."),
-    canonical: id ? `/thequest/talent/${encodeURIComponent(id)}` : undefined,
+    canonical: id && profileName ? `/thequest/${slugifyWithId(profileName, Number(id))}` : undefined,
     ogType: "profile",
     ogImage: profile?.imageUrls?.[0] || undefined,
     robots: !profile || !canIndexProfile ? "noindex, follow" : undefined,
@@ -138,7 +147,7 @@ export default function TalentProfilePublic() {
         />
         <div className="absolute inset-0 bg-black/65" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm text-center pt-10 pb-6 px-8 z-10 w-[calc(100%-60px)] max-w-[552px]" style={{ borderTop: `4px solid ${accentColor}` }}>
-          <p className="text-black/50 text-base leading-relaxed mb-1">Talent Profile</p>
+          <p className="text-black/50 text-base leading-relaxed mb-1">Personal Portfolio</p>
           <h1
             className="text-[24px] md:text-[30px] uppercase font-normal leading-none"
             style={{ letterSpacing: "10px", color: accentColor }}

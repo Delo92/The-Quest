@@ -641,6 +641,20 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
           </div>
         </header>
 
+        {!demoMode && (
+          <div className="flex justify-center px-4 pt-1">
+            <Link href={`/${slugifyWithId(profile.stageName || profile.displayName, profile.id)}`}>
+              <span
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white/75 transition-colors hover:border-white/45 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                data-testid="link-personal-portfolio"
+              >
+                View {profile.stageName || profile.displayName}&apos;s personal portfolio
+                <ExternalLink className="h-4 w-4" />
+              </span>
+            </Link>
+          </div>
+        )}
+
         {/* The current competition entry leads; the profile-wide video wheel follows it. */}
         {(videos.length > 0 || otherVideos.length > 0) && (
           <section className="mx-auto max-w-5xl px-4 pb-6 pt-6" aria-label="Competition videos" data-testid="contestant-videos">

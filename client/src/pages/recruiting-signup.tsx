@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { MARKETING_GUIDELINES_ACKNOWLEDGMENT_TEXT, VOTED_ARTIST_REMINDER_ACKNOWLEDGMENT_TEXT } from "@shared/weekly-consent";
+import { slugifyWithId } from "@shared/slugify";
 import { ArrowUpRight, Check, Copy, LoaderCircle, Share2, Trophy } from "lucide-react";
 
 interface RecruitingCompetition {
@@ -61,7 +62,7 @@ export default function RecruitingSignupPage() {
   const compSlug = params.compSlug || "";
   const { register, isAuthenticated, user, logout } = useAuth();
   const { toast } = useToast();
-  const [createdProfileId, setCreatedProfileId] = useState<number | null>(null);
+  const [createdProfileSlug, setCreatedProfileSlug] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults });
 
@@ -79,9 +80,9 @@ export default function RecruitingSignupPage() {
     retry: 1,
   });
   const isClosed = Boolean(competition && closedStatuses.has(competition.status.toLowerCase()));
-  const shareUrl = useMemo(() => createdProfileId
-    ? `${window.location.origin}/thequest/talent/${createdProfileId}`
-    : "", [createdProfileId]);
+  const shareUrl = useMemo(() => createdProfileSlug
+    ? `${window.location.origin}/thequest/${createdProfileSlug}`
+    : "", [createdProfileSlug]);
 
   useSEO({
     title: competition ? `Create your contestant profile | ${competition.title}` : "Create your contestant profile | The Quest",
@@ -118,7 +119,7 @@ export default function RecruitingSignupPage() {
         },
       );
       if (!result?.talentProfileId) throw new Error("Your account was created, but we could not retrieve the profile link. Please sign in to continue.");
-      setCreatedProfileId(result.talentProfileId);
+      setCreatedProfileSlug(slugifyWithId(values.publicName, result.talentProfileId));
       toast({ title: "Your contestant profile is ready", description: "Share your profile to introduce yourself to your audience." });
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message.replace(/^\d+:\s*/, "") : "We could not create your account. Please try again.";
@@ -192,7 +193,7 @@ export default function RecruitingSignupPage() {
           </section>
 
           <section className="min-w-0 border-t border-white/10 pt-8 md:border-l md:border-t-0 md:pl-8 md:pt-0 lg:pl-10">
-            {createdProfileId ? (
+            {createdProfileSlug ? (
               <div className="mx-auto max-w-xl py-5 sm:py-12" data-testid="signup-success">
                 <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-[#ff5a09]/15 text-[#ff8957]"><Check className="h-6 w-6" /></div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ff8957]">Account created</p>

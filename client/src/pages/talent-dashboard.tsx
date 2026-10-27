@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SiYoutube, SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import ColorWheelPicker from "@/components/color-wheel-picker";
-import { slugify } from "@shared/slugify";
+import { slugify, slugifyWithId } from "@shared/slugify";
 import { InviteDialog } from "@/components/invite-dialog";
 import ContestantStagePanel from "@/components/contestant-stage-panel";
 import OwnerAnalyticsPanel from "@/components/owner-analytics-panel";
@@ -1256,7 +1256,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                   {saveProfileMutation.isPending ? "Saving..." : "Save Profile"}
                 </Button>
                 {profile && (
-                  <a href={`/talent/${profile.id}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/thequest/${slugifyWithId(profile.stageName || profile.displayName, profile.id)}`} target="_blank" rel="noopener noreferrer">
                     <Button variant="outline" data-testid="button-view-profile"
                       className="border-white/20 text-white/70 hover:text-white hover:border-white/40">
                       <ExternalLink className="h-4 w-4 mr-2" />
@@ -1275,7 +1275,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                     {saveProfileMutation.isPending ? "Saving..." : "Save Profile"}
                   </Button>
                   {profile && (
-                    <a href={`/talent/${profile.id}`} target="_blank" rel="noopener noreferrer">
+                    <a href={`/thequest/${slugifyWithId(profile.stageName || profile.displayName, profile.id)}`} target="_blank" rel="noopener noreferrer">
                       <Button variant="outline" data-testid="button-view-profile-mobile"
                         className="border-white/20 text-white/70 min-h-[48px]">
                         <ExternalLink className="h-4 w-4" />

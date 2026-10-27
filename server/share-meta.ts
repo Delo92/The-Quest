@@ -210,7 +210,7 @@ async function getTalentProfileShareMeta(
 
   const id = Number(profile.id);
   const name = String(profile.stageName || profile.displayName || "Artist").trim();
-  const canonical = `${origin}/thequest/talent/${id}`;
+  const canonical = `${origin}/thequest/${slugifyWithId(name, id)}`;
   const bio = typeof profile.bio === "string" ? profile.bio.trim() : "";
   const image = profile.imageUrls?.[0] || null;
   const links = parsePublicLinks(profile.socialLinks);
@@ -242,7 +242,7 @@ async function getTalentProfileShareMeta(
       "@context": "https://schema.org",
       "@type": "ProfilePage",
       url: canonical,
-      name: `${name} | Artist Profile on The Quest`,
+      name: `${name} | Personal Portfolio on The Quest`,
       mainEntity: {
         "@type": "Person",
         name,
@@ -257,13 +257,13 @@ async function getTalentProfileShareMeta(
     },
     breadcrumbSchema([
       { name: "The Quest", url: `${origin}/thequest` },
-      { name: "Artist profiles", url: `${origin}/thequest/competitions` },
+      { name: "Personal portfolios", url: `${origin}/thequest/competitions` },
       { name, url: canonical },
     ]),
   ];
 
   return {
-    title: `${name} | Artist Profile on The Quest`,
+    title: `${name} | Personal Portfolio on The Quest`,
     description,
     image,
     url: canonical,
@@ -271,7 +271,7 @@ async function getTalentProfileShareMeta(
     ogType: "profile",
     structuredData,
     fallbackHtml: fallbackHtml(
-      `${name} | Artist Profile`,
+      `${name} | Personal Portfolio`,
       description,
       [
         ...competitionLinks,
@@ -291,7 +291,8 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
   const origin = getPublicOrigin();
   const parts = url.pathname.split("/").filter(Boolean);
   const ref = url.searchParams.get("ref")?.trim().toUpperCase();
-  const isContestantProfilePath = parts.length === 4 && parts[0] === "thequest";
+  const isContestantProfilePath = (parts.length === 4 && parts[0] === "thequest")
+    || (parts.length === 2 && parts[0] === "thequest" && extractIdFromSlug(parts[1]).id !== null);
 
   // A contestant profile's URL is the source of its share card. Its `ref`
   // query may be a contestant attribution slug, not a host referral code.
@@ -637,6 +638,14 @@ export async function getShareMeta(requestUrl: string, host: string): Promise<Sh
         ],
       ),
     };
+  }
+
+  if (parts.length === 2 && parts[0] === "thequest") {
+    const { id: profileId } = extractIdFromSlug(parts[1]);
+    if (profileId) {
+      const profile = await storage.getTalentProfile(profileId);
+      return getTalentProfileShareMeta(profile, origin, `${origin}${url.pathname}`);
+    }
   }
 
   if (parts.length === 3 && parts[0] === "thequest" && parts[1] === "host") {

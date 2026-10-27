@@ -3,7 +3,7 @@ import AdminDiagnostics from "@/components/admin-diagnostics";
 import NomineeAccessEmailActions from "@/components/nominee-access-email-actions";
 import AdminAccountAccess from "@/components/admin-account-access";
 import TalentDetailModal from "@/components/talent-detail-panel";
-import { slugify } from "@shared/slugify";
+import { slugify, slugifyWithId } from "@shared/slugify";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -281,7 +281,7 @@ function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: s
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <Link href={`/talent/${c.talentProfileId}`}>
+                      <Link href={`/${slugifyWithId(c.stageName || c.displayName, c.talentProfileId)}`}>
                         <span className="font-medium text-sm text-orange-400 underline underline-offset-2 cursor-pointer" data-testid={`link-talent-${c.talentProfileId}`}>
                           {c.displayName}
                         </span>
@@ -661,7 +661,7 @@ function HostDetailModal({ host, competitions }: { host: HostProfile; competitio
                                 <AvatarImage src={contestant.imageUrls?.[0] || ""} />
                                 <AvatarFallback className="bg-orange-500/20 text-orange-300 text-[10px]">{contestant.displayName?.charAt(0) || "?"}</AvatarFallback>
                               </Avatar>
-                              <Link href={`/talent/${contestant.talentProfileId}`}>
+                              <Link href={`/${slugifyWithId(contestant.stageName || contestant.displayName, contestant.talentProfileId)}`}>
                                 <span className="truncate text-xs text-orange-300 underline underline-offset-2">{contestant.displayName}</span>
                               </Link>
                               <span className="hidden text-[11px] text-white/35 sm:inline">{contestant.stageName || ""}</span>

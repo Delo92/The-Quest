@@ -65,4 +65,4 @@
 - [TypeScript check memory limit](typecheck-memory-limit.md) — broad root checks can exceed the default Node heap; use focused tests and module transforms when that happens
 - [React types across workspaces](react-type-resolution.md) — keep React 18 type resolution local; the separate React 19 artifacts must not inherit a workspace-wide override.
 - [Nonprofit directory wheel](nonprofit-directory-wheel.md) — keep featured and participant organizations in one growing cover-flow directory, not separate hero art and list sections
-- [Contestant recruiting signup](contestant-recruiting-signup.md) — recruiting links create free contestant profiles and record attribution, never a paid competition entry
+- [Contestant recruiting signup](contestant-recruiting-signup.md) — recruiting links create free profiles; portfolio URLs use readable name-ID slugs, not opaque IDs or competition routes
