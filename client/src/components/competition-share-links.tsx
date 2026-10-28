@@ -8,6 +8,7 @@ interface CompetitionShareLinksProps {
   competition: {
     id: number;
     title: string;
+    slug?: string | null;
     category: string;
     coverVideo?: string | null;
     promoVideos?: string[] | null;
@@ -16,21 +17,17 @@ interface CompetitionShareLinksProps {
   compact?: boolean;
 }
 
-export function getCompetitionShareLinks(competition: CompetitionShareLinksProps["competition"], referralCode?: string | null) {
+export function getCompetitionShareLinks(competition: CompetitionShareLinksProps["competition"]) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const competitionUrl = `${origin}/thequest/${slugify(competition.category)}/${competitionSlug(competition)}`;
-  const promoCode = referralCode || competition.title.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-  const nominationUrl = `${origin}/?ref=${encodeURIComponent(promoCode)}`;
 
-  return { competitionUrl, nominationUrl, promoCode };
+  return { competitionUrl };
 }
 
 export default function CompetitionShareLinks({ competition, compact = false }: CompetitionShareLinksProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState<string | null>(null);
   const { data: shareData } = useQuery<{
-    referralCode: string | null;
-    referralOwnerName: string | null;
     partnerReferralCode: string | null;
     partnerReferralName: string | null;
     partnerNominationCount: number;
@@ -38,7 +35,7 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
     queryKey: ["/api/competitions", competition.id, "share-links"],
     staleTime: 15_000,
   });
-  const links = getCompetitionShareLinks(competition, shareData?.referralCode);
+  const links = getCompetitionShareLinks(competition);
   const hasCompetitionVideo = Boolean(competition.coverVideo || competition.promoVideos?.length);
   const competitionLinkLabel = hasCompetitionVideo
     ? "Competition page + promo video"
@@ -66,7 +63,12 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
         <Link2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: competition.themeColor || "#FF5A09" }} />
         <div>
           <h3 className="text-sm font-semibold text-white/90">Share this competition</h3>
-          {!compact && <p className="mt-1 text-sm leading-relaxed text-white/75">Use the public competition link to share its page and video, or the host link to track referrals.</p>}
+          {!compact && (
+            <p className="mt-1 text-sm leading-relaxed text-white/75">
+              Share the public competition page{hasCompetitionVideo ? " and its promo video" : ""}.
+              {shareData?.partnerReferralCode && " The partner link tracks nominations and votes."}
+            </p>
+          )}
         </div>
       </div>
 
@@ -79,14 +81,6 @@ export default function CompetitionShareLinks({ competition, compact = false }: 
             : "Public page link for this competition."}
           onCopy={() => copyValue("competitionUrl", links.competitionUrl, "Competition link")}
           copied={copied === "competitionUrl"}
-          compact={compact}
-        />
-        <ShareLinkRow
-          label={`Host referral link · ${links.promoCode}`}
-          value={links.nominationUrl}
-          description="Tracks nominations and votes from this host link."
-          onCopy={() => copyValue("nominationUrl", links.nominationUrl, "Host referral link")}
-          copied={copied === "nominationUrl"}
           compact={compact}
         />
         {shareData?.partnerReferralCode && (

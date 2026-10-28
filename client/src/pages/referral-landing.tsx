@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation, useSearch } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useEffect } from "react";
-import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import CBLogo from "@/components/cb-logo";
 import { useSEO } from "@/hooks/use-seo";
-import { slugify , competitionSlug } from "@shared/slugify";
+import { slugify, competitionSlug } from "@shared/slugify";
 
 interface ReferralLandingResponse {
   referralCode: string;
@@ -15,12 +15,10 @@ interface ReferralLandingResponse {
   competition: {
     id: number;
     title: string;
+    slug?: string | null;
     category: string;
     description?: string | null;
     coverImage?: string | null;
-    headerVideo?: string | null;
-    titleLogo?: string | null;
-    cardVideo?: string | null;
   } | null;
 }
 
@@ -35,9 +33,15 @@ export default function ReferralLandingPage() {
   });
 
   useEffect(() => {
-    if (data?.isGlobal || (data && !data.competition)) {
-      setLocation(`/thequest?ref=${encodeURIComponent(data.referralCode)}`);
+    if (!data) return;
+    const referralQuery = `?ref=${encodeURIComponent(data.referralCode)}`;
+    if (data.competition) {
+      setLocation(
+        `/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}${referralQuery}`,
+      );
+      return;
     }
+    if (data.isGlobal || !data.competition) setLocation(`/thequest${referralQuery}`);
   }, [data, setLocation]);
 
   useSEO({
@@ -67,106 +71,13 @@ export default function ReferralLandingPage() {
     );
   }
 
-  if (!data.competition) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#080006] text-white">
-        <Loader2 className="h-6 w-6 animate-spin text-[#FF0E9B]" aria-label="Opening The Quest" />
-      </main>
-    );
-  }
-
-  const competitionPath = `/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}`;
-  const nominatePath = `/thequest/nominate?competition=${data.competition.id}&ref=${encodeURIComponent(data.referralCode)}`;
-  const heroVideo = data.competition.headerVideo || data.competition.cardVideo;
-
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#080006] text-white">
-      {data.competition.coverImage && (
-        <>
-          <div
-            aria-hidden="true"
-            className="absolute inset-[-32px] z-0 scale-105 bg-cover bg-center opacity-35 blur-[18px]"
-            style={{
-              backgroundImage: `url(${data.competition.coverImage})`,
-            }}
-          />
-          <div aria-hidden="true" className="absolute inset-0 z-10 bg-[#080006]/72" />
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 z-10 bg-gradient-to-b from-[#080006]/80 via-[#100008]/70 to-[#080006]/92"
-          />
-        </>
-      )}
-      <div className="relative z-20 mx-auto flex min-h-screen w-full max-w-5xl flex-col px-5 py-8 sm:px-8">
-        <header className="flex items-center justify-between">
-          {data.competition.titleLogo ? (
-            <img
-              src={data.competition.titleLogo}
-              alt={data.competition.title}
-              className="h-12 w-auto max-w-[60vw] object-contain"
-              data-testid="img-referral-competition-logo"
-            />
-          ) : (
-            <span className="max-w-[65vw] text-sm font-semibold text-white">{data.competition.title}</span>
-          )}
-          <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-white/35">Event invitation</span>
-        </header>
-
-        <section className="mt-10 overflow-hidden border border-white/10 bg-black">
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-black sm:aspect-[16/9]">
-            {heroVideo && (
-              <video
-                src={heroVideo}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                poster={data.competition.coverImage || undefined}
-                aria-label={`${data.competition.title} video`}
-                className="absolute inset-0 h-full w-full object-cover"
-                data-testid="video-referral-competition"
-              />
-            )}
-            {!heroVideo && data.competition.coverImage && (
-              <img
-                src={data.competition.coverImage}
-                alt={data.competition.title}
-                className="h-full w-full object-contain"
-                data-testid="img-referral-competition-cover"
-              />
-            )}
-            <div className="pointer-events-none absolute inset-0 bg-black/15" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
-          </div>
-          <div className="border-t border-white/10 bg-[#110008] px-6 py-8 sm:px-12 sm:py-10">
-            <p className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#FFB3D9]">
-              <Sparkles className="h-4 w-4 text-[#FF0E9B]" />
-              {data.competition.category} event
-            </p>
-            <h1 className="font-serif text-4xl font-bold leading-tight sm:text-6xl">{data.competition.title}</h1>
-            <p className="mt-5 text-sm uppercase tracking-[0.18em] text-white/55">Hosted by {data.hostName}</p>
-            {data.competition.description && (
-              <p className="mt-6 max-w-3xl text-base leading-7 text-white/70">{data.competition.description}</p>
-            )}
-          </div>
-        </section>
-
-        <section className="mt-6 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Your invitation is connected to</p>
-            <p className="mt-2 font-mono text-sm text-[#FFB3D9]">{data.referralCode}</p>
-            <p className="mt-2 text-sm text-white/50">Nominations and votes from this invitation are attributed to {data.hostName}.</p>
-          </div>
-          <div className="flex flex-col gap-3 sm:min-w-[220px]">
-            <Link href={nominatePath} className="inline-flex items-center justify-center gap-2 bg-[#FFB3D9] px-5 py-3 text-center text-sm font-bold uppercase tracking-[0.16em] text-black transition hover:bg-white">
-              Nominate someone <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href={competitionPath} className="inline-flex items-center justify-center gap-2 border border-[#FF0E9B]/60 px-5 py-3 text-center text-sm font-bold uppercase tracking-[0.16em] text-[#FFB3D9] transition hover:bg-[#FF0E9B]/15">
-              View event <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </section>
+    <main className="flex min-h-screen items-center justify-center bg-[#080006] text-white">
+      <div className="flex items-center gap-3" role="status" aria-live="polite">
+        <Loader2 className="h-6 w-6 animate-spin text-[#FF0E9B]" />
+        <span className="text-sm text-white/70">
+          {data.competition ? `Opening ${data.competition.title}…` : "Opening The Quest…"}
+        </span>
       </div>
     </main>
   );

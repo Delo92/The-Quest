@@ -2246,6 +2246,7 @@ export async function registerRoutes(
         competition: {
           id: competition.id,
           title: competition.title,
+          slug: competition.slug || null,
           category: competition.category,
           description: competition.description,
           coverImage: competition.coverImage,

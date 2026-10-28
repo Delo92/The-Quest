@@ -3,7 +3,17 @@ name: Competition share links
 description: Public and host promotion URLs used to share a competition and preserve nomination attribution.
 ---
 
-Competition sharing uses two URLs: the public competition page under `/thequest/{category}/{title}`, and a root-domain `?ref={competition code}` link for host promotion. The promotion code must come from a persisted server referral record, then travel through `hfc_ref` browser storage into nomination submissions and vote records. Host-owned competitions use the host as referral owner; admin-created competitions may use a competition-owned fallback.
+Public competition URLs use the stored competition slug when one is present; title-derived slugs are only a fallback. Any reduced API payload used to build a competition route must include that slug. Referral links must retain `?ref={code}` on the destination page; the app stores it in `hfc_ref` for nomination and vote attribution.
+
+**Why:** A referral landing payload that omitted the stored slug generated a title-based URL that did not exist, and dropping the query would lose attribution.
+
+**How to apply:** Include the persisted slug when constructing public event links, then carry the referral query through navigation, nominations, and votes.
+
+The competition share panel should not show a host referral link until it can identify the host and link to a host portfolio listing their competitions. Keep the public competition link and any competition-bound partner referral link.
+
+**Why:** The organizer asked to remove the host row because it had no host name or portfolio context.
+
+**How to apply:** Do not re-add the host referral row without a specific request; partner referral tracking is a separate link.
 
 Public competition pages should invite visitors directly to the competition-specific nomination form, not require login before they can start.
 
