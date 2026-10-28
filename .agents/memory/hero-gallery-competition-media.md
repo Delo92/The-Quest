@@ -3,11 +3,11 @@ name: Hero gallery competition media
 description: Media selection and loading rule for the public homepage coverflow.
 ---
 
-When an active competition exists for a category, the hero gallery and competition listing must show that competition’s cover media immediately. Use the cover video first, then the cover image, then the generic fallback. Category artwork is only the fallback when the category has no active competition. Vimeo cover URLs must retain their access hash, and public cover videos must be muted, autoplaying, looping, and control-free.
+For each category’s selected active competition, gallery media priority is its cover video, then its promo videos in saved order. If no competition video is usable, use the top-voted contestant’s competition-scoped video from that same event. Keep the competition cover as the poster/fallback image; show image-only media only when neither video source is available. Category artwork is the fallback when there is no active competition. Vimeo access hashes must be retained, and public videos must be muted, autoplaying, looping, and control-free.
 
-**Why:** Showing category artwork or a generic poster first made the competition appear to change media as the carousel moved or between pages. The current product requirement is for assigned cover videos to play without waiting for the card to center or exposing pause, play, mute, or other player controls.
+**Why:** The homepage carousel should match the promo media on the competition page and feature the leading talent when the event has no usable promo video. Image-only cards should not hide relevant videos already stored for the event or its leading contestant.
 
-**How to apply:** Keep competition selection and poster resolution in the public responses, preserve competition title/link metadata, render assigned Vimeo/direct-video covers immediately with muted autoplay and loop enabled, disable Vimeo/native controls, and use cover images only when no cover video exists.
+**How to apply:** Keep competition selection and media resolution in the public response, preserve competition title/link metadata, and use the shared competition-video resolver for cover/promo sources. Only fall back to the top-voted contestant’s video from the selected competition; use the cover image when neither video source is available. Render video muted and looping, without controls.
 
 **Gallery render order (critical):** Thumbnail/coverVideo ALWAYS renders as the base layer first. The Vimeo iframe overlays it absolutely on top. This means if the iframe is privacy-blocked on the production domain (cbpublishing.live is not in Vimeo's allowed-domains list for that video), the card still shows the thumbnail underneath — it never goes black. Do NOT put the iframe as the only content in the branch; always keep thumbnail as the base.
 

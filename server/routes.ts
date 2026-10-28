@@ -1888,37 +1888,64 @@ export async function registerRoutes(
 
           let videoEmbedUrl: string | null = null;
           let coverVideoUrl: string | null = null;
+          let directVideoUrl: string | null = null;
           let thumbnail: string | null = normalizeCategoryArtworkUrl(cat.imageUrl);
           const featuredCompetition = catComps.find((comp: any) => comp.isFeatured);
           let displayCompetition: any = featuredCompetition || null;
 
-          const applyCompetitionCover = async (competition: any) => {
-            if (!competition) return;
+          const applyCompetitionCover = async (competition: any): Promise<boolean> => {
+            if (!competition) return false;
             // Use the competition's real cover image as the gallery thumbnail — it shows
             // the actual competition, which is more relevant than generic category artwork.
             // Exception: template placeholder paths (e.g. /images/template/...) are never
             // real covers; a host simply hasn't uploaded one yet, so fall back to category art.
             const isTemplatePlaceholder = (url: string) =>
               !url || url.startsWith("/images/template/");
+            thumbnail = normalizeCategoryArtworkUrl(cat.imageUrl);
+            videoEmbedUrl = null;
+            coverVideoUrl = null;
+            directVideoUrl = null;
             if (competition.coverImage && !isTemplatePlaceholder(competition.coverImage)) {
               thumbnail = normalizeCategoryArtworkUrl(competition.coverImage);
             }
-            if (!competition.coverVideo) return;
 
-            const vimeoEmbedUrl = getVimeoCoverEmbedUrl(competition.coverVideo);
-            if (vimeoEmbedUrl) {
-              videoEmbedUrl = vimeoEmbedUrl;
-              coverVideoUrl = null;
-              const vimeoThumbnail = await getVimeoCoverThumbnail(competition.coverVideo);
-              if (vimeoThumbnail) thumbnail = vimeoThumbnail;
-            } else {
-              coverVideoUrl = competition.coverVideo;
-              videoEmbedUrl = null;
+            const videoSources = [competition.coverVideo, ...(competition.promoVideos || [])]
+              .filter((source: unknown): source is string => typeof source === "string" && source.trim().length > 0);
+            const firstVideo = videoSources[0];
+            if (!firstVideo) return false;
+
+            if (!extractVimeoVideoId(firstVideo)) {
+              coverVideoUrl = firstVideo;
+              directVideoUrl = firstVideo;
+              return true;
             }
+
+            // Match the competition detail page's cover-video / promo-video order,
+            // preferring its resolved poster and stable first-party stream when available.
+            const shareVideo = await getCompetitionShareVideo(competition, getPublicOrigin()).catch(() => null);
+            if (shareVideo) {
+              videoEmbedUrl = shareVideo.playerUrl;
+              directVideoUrl = shareVideo.streamUrl || null;
+              thumbnail = normalizeCategoryArtworkUrl(shareVideo.posterUrl) || thumbnail;
+              return true;
+            }
+
+            // Keep Vimeo playback available even if the metadata API is temporarily unavailable.
+            const vimeoEmbedUrl = getVimeoCoverEmbedUrl(firstVideo);
+            if (!vimeoEmbedUrl) return false;
+            videoEmbedUrl = vimeoEmbedUrl;
+            const vimeoThumbnail = await getVimeoCoverThumbnail(firstVideo);
+            if (vimeoThumbnail) thumbnail = normalizeCategoryArtworkUrl(vimeoThumbnail) || thumbnail;
+            return true;
           };
 
           if (catComps.length === 0 && cat.videoUrl) {
-            coverVideoUrl = cat.videoUrl;
+            const categoryVideoEmbed = getVimeoCoverEmbedUrl(cat.videoUrl);
+            if (categoryVideoEmbed) videoEmbedUrl = categoryVideoEmbed;
+            else {
+              coverVideoUrl = cat.videoUrl;
+              directVideoUrl = cat.videoUrl;
+            }
           }
 
           // Fallback: if there are competitions but no votes yet, use the earliest
@@ -1929,13 +1956,11 @@ export async function registerRoutes(
               const dateB = b.startDate || b.createdAt || "";
               return dateA < dateB ? -1 : dateA > dateB ? 1 : 0;
             })[0];
-              displayCompetition = earliest;
-            await applyCompetitionCover(earliest);
+            displayCompetition = earliest;
           }
 
           if (topContestant && topVoteCount > 0 && topCompetition) {
             displayCompetition = topCompetition;
-            await applyCompetitionCover(topCompetition);
           }
 
            // An explicitly featured competition should drive its category card,
@@ -1953,7 +1978,23 @@ export async function registerRoutes(
              ) || null;
              topCompetition = featuredCompetition;
              topVoteCount = topContestant?.rawVoteCount || 0;
-             await applyCompetitionCover(featuredCompetition);
+           }
+
+           if (displayCompetition) {
+             const hasCompetitionVideo = await applyCompetitionCover(displayCompetition);
+             if (!hasCompetitionVideo && topContestant && topVoteCount > 0) {
+               const talentVideo = await getContestantShareVideo(
+                 displayCompetition,
+                 topContestant.talentProfile,
+                 getPublicOrigin(),
+               ).catch(() => null);
+               if (talentVideo) {
+                 videoEmbedUrl = talentVideo.playerUrl;
+                 directVideoUrl = talentVideo.streamUrl || null;
+                 coverVideoUrl = null;
+                 thumbnail = normalizeCategoryArtworkUrl(talentVideo.posterUrl) || thumbnail;
+               }
+             }
            }
 
           let competitionSlug: string | null = null;
@@ -1964,10 +2005,9 @@ export async function registerRoutes(
           // Resolve a direct progressive MP4 URL for native <video> playback.
           // Eliminates Vimeo player JS overhead on background/ambient cards.
           // resolveDirectVideoUrl is cached for 23h so this only hits Vimeo API once per video.
-          let directVideoUrl: string | null = null;
-          if (videoEmbedUrl) {
+           if (!directVideoUrl && videoEmbedUrl) {
             directVideoUrl = await resolveDirectVideoUrl(videoEmbedUrl).catch(() => null);
-          } else if (coverVideoUrl && !coverVideoUrl.includes("vimeo")) {
+           } else if (!directVideoUrl && coverVideoUrl && !coverVideoUrl.includes("vimeo")) {
             // Direct non-Vimeo file — already usable as native video, no resolution needed
             directVideoUrl = coverVideoUrl;
           }
