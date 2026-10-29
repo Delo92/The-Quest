@@ -7,6 +7,7 @@ import { logError } from "./services/errorLogger";
 import { startOCPurchaseFeedWorker } from "./services/ocPurchaseFeed";
 import { warmVimeoPlayUrlCache } from "./vimeo";
 import { startArtistProfileReminderJob } from "./invitation-reminder-job";
+import { startHostCompetitionStatsJob } from "./host-notifications";
 
 const app = express();
 const httpServer = createServer(app);
@@ -142,6 +143,7 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
       startArtistProfileReminderJob();
+      startHostCompetitionStatsJob();
     },
   );
 })();

@@ -129,6 +129,7 @@ import {
   replyToMicrosoftInboxMessage,
 } from "./microsoft-mailbox";
 import { logEmailDiagnostic } from "./email-diagnostics";
+import { notifyHostOfCompetitionSignup } from "./host-notifications";
 import {
   uploadImageToDrive,
   uploadFileToDriveFolder,
@@ -4773,6 +4774,12 @@ export async function registerRoutes(
                     applicationStatus: "approved",
                     appliedAt: new Date().toISOString(),
                   });
+                  void notifyHostOfCompetitionSignup({
+                    competition: comp,
+                    contestantName: inviteeName,
+                    signupType: "invitation",
+                    siteUrl,
+                  }).catch((error) => console.warn("[HostNotifications] Invitation alert failed:", error));
                 }
               }
             } catch (contestantErr: any) {
@@ -6163,6 +6170,12 @@ export async function registerRoutes(
 
       const response = { ...submission, status: autoApproved ? "approved" : submission.status };
       if (paymentId) await completePayment(paymentId, response);
+      void notifyHostOfCompetitionSignup({
+        competition: targetCompetition,
+        contestantName: fullName.trim(),
+        signupType: "application",
+        siteUrl: process.env.SITE_URL || `${req.protocol}://${req.get("host")}`,
+      }).catch((error) => console.warn("[HostNotifications] Application alert failed:", error));
       if (amountPaid > 0 && transactionId) {
         void queueOCPurchase({
           eventId: `join_${submission.id}:paid:${transactionId}`,
@@ -6531,6 +6544,12 @@ export async function registerRoutes(
 
       await firestoreJoinSubmissions.updateStatus(submission.id, "approved");
       await firestoreJoinSubmissions.recordAccessEmail(submission.id, emailSent);
+      void notifyHostOfCompetitionSignup({
+        competition: targetCompetition,
+        contestantName: nomineeName,
+        signupType: "nomination",
+        siteUrl: process.env.SITE_URL || `${req.protocol}://${req.get("host")}`,
+      }).catch((error) => console.warn("[HostNotifications] Nomination alert failed:", error));
 
       // Send receipt to the nominator (non-blocking)
       if (await isEmailConfigured() && normalizedNominatorEmail && firebaseUid && talentProfileId !== null && contestantId !== null && contestantIsActive) {

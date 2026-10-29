@@ -1116,6 +1116,124 @@ export async function sendLaunchpadWelcomeEmail(opts: {
   }
 }
 
+export interface HostCompetitionDailyStat {
+  competitionName: string;
+  contestantCount: number;
+  totalVotes: number;
+  totalRevenue: number;
+  newSignups: number;
+  revenueLast24Hours: number;
+}
+
+export async function sendHostSignupNotification(opts: {
+  to: string;
+  hostName: string;
+  contestantName: string;
+  competitionName: string;
+  signupType: "application" | "nomination" | "invitation";
+  siteUrl: string;
+}): Promise<boolean> {
+  try {
+    const transporter = await getTransporter();
+    const hostUrl = `${opts.siteUrl.replace(/\/+$/, "")}/thequest/host`;
+    const safeHostName = escapeHtml(opts.hostName || "Host");
+    const safeContestantName = escapeHtml(opts.contestantName);
+    const safeCompetitionName = escapeHtml(opts.competitionName);
+    const signupLabel = opts.signupType === "application"
+      ? "New competition application"
+      : opts.signupType === "nomination"
+        ? "New contestant nomination"
+        : "New invited contestant";
+    const safeSubject = `${signupLabel}: ${opts.contestantName} — ${opts.competitionName} | The Quest`
+      .replace(/[\r\n]/g, "");
+    const html = wrapInTemplate(`
+      <div style="text-align:center;margin-bottom:24px;"><span class="badge">${signupLabel}</span></div>
+      <h2>${signupLabel}</h2>
+      <p>Hi ${safeHostName}, <strong style="color:#fff;">${safeContestantName}</strong> just signed up for your competition.</p>
+      <div class="highlight-box">
+        <p class="label">Competition</p>
+        <p class="value">${safeCompetitionName}</p>
+      </div>
+      <div class="btn-wrap"><a href="${escapeHtml(hostUrl)}" class="btn">Open Host Dashboard</a></div>
+    `);
+    const result = await transporter.sendMail({
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
+      to: opts.to,
+      subject: safeSubject,
+      text: `${signupLabel}: ${opts.contestantName} signed up for ${opts.competitionName}.\n\nOpen your host dashboard: ${hostUrl}\n\n${PLATFORM_LINE}`,
+      html,
+    });
+    return result.accepted?.length > 0 && !result.rejected?.length;
+  } catch (error: any) {
+    console.error("[HostNotifications] Signup email failed:", error?.message || "Unknown error");
+    resetTransporter();
+    return false;
+  }
+}
+
+export async function sendHostDailyStatsEmail(opts: {
+  to: string;
+  hostName: string;
+  stats: HostCompetitionDailyStat[];
+  siteUrl: string;
+  reportDate: string;
+}): Promise<boolean> {
+  if (opts.stats.length === 0) return true;
+  try {
+    const transporter = await getTransporter();
+    const hostUrl = `${opts.siteUrl.replace(/\/+$/, "")}/thequest/host`;
+    const safeHostName = escapeHtml(opts.hostName || "Host");
+    const rows = opts.stats.map((stat) => `
+      <tr>
+        <td style="padding:14px 10px;border-bottom:1px solid #292929;color:#fff;font-weight:700;">${escapeHtml(stat.competitionName)}</td>
+        <td style="padding:14px 10px;border-bottom:1px solid #292929;color:#ccc;text-align:center;">${stat.contestantCount}</td>
+        <td style="padding:14px 10px;border-bottom:1px solid #292929;color:#ccc;text-align:center;">${stat.totalVotes.toLocaleString("en-US")}</td>
+        <td style="padding:14px 10px;border-bottom:1px solid #292929;color:#ccc;text-align:center;">${stat.newSignups}</td>
+        <td style="padding:14px 10px;border-bottom:1px solid #292929;color:#FF5A09;text-align:right;">$${stat.totalRevenue.toFixed(2)}</td>
+      </tr>
+      <tr><td colspan="5" style="padding:0 10px 14px;border-bottom:1px solid #292929;color:#888;font-size:12px;">Last 24 hours: ${stat.newSignups} new signups · $${stat.revenueLast24Hours.toFixed(2)} paid revenue</td></tr>
+    `).join("");
+    const html = wrapInTemplate(`
+      <div style="text-align:center;margin-bottom:24px;"><span class="badge">Daily Competition Report</span></div>
+      <h2 style="text-align:center;">Your daily competition stats</h2>
+      <p>Hi ${safeHostName}, here is your competition snapshot for ${escapeHtml(opts.reportDate)}.</p>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr>
+            <th style="padding:10px;text-align:left;color:#888;">Competition</th>
+            <th style="padding:10px;color:#888;">Contestants</th>
+            <th style="padding:10px;color:#888;">Total votes</th>
+            <th style="padding:10px;color:#888;">New signups</th>
+            <th style="padding:10px;text-align:right;color:#888;">Revenue</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p style="font-size:12px;color:#777;">Revenue is shown to date. The “Last 24 hours” line shows recent signups and paid revenue.</p>
+      <div class="btn-wrap"><a href="${escapeHtml(hostUrl)}" class="btn">Open Host Dashboard</a></div>
+    `);
+    const result = await transporter.sendMail({
+      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
+      to: opts.to,
+      subject: `Your daily competition stats — ${opts.reportDate} | The Quest`,
+      text: [
+        `Hi ${opts.hostName || "Host"}, here are your competition stats for ${opts.reportDate}.`,
+        ...opts.stats.map((stat) =>
+          `${stat.competitionName}: ${stat.contestantCount} contestants, ${stat.totalVotes} votes, ${stat.newSignups} new signups in the last 24 hours, $${stat.totalRevenue.toFixed(2)} revenue to date, $${stat.revenueLast24Hours.toFixed(2)} revenue in the last 24 hours.`,
+        ),
+        `Host dashboard: ${hostUrl}`,
+        PLATFORM_LINE,
+      ].join("\n\n"),
+      html,
+    });
+    return result.accepted?.length > 0 && !result.rejected?.length;
+  } catch (error: any) {
+    console.error("[HostNotifications] Daily stats email failed:", error?.message || "Unknown error");
+    resetTransporter();
+    return false;
+  }
+}
+
 export async function isEmailConfigured(): Promise<boolean> {
   const microsoft = await getMicrosoftEmailSettings();
   if (microsoft?.activeProvider === "microsoft365") {
