@@ -432,10 +432,10 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   const directCoverVideo = competition.coverVideo && !/vimeo\.com/i.test(competition.coverVideo)
     ? competition.coverVideo
     : null;
-  const heroVideoUrl = competition.shareVideo?.streamUrl
-    || competition.headerVideo
+  const heroVideoUrl = competition.headerVideo
+    || competition.shareVideo?.streamUrl
     || directCoverVideo;
-  const heroPosterUrl = competition.shareVideo?.streamUrl
+  const heroPosterUrl = !competition.headerVideo && competition.shareVideo?.streamUrl
     ? competition.shareVideo.posterUrl || competition.coverImage
     : competition.coverImage || competition.shareVideo?.posterUrl;
   // Unthemed competitions keep the neutral platform background.
@@ -491,7 +491,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
     <div className="min-h-screen bg-black text-white">
       {!demoMode && <SiteNavbar />}
 
-      <section className="relative overflow-hidden">
+      <section className={`relative overflow-hidden ${!demoMode ? "pt-[108px]" : ""}`}>
         <div
           className="relative h-[270px] overflow-hidden md:h-[380px]"
           data-testid="competition-hero"
