@@ -428,6 +428,16 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   const accentMuted = `${accent}20`;
   const accentFont  = "'Bebas Neue', sans-serif";
   const clipBtn     = "polygon(14px 0%, 100% 0%, calc(100% - 14px) 100%, 0% 100%)";
+  const detailHeaderFallback = getMedia("competition_detail_header", "");
+  const directCoverVideo = competition.coverVideo && !/vimeo\.com/i.test(competition.coverVideo)
+    ? competition.coverVideo
+    : null;
+  const heroVideoUrl = competition.shareVideo?.streamUrl
+    || competition.headerVideo
+    || directCoverVideo;
+  const heroPosterUrl = competition.shareVideo?.streamUrl
+    ? competition.shareVideo.posterUrl || competition.coverImage
+    : competition.coverImage || competition.shareVideo?.posterUrl;
   // Unthemed competitions keep the neutral platform background.
   const pageBgStyle = competition.themeColor ? {
     background: `
@@ -482,82 +492,56 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
       {!demoMode && <SiteNavbar />}
 
       <section className="relative overflow-hidden">
-        {(() => {
-          if (competition.headerVideo) {
-            return (
-              <div className="relative min-h-[360px] overflow-hidden md:min-h-[460px]" data-testid="header-video">
-                {competition.coverImage && (
-                  <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />
-                )}
-                <video
-                  src={competition.headerVideo}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  aria-hidden="true"
-                />
-                <div className="absolute inset-0 bg-black/45" />
-                <div className="relative z-20 mx-auto flex min-h-[360px] w-full max-w-4xl flex-col justify-end px-4 pb-8 pt-28 text-center sm:px-6 md:min-h-[460px]">
-                  {competitionTitleContent}
-                </div>
-              </div>
-            );
-          }
-          if (competition.coverImage) {
-            return (
-              <>
-                <div className="h-[270px] md:h-[340px] relative overflow-hidden">
-                  <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${competition.coverImage}')` }} />
-                  <div className="absolute inset-0 bg-black/65" />
-                  <div className="absolute bottom-0 left-1/2 z-20 w-full max-w-4xl -translate-x-1/2 px-4 pb-6 pt-8 text-center sm:px-6">
-                    {competitionTitleContent}
-                  </div>
-                </div>
-              </>
-            );
-          }
-          const fallback = getMedia("competition_detail_header", "");
-          if (!competition.coverVideo && fallback.url) {
-            return (
-              <div className="h-[270px] md:h-[340px] relative overflow-hidden">
-                {fallback.type === "video"
-                  ? <video src={fallback.url} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
-                  : <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('${fallback.url}')` }} />
-                }
-                <div className="absolute inset-0 bg-black/65" />
-                <div className="absolute bottom-0 left-1/2 z-20 w-full max-w-4xl -translate-x-1/2 px-4 pb-6 pt-8 text-center sm:px-6">
-                  {competitionTitleContent}
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div className="bg-black/80 pt-16 pb-0">
-              <div className="mx-auto w-full max-w-4xl px-4 pb-6 pt-4 text-center sm:px-6">
-                {competitionTitleContent}
-              </div>
-            </div>
-          );
-        })()}
-
-        {competition.coverVideo && (
-          <div className="w-full bg-black" style={{ aspectRatio: "16/9", maxHeight: "520px" }}>
-            {competition.coverVideo.includes("vimeo.com") ? (
-              <iframe
-                src={competition.coverVideo.includes("?") ? competition.coverVideo + "&autoplay=1&loop=1&muted=1" : competition.coverVideo + "?autoplay=1&loop=1&muted=1"}
-                className="w-full h-full"
-                style={{ border: "none", display: "block" }}
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-                title="Competition video"
-              />
-            ) : (
-              <video src={competition.coverVideo} className="w-full h-full object-cover" controls loop playsInline />
-            )}
+        <div
+          className="relative h-[270px] overflow-hidden md:h-[380px]"
+          data-testid="competition-hero"
+        >
+          {heroPosterUrl ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url('${heroPosterUrl}')` }}
+              aria-hidden="true"
+            />
+          ) : !heroVideoUrl && detailHeaderFallback.type === "image" && detailHeaderFallback.url ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url('${detailHeaderFallback.url}')` }}
+              aria-hidden="true"
+            />
+          ) : null}
+          {heroVideoUrl ? (
+            <video
+              src={heroVideoUrl}
+              poster={heroPosterUrl || undefined}
+              className="absolute inset-0 h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-hidden="true"
+              data-testid="competition-hero-video"
+              onError={(event) => {
+                (event.currentTarget as HTMLVideoElement).style.display = "none";
+              }}
+            />
+          ) : !heroPosterUrl && detailHeaderFallback.type === "video" && detailHeaderFallback.url ? (
+            <video
+              src={detailHeaderFallback.url}
+              className="absolute inset-0 h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-hidden="true"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-black/50" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-4xl px-4 pb-6 pt-8 text-center sm:px-6">
+            {competitionTitleContent}
           </div>
-        )}
+        </div>
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-20 bg-gradient-to-b from-transparent via-black/70 to-black md:h-28"
           aria-hidden="true"
