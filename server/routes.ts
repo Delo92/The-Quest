@@ -1910,7 +1910,11 @@ export async function registerRoutes(
               thumbnail = normalizeCategoryArtworkUrl(competition.coverImage);
             }
 
-            const videoSources = [competition.coverVideo, ...(competition.promoVideos || [])]
+            const videoSources = [
+              competition.coverVideo,
+              competition.headerVideo,
+              ...(competition.promoVideos || []),
+            ]
               .filter((source: unknown): source is string => typeof source === "string" && source.trim().length > 0);
             const firstVideo = videoSources[0];
             if (!firstVideo) return false;
@@ -1921,8 +1925,7 @@ export async function registerRoutes(
               return true;
             }
 
-            // Match the competition detail page's cover-video / promo-video order,
-            // preferring its resolved poster and stable first-party stream when available.
+            // Resolve Vimeo cover or promo sources to a stable first-party stream when available.
             const shareVideo = await getCompetitionShareVideo(competition, getPublicOrigin()).catch(() => null);
             if (shareVideo) {
               videoEmbedUrl = shareVideo.playerUrl;
