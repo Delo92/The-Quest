@@ -5,6 +5,7 @@ import type { CompetitionStage } from "../shared/schema";
 import { normalizeNominationPromoCodes } from "./nomination-promos";
 import type { NominationPromoCode } from "../shared/nomination-promos";
 import { nextReferralUsageCount } from "./referral-code-notification";
+import { getCentralDayKey, hasReminderAttemptedToday } from "./reminder-schedule";
 
 const COLLECTIONS = {
   USERS: "users",
@@ -1759,7 +1760,9 @@ interface FirestoreArtistProfileReminder {
   stopToken: string;
   stoppedAt: string | null;
   lastAttemptAt: string | null;
+  lastAttemptDay?: string | null;
   lastSentAt: string | null;
+  lastSentDay?: string | null;
   sendCount: number;
 }
 
@@ -1798,7 +1801,9 @@ export const firestoreArtistProfileReminders = {
           stopToken: proposedToken,
           stoppedAt: null,
           lastAttemptAt: null,
+          lastAttemptDay: null,
           lastSentAt: null,
+          lastSentDay: null,
           sendCount: 0,
         };
         transaction.set(globalRef, globalState);
@@ -1811,7 +1816,9 @@ export const firestoreArtistProfileReminders = {
             stopToken: globalState.stopToken,
             stoppedAt: globalState.stoppedAt,
             lastAttemptAt: null,
+            lastAttemptDay: null,
             lastSentAt: null,
+            lastSentDay: null,
             sendCount: 0,
           };
       if (!stateSnapshot.exists) {
@@ -1831,8 +1838,10 @@ export const firestoreArtistProfileReminders = {
     email: string,
     reminderKey: string,
     attemptedAt: string,
-    minimumIntervalMs: number,
   ): Promise<boolean> {
+    const attemptedDate = new Date(attemptedAt);
+    if (!Number.isFinite(attemptedDate.getTime())) return false;
+    const attemptedDay = getCentralDayKey(attemptedDate);
     const collection = db().collection(COLLECTIONS.ARTIST_PROFILE_REMINDERS);
     const globalRef = collection.doc(artistReminderEmailHash(email));
     const stateRef = collection.doc(artistReminderStateId(reminderKey));
@@ -1846,15 +1855,11 @@ export const firestoreArtistProfileReminders = {
       const reminder = stateSnapshot.data() as FirestoreArtistProfileReminder;
       if (globalState.stoppedAt) return false;
 
-      const lastAttemptTime = Date.parse(reminder.lastAttemptAt || "");
-      const currentTime = Date.parse(attemptedAt);
-      if (
-        Number.isFinite(lastAttemptTime) &&
-        Number.isFinite(currentTime) &&
-        currentTime - lastAttemptTime < minimumIntervalMs
-      ) return false;
+      if (hasReminderAttemptedToday(reminder.lastAttemptDay, reminder.lastAttemptAt, attemptedDate)) {
+        return false;
+      }
 
-      transaction.update(stateRef, { lastAttemptAt: attemptedAt });
+      transaction.update(stateRef, { lastAttemptAt: attemptedAt, lastAttemptDay: attemptedDay });
       return true;
     });
   },
@@ -1866,9 +1871,11 @@ export const firestoreArtistProfileReminders = {
     await ref.update(sent
       ? {
           lastSentAt: sentAt,
+          lastSentDay: getCentralDayKey(new Date(sentAt)),
+          lastError: null,
           sendCount: admin.firestore.FieldValue.increment(1),
         }
-      : { lastError: "Gmail did not accept the reminder send." });
+      : { lastError: "Mail provider did not accept the reminder send." });
   },
 
   async stopByToken(stopToken: string): Promise<boolean> {
