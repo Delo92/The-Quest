@@ -7,6 +7,7 @@ import { slugify, slugifyWithId , competitionSlug as competitionSlugOf } from "@
 export interface PublicCompetition {
   id: number;
   title: string;
+  slug?: string | null;
   category: string | null;
   status: string;
   coverImage: string | null;

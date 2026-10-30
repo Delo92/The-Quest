@@ -191,7 +191,13 @@ import {
   savePrivateContact,
 } from "./host-contestant-access";
 import QRCode from "qrcode";
-import { slugify, slugifyWithId, extractIdFromSlug , competitionSlug as competitionSlugOf } from "../shared/slugify";
+import {
+  slugify,
+  slugifyWithId,
+  extractIdFromSlug,
+  competitionSlug as competitionSlugOf,
+  findCompetitionByRouteSlug,
+} from "../shared/slugify";
 import type { CompetitionStage } from "../shared/schema";
 
 function generateUniqueFilename(originalName: string): string {
@@ -3060,6 +3066,7 @@ export async function registerRoutes(
       .map((c) => ({
         id: c.id,
         title: c.title,
+        slug: c.slug || null,
         category: c.category || null,
         status: c.status,
         coverImage: c.coverImage || null,
@@ -9213,9 +9220,7 @@ export async function registerRoutes(
         60_000,
         async () => {
           const competitions = await storage.getCompetitions();
-          const comp = competitions.find(c =>
-            slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
-          );
+          const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
           if (!comp) return null;
 
            const contestants = await storage.getContestantsByCompetition(comp.id);
@@ -9249,9 +9254,7 @@ export async function registerRoutes(
     try {
       const { categorySlug, compSlug } = req.params;
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
-      );
+      const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
       const [contestantsData, breakdown] = await Promise.all([
@@ -9298,9 +9301,7 @@ export async function registerRoutes(
     try {
       const { categorySlug, compSlug } = req.params;
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
-      );
+      const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
       const contestantsData = await storage.getContestantsByCompetition(comp.id);
@@ -9409,9 +9410,7 @@ export async function registerRoutes(
         60_000,
         async () => {
           const competitions = await storage.getCompetitions();
-          const comp = competitions.find(c =>
-            slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
-          );
+          const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
           if (!comp) return null;
 
           const contestants = await storage.getContestantsByCompetition(comp.id);
@@ -9460,9 +9459,7 @@ export async function registerRoutes(
 
       // 1. Resolve competition
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
-      );
+      const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
       // 2. Resolve contestant
@@ -9573,9 +9570,7 @@ export async function registerRoutes(
     try {
       const { categorySlug, compSlug, talentSlug } = req.params;
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c =>
-        slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug
-      );
+      const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
       const contestants = await storage.getContestantsByCompetition(comp.id);
@@ -10543,7 +10538,7 @@ export async function registerRoutes(
       if (!socialCrawlerPattern.test(ua)) return next();
 
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c => slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug);
+      const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
       if (!comp) return next();
 
       const contestants = await storage.getContestantsByCompetition(comp.id);
@@ -10559,7 +10554,8 @@ export async function registerRoutes(
       const ogDescription = `Hey, I need your vote to win! Vote for ${displayName} in ${comp.title} on The Quest!`;
       const ogImage = profile.imageUrls?.[0] || comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const ogUrl = `${protocol}://${req.get("host")}/thequest/${categorySlug}/${compSlug}/${talentSlug}`;
+      const canonicalCompSlug = competitionSlugOf(comp);
+      const ogUrl = `${protocol}://${req.get("host")}/thequest/${slugify(comp.category)}/${canonicalCompSlug}/${talentSlug}`;
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -10598,7 +10594,7 @@ export async function registerRoutes(
       if (!socialCrawlerPattern.test(ua)) return next();
 
       const competitions = await storage.getCompetitions();
-      const comp = competitions.find(c => slugify(c.category) === categorySlug && competitionSlugOf(c) === compSlug);
+      const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
       if (!comp) return next();
 
       const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -10606,7 +10602,7 @@ export async function registerRoutes(
       const ogDescription = comp.description || `Vote in the ${comp.title} ${comp.category} competition on The Quest. Browse contestants, cast your vote, and help decide the winner!`;
       const ogImage = comp.coverImage || "https://storage.googleapis.com/thequest-2dc77.firebasestorage.app/livery%2Fcompetition_card_fallback.jpg";
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const ogUrl = `${protocol}://${req.get("host")}/thequest/${categorySlug}/${compSlug}`;
+      const ogUrl = `${protocol}://${req.get("host")}/thequest/${slugify(comp.category)}/${competitionSlugOf(comp)}`;
 
       const ogTags = `
     <meta property="og:type" content="website" />

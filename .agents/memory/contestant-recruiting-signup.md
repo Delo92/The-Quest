@@ -9,6 +9,12 @@ For public directory status, an approved contestant record is an official entry,
 
 Public portfolio links use a readable stage-name slug plus the stable profile ID, such as `/thequest/vivian-40`. Do not make the personal portfolio URL depend on a competition path or expose only an opaque numeric ID.
 
+Competition-entry links on a public portfolio must use the competition's canonical slug from the competition record. The portfolio competitions response must include that slug; deriving only from the title breaks links whenever a competition has a custom slug. Legacy title-derived URLs may resolve only when they uniquely identify a competition in that category.
+
 **Why:** The user explicitly narrowed the flow to simple, free contestant signup after earlier scope creep, and specifically requested personal portfolio links that identify the contestant by name. Nominations can also be free, so profile existence or missing payment data alone cannot establish official status.
 
 **How to apply:** Follow this boundary for recruiting links, signup copy and behavior, all public-profile share links, later nominations, and any public nomination-status labels. Preserve old numeric links by resolving them to the named portfolio path.
+
+**Why:** A competition can have an explicit public slug that differs from its title-derived slug; omitting it creates an entry card that looks valid but points to a 404.
+
+**How to apply:** Return the explicit slug in profile competition data, use it when building links and canonical tags, and retain only unambiguous title-slug compatibility for older links.

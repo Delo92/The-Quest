@@ -175,8 +175,10 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
             || `${seoName} is competing in ${data.competition.title}, a ${data.competition.category} competition on The Quest.`,
         ].filter(Boolean).join(" · ")
       : undefined,
-    canonical: categorySlug && compSlug && seoTalentSlug
-      ? `/thequest/${categorySlug}/${compSlug}/${seoTalentSlug}`
+    canonical: data?.competition && seoTalentSlug
+      ? `/thequest/${slugify(data.competition.category)}/${competitionSlug(data.competition)}/${seoTalentSlug}`
+      : categorySlug && compSlug && seoTalentSlug
+        ? `/thequest/${categorySlug}/${compSlug}/${seoTalentSlug}`
       : undefined,
     ogType: seoShareVideo ? "video.other" : "profile",
     ogImage: seoProfile?.imageUrls?.[0] || data?.competition.coverImage || undefined,
