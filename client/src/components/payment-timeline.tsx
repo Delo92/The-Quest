@@ -1,3 +1,4 @@
+import { humanizeLogMessage } from "@/lib/humanize-log";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
@@ -193,7 +194,7 @@ export function PaymentTimeline() {
                       <li key={log.id} className="flex gap-3 text-xs">
                         <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${SEVERITY_DOT[log.severity] || "bg-white/40"}`} />
                         <div className="min-w-0 flex-1">
-                          <div className="text-white/90">{log.message}</div>
+                          <div className="text-white/90">{humanizeLogMessage(log.message)}</div>
                           <div className="text-white/50">
                             {centralTime(log.timestamp)}
                             {typeof log.context?.elapsedMs === "number" && ` · +${log.context.elapsedMs}ms`}

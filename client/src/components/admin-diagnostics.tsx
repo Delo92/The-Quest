@@ -1,3 +1,4 @@
+import { humanizeLogMessage, isRoutineLog } from "@/lib/humanize-log";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -479,14 +480,15 @@ function ErrorLogsTab() {
   const logs = data?.logs || [];
   const total = data?.total || 0;
 
+  const visibleLogs = logs.filter(l => !isRoutineLog(l.message));
   const filtered = search
-    ? logs.filter(l =>
+    ? visibleLogs.filter(l =>
         l.message.toLowerCase().includes(search.toLowerCase()) ||
         l.errorType.toLowerCase().includes(search.toLowerCase()) ||
         l.endpoint?.toLowerCase().includes(search.toLowerCase()) ||
         l.userEmail?.toLowerCase().includes(search.toLowerCase())
       )
-    : logs;
+    : visibleLogs;
 
   const viewToggle = (
     <div className="inline-flex rounded-md border border-white/15 p-0.5" data-testid="error-log-view-toggle">
@@ -602,10 +604,10 @@ function ErrorLogsTab() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="text-xs font-mono border-current/30 bg-black/20">{log.errorType}</Badge>
-                    <span className="text-sm font-medium truncate">{log.message}</span>
+                    <span className="text-sm font-medium">{humanizeLogMessage(log.message)}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs opacity-60 flex-wrap">
-                    {log.endpoint && <span>{log.method} {log.endpoint}</span>}
+                    {log.endpoint && !/^payment$/.test(log.errorType) && <span>{log.method} {log.endpoint}</span>}
                     {log.userEmail && <span>{log.userEmail}</span>}
                     {log.userLevel && <span>Level {log.userLevel}</span>}
                     <span>{new Date(log.timestamp).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</span>
