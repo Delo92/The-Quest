@@ -7723,9 +7723,37 @@ export async function registerRoutes(
         ip: req.ip || "unknown",
         description: `${charge.totalVotes} votes for ${charge.comp.title}`,
       });
+      void logError({
+        errorType: "payment",
+        severity: "info",
+        message: "Payment intent created (vote)",
+        endpoint: req.path,
+        method: "POST",
+        idempotencyKey: `payment-intent-created:${intent.id}`,
+        context: createErrorContext({
+          paymentIntentId: intent.id,
+          amountCents: charge.amountCents,
+          competitionId: parsed.data.competitionId,
+          ip: req.ip,
+        }),
+      });
       res.json({ clientSecret: intent.client_secret, paymentIntentId: intent.id, provider: "stripe" });
     } catch (error: any) {
       console.error("Stripe intent creation error:", error);
+      void logError({
+        errorType: "payment",
+        severity: "error",
+        message: `Payment intent failed (vote): ${String(error?.message || "unknown").slice(0, 300)}`,
+        stackTrace: error?.stack,
+        endpoint: req.path,
+        method: "POST",
+        statusCode: error?.status || 500,
+        context: createErrorContext({
+          stripeType: error?.type,
+          stripeCode: error?.code,
+          ip: req.ip,
+        }),
+      });
       res.status(error.status || 500).json({ message: error.message || "Unable to start Stripe checkout" });
     }
   });
