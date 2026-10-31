@@ -61,6 +61,14 @@ function attemptIdFromRequest(req: Request): string | undefined {
   return value ? value.slice(0, 80) : undefined;
 }
 
+function describePaymentRequest(path: string): string {
+  if (/guest\/checkout/.test(path)) return "Vote purchase";
+  if (/payment-provider|payment\/.*intent/.test(path)) return "Card payment setup";
+  if (/webhooks/.test(path)) return "Payment provider notification";
+  if (/oc\//.test(path)) return "Original Concepts payment";
+  return `Payment request (${path})`;
+}
+
 /** Records every payment API request with its outcome and duration, including successes. */
 export function paymentRequestTelemetry(req: Request, res: Response, next: NextFunction): void {
   if (!PAYMENT_PATH.test(req.path) || req.method === "GET") return next();
@@ -76,7 +84,7 @@ export function paymentRequestTelemetry(req: Request, res: Response, next: NextF
     logPaymentEvent({
       step: "request",
       severity: status >= 500 ? "error" : failed ? "warning" : durationMs > SLOW_CALL_MS ? "warning" : "info",
-      message: `Payment request ${req.method} ${req.path} → ${status} in ${durationMs}ms`,
+      message: `${describePaymentRequest(req.path)} ${status >= 400 ? `failed (error ${status})` : durationMs > SLOW_CALL_MS ? `succeeded but was slow (${(durationMs / 1000).toFixed(1)} seconds)` : `succeeded`}`,
       attemptId: attemptId ? `${attemptId}:${req.path}` : undefined,
       statusCode: status,
       endpoint: req.path,
@@ -99,7 +107,7 @@ export function paymentRequestTelemetry(req: Request, res: Response, next: NextF
     logPaymentEvent({
       step: "request-aborted",
       severity: "error",
-      message: `Payment request ${req.method} ${req.path} was cut off after ${durationMs}ms before a response was sent`,
+      message: `${describePaymentRequest(req.path)} was interrupted after ${(durationMs / 1000).toFixed(1)} seconds, before the customer got a response (their connection probably dropped)`,
       attemptId: attemptId ? `${attemptId}:${req.path}` : undefined,
       endpoint: req.path,
       method: req.method,
@@ -112,6 +120,19 @@ export function paymentRequestTelemetry(req: Request, res: Response, next: NextF
     });
   });
   next();
+}
+
+function describeStripeCall(method: string, path: string, status: number, elapsed: number): string {
+  const id = path.match(/(pi_[A-Za-z0-9]+|ch_[A-Za-z0-9]+|re_[A-Za-z0-9]+)/)?.[1];
+  const what = /payment_intents/.test(path)
+    ? (method === "POST" && !id ? "create a payment" : method === "POST" ? "update or confirm a payment" : "check a payment's status")
+    : /refunds/.test(path) ? "process a refund"
+    : /charges/.test(path) ? "look up a charge"
+    : `contact Stripe (${method} ${path})`;
+  const outcome = status >= 500 ? `Stripe had a server problem (error ${status})`
+    : status >= 400 ? `Stripe rejected the request (error ${status})`
+    : `it worked but was slow (${(elapsed / 1000).toFixed(1)} seconds)`;
+  return `Tried to ${what}${id ? ` for ${id}` : ""}: ${outcome}`;
 }
 
 /** Logs each outbound Stripe API call (method, path, status, latency, Stripe request id). */
@@ -127,10 +148,12 @@ export function instrumentStripeClient<T extends Stripe>(stripe: T): T {
     const status = Number(data.status);
     const elapsed = Number(data.elapsed ?? 0);
     const failed = status >= 400;
+    // Routine successful lookups (e.g. the background status check) are noise.
+    if (!failed && elapsed <= SLOW_CALL_MS) return;
     logPaymentEvent({
       step: "stripe-api-call",
-      severity: status >= 500 ? "error" : failed ? "warning" : elapsed > SLOW_CALL_MS ? "warning" : "info",
-      message: `Stripe ${data.method} ${data.path} → ${status} in ${elapsed}ms`,
+      severity: status >= 500 ? "error" : failed ? "warning" : "warning",
+      message: describeStripeCall(String(data.method || ""), String(data.path || ""), status, elapsed),
       provider: "stripe",
       attemptId: data.request_id ? `stripe:${data.request_id}` : undefined,
       statusCode: status,
