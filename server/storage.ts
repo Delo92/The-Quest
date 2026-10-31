@@ -312,18 +312,16 @@ export class FirestoreStorage implements IStorage {
   }
 
   async castBulkVotes(data: { contestantId: number; competitionId: number; stageId?: string | null; userId: string; purchaseId: number; voteCount: number; source?: "online" | "in_person"; refCode?: string | null }): Promise<void> {
-    for (let i = 0; i < data.voteCount; i++) {
-      await firestoreVotes.cast({
-        contestantId: data.contestantId,
-        competitionId: data.competitionId,
-        stageId: data.stageId || null,
-        voterIp: null,
-        userId: data.userId,
-        purchaseId: data.purchaseId,
-        source: data.source || "online",
-        refCode: data.refCode || null,
-      });
-    }
+    await firestoreVotes.castBulkForPurchase({
+      contestantId: data.contestantId,
+      competitionId: data.competitionId,
+      stageId: data.stageId || null,
+      voterIp: null,
+      userId: data.userId,
+      purchaseId: data.purchaseId,
+      source: data.source || "online",
+      refCode: data.refCode || null,
+    }, data.voteCount);
   }
 
   async getVoteCountForContestantInCompetition(contestantId: number, competitionId: number): Promise<number> {

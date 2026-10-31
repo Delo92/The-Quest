@@ -10229,7 +10229,19 @@ export async function registerRoutes(
           const found = await getFirestore().collection("votePurchases")
             .where("transactionId", "==", attempt.transactionId).limit(1).get();
           if (found.empty) continue;
-          await completePayment(attempt.id, { success: true, reconciled: true, purchaseId: found.docs[0].data().id });
+          const purchaseData = found.docs[0].data() as any;
+          // Finish any votes the original request did not get to record (idempotent).
+          await storage.castBulkVotes({
+            contestantId: purchaseData.contestantId,
+            competitionId: purchaseData.competitionId,
+            stageId: purchaseData.stageId || null,
+            userId: purchaseData.viewerId || `guest_${purchaseData.id}`,
+            purchaseId: purchaseData.id,
+            voteCount: purchaseData.voteCount,
+            refCode: purchaseData.refCode || null,
+          });
+          invalidatePublicResponseCache("stats:total-votes");
+          await completePayment(attempt.id, { success: true, reconciled: true, purchaseId: purchaseData.id });
           attempt.status = "completed";
         } catch (healError) {
           console.error("Payment reconcile failed:", healError);

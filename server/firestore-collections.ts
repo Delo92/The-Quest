@@ -820,6 +820,61 @@ export const firestoreVotes = {
     return vote;
   },
 
+  /**
+   * Records a purchased vote pack in batches. Safe to re-run for the same purchase:
+   * it counts the votes already stored for that purchase and only writes the rest,
+   * so an interrupted request can be completed without double counting.
+   */
+  async castBulkForPurchase(data: Omit<FirestoreVote, "id" | "votedAt"> & { purchaseId: number }, voteCount: number): Promise<{ added: number; alreadyRecorded: number }> {
+    const existingSnap = await db().collection(COLLECTIONS.VOTES)
+      .where("purchaseId", "==", data.purchaseId)
+      .where("contestantId", "==", data.contestantId)
+      .where("competitionId", "==", data.competitionId)
+      .count().get();
+    const alreadyRecorded = existingSnap.data().count;
+    const remaining = Math.max(0, voteCount - alreadyRecorded);
+    if (remaining === 0) return { added: 0, alreadyRecorded };
+
+    const idsRef = db().collection(COLLECTIONS.COUNTERS).doc("ids");
+    const firstId = await db().runTransaction(async (tx) => {
+      const doc = await tx.get(idsRef);
+      const current = (doc.data() || {}).votes || 0;
+      tx.set(idsRef, { votes: current + remaining }, { merge: true });
+      return current + 1;
+    });
+
+    const countDocId = data.stageId
+      ? `${data.competitionId}_${data.stageId}_${data.contestantId}`
+      : `${data.competitionId}_${data.contestantId}`;
+    const countRef = db().collection(COLLECTIONS.VOTE_COUNTS).doc(countDocId);
+    const source = data.source || "online";
+    const BATCH = 400;
+    for (let offset = 0; offset < remaining; offset += BATCH) {
+      const size = Math.min(BATCH, remaining - offset);
+      const batch = db().batch();
+      const votedAt = new Date().toISOString();
+      for (let i = 0; i < size; i++) {
+        const id = firstId + offset + i;
+        batch.set(db().collection(COLLECTIONS.VOTES).doc(String(id)), {
+          ...data, source, refCode: data.refCode || null, id, votedAt,
+        });
+      }
+      batch.set(countRef, {
+        contestantId: data.contestantId,
+        competitionId: data.competitionId,
+        ...(data.stageId ? { stageId: data.stageId } : {}),
+        count: admin.firestore.FieldValue.increment(size),
+        ...(source === "in_person"
+          ? { inPersonCount: admin.firestore.FieldValue.increment(size) }
+          : { onlineCount: admin.firestore.FieldValue.increment(size) }),
+        paidCount: admin.firestore.FieldValue.increment(size),
+        updatedAt: now(),
+      }, { merge: true });
+      await batch.commit();
+    }
+    return { added: remaining, alreadyRecorded };
+  },
+
   async getVoteCount(contestantId: number): Promise<number> {
     const snapshot = await db()
       .collection(COLLECTIONS.VOTE_COUNTS)
