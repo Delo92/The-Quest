@@ -8076,6 +8076,19 @@ export async function registerRoutes(
       });
       invalidatePublicResponseCache("stats:total-votes");
 
+      // Votes are recorded: close out the payment immediately so nothing after
+      // this point (referrals, receipt email) can leave it stuck as "charged".
+      const response = {
+        success: true,
+        purchase,
+        transactionId: chargeResult.transactionId,
+        votesAdded: totalVotes,
+        accountCreated: createAccount,
+        viewerId,
+      };
+      await completePayment(paymentId, response);
+
+      try {
       if (resolvedRefCode) {
         try {
           await firestoreReferrals.trackReferralVote(resolvedRefCode, email, totalVotes);
@@ -8116,16 +8129,9 @@ export async function registerRoutes(
           contestantName,
         }).catch(err => console.error("Receipt email send failed:", err));
       }
-
-      const response = {
-        success: true,
-        purchase,
-        transactionId: chargeResult.transactionId,
-        votesAdded: totalVotes,
-        accountCreated: createAccount,
-        viewerId,
-      };
-      await completePayment(paymentId, response);
+      } catch (postError) {
+        console.error("Post-purchase follow-up failed (votes already applied):", postError);
+      }
       if (purchase.amount > 0) {
         void queueOCPurchase({
           eventId: `vote_${purchase.id}:paid:${chargeResult.transactionId}`,
@@ -10216,6 +10222,32 @@ export async function registerRoutes(
       const to = parseDate(req.query.to, true);
       const attempts = await getPaymentAttempts({ status, route, from, to, limit: 250 });
 
+      // Self-heal: a charge whose votes were already recorded is complete.
+      for (const attempt of attempts) {
+        if (attempt.status !== "charged" || !attempt.transactionId) continue;
+        try {
+          const found = await getFirestore().collection("votePurchases")
+            .where("transactionId", "==", attempt.transactionId).limit(1).get();
+          if (found.empty) continue;
+          await completePayment(attempt.id, { success: true, reconciled: true, purchaseId: found.docs[0].data().id });
+          attempt.status = "completed";
+        } catch (healError) {
+          console.error("Payment reconcile failed:", healError);
+        }
+      }
+      const compNames = new Map<number, string>();
+      const contestantNames = new Map<string, string>();
+      for (const attempt of attempts) {
+        const cid = attempt.competitionId as number | null;
+        if (cid == null || compNames.has(cid)) continue;
+        try {
+          compNames.set(cid, (await storage.getCompetition(cid))?.title || "");
+          for (const c of await storage.getContestantsByCompetition(cid)) {
+            contestantNames.set(`${cid}:${c.id}`, c.talentProfile?.displayName || "");
+          }
+        } catch { compNames.set(cid, ""); }
+      }
+
       const toIso = (value: unknown): string | null => {
         if (!value) return null;
         if (typeof (value as any)?.toDate === "function") return (value as any).toDate().toISOString();
@@ -10235,6 +10267,8 @@ export async function registerRoutes(
         packageKey: attempt.packageKey || null,
         competitionId: attempt.competitionId ?? null,
         contestantId: attempt.contestantId ?? null,
+        competitionName: compNames.get(attempt.competitionId as number) || null,
+        contestantName: contestantNames.get(`${attempt.competitionId}:${attempt.contestantId}`) || null,
         customerEmail: attempt.customerEmail || null,
         customerName: attempt.customerName || null,
         transactionId: attempt.transactionId || null,

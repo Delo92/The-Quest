@@ -94,6 +94,8 @@ interface PaymentAttempt {
   packageKey: string | null;
   competitionId: number | null;
   contestantId: number | null;
+  competitionName?: string | null;
+  contestantName?: string | null;
   customerEmail: string | null;
   customerName: string | null;
   transactionId: string | null;
@@ -786,8 +788,8 @@ export default function AdminAnalyticsTab() {
                               {attempt.packageKey && <p className="text-[10px] text-white/25 font-mono truncate max-w-[180px]">{attempt.packageKey}</p>}
                               {(attempt.competitionId !== null || attempt.contestantId !== null) && (
                                 <p className="text-[10px] text-white/30">
-                                  {attempt.competitionId !== null ? `Competition #${attempt.competitionId}` : ""}
-                                  {attempt.contestantId !== null ? ` · Contestant #${attempt.contestantId}` : ""}
+                                  {attempt.competitionId !== null ? (attempt.competitionName || `Competition #${attempt.competitionId}`) : ""}
+                                  {attempt.contestantId !== null ? ` · ${attempt.contestantName || `Contestant #${attempt.contestantId}`}` : ""}
                                 </p>
                               )}
                             </td>
