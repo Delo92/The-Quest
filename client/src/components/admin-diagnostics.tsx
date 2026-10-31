@@ -258,7 +258,7 @@ function GA4AnalyticsPanel() {
             return (
               <div key={i} className="space-y-0.5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="truncate text-white/50 font-mono text-xs max-w-[65%]">{page.path}</span>
+                  <span className="text-white/70 text-xs max-w-[70%] leading-snug" title={page.path}>{friendlyPageName(page.path)}</span>
                   <span className="font-medium text-white">{page.views.toLocaleString()}</span>
                 </div>
                 <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -450,6 +450,21 @@ function AnalyticsTab() {
   );
 }
 
+const KNOWN_PAGES: Record<string, string> = {
+  "": "Home", "thequest": "Quest home", "thequest/login": "Login", "thequest/dashboard": "Dashboard",
+  "thequest/competitions": "All competitions", "thequest/nominate": "Nominate", "thequest/join": "Join",
+};
+
+function friendlyPageName(rawPath: string): string {
+  const path = rawPath.split("?")[0].replace(/^\/+|\/+$/g, "");
+  if (KNOWN_PAGES[path] !== undefined) return KNOWN_PAGES[path];
+  const parts = path.replace(/^thequest\//, "").split("/");
+  const titleCase = (slug: string) => slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  // Competition pages are /category/competition-slug; show the competition.
+  const label = parts.length > 1 ? titleCase(parts[parts.length - 1]) : titleCase(parts[0]);
+  return label || rawPath;
+}
+
 function ErrorLogsTab() {
   const [view, setView] = useState<"all" | "payments">("payments");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -458,7 +473,7 @@ function ErrorLogsTab() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 25;
+  const PAGE_SIZE = 100;
 
   const params = new URLSearchParams({
     limit: String(PAGE_SIZE),
