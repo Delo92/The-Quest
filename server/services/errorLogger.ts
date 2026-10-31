@@ -48,6 +48,7 @@ export interface ErrorLogData {
   context?: Record<string, unknown>;
   wasShownToUser?: boolean;
   idempotencyKey?: string;
+  environment?: "production" | "development";
 }
 
 export interface StoredErrorLog extends ErrorLogData {
@@ -215,6 +216,7 @@ export async function logError(errorData: ErrorLogData): Promise<void> {
       ...errorData,
       stackTrace: sanitizeStackTrace(errorData.stackTrace),
       userLevel: inferUserLevel({ ...errorData, context }),
+      environment: process.env.RENDER || process.env.NODE_ENV === "production" ? "production" : "development",
       context,
     };
 

@@ -1,3 +1,4 @@
+import { logPaymentEvent } from "./services/paymentTelemetry";
 import crypto from "node:crypto";
 import Stripe from "stripe";
 import type { Express, Request, Response } from "express";
@@ -116,6 +117,26 @@ export function registerPaymentProviderWebhooks(app: Express) {
     if (existing.exists) return res.json({ received: true, duplicate: true });
 
     const object = event.data?.object || {};
+    if (event.type.startsWith("payment_intent.") || event.type.startsWith("charge.") || event.type === "checkout.session.completed") {
+      const failedEvent = /payment_failed|canceled|failed|refunded|dispute/.test(event.type);
+      const lastError = object.last_payment_error || {};
+      logPaymentEvent({
+        step: "stripe-webhook",
+        severity: failedEvent ? "error" : "info",
+        message: `Stripe reported ${event.type}${lastError.message ? `: ${String(lastError.message).slice(0, 200)}` : ""}`,
+        provider: "stripe",
+        attemptId: `stripe-webhook:${event.id}`,
+        context: {
+          paymentIntentId: event.type.startsWith("payment_intent.") ? object.id : object.payment_intent,
+          status: object.status,
+          amountCents: object.amount ?? object.amount_received,
+          declineCode: lastError.decline_code,
+          errorCode: lastError.code,
+          errorType: lastError.type,
+          idempotencyKeyRef: object.metadata?.idempotencyKey,
+        },
+      });
+    }
     const transactionId = event.type.startsWith("payment_intent.")
       ? String(object.id || "")
       : String(object.payment_intent || "");
@@ -178,6 +199,14 @@ export function registerPaymentProviderWebhooks(app: Express) {
 
     const orderId = event.resource?.supplementary_data?.related_ids?.order_id
       || event.resource?.custom_id;
+    logPaymentEvent({
+      step: "paypal-webhook",
+      severity: /DENIED|DECLINED|FAILED|REVERSED|REFUNDED/.test(String(event.event_type)) ? "error" : "info",
+      message: `PayPal reported ${event.event_type}`,
+      provider: "paypal",
+      attemptId: `paypal-webhook:${event.id}`,
+      context: { orderId, status: event.resource?.status },
+    });
     if (event.event_type === "PAYMENT.CAPTURE.COMPLETED") {
       await markWebhookConfirmed({
         provider: "paypal",

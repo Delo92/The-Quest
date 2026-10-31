@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaymentTimeline } from "@/components/payment-timeline";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -449,6 +450,7 @@ function AnalyticsTab() {
 }
 
 function ErrorLogsTab() {
+  const [view, setView] = useState<"all" | "payments">("payments");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [userLevelFilter, setUserLevelFilter] = useState("all");
@@ -486,8 +488,33 @@ function ErrorLogsTab() {
       )
     : logs;
 
+  const viewToggle = (
+    <div className="inline-flex rounded-md border border-white/15 p-0.5" data-testid="error-log-view-toggle">
+      {([["payments", "Payment timeline"], ["all", "All logs"]] as const).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => setView(id)}
+          className={`rounded px-3 py-1.5 text-sm ${view === id ? "bg-orange-500 text-black" : "text-white/70 hover:text-white"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (view === "payments") {
+    return (
+      <div className="space-y-4">
+        {viewToggle}
+        <PaymentTimeline />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {viewToggle}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex flex-wrap gap-2">
           <Select value={severityFilter} onValueChange={(v) => { setSeverityFilter(v); setPage(0); }}>
@@ -581,7 +608,8 @@ function ErrorLogsTab() {
                     {log.endpoint && <span>{log.method} {log.endpoint}</span>}
                     {log.userEmail && <span>{log.userEmail}</span>}
                     {log.userLevel && <span>Level {log.userLevel}</span>}
-                    <span>{new Date(log.timestamp).toLocaleString()}</span>
+                    <span>{new Date(log.timestamp).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</span>
+                    {(log as any).environment && <span>{(log as any).environment}</span>}
                   </div>
                 </div>
                 {expanded === log.id

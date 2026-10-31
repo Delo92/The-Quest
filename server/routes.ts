@@ -68,6 +68,7 @@ import {
   type ErrorSeverity,
   type ErrorType,
 } from "./services/errorLogger";
+import { paymentRequestTelemetry, tracedProviderFetch, logPaymentEvent, startStalledPaymentSweep } from "./services/paymentTelemetry";
 import {
   firestoreCategories,
   firestoreVotePackages,
@@ -931,6 +932,7 @@ function normalizeNonprofitDeclaration(value: any) {
 }
 
 function installApiErrorTelemetry(app: Express): void {
+  app.use(paymentRequestTelemetry);
   app.use((req, res, next) => {
     const originalJson = res.json.bind(res);
     const originalSend = res.send.bind(res);
@@ -7663,7 +7665,7 @@ export async function registerRoutes(
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "paypal") return res.status(409).json({ message: "PayPal is not the active payment provider." });
       const token = await getPayPalAccessToken(config);
-      const response = await fetch(`${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
+      const response = await tracedProviderFetch("paypal", "create-order", `${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -7804,7 +7806,7 @@ export async function registerRoutes(
       const config = await getBuyerPaymentConfig();
       if (config.provider !== "paypal") return res.status(409).json({ message: "PayPal is not the active payment provider." });
       const token = await getPayPalAccessToken(config);
-      const response = await fetch(`${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
+      const response = await tracedProviderFetch("paypal", "create-order", `${getPayPalApiBase(config.paypalEnvironment)}/v2/checkout/orders`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -7998,7 +8000,7 @@ export async function registerRoutes(
         };
       } else if (activeProvider === "paypal" && parsed.data.paypalOrderId) {
         const token = await getPayPalAccessToken(providerConfig);
-        const captureResponse = await fetch(`${getPayPalApiBase(providerConfig.paypalEnvironment)}/v2/checkout/orders/${encodeURIComponent(parsed.data.paypalOrderId)}/capture`, {
+        const captureResponse = await tracedProviderFetch("paypal", "capture-order", `${getPayPalApiBase(providerConfig.paypalEnvironment)}/v2/checkout/orders/${encodeURIComponent(parsed.data.paypalOrderId)}/capture`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         });

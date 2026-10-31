@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { getFirestore } from "./firebase-admin";
 import { decrypt, encrypt, isEncryptionKeySet } from "./encryption";
+import { instrumentStripeClient, tracedProviderFetch } from "./services/paymentTelemetry";
 
 export type BuyerPaymentProvider = "authorize" | "stripe" | "paypal";
 
@@ -120,7 +121,7 @@ export async function saveBuyerPaymentSettings(input: {
 export async function getStripeBuyerClient(): Promise<Stripe> {
   const config = await getBuyerPaymentConfig();
   if (!config.stripeSecretKey) throw new Error("Stripe is not configured.");
-  return new Stripe(config.stripeSecretKey);
+  return instrumentStripeClient(new Stripe(config.stripeSecretKey));
 }
 
 export function getPayPalApiBase(environment: "sandbox" | "live") {
@@ -131,7 +132,7 @@ export async function getPayPalAccessToken(config?: Awaited<ReturnType<typeof ge
   config = config || await getBuyerPaymentConfig();
   if (!config.paypalClientId || !config.paypalSecret) throw new Error("PayPal is not configured.");
   const auth = Buffer.from(`${config.paypalClientId}:${config.paypalSecret}`).toString("base64");
-  const response = await fetch(`${getPayPalApiBase(config.paypalEnvironment)}/v1/oauth2/token`, {
+  const response = await tracedProviderFetch("paypal", "oauth-token", `${getPayPalApiBase(config.paypalEnvironment)}/v1/oauth2/token`, {
     method: "POST",
     headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
     body: "grant_type=client_credentials",
