@@ -94,6 +94,7 @@ interface PaymentAttempt {
   packageKey: string | null;
   competitionId: number | null;
   contestantId: number | null;
+  packageName?: string | null;
   competitionName?: string | null;
   contestantName?: string | null;
   customerEmail: string | null;
@@ -785,7 +786,7 @@ export default function AdminAnalyticsTab() {
                             </td>
                             <td className="py-3 pr-4">
                               <p className="text-white/70">{formatPaymentRoute(attempt.route)}</p>
-                              {attempt.packageKey && <p className="text-[10px] text-white/25 font-mono truncate max-w-[180px]">{attempt.packageKey}</p>}
+                              {(attempt.packageName || attempt.packageKey) && <p className="text-[11px] text-white/50 truncate max-w-[180px]">{attempt.packageName || attempt.packageKey}</p>}
                               {(attempt.competitionId !== null || attempt.contestantId !== null) && (
                                 <p className="text-[10px] text-white/30">
                                   {attempt.competitionId !== null ? (attempt.competitionName || `Competition #${attempt.competitionId}`) : ""}

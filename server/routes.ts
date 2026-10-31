@@ -10235,6 +10235,27 @@ export async function registerRoutes(
           console.error("Payment reconcile failed:", healError);
         }
       }
+      const settingsSnap = await getFirestore().collection("platformSettings").doc("global").get();
+      const configuredPackages: Array<{ name?: string }> = settingsSnap.data()?.votePackages || [
+        { name: "Starter Pack" }, { name: "Fan Pack" }, { name: "Super Fan Pack" },
+      ];
+      const packageNameCache = new Map<string, string>();
+      const resolvePackageName = async (key: unknown): Promise<string | null> => {
+        if (typeof key !== "string" || !key) return null;
+        const [id, index, count] = key.split(":");
+        if (id === "individual" && count) return `${count} Individual Vote${count === "1" ? "" : "s"}`;
+        if (index !== undefined && index !== "" && configuredPackages[Number(index)]?.name) return configuredPackages[Number(index)].name!;
+        if (packageNameCache.has(id)) return packageNameCache.get(id) || null;
+        let name = "";
+        try { name = (await firestoreVotePackages.get(id))?.name || ""; } catch {}
+        packageNameCache.set(id, name);
+        return name || null;
+      };
+      const packageNames = new Map<string, string | null>();
+      for (const attempt of attempts) {
+        const k = attempt.packageKey as string;
+        if (k && !packageNames.has(k)) packageNames.set(k, await resolvePackageName(k));
+      }
       const compNames = new Map<number, string>();
       const contestantNames = new Map<string, string>();
       for (const attempt of attempts) {
@@ -10267,6 +10288,7 @@ export async function registerRoutes(
         packageKey: attempt.packageKey || null,
         competitionId: attempt.competitionId ?? null,
         contestantId: attempt.contestantId ?? null,
+        packageName: packageNames.get(attempt.packageKey as string) || null,
         competitionName: compNames.get(attempt.competitionId as number) || null,
         contestantName: contestantNames.get(`${attempt.competitionId}:${attempt.contestantId}`) || null,
         customerEmail: attempt.customerEmail || null,
