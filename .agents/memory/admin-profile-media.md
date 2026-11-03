@@ -7,7 +7,7 @@ Admin-managed profile photos may be added without a competition and are stored a
 
 **Why:** Photos are part of the reusable talent profile, while videos are routed into one competition-specific ChronicTV folder. Admins may need to prepare media before contestant assignment.
 
-**How to apply:** Preserve the optional competition behavior for photos and require only a valid selected competition for admin video upload or routing changes.
+**How to apply:** Preserve the optional competition behavior for photos and require only a valid selected competition for admin video upload or routing changes. Admin upload tickets must be finalized through an admin-authorized route that saves media to the selected talent profile; never send the admin flow through the contestant-only self-service finalizer.
 
 Admin video uploads use the same single ChronicTV destination as artist self-service uploads; there are no backup copies.
 

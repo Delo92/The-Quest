@@ -311,7 +311,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
 
       await uploadToVimeo(ticket.uploadLink);
 
-      const finalizeResponse = await fetch("/api/vimeo/finalize-upload", {
+      const finalizeResponse = await fetch(`${apiBase}/${profileId}/videos/finalize-upload`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -321,8 +321,6 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
           videoUri: ticket.videoUri,
           competitionId: uploadCompetitionId,
           completeUri: ticket.completeUri || null,
-          chronicTVCompleteUri: null,
-          customFolderCompleteUri: null,
         }),
       });
       if (!finalizeResponse.ok) {

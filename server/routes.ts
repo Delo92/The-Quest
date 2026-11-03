@@ -5619,6 +5619,63 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/users/:profileId/videos/finalize-upload", firebaseAuth, requireAdmin, async (req, res) => {
+    try {
+      const profileId = Number(req.params.profileId);
+      const competitionId = Number(req.body?.competitionId);
+      const videoUri = typeof req.body?.videoUri === "string" ? req.body.videoUri : "";
+      const completeUri = typeof req.body?.completeUri === "string" ? req.body.completeUri : "";
+
+      if (!Number.isInteger(profileId) || profileId <= 0) {
+        return res.status(400).json({ message: "Invalid profile ID" });
+      }
+      if (!Number.isInteger(competitionId) || competitionId <= 0 || !/^\/videos\/\d+$/.test(videoUri)) {
+        return res.status(400).json({ message: "A valid video and competition are required." });
+      }
+      if (completeUri && !new RegExp(`^/videos/${videoUri.split("/").pop()}/complete$`).test(completeUri)) {
+        return res.status(400).json({ message: "Invalid Vimeo completion path." });
+      }
+
+      const [profile, competition] = await Promise.all([
+        storage.getTalentProfile(profileId),
+        storage.getCompetition(competitionId),
+      ]);
+      if (!profile) return res.status(404).json({ message: "Profile not found" });
+      if (!competition) return res.status(404).json({ message: "Competition not found" });
+
+      if (completeUri) {
+        const response = await fetch(`https://api.vimeo.com${completeUri}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${process.env.VIMEO_ACCESS_TOKEN}`,
+            Accept: "application/vnd.vimeo.*+json;version=3.4",
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Vimeo completion failed with status ${response.status}`);
+        }
+      }
+
+      const existingUris: string[] = profile.videoUrls || [];
+      const competitionVideoUris = {
+        ...(profile.competitionVideoUris || {}),
+        [String(competition.id)]: videoUri,
+      };
+      const hiddenVideoUris: string[] = (profile as any).hiddenVideoUris || [];
+      await storage.updateTalentProfile(profile.userId, {
+        videoUrls: Array.from(new Set([...existingUris, videoUri])),
+        competitionVideoUris,
+        hiddenVideoUris: hiddenVideoUris.filter((uri) => uri !== videoUri),
+      } as any);
+
+      prewarmVideoPlayUrl(videoUri);
+      return res.json({ success: true });
+    } catch (error: any) {
+      console.error("Admin Vimeo finalize upload error:", error);
+      return res.status(500).json({ message: "Failed to save the uploaded video." });
+    }
+  });
+
   app.delete(["/api/admin/users/:profileId/videos/:videoId", "/api/host/users/:profileId/videos/:videoId"], firebaseAuth, requireTalentManagerByProfileId, async (req, res) => {
     try {
       const profileId = parseInt(req.params.profileId);
