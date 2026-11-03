@@ -149,6 +149,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
   const [playingVideoUri, setPlayingVideoUri] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const videoUploadInProgressRef = useRef(false);
 
   const { data, isLoading } = useQuery<UserDetailResponse>({
     queryKey: [apiBase, profileId, "detail"],
@@ -268,6 +269,10 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
   };
 
   const handleAdminVideoUpload = async (file: File) => {
+    if (videoUploadInProgressRef.current) {
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      return;
+    }
     const uploadCompetitionId = mediaCompetitionId !== "none" ? mediaCompetitionId : null;
 
     if (!uploadCompetitionId) {
@@ -275,6 +280,8 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
       if (videoInputRef.current) videoInputRef.current.value = "";
       return;
     }
+    videoUploadInProgressRef.current = true;
+    const uploadRequestId = crypto.randomUUID();
     setMediaUploadType("video");
     setMediaUploadProgress(0);
     try {
@@ -289,6 +296,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
           fileSize: file.size,
           competitionId: uploadCompetitionId,
           videoTitle: adminVideoTitle.trim(),
+          uploadRequestId,
         }),
       });
       if (!ticketResponse.ok) {
@@ -321,6 +329,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
           videoUri: ticket.videoUri,
           competitionId: uploadCompetitionId,
           completeUri: ticket.completeUri || null,
+          uploadRequestId,
         }),
       });
       if (!finalizeResponse.ok) {
@@ -349,6 +358,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {
+      videoUploadInProgressRef.current = false;
       setMediaUploadType(null);
       setMediaUploadProgress(0);
       if (videoInputRef.current) videoInputRef.current.value = "";

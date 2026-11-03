@@ -15,6 +15,12 @@ Admin video uploads use the same single ChronicTV destination as artist self-ser
 
 **How to apply:** Require a selected competition, create the ChronicTV competition/artist folder ticket, and list videos from that same folder.
 
+Admin Vimeo ticket creation must be protected against both overlapping UI submissions and repeated server requests using the same upload request ID. Vimeo can contain separate same-title assets even when the profile points to only one of them.
+
+**Why:** An interrupted admin finalization followed by a retry left two distinct Vimeo videos with the same title; folder-based listing exposed both.
+
+**How to apply:** Use a synchronous client in-flight guard plus a server-side idempotency record for ticket creation. Inspect Vimeo URIs before treating two cards as the same asset, and never delete an existing video without approval.
+
 The admin media competition selector must remain empty until the administrator explicitly chooses a competition; upload completion should wait for the uploaded Vimeo URI to appear in the listing before showing it as visible.
 
 **Why:** Defaulting to the first competition can route media incorrectly, and Vimeo indexing can lag behind upload completion.

@@ -5571,50 +5571,109 @@ export async function registerRoutes(
       const profileId = parseInt(req.params.profileId);
       if (isNaN(profileId)) return res.status(400).json({ message: "Invalid profile ID" });
 
-       const { fileSize, competitionId } = req.body;
-       if (!fileSize || !competitionId) {
-         return res.status(400).json({ message: "fileSize and competitionId are required" });
+      const fileSize = Number(req.body?.fileSize);
+      const competitionId = Number(req.body?.competitionId);
+      const uploadRequestId = typeof req.body?.uploadRequestId === "string" ? req.body.uploadRequestId : "";
+      if (!Number.isSafeInteger(fileSize) || fileSize <= 0 || !Number.isInteger(competitionId) || competitionId <= 0) {
+        return res.status(400).json({ message: "A valid file size and competition are required" });
       }
-       const titleInput = readOptionalVideoTitle(req.body?.videoTitle);
-       if (titleInput.error) return res.status(400).json({ message: titleInput.error });
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uploadRequestId)) {
+        return res.status(400).json({ message: "A valid upload request ID is required" });
+      }
+      const titleInput = readOptionalVideoTitle(req.body?.videoTitle);
+      if (titleInput.error) return res.status(400).json({ message: titleInput.error });
 
       const [profile, comp] = await Promise.all([
         storage.getTalentProfile(profileId),
-        storage.getCompetition(parseInt(competitionId)),
+        storage.getCompetition(competitionId),
       ]);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
       if (!comp) return res.status(404).json({ message: "Competition not found" });
 
+      const requestHash = crypto.createHash("sha256").update(JSON.stringify({
+        profileId,
+        competitionId,
+        fileSize,
+        videoTitle: titleInput.title || "",
+      })).digest("hex");
+      const requestDocId = crypto.createHash("sha256").update(`${profileId}:${uploadRequestId}`).digest("hex");
+      const requestRef = getFirestore().collection("adminVideoUploadRequests").doc(requestDocId);
+      const reservation = await getFirestore().runTransaction(async (tx) => {
+        const snapshot = await tx.get(requestRef);
+        if (snapshot.exists) {
+          const existing = snapshot.data()!;
+          if (existing.requestHash !== requestHash) return { state: "conflict" as const };
+          if (existing.status === "ready" && existing.ticket) {
+            return { state: "ready" as const, ticket: existing.ticket };
+          }
+          return { state: "processing" as const };
+        }
+        tx.create(requestRef, {
+          requestHash,
+          profileId,
+          competitionId,
+          status: "creating",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        return { state: "reserved" as const };
+      });
+      if (reservation.state === "conflict") {
+        return res.status(409).json({ message: "This upload request ID was already used for different video details." });
+      }
+      if (reservation.state === "processing") {
+        return res.status(409).json({ message: "This video upload is already being prepared. Wait before trying again." });
+      }
+      if (reservation.state === "ready") return res.json(reservation.ticket);
+
+      try {
       const settingsDoc = await getFirestore().collection("platformSettings").doc("global").get();
       const globalMaxVideos = settingsDoc.exists ? (settingsDoc.data()?.maxVideosPerContestant ?? 3) : 3;
       const compMaxVideos = comp.maxVideosPerContestant;
       const maxVideos = compMaxVideos != null ? Math.min(compMaxVideos, globalMaxVideos) : globalMaxVideos;
-       const talentName = (profile.stageName || profile.displayName).trim();
+      const talentName = (profile.stageName || profile.displayName).trim();
 
-       const existingVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
+      const existingVideos = await listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl);
       const hiddenUris: string[] = (profile as any).hiddenVideoUris || [];
       if (existingVideos.filter(v => !hiddenUris.includes(v.uri)).length >= maxVideos) {
+        await requestRef.set({ status: "failed", failureMessage: "Upload limit reached", updatedAt: Date.now() }, { merge: true });
         return res.status(400).json({ message: `Upload limit reached. Maximum ${maxVideos} videos allowed per contestant.` });
       }
 
-       const chronicTVTicket = await createChronicTVUploadTicket(
-         comp.title,
-         talentName,
-         talentName,
-          titleInput.title,
-         fileSize,
-         comp.vimeoFolderUrl,
-       );
+      const chronicTVTicket = await createChronicTVUploadTicket(
+        comp.title,
+        talentName,
+        talentName,
+        titleInput.title,
+        fileSize,
+        comp.vimeoFolderUrl,
+      );
 
-      res.json({
+      const ticket = {
         uploadLink: chronicTVTicket.uploadLink,
         videoUri: chronicTVTicket.videoUri,
         completeUri: chronicTVTicket.completeUri,
         chronicTV: null,
         customFolder: null,
-      });
+      };
+      await requestRef.set({
+        status: "ready",
+        ticket,
+        videoUri: chronicTVTicket.videoUri,
+        updatedAt: Date.now(),
+      }, { merge: true });
+      return res.json(ticket);
+      } catch (error) {
+        await requestRef.set({
+          status: "failed",
+          failureMessage: error instanceof Error ? error.message.slice(0, 300) : "Ticket creation failed",
+          updatedAt: Date.now(),
+        }, { merge: true });
+        throw error;
+      }
     } catch (error: any) {
       console.error("Admin Vimeo upload ticket error:", error);
+      if (error.status) return res.status(error.status).json({ message: error.message });
       res.status(500).json({ message: error.message || "Failed to create upload ticket" });
     }
   });
@@ -5625,6 +5684,7 @@ export async function registerRoutes(
       const competitionId = Number(req.body?.competitionId);
       const videoUri = typeof req.body?.videoUri === "string" ? req.body.videoUri : "";
       const completeUri = typeof req.body?.completeUri === "string" ? req.body.completeUri : "";
+      const uploadRequestId = typeof req.body?.uploadRequestId === "string" ? req.body.uploadRequestId : "";
 
       if (!Number.isInteger(profileId) || profileId <= 0) {
         return res.status(400).json({ message: "Invalid profile ID" });
@@ -5632,8 +5692,27 @@ export async function registerRoutes(
       if (!Number.isInteger(competitionId) || competitionId <= 0 || !/^\/videos\/\d+$/.test(videoUri)) {
         return res.status(400).json({ message: "A valid video and competition are required." });
       }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uploadRequestId)) {
+        return res.status(400).json({ message: "A valid upload request ID is required." });
+      }
       if (completeUri && !new RegExp(`^/videos/${videoUri.split("/").pop()}/complete$`).test(completeUri)) {
         return res.status(400).json({ message: "Invalid Vimeo completion path." });
+      }
+
+      const requestDocId = crypto.createHash("sha256").update(`${profileId}:${uploadRequestId}`).digest("hex");
+      const requestRef = getFirestore().collection("adminVideoUploadRequests").doc(requestDocId);
+      const requestSnapshot = await requestRef.get();
+      const requestData = requestSnapshot.data();
+      if (!requestData
+        || requestData.profileId !== profileId
+        || requestData.competitionId !== competitionId
+        || requestData.videoUri !== videoUri
+        || requestData.status === "failed") {
+        return res.status(409).json({ message: "This upload could not be matched to an active admin upload request." });
+      }
+      if (requestData.status === "finalized") return res.json({ success: true, idempotentReplay: true });
+      if (requestData.status !== "ready") {
+        return res.status(409).json({ message: "This video upload is still being prepared." });
       }
 
       const [profile, competition] = await Promise.all([
@@ -5667,6 +5746,7 @@ export async function registerRoutes(
         competitionVideoUris,
         hiddenVideoUris: hiddenVideoUris.filter((uri) => uri !== videoUri),
       } as any);
+      await requestRef.set({ status: "finalized", updatedAt: Date.now() }, { merge: true });
 
       prewarmVideoPlayUrl(videoUri);
       return res.json({ success: true });
