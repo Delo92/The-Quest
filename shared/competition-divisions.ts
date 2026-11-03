@@ -3,6 +3,7 @@ import { slugify } from "./slugify";
 export interface CompetitionDivisionSource {
   title?: string | null;
   category?: string | null;
+  slug?: string | null;
   description?: string | null;
   contestantDivisions?: readonly string[] | null;
 }
@@ -27,7 +28,10 @@ export function getContestantDivisionOptions(
 
   if (
     slugify(competition.category || "") === "modelingfashion" &&
-    slugify(competition.title || "") === "chronic-cuties-of-hawaii"
+    (
+      slugify(competition.slug || "") === "chronic-cuties-of-hawaii" ||
+      slugify(competition.title || "") === "chronic-cuties-of-hawaii"
+    )
   ) {
     return [...CHRONIC_CUTIES_COMPETITION_DIVISIONS];
   }

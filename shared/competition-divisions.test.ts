@@ -19,6 +19,21 @@ test("Chronic Cuties offers Cuties and Hunks as entrant divisions", () => {
   ]);
 });
 
+test("the canonical competition slug preserves divisions after the title is rebranded", () => {
+  const brandedCompetition = {
+    title: "Chronic Cuties X Curves&Confidence Hawaii Quest",
+    category: "Modeling/Fashion",
+    slug: "chronic-cuties-of-hawaii",
+    contestantDivisions: [],
+  };
+
+  assert.deepEqual(getContestantDivisionOptions(brandedCompetition), [
+    "Chronic Cuties",
+    "Chronic Hunks",
+  ]);
+  assert.equal(getContestantDivisionLabel(brandedCompetition, "Chronic Hunks"), "Chronic Hunks");
+});
+
 test("other competitions do not gain divisions", () => {
   assert.deepEqual(getContestantDivisionOptions({
     title: "A Different Modeling Event",
