@@ -39,6 +39,7 @@ import {
 } from "@shared/nonprofit-policy";
 import OCAccountPanel from "@/components/oc-account-panel";
 import TalentDetailModal from "@/components/talent-detail-panel";
+import LoginEmailSettings from "@/components/login-email-settings";
 
 interface HostStats {
   totalCompetitions: number;
@@ -663,7 +664,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Login email</Label>
-                <Input value={accountForm.email || ""} onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2" type="email" data-testid="input-host-account-email" />
+                <Input value={user?.email || accountForm.email || ""} readOnly className="bg-white/[0.06] border-white/15 text-white/70 mt-2" type="email" data-testid="input-host-account-email" />
               </div>
               <div>
                 <Label>New password</Label>
@@ -691,6 +692,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                 <Input value={accountForm.location || ""} onChange={(e) => setAccountForm({ ...accountForm, location: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2" placeholder="City, State" data-testid="input-host-account-location" />
               </div>
             </div>
+            <LoginEmailSettings currentEmail={user?.email || accountForm.email || ""} />
             <div>
               <Label>Bio</Label>
               <Textarea value={accountForm.bio || ""} onChange={(e) => setAccountForm({ ...accountForm, bio: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2 min-h-28" placeholder="Tell contestants and viewers about you." data-testid="input-host-account-bio" />
@@ -803,7 +805,6 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                   }
 
                   updateAccountMutation.mutate({
-                    email: accountForm.email.trim(),
                     displayName: accountForm.displayName.trim(),
                     stageName: accountForm.stageName?.trim() || null,
                     bio: accountForm.bio?.trim() || null,

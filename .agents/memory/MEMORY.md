@@ -13,7 +13,7 @@
 - [Dashboard readability](dashboard-readability.md) — authenticated dashboards use elevated charcoal surfaces and stronger secondary contrast without changing the public site
 - [Competition Vimeo routing](competition-vimeo-routing.md) — folders carry source/competition; clean titles preserve contestant punctuation and omit path, filename, and extension
 - [Admin profile media](admin-profile-media.md) — admin photos may be account-level; videos use any selected competition for Vimeo routing
-- [Admin account credentials](host-account-credentials.md) — reuse the owner-approved host reset convention for nominees and main Users; never guess existing passwords
+- [Account access security](host-account-credentials.md) — use the approved reset convention and require verification before changing a login email
 - [Gmail delivery verification](gmail-delivery-verification.md) — IMAP can verify bounces when the Gmail API is disabled; SMTP acceptance is not inbox delivery.
 - [Microsoft email scope](outgoing-email-sender.md) — use Microsoft OAuth for sending and the approved mailbox inbox/reply flow; keep account sign-in unchanged.
 - [Nodemailer OAuth refresh](nodemailer-oauth-refresh.md) — do not cache a manually fetched access token without its expiry; let Nodemailer manage Gmail refresh tokens.

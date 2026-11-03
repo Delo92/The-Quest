@@ -44,6 +44,7 @@ import DemoVimeoPreview from "@/components/demo-vimeo-preview";
 import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop-dialog";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import OCAccountPanel from "@/components/oc-account-panel";
+import LoginEmailSettings from "@/components/login-email-settings";
 
 interface Props {
   user: any;
@@ -1006,12 +1007,14 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                     className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/25" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-white/60">Email</Label>
+                  <Label htmlFor="email" className="text-white/60">Contact email</Label>
                   <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com" data-testid="input-email"
                     className="bg-white/[0.07] border-white/15 text-white placeholder:text-white/25" />
+                  <p className="text-xs text-white/40">Used for profile contact; changing it does not change your sign-in email.</p>
                 </div>
               </div>
+              <LoginEmailSettings currentEmail={user.email || ""} />
               <div className="space-y-3 rounded-md bg-white/[0.06] border border-white/12 px-4 py-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-white/60">Phone (optional)</Label>

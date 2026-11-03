@@ -1604,6 +1604,25 @@ export async function registerRoutes(
     }
   });
 
+  const syncVerifiedLoginEmail = async (
+    uid: string,
+    tokenEmail: string,
+    user: Awaited<ReturnType<typeof getFirestoreUser>>,
+  ) => {
+    if (!user) return null;
+    const normalizedTokenEmail = tokenEmail.trim().toLowerCase();
+    const normalizedStoredEmail = user.email?.trim().toLowerCase() || "";
+    if (!normalizedTokenEmail || normalizedTokenEmail === normalizedStoredEmail) return user;
+
+    const authUser = await getFirebaseAuth().getUser(uid);
+    const verifiedEmail = authUser.email?.trim().toLowerCase() || "";
+    if (!authUser.emailVerified || !verifiedEmail || verifiedEmail !== normalizedTokenEmail) return user;
+
+    const updated = await updateFirestoreUser(uid, { email: verifiedEmail });
+    if (updated) queueOCSocialProfileSyncForUser(uid);
+    return updated || { ...user, email: verifiedEmail };
+  };
+
   app.post("/api/auth/sync", firebaseAuth, async (req, res) => {
     try {
       const { uid, email } = req.firebaseUser!;
@@ -1616,6 +1635,8 @@ export async function registerRoutes(
           displayName: email.split("@")[0],
           level: 1,
         });
+      } else {
+        firestoreUser = (await syncVerifiedLoginEmail(uid, email, firestoreUser)) || firestoreUser;
       }
 
       const profile = await storage.getTalentProfileByUserId(uid);
@@ -1641,10 +1662,11 @@ export async function registerRoutes(
   app.get("/api/auth/user", firebaseAuth, async (req, res) => {
     try {
       const { uid } = req.firebaseUser!;
-      const firestoreUser = await getFirestoreUser(uid);
+      let firestoreUser = await getFirestoreUser(uid);
       if (!firestoreUser) {
         return res.status(404).json({ message: "User not found" });
       }
+      firestoreUser = (await syncVerifiedLoginEmail(uid, req.firebaseUser!.email, firestoreUser)) || firestoreUser;
 
       const profile = await storage.getTalentProfileByUserId(uid);
 
@@ -9254,11 +9276,12 @@ export async function registerRoutes(
       if (socialLinks !== undefined) updateData.socialLinks = socialLinks;
       if (billingAddress !== undefined) updateData.billingAddress = billingAddress;
       if (nonprofitDeclaration !== undefined) updateData.nonprofitDeclaration = normalizeNonprofitDeclaration(nonprofitDeclaration);
-      if (email !== undefined) updateData.email = email;
+      if (email !== undefined) {
+        return res.status(400).json({ message: "Login email changes must be confirmed through the verification email." });
+      }
 
-      if (email !== undefined || password !== undefined || displayName !== undefined) {
+      if (password !== undefined || displayName !== undefined) {
         const firebaseUpdate: Record<string, string> = {};
-        if (email !== undefined) firebaseUpdate.email = String(email).trim().toLowerCase();
         if (password !== undefined && String(password).length > 0) firebaseUpdate.password = String(password);
         if (displayName !== undefined) firebaseUpdate.displayName = String(displayName).trim();
         if (Object.keys(firebaseUpdate).length > 0) {

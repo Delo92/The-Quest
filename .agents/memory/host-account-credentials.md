@@ -1,6 +1,6 @@
 ---
-name: Admin account credentials
-description: Owner-approved temporary-password convention and account recovery for hosts, nominees, and main users.
+name: Account access security
+description: Approved password-reset convention and verified self-service login-email changes.
 ---
 
 Existing host passwords must never be treated as recoverable password history. Hosts normally have their own custom passwords; the fixed admin reset credential is an emergency/temporary fallback used only when an admin explicitly resets an account, after which the host is expected to change it. Reset metadata may be compared with the host's later Firebase sign-in time.
@@ -20,3 +20,9 @@ Bulk artist/competitor recovery must exclude hosts and admins, even if some reco
 **Why:** The owner repeatedly specified artist/competitor accounts only, not hosts, when authorizing account-wide recovery.
 
 **How to apply:** Give exclusion signals precedence across account levels, authentication claims, profile roles, and competition ownership. Record per-account reset and email outcomes so a failed delivery can be retried without resetting successful accounts again. Do not equate profile-only contestant records with usable login accounts.
+
+Self-service login-email changes must be verified at the new address before Firebase Auth changes. Keep public/profile contact email separate from the login email, and sync the account record only from Firebase's verified email state. Authenticated profile endpoints must not directly change login email.
+
+**Why:** The owner requested self-service login-email changes; verification prevents an unconfirmed address from replacing the account's sign-in identity.
+
+**How to apply:** Use Firebase's verify-before-update flow, then reconcile the verified Auth email into the account record after refresh/sign-in. Do not overwrite a talent profile's contact email as part of this sync.
