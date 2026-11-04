@@ -1384,6 +1384,42 @@ export async function registerRoutes(
     }
   });
 
+  // Lets the "Forgot password" form say plainly when no account (or no account of
+  // the requested type) exists, instead of Firebase's silent success.
+  const resetCheckHits = new Map<string, number[]>();
+  app.post("/api/auth/password-reset-check", async (req, res) => {
+    try {
+      const now = Date.now();
+      const hits = (resetCheckHits.get(req.ip || "unknown") || []).filter((t) => now - t < 60_000);
+      if (hits.length >= 10) return res.status(429).json({ message: "Too many attempts. Please wait a minute and try again." });
+      hits.push(now);
+      resetCheckHits.set(req.ip || "unknown", hits);
+
+      const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+      if (!email || email.length > 320) return res.status(400).json({ message: "Enter a valid email address." });
+      const requestedLevel = Number(req.body?.level);
+      let account;
+      try {
+        account = await getFirebaseAuth().getUserByEmail(email);
+      } catch (error: any) {
+        if (error.code === "auth/user-not-found") return res.json({ status: "no-account" });
+        throw error;
+      }
+      if (requestedLevel >= 1 && requestedLevel <= 3) {
+        const record = await getFirestoreUser(account.uid);
+        const actual = Number(record?.level ?? account.customClaims?.level);
+        const normalized = actual >= 4 ? 3 : actual;
+        if (normalized >= 1 && normalized !== requestedLevel) {
+          return res.json({ status: "wrong-level", actualLevel: normalized });
+        }
+      }
+      res.json({ status: "ok" });
+    } catch (error) {
+      console.error("Password reset check failed:", error);
+      res.status(500).json({ message: "We couldn't check that email right now. Please try again." });
+    }
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     let createdUid: string | null = null;
     let createdTalentProfileId: number | null = null;

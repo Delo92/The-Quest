@@ -299,6 +299,30 @@ export default function LoginPage() {
         toast({ title: "Account created!", description: "Welcome to the platform." });
         setLocation(destination);
       } else if (mode === "reset") {
+        const checkResponse = await fetch("/api/auth/password-reset-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, level: [1, 2, 3].includes(requestedLevel) ? requestedLevel : undefined }),
+        });
+        const check = await checkResponse.json().catch(() => ({}));
+        if (!checkResponse.ok) throw new Error(check.message || "We couldn't check that email right now.");
+        const levelNames: Record<number, string> = { 1: "Viewer", 2: "Artist / Competitor", 3: "Host" };
+        if (check.status === "no-account") {
+          toast({
+            title: "No account with that email",
+            description: "We don't have an account for this email address. Check the spelling, or register to create one.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (check.status === "wrong-level") {
+          toast({
+            title: "No account of this type",
+            description: `This email has a ${levelNames[check.actualLevel] || "different"} account, not a ${levelNames[requestedLevel]} account. Use the ${levelNames[check.actualLevel] || "matching"} login instead.`,
+            variant: "destructive",
+          });
+          return;
+        }
         await resetPassword(email);
         toast({ title: "Reset email sent", description: "Check your inbox for a password reset link." });
         setMode("login");
