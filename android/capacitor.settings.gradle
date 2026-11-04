@@ -2,5 +2,11 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/.pnpm/@capacitor+android@8.6.0_@capacitor+core@8.6.0/node_modules/@capacitor/android/capacitor')
 
+include ':capacitor-app'
+project(':capacitor-app').projectDir = new File('../node_modules/.pnpm/@capacitor+app@8.1.2_@capacitor+core@8.6.0/node_modules/@capacitor/app/android')
+
+include ':capacitor-browser'
+project(':capacitor-browser').projectDir = new File('../node_modules/.pnpm/@capacitor+browser@8.0.5_@capacitor+core@8.6.0/node_modules/@capacitor/browser/android')
+
 include ':capgo-capacitor-video-player'
 project(':capgo-capacitor-video-player').projectDir = new File('../node_modules/.pnpm/@capgo+capacitor-video-player@8.2.15_@capacitor+core@8.6.0_hls.js@1.7.3/node_modules/@capgo/capacitor-video-player/android')

@@ -45,6 +45,7 @@ import ImageCropDialog, { type ImageCropPosition } from "@/components/image-crop
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import OCAccountPanel from "@/components/oc-account-panel";
 import LoginEmailSettings from "@/components/login-email-settings";
+import DeleteAccountSettings from "@/components/delete-account-settings";
 
 interface Props {
   user: any;
@@ -1015,6 +1016,7 @@ export default function TalentDashboard({ user, profile, demoMode = false }: Pro
                 </div>
               </div>
               <LoginEmailSettings currentEmail={user.email || ""} />
+              <DeleteAccountSettings />
               <div className="space-y-3 rounded-md bg-white/[0.06] border border-white/12 px-4 py-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-white/60">Phone (optional)</Label>

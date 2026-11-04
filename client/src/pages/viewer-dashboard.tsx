@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiRequest } from "@/lib/queryClient";
 import SiteNavbar from "@/components/site-navbar";
 import SiteFooter from "@/components/site-footer";
+import DeleteAccountSettings from "@/components/delete-account-settings";
 import { useLivery } from "@/hooks/use-livery";
 import { useSEO } from "@/hooks/use-seo";
 import { slugify } from "@shared/slugify";
@@ -378,6 +379,7 @@ export default function ViewerDashboard({ demoMode = false }: { demoMode?: boole
             </div>
           </>
         )}
+        {isAuthViewer && <div className="pb-8"><DeleteAccountSettings /></div>}
       </div>
 
       <SiteFooter />

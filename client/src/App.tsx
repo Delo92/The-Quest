@@ -36,6 +36,7 @@ const AppDemoPage = lazy(() => import("@/pages/app-demo"));
 const ReferralLandingPage = lazy(() => import("@/pages/referral-landing"));
 const AdminFormsPage = lazy(() => import("@/pages/admin-forms"));
 const PublicFormPage = lazy(() => import("@/pages/public-form"));
+const DeleteAccountPage = lazy(() => import("@/pages/delete-account"));
 
 function RootEntryPage() {
   const search = useSearch();
@@ -54,6 +55,7 @@ function QuestRouter() {
       <Route path="/Competitor/:name" component={CompetitorByName} />
       <Route path="/checkout/:competitionId/:contestantId" component={CheckoutPage} />
       <Route path="/my-purchases" component={MyPurchasesPage} />
+      <Route path="/delete-account" component={DeleteAccountPage} />
       <Route path="/nominationindex" component={NominationIndexPage} />
       <Route path="/nominate" component={JoinPage} />
       <Route path="/join">{() => <Redirect to={`/nominate${window.location.search}`} />}</Route>

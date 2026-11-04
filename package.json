@@ -13,6 +13,8 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "^8.6.0",
     "@capgo/capacitor-video-player": "^8.2.15",
     "@google-analytics/data": "^5.2.1",

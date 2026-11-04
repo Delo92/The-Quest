@@ -12,7 +12,7 @@ const config: CapacitorConfig = {
   appName: "The Quest",
   webDir: "dist/public",
   server: {
-    url: `${siteUrl}/thequest`,
+    url: `${siteUrl}/thequest/`,
     cleartext: false,
   },
 };

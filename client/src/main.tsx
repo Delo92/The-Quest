@@ -5,6 +5,7 @@ import App from "./App";
 import "./index.css";
 import { initFirebase } from "./lib/firebase";
 import { reloadForNewBuild } from "./lib/stale-build-recovery";
+import { installNativeLinkHandling } from "./lib/native-app";
 
 // After a deploy, an open tab still points at bundles that no longer exist.
 // Reload once to pick up the current build instead of showing an error page.
@@ -12,6 +13,7 @@ window.addEventListener("vite:preloadError", (event) => {
   if (reloadForNewBuild()) event.preventDefault();
 });
 
+installNativeLinkHandling();
 setAuthTokenGetter(getAuthToken);
 initFirebase().catch(console.error);
 

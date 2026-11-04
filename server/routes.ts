@@ -4452,32 +4452,62 @@ export async function registerRoutes(
     }
   });
 
+  async function deleteAccountData(uid: string) {
+    const profile = await storage.getTalentProfileByUserId(uid);
+    if (profile) {
+      const contestantEntries = await storage.getContestantsByTalent(profile.id);
+      for (const entry of contestantEntries) {
+        await storage.deleteContestant(entry.id);
+      }
+    }
+
+    await storage.deleteTalentProfileByUserId(uid);
+
+    try {
+      await getFirestore().collection("users").doc(uid).delete();
+    } catch (e) {}
+
+    try {
+      await deleteFirebaseUser(uid);
+    } catch (e) {}
+  }
+
   app.delete("/api/admin/users/:uid", firebaseAuth, requireAdmin, async (req, res) => {
     try {
-      const { uid } = req.params;
-
-      const profile = await storage.getTalentProfileByUserId(uid);
-      if (profile) {
-        const contestantEntries = await storage.getContestantsByTalent(profile.id);
-        for (const entry of contestantEntries) {
-          await storage.deleteContestant(entry.id);
-        }
-      }
-
-      await storage.deleteTalentProfileByUserId(uid);
-
-      try {
-        await getFirestore().collection("users").doc(uid).delete();
-      } catch (e) {}
-
-      try {
-        await deleteFirebaseUser(uid);
-      } catch (e) {}
-
+      await deleteAccountData(req.params.uid);
       res.json({ message: "User fully deleted" });
     } catch (error: any) {
       console.error("Delete user error:", error);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Self-service account deletion (required by the App Store and Google Play).
+  // Viewer and artist accounts are removed immediately after a recent sign-in.
+  // Host and admin accounts hold event and payout records, so they are reviewed.
+  app.delete("/api/account", firebaseAuth, async (req, res) => {
+    try {
+      if (req.body?.confirm !== "DELETE") {
+        return res.status(400).json({ message: "Type DELETE to confirm." });
+      }
+      const level = req.firebaseUser!.level;
+      if (level >= 3) {
+        return res.status(403).json({
+          code: "review-required",
+          message: "Host and admin accounts have event and payout records, so deletion is reviewed. Email support to request it.",
+        });
+      }
+      const token = String(req.headers.authorization || "").slice("Bearer ".length);
+      const decoded = await verifyFirebaseToken(token);
+      const signedInAt = Number((decoded as { auth_time?: number }).auth_time) * 1000;
+      if (!signedInAt || Date.now() - signedInAt > 5 * 60_000) {
+        return res.status(401).json({ code: "recent-login-required", message: "Please confirm your password to delete your account." });
+      }
+      await deleteAccountData(req.firebaseUser!.uid);
+      res.json({ message: "Account deleted" });
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      res.status(500).json({ message: "We couldn't delete your account. Please try again or contact support." });
     }
   });
 
@@ -10065,6 +10095,38 @@ export async function registerRoutes(
       console.error("LLM guide generation error:", error);
       res.status(500).type("text/plain").send("Error generating LLM guide");
     }
+  });
+
+  // Lets https://cbpublishing.live/thequest/... links open the iPhone/Android apps.
+  // Both files stay unavailable until the owner supplies the real signing details.
+  app.get("/.well-known/apple-app-site-association", (_req, res) => {
+    const teamId = (process.env.APPLE_TEAM_ID || "").trim();
+    if (!teamId) return res.status(404).type("text/plain").send("Not configured");
+    res.type("application/json").json({
+      applinks: {
+        details: [{
+          appIDs: [`${teamId}.live.cbpublishing.thequest`],
+          components: [
+            { "/": "/thequest/checkout/*", exclude: true },
+            { "/": "/thequest/*" },
+          ],
+        }],
+      },
+    });
+  });
+
+  app.get("/.well-known/assetlinks.json", (_req, res) => {
+    const fingerprints = (process.env.ANDROID_SHA256_CERT_FINGERPRINTS || "")
+      .split(",").map((value) => value.trim()).filter(Boolean);
+    if (fingerprints.length === 0) return res.status(404).type("text/plain").send("Not configured");
+    res.type("application/json").json([{
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: "live.cbpublishing.thequest",
+        sha256_cert_fingerprints: fingerprints,
+      },
+    }]);
   });
 
   app.get("/sitemap.xml", async (_req, res) => {

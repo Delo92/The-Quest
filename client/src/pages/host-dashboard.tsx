@@ -40,6 +40,7 @@ import {
 import OCAccountPanel from "@/components/oc-account-panel";
 import TalentDetailModal from "@/components/talent-detail-panel";
 import LoginEmailSettings from "@/components/login-email-settings";
+import DeleteAccountSettings from "@/components/delete-account-settings";
 
 interface HostStats {
   totalCompetitions: number;
@@ -693,6 +694,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
               </div>
             </div>
             <LoginEmailSettings currentEmail={user?.email || accountForm.email || ""} />
+            <DeleteAccountSettings />
             <div>
               <Label>Bio</Label>
               <Textarea value={accountForm.bio || ""} onChange={(e) => setAccountForm({ ...accountForm, bio: e.target.value })} className="bg-white/[0.06] border-white/15 text-white mt-2 min-h-28" placeholder="Tell contestants and viewers about you." data-testid="input-host-account-bio" />
