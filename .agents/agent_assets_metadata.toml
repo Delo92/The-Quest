@@ -182,3 +182,31 @@ mtime_ms = 1792306447197
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/6d19f3dd-79e3-4de1-b1ce-dcab62d4aea9/6fcff659-cb58-40ee-83f1-b528b2769449"
 storage_version_token = "1792306496687023"
 content_type = "image/gif"
+
+[[outputs]]
+id = "E1v-VlOEpyMs-udMSoNfU"
+uri = "file://generated-artifacts/app-icon-preview.png"
+type = "image"
+title = "App icon preview"
+description = "1024x1024 CB logo on near-black, centered with safe margins."
+logical_id = "560dc2dd-6564-4bf4-ba85-351971386ff7"
+content_hash = "sha256:8958b597733f8e5bfa13246423cb759aa42f5e0dfc04e0b68ceb0c5e33836fb1"
+size = 297137
+mtime_ms = 1793834734791
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/560dc2dd-6564-4bf4-ba85-351971386ff7/65c85886-03c7-45b7-8467-2429900ae88a"
+storage_version_token = "1793834736550831"
+content_type = "image/png"
+
+[[outputs]]
+id = "gTY02FcGsmUczL1tjNT_g"
+uri = "file://generated-artifacts/splash-preview.png"
+type = "image"
+title = "Splash screen preview"
+description = "Same logo centered on near-black, phone proportions."
+logical_id = "0fb24540-16e3-4ab7-9b86-062d78de456f"
+content_hash = "sha256:5c138349e8dd5a91b686a1be308f46c4a729a3121eada86dd3e577b41d7245ba"
+size = 69332
+mtime_ms = 1793834735379
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/0fb24540-16e3-4ab7-9b86-062d78de456f/45a5e541-1eca-4536-91dd-4339fa2ddac6"
+storage_version_token = "1793834737149857"
+content_type = "image/png"
