@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">The Quest</string>
+    <string name="title_activity_main">The Quest</string>
+    <string name="package_name">live.cbpublishing.thequest</string>
+    <string name="custom_url_scheme">live.cbpublishing.thequest</string>
+</resources>
