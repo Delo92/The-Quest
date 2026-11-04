@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getAuthToken } from "@/hooks/use-auth";
 import { logClientError } from "@/lib/client-error-logger";
+import { isNotFoundError } from "@/lib/http-errors";
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message || error.name;
@@ -85,6 +86,9 @@ export const getQueryFn: <T>(options: {
 
 const queryCache = new QueryCache({
   onError: (error, query) => {
+    // A removed profile or contestant is an expected 404; the server already
+    // records it, and the page shows a not-found state.
+    if (isNotFoundError(error)) return;
     const endpoint = safeEndpoint(query.queryKey[0]);
     const wasShownToUser = query.getObserversCount() > 0;
     void logClientError({

@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import PublicCompetitionEntry, { type CompetitionVideo, type PublicCompetition } from "@/components/public-competition-entry";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
+import { fetchPublicJson, isNotFoundError, retryDelay, shouldRetryRequest } from "@/lib/http-errors";
 import { extractIdFromSlug, slugify, slugifyWithId , competitionSlug as competitionSlugOf } from "@shared/slugify";
 
 interface PublicTalentProfile {
@@ -125,19 +126,25 @@ export default function TalentProfilePublic() {
   const { data: profile, isLoading, isError, refetch } = useQuery<PublicTalentProfile>({
     queryKey: ["/api/talent-profiles", id, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/talent-profiles/${encodeURIComponent(id!)}/public`);
-      if (!response.ok) throw new Error("Public profile could not be loaded");
-      return response.json();
+      return fetchPublicJson<PublicTalentProfile>(
+        `/api/talent-profiles/${encodeURIComponent(id!)}/public`,
+        "Public profile could not be loaded",
+      );
     },
+    retry: shouldRetryRequest,
+    retryDelay,
     enabled: !!id,
   });
   const { data: competitions = [], isLoading: competitionsLoading, isError: competitionsError, refetch: refetchCompetitions } = useQuery<PublicCompetition[]>({
     queryKey: ["/api/talent-profiles", id, "competitions"],
     queryFn: async () => {
-      const response = await fetch(`/api/talent-profiles/${encodeURIComponent(id!)}/competitions`);
-      if (!response.ok) throw new Error("Competition entries could not be loaded");
-      return response.json();
+      return fetchPublicJson<PublicCompetition[]>(
+        `/api/talent-profiles/${encodeURIComponent(id!)}/competitions`,
+        "Competition entries could not be loaded",
+      );
     },
+    retry: shouldRetryRequest,
+    retryDelay,
     enabled: !!id,
     staleTime: 60_000,
   });
@@ -149,11 +156,18 @@ export default function TalentProfilePublic() {
       return {
         queryKey: ["/api/resolve", categorySlug, competitionSlug, contestantSlug, "videos"],
         queryFn: async (): Promise<CompetitionMedia> => {
-          const response = await fetch(`/api/resolve/${encodeURIComponent(categorySlug)}/${encodeURIComponent(competitionSlug)}/${encodeURIComponent(contestantSlug)}/videos`);
-          if (response.status === 404) return { videoThumbnail: null, videos: [] };
-          if (!response.ok) throw new Error("Competition video could not be loaded");
-          return response.json();
+          try {
+            return await fetchPublicJson<CompetitionMedia>(
+              `/api/resolve/${encodeURIComponent(categorySlug)}/${encodeURIComponent(competitionSlug)}/${encodeURIComponent(contestantSlug)}/videos`,
+              "Competition video could not be loaded",
+            );
+          } catch (error) {
+            if (isNotFoundError(error)) return { videoThumbnail: null, videos: [] };
+            throw error;
+          }
         },
+        retry: shouldRetryRequest,
+        retryDelay,
         enabled: !!profile && !!competition.category,
         staleTime: 60_000,
       };

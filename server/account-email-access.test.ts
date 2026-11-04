@@ -122,3 +122,13 @@ test("the outgoing account email is multipart with text and HTML alternatives", 
   assert.doesNotMatch(message.text, /<style>|class="header"/);
   transport.close();
 });
+
+test("emails for people without an account offer account creation instead of a reset link", () => {
+  const options = { email: "new@example.com", accountCreated: false, resetUrl: null };
+  const html = renderAccountEmailAccess(options);
+  const text = renderAccountEmailAccessText(options);
+  assert.match(html, /Create Your Account/);
+  assert.doesNotMatch(html, /reset my password|already exists/i);
+  assert.match(text, /Create Your Account/);
+  assert.doesNotMatch(text, /reset your password|already exists/i);
+});

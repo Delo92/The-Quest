@@ -23,8 +23,17 @@ async function accountResetUrl(
   inviteToken?: string,
   diagnosticId?: string,
   endpoint?: string,
-): Promise<string> {
+): Promise<string | null> {
   const loginUrl = buildAccountLoginUrl(siteUrl, email, { level, inviteToken });
+  // Firebase can only create a reset link for an existing login. Invitees and
+  // new nominees have none until they accept, so they get the create-account
+  // link instead of a reset link that cannot exist.
+  try {
+    await getFirebaseAuth().getUserByEmail(email);
+  } catch (error) {
+    if ((error as { code?: string })?.code === "auth/user-not-found") return null;
+    // Any other lookup failure falls through; link generation reports its own error.
+  }
   try {
     return await getFirebaseAuth().generatePasswordResetLink(email, { url: loginUrl });
   } catch (error) {

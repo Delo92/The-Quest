@@ -21,9 +21,16 @@ export function renderAccountEmailAccess(opts: {
   email: string;
   accountCreated?: boolean;
   temporaryPassword?: string;
-  resetUrl: string;
+  resetUrl: string | null;
 }): string {
   const hasTemporaryPassword = opts.accountCreated && !!opts.temporaryPassword;
+  if (!opts.resetUrl && !hasTemporaryPassword) {
+    return `<div class="credentials-box">
+    <p class="cred-label">Create Your Account</p>
+    <p class="cred-row">Email: <span class="cred-value">${escape(opts.email)}</span></p>
+    <p>Use the button below to create your Quest account with this email address and choose your own password.</p>
+  </div>`;
+  }
   return `<div class="credentials-box">
     <p class="cred-label">${hasTemporaryPassword ? "Your Login Credentials" : "Access Your Account"}</p>
     <p class="cred-row">Email: <span class="cred-value">${escape(opts.email)}</span></p>
@@ -31,8 +38,10 @@ export function renderAccountEmailAccess(opts: {
       ? `<p class="cred-row">Temporary Password: <span class="cred-value">${escape(opts.temporaryPassword!)}</span></p>
          <p>Use the login button below and enter this temporary password. Change your password after signing in.</p>`
       : `<p>Your account already exists. Use your current password with the login button below. If you don't know it, choose your own password using the secure link below.</p>`}
-    <p><a href="${escape(opts.resetUrl)}" style="color:#FF5A09;">Set or reset my password</a></p>
-    <p style="font-size:12px;color:#bbb;">Password reset links expire. If needed, request a fresh link from Forgot password on the login page.</p>
+    ${opts.resetUrl
+      ? `<p><a href="${escape(opts.resetUrl)}" style="color:#FF5A09;">Set or reset my password</a></p>
+    <p style="font-size:12px;color:#bbb;">Password reset links expire. If needed, request a fresh link from Forgot password on the login page.</p>`
+      : ""}
   </div>`;
 }
 
@@ -40,9 +49,16 @@ export function renderAccountEmailAccessText(opts: {
   email: string;
   accountCreated?: boolean;
   temporaryPassword?: string;
-  resetUrl: string;
+  resetUrl: string | null;
 }): string {
   const hasTemporaryPassword = opts.accountCreated && !!opts.temporaryPassword;
+  if (!opts.resetUrl && !hasTemporaryPassword) {
+    return [
+      "Create Your Account",
+      `Email: ${opts.email}`,
+      "Use the link in this email to create your Quest account with this email address and choose your own password.",
+    ].join("\n");
+  }
   return [
     hasTemporaryPassword ? "Your Login Credentials" : "Access Your Account",
     `Email: ${opts.email}`,
@@ -52,8 +68,12 @@ export function renderAccountEmailAccessText(opts: {
     hasTemporaryPassword
       ? "Use the login button below and enter this temporary password. Change your password after signing in."
       : "If you don't know your password, use the secure link below to choose a new one.",
-    `Set or reset your password: ${opts.resetUrl}`,
-    "Password reset links expire. If needed, request a fresh link from Forgot password on the login page.",
+    ...(opts.resetUrl
+      ? [
+        `Set or reset your password: ${opts.resetUrl}`,
+        "Password reset links expire. If needed, request a fresh link from Forgot password on the login page.",
+      ]
+      : []),
   ].join("\n");
 }
 

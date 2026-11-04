@@ -3102,8 +3102,13 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     if (!Number.isInteger(id) || id < 1) return res.status(400).json({ message: "Invalid profile ID" });
     const profile = await storage.getTalentProfile(id);
-    if (!profile || String(profile.role || "").toLowerCase() !== "talent") {
-      return res.status(404).json({ message: "Profile not found" });
+    if (!profile) return res.status(404).json({ message: "Profile not found" });
+    if (String(profile.role || "").toLowerCase() !== "talent") {
+      // Contestants who signed up with a viewer-level login still have an
+      // approved competition entry and must keep a working public page.
+      const entries = await storage.getContestantsByTalent(id);
+      const isApprovedContestant = entries.some((entry) => entry.applicationStatus === "approved");
+      if (!isApprovedContestant) return res.status(404).json({ message: "Profile not found" });
     }
 
     let socialLinks: Record<string, string> = {};

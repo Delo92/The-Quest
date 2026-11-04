@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { logClientError } from "@/lib/client-error-logger";
+import { isStaleBuildError, reloadForNewBuild } from "@/lib/stale-build-recovery";
 
 interface ErrorTelemetryBoundaryProps {
   children: ReactNode;
@@ -20,6 +21,7 @@ export class ErrorTelemetryBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    if (isStaleBuildError(error) && reloadForNewBuild()) return;
     const componentStack = info.componentStack?.slice(0, 8_000);
     void logClientError({
       errorType: "client",

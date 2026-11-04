@@ -17,6 +17,7 @@ import type { VideoShareMetadata } from "@shared/video-share";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { extractIdFromSlug, slugify, slugifyWithId , competitionSlug } from "@shared/slugify";
 import { parsePublicLinks } from "@shared/public-links";
+import { fetchPublicJson, isNotFoundError, retryDelay, shouldRetryRequest } from "@/lib/http-errors";
 import { preserveReferralQuery } from "@/lib/referral";
 import { formatVideoTitle } from "@/lib/media-utils";
 import { buildVimeoSrc } from "@/lib/media-utils";
@@ -138,10 +139,13 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   >({
     queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "bundle"],
     queryFn: async () => {
-      const res = await fetch(`/api/resolve/${categorySlug}/${compSlug}/${talentSlug}/bundle`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
+      return fetchPublicJson(
+        `/api/resolve/${categorySlug}/${compSlug}/${talentSlug}/bundle`,
+        "Contestant page could not be loaded",
+      );
     },
+    retry: shouldRetryRequest,
+    retryDelay,
     enabled: !!categorySlug && !!compSlug && !!talentSlug,
     staleTime: 30_000,
   });
@@ -364,10 +368,33 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
         <SiteNavbar />
         <div className="text-center">
           <Trophy className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold">Profile not found</h3>
-          <p className="text-white/40 mt-2 mb-4">This link may be invalid or the contestant is no longer active.</p>
+          {!error || isNotFoundError(error) ? (
+            <>
+              <h3 className="text-lg font-semibold">This contestant is no longer in this competition</h3>
+              <p className="text-white/40 mt-2 mb-4">The link is out of date. You can still see everyone who is competing now.</p>
+              {categorySlug && compSlug && (
+                <Link href={`/${categorySlug}/${compSlug}`}>
+                  <span className="inline-block mt-2 rounded-md bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-400 cursor-pointer">
+                    See current contestants
+                  </span>
+                </Link>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-semibold">This page didn&apos;t load</h3>
+              <p className="text-white/40 mt-2 mb-4">Check your connection and try again.</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-block mt-2 rounded-md bg-orange-500 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-400"
+              >
+                Try again
+              </button>
+            </>
+          )}
           <Link href="/competitions">
-            <span className="inline-block mt-4 text-white/60 hover:text-white transition-colors cursor-pointer">
+            <span className="block mt-4 text-white/60 hover:text-white transition-colors cursor-pointer">
               Browse Competitions
             </span>
           </Link>

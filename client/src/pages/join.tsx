@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "wouter";
+import { fetchPublicJson, isNotFoundError, retryDelay, shouldRetryRequest } from "@/lib/http-errors";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -177,13 +178,17 @@ export default function JoinPage() {
     data: profileTarget,
     isLoading: isProfileTargetLoading,
     isError: isProfileTargetError,
+    error: profileTargetError,
   } = useQuery<PublicNominationProfile>({
     queryKey: ["/api/talent-profiles", profileTargetId, "public"],
     queryFn: async () => {
-      const response = await fetch(`/api/talent-profiles/${profileTargetId}/public`);
-      if (!response.ok) throw new Error("Contestant profile could not be loaded");
-      return response.json();
+      return fetchPublicJson<PublicNominationProfile>(
+        `/api/talent-profiles/${profileTargetId}/public`,
+        "Contestant profile could not be loaded",
+      );
     },
+    retry: shouldRetryRequest,
+    retryDelay,
     enabled: profileTargetId !== null,
   });
 
@@ -953,9 +958,15 @@ export default function JoinPage() {
                   Loading contestant profile…
                 </p>
               ) : isProfileTargetError || !profileTarget ? (
-                <p role="alert" className="text-sm text-red-200" data-testid="status-profile-target-error">
-                  This contestant profile could not be loaded. Return to their profile and try again.
-                </p>
+                isNotFoundError(profileTargetError) ? (
+                  <p role="alert" className="text-sm text-red-200" data-testid="status-profile-target-removed">
+                    This contestant profile is no longer available. Use the nominate page without a profile link to nominate someone else.
+                  </p>
+                ) : (
+                  <p role="alert" className="text-sm text-red-200" data-testid="status-profile-target-error">
+                    This contestant profile could not be loaded. Check your connection and reload the page.
+                  </p>
+                )
               ) : (
                 <div className="flex items-center gap-4" data-testid="nomination-profile-summary">
                   {profileTarget.imageUrls?.[0] ? (
