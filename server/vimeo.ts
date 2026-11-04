@@ -893,7 +893,7 @@ export async function getVideoPlayUrls(videoId: string): Promise<VimeoPlayUrls> 
  */
 export async function warmVimeoPlayUrlCache(
   getCompetitions: () => Promise<Array<{ coverVideo?: string | null }>>,
-  getTalentProfiles?: () => Promise<Array<{ videoUrls?: string[] }>>
+  getTalentProfiles?: () => Promise<Array<{ videoUrls?: string[]; competitionVideoUris?: Record<string, string> }>>
 ): Promise<void> {
   try {
     const comps = await getCompetitions();
@@ -905,7 +905,7 @@ export async function warmVimeoPlayUrlCache(
     if (getTalentProfiles) {
       const profiles = await getTalentProfiles();
       for (const p of profiles) {
-        for (const url of (p.videoUrls || [])) {
+        for (const url of [...(p.videoUrls || []), ...Object.values(p.competitionVideoUris || {})]) {
           const id = extractVimeoVideoId(url);
           if (id) profileIds.push(id);
         }

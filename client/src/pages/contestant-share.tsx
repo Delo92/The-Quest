@@ -17,6 +17,8 @@ import type { VideoShareMetadata } from "@shared/video-share";
 import { FallbackImage, getBackupUrl } from "@/components/fallback-image";
 import { extractIdFromSlug, slugify, slugifyWithId , competitionSlug } from "@shared/slugify";
 import { parsePublicLinks } from "@shared/public-links";
+import { NativeVideoFrame, vimeoIdFromUri, type NativePlaybackItem } from "@/components/native-video-frame";
+import { isNativeApp } from "@/lib/native-app";
 import { fetchPublicJson, isNotFoundError, retryDelay, shouldRetryRequest } from "@/lib/http-errors";
 import { preserveReferralQuery } from "@/lib/referral";
 import { formatVideoTitle } from "@/lib/media-utils";
@@ -149,6 +151,25 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
     enabled: !!categorySlug && !!compSlug && !!talentSlug,
     staleTime: 30_000,
   });
+
+  // iPhone/Android app only: ask the server for ready-to-play HLS streams for
+  // this contestant and the next few, so playback starts without a lookup.
+  const nativeApp = isNativeApp();
+  const { data: playbackData } = useQuery<{ items: NativePlaybackItem[] }>({
+    queryKey: ["/api/app/playback", categorySlug, compSlug, talentSlug],
+    queryFn: () => fetchPublicJson(
+      `/api/app/playback/${categorySlug}/${compSlug}/${talentSlug}?next=3`,
+      "Video streams could not be prepared",
+    ),
+    retry: shouldRetryRequest,
+    retryDelay,
+    enabled: nativeApp && !!categorySlug && !!compSlug && !!talentSlug,
+    staleTime: 10 * 60_000,
+  });
+  const playbackFor = (uri: string) => {
+    const id = vimeoIdFromUri(uri);
+    return id ? playbackData?.items.find((item) => item.videoId === id) ?? null : null;
+  };
 
   // Destructure bundle into the shapes the rest of the page expects
   const data = bundleData ? {
@@ -699,12 +720,12 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   className={`relative mx-auto w-full overflow-hidden rounded-xl bg-black ${currentVideo.height && currentVideo.width && currentVideo.height > currentVideo.width ? "aspect-[9/16] max-h-[72dvh] max-w-sm" : "aspect-video max-w-3xl"}`}
                 >
                   <div data-testid="video-player">
-                    <iframe
-                      src={buildVimeoSrc(currentVideo.embedUrl, "autoplay=1&muted=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
-                      className="absolute inset-0 h-full w-full"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
+                    <NativeVideoFrame
+                      embedUrl={currentVideo.embedUrl}
+                      embedSrc={buildVimeoSrc(currentVideo.embedUrl, "autoplay=1&muted=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
                       title={formatVideoTitle(currentVideo.name)}
+                      poster={mediaData?.videoThumbnail || contestant.videoThumbnail}
+                      playback={playbackFor(currentVideo.uri)}
                     />
                   </div>
                 </ProfileScrollDepthCard>
@@ -761,12 +782,12 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                     className={`relative mx-auto mt-5 w-full overflow-hidden rounded-xl bg-black ${activeOtherVideo.height && activeOtherVideo.width && activeOtherVideo.height > activeOtherVideo.width ? "aspect-[9/16] max-h-[72dvh] max-w-sm" : "aspect-video max-w-3xl"}`}
                   >
                     <div data-testid="other-video-player">
-                      <iframe
-                        src={buildVimeoSrc(activeOtherVideo.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
-                        className="absolute inset-0 h-full w-full"
-                        allow="autoplay; fullscreen; picture-in-picture"
-                        allowFullScreen
+                      <NativeVideoFrame
+                        embedUrl={activeOtherVideo.embedUrl}
+                        embedSrc={buildVimeoSrc(activeOtherVideo.embedUrl, "autoplay=1&controls=1&title=0&byline=0&portrait=0&autopause=0") || ""}
                         title={`${formatVideoTitle(activeOtherVideo.name)} — ${activeOtherVideo.competitionTitle}`}
+                        poster={activeOtherVideo.thumbnail}
+                        playback={playbackFor(activeOtherVideo.uri)}
                       />
                     </div>
                   </ProfileScrollDepthCard>

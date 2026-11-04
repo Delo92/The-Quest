@@ -9690,6 +9690,72 @@ export async function registerRoutes(
 
   // Bundle endpoint — returns contestant + media + competition list in one round-trip,
   // replacing the 3 sequential fetches contestant-share.tsx previously made.
+  // Playback addresses for the native iPhone/Android apps. Returns the requested
+  // contestant's videos (including other competitions) plus the next few
+  // contestants, so the app can have streams ready before a viewer taps play.
+  // Addresses come from the shared 23-hour Vimeo play-URL cache.
+  app.get("/api/app/playback/:categorySlug/:compSlug/:talentSlug", async (req, res) => {
+    try {
+      const { categorySlug, compSlug, talentSlug } = req.params;
+      const competitions = await storage.getCompetitions();
+      const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
+      if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const contestants = await storage.getContestantsByCompetition(comp.id);
+      const { id: talentId } = extractIdFromSlug(talentSlug);
+      const index = talentId
+        ? contestants.findIndex((c) => c.talentProfile.id === talentId)
+        : contestants.findIndex((c) =>
+            slugify(c.talentProfile.displayName) === talentSlug ||
+            (!!c.talentProfile.stageName && slugify(c.talentProfile.stageName) === talentSlug));
+      if (index < 0) return res.status(404).json({ message: "Contestant not found in this competition" });
+
+      const requested = Math.min(Math.max(Number(req.query.next) || 3, 0), 6);
+      const targets: Array<{ contestantId: number; uris: string[] }> = [];
+      const current = contestants[index];
+      const hidden = new Set<string>(current.talentProfile.hiddenVideoUris || []);
+      const currentUri = current.talentProfile.competitionVideoUris?.[String(comp.id)];
+      const ownUris = [currentUri, ...Object.values(current.talentProfile.competitionVideoUris || {})]
+        .filter((uri): uri is string => typeof uri === "string" && !!uri && !hidden.has(uri));
+      targets.push({ contestantId: current.id, uris: Array.from(new Set(ownUris)) });
+      for (let step = 1; step <= requested && step < contestants.length; step += 1) {
+        const next = contestants[(index + step) % contestants.length];
+        const nextHidden = new Set<string>(next.talentProfile.hiddenVideoUris || []);
+        const uri = next.talentProfile.competitionVideoUris?.[String(comp.id)];
+        if (typeof uri === "string" && uri && !nextHidden.has(uri)) {
+          targets.push({ contestantId: next.id, uris: [uri] });
+        }
+      }
+
+      const seen = new Set<string>();
+      const items = (await Promise.all(targets.flatMap((target) => target.uris.map(async (uri) => {
+        const videoId = extractVimeoVideoId(uri);
+        if (!videoId || seen.has(videoId)) return null;
+        seen.add(videoId);
+        try {
+          const urls = await getVideoPlayUrls(videoId);
+          if (!urls.hls && urls.progressive.length === 0) return null;
+          const mp4 = [...urls.progressive].filter((f) => f.height <= 720).pop() || urls.progressive[0] || null;
+          return {
+            contestantId: target.contestantId,
+            videoId,
+            hls: urls.hls,
+            mp4: mp4?.link || null,
+            poster: urls.thumbnailUrl,
+            expiresAt: urls.expiresAt,
+          };
+        } catch {
+          return null;
+        }
+      })))).filter((item): item is NonNullable<typeof item> => !!item);
+
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.json({ items });
+    } catch (error) {
+      console.error("App playback lookup failed:", error);
+      res.status(500).json({ message: "Video playback could not be prepared" });
+    }
+  });
+
   app.get("/api/resolve/:categorySlug/:compSlug/:talentSlug/bundle", async (req, res) => {
     try {
       const { categorySlug, compSlug, talentSlug } = req.params;

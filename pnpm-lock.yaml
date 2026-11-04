@@ -166,6 +166,9 @@ importers:
       '@capacitor/core':
         specifier: ^8.6.0
         version: 8.6.0
+      '@capgo/capacitor-video-player':
+        specifier: ^8.2.15
+        version: 8.2.15(@capacitor/core@8.6.0)(hls.js@1.7.3)
       '@google-analytics/data':
         specifier: ^5.2.1
         version: 5.2.2
@@ -1068,6 +1071,12 @@ packages:
     resolution: {integrity: sha512-Y2PE4zoBqMrSTWoVMJmX2byBznjn6egmATzoEUJiGVbVubkNpAvkF/tl0SBKDyP67ngyedTx1tQq5IGYIhby1A==}
     peerDependencies:
       '@capacitor/core': ^8.6.0
+
+  '@capgo/capacitor-video-player@8.2.15':
+    resolution: {integrity: sha512-HPlYk74K5M9Ys11mVXao3rLPpcX0bFTSR/h+UgaHZ1Tuh0G6JBA105moYevIdmJE4ZsfGQtrmqo3SLFcF7hkHw==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+      hls.js: ^1.4.0
 
   '@colors/colors@1.6.0':
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
@@ -5396,6 +5405,11 @@ snapshots:
   '@capacitor/ios@8.6.0(@capacitor/core@8.6.0)':
     dependencies:
       '@capacitor/core': 8.6.0
+
+  '@capgo/capacitor-video-player@8.2.15(@capacitor/core@8.6.0)(hls.js@1.7.3)':
+    dependencies:
+      '@capacitor/core': 8.6.0
+      hls.js: 1.7.3
 
   '@colors/colors@1.6.0': {}
 

@@ -70,3 +70,4 @@
 - [Curves&Confidence attribution](curves-confidence-referral.md) — partner code is competition-bound, attribution-only, and counts talent nominations separately from votes and discounts
 - [Chronic Cuties prize terms](chronic-cuties-prize.md) — use the updated 5-day, 4-night Hawaiʻi Expo trip wording, not the former 4-day, 3-night copy
 - [Stale deploys and removed-profile links](stale-deploy-and-missing-links.md) — real 404 for missing assets, no-cache HTML, expected 404s not logged, reset links need an existing login
+- [Native app wrapper](native-app-wrapper.md) — Capacitor shell loads the live site; native HLS player only in the app, embed stays on web

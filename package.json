@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.6.0",
+    "@capgo/capacitor-video-player": "^8.2.15",
     "@google-analytics/data": "^5.2.1",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
