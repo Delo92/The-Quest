@@ -210,3 +210,17 @@ mtime_ms = 1793834735379
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/0fb24540-16e3-4ab7-9b86-062d78de456f/45a5e541-1eca-4536-91dd-4339fa2ddac6"
 storage_version_token = "1793834737149857"
 content_type = "image/png"
+
+[[outputs]]
+id = "OGhSslEifegz-ZgeLoPmS"
+uri = "file://generated-artifacts/app-icon-site-logo.jpg"
+type = "image"
+title = "App icon from the site logo"
+description = "The top-left CB logo (outlined C, glowing B, bolt) rendered large on near-black."
+logical_id = "22de59ac-5981-4924-9188-2ea01d64f44d"
+content_hash = "sha256:67bc1775e41262584893d3940fd6cec9e4d5b3d99eaea550e3f58d1329409b20"
+size = 24115
+mtime_ms = 1793834792035
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/22de59ac-5981-4924-9188-2ea01d64f44d/133718a9-7654-403f-adca-7f7c48a6060a"
+storage_version_token = "1793834798651396"
+content_type = "image/jpeg"
