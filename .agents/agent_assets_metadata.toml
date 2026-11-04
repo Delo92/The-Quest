@@ -224,3 +224,17 @@ mtime_ms = 1793834792035
 storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/22de59ac-5981-4924-9188-2ea01d64f44d/133718a9-7654-403f-adca-7f7c48a6060a"
 storage_version_token = "1793834798651396"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "XUSoJqm8wwbNGGdGP-Oso"
+uri = "file://generated-artifacts/app-store-listing.md"
+type = "text"
+title = "App Store listing draft"
+description = "Name, subtitle, description, keywords, URLs and review notes."
+logical_id = "231ec24c-49d6-4994-bf4c-20a31ff98aa3"
+content_hash = "sha256:2b75cbfa79f3e35fcabdfb7e4053472f4a064a7be0ecc0413c82e19e2cc8c92a"
+size = 1862
+mtime_ms = 1793835097439
+storage_uri = "gcs://replit-rams-assets-picard/rams/assets/repl:700386c5-19ef-48a4-bcef-6cf15fcdc4a8/231ec24c-49d6-4994-bf4c-20a31ff98aa3/17489ef6-e4bb-46ae-956f-c736ec678aca"
+storage_version_token = "1793835100869904"
+content_type = "text/markdown"

@@ -8,7 +8,15 @@
 	</array>
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
-	<key>CFBundleDevelopmentRegion</key>
+	<key>ITSAppUsesNonExemptEncryption</key>
+<false/>
+<key>NSCameraUsageDescription</key>
+<string>The Quest uses the camera so you can take a profile photo or record a competition video.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>The Quest accesses your photos and videos so you can upload them to your profile and competition entries.</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>The Quest uses the microphone when you record a competition video.</string>
+<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
         <string>The Quest</string>

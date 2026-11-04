@@ -72,6 +72,13 @@ export default function SiteFooter() {
           >
             FAQ
           </Link>
+          <Link
+            href="/privacy"
+            className="text-white/60 text-sm uppercase tracking-widest transition-colors duration-300 hover:text-white"
+            data-testid="link-footer-privacy"
+          >
+            Privacy
+          </Link>
         </nav>
         <p className="text-xs text-white/30">
           &copy; {new Date().getFullYear()} The Quest
