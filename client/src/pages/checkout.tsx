@@ -162,6 +162,15 @@ export default function CheckoutPage() {
     queryKey: ["/api/payment-config"],
   });
 
+  // The mobile app opens checkout in the phone's browser with the buyer's
+  // account email so the purchase lands on their account.
+  useEffect(() => {
+    const linkedEmail = new URLSearchParams(window.location.search).get("email")?.trim().toLowerCase();
+    if (linkedEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(linkedEmail) && linkedEmail.length <= 254) {
+      setEmail((current) => current.trim() ? current : linkedEmail);
+    }
+  }, []);
+
   useEffect(() => {
     if (authLoading || !authUser) return;
 

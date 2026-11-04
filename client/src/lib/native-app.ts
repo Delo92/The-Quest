@@ -1,6 +1,7 @@
 import { App as CapacitorApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
+import { getFirebaseAuth } from "@/lib/firebase";
 
 /** True only inside the iPhone/Android app shell, never in a normal browser. */
 export const isNativeApp = (): boolean => {
@@ -26,9 +27,15 @@ function isCheckoutPath(pathname: string): boolean {
  * Purchases never happen inside the app. In the app, checkout opens the website
  * in the phone's browser; on the website it navigates normally.
  */
+function withAccountEmail(url: URL): URL {
+  const email = getFirebaseAuth()?.currentUser?.email;
+  if (email && !url.searchParams.has("email")) url.searchParams.set("email", email);
+  return url;
+}
+
 export function goToCheckout(path: string): void {
   const url = new URL(path.startsWith("/thequest") ? path : `${QUEST_BASE}${path}`, window.location.origin);
-  if (isNativeApp()) openInSystemBrowser(url.toString());
+  if (isNativeApp()) openInSystemBrowser(withAccountEmail(url).toString());
   else window.location.assign(url.toString());
 }
 
@@ -57,7 +64,7 @@ export function installNativeLinkHandling(): void {
     // Checkout, other websites, and the main info site all open in the phone's browser.
     event.preventDefault();
     event.stopPropagation();
-    openInSystemBrowser(url.toString());
+    openInSystemBrowser((isCheckoutPath(url.pathname) && url.origin === window.location.origin ? withAccountEmail(url) : url).toString());
   }, true);
 
   void CapacitorApp.addListener("appUrlOpen", ({ url }) => {
