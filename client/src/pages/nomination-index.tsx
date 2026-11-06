@@ -38,8 +38,9 @@ function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
 }
 
-function TalentPortrait({ profile }: { profile: TalentDirectoryProfile }) {
+function TalentPortrait({ profile, videoPoster }: { profile: TalentDirectoryProfile; videoPoster?: string }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [posterFailed, setPosterFailed] = useState(false);
   return (
     <div className="relative aspect-[1.08] overflow-hidden bg-[#292522]" data-testid={`portrait-talent-${profile.id}`}>
       {profile.imageUrl && !imageFailed ? (
@@ -51,6 +52,20 @@ function TalentPortrait({ profile }: { profile: TalentDirectoryProfile }) {
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
           data-testid={`img-talent-${profile.id}`}
         />
+      ) : videoPoster && !posterFailed ? (
+        <>
+          <img
+            src={videoPoster}
+            alt={`${profile.name} video preview`}
+            loading="lazy"
+            onError={() => setPosterFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.035]"
+            data-testid={`img-talent-video-${profile.id}`}
+          />
+          <span className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current"><path d="M8 5v14l11-7z" /></svg>
+          </span>
+        </>
       ) : (
         <div className="grid h-full w-full place-items-center bg-[radial-gradient(ellipse_at_70%_15%,rgba(255,111,47,.2),transparent_50%),linear-gradient(145deg,#302a26,#1a1a1b)]">
           <span className="font-display text-5xl tracking-tight text-[#f1a174]/80" data-testid={`text-talent-initials-${profile.id}`}>
@@ -83,6 +98,11 @@ export default function NominationIndexPage() {
     title: "Meet the Talent | The Quest",
     description: "Discover artists and contestants on The Quest. Explore their profiles and support the next stage of their journey.",
     canonical: "/nominationindex",
+  });
+
+  const { data: videoPosters = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/public/talent-directory/video-posters"],
+    staleTime: 10 * 60_000,
   });
 
   const visibleProfiles = useMemo(() => {
@@ -249,7 +269,7 @@ export default function NominationIndexPage() {
                     data-testid={`card-talent-${profile.id}`}
                   >
                     <Link href={`/${profile.profileSlug}`} className="block overflow-hidden rounded-[1.1rem] border border-white/[.09] bg-[#1a191a] transition-transform duration-300 hover:-translate-y-1 hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a52]" data-testid={`link-profile-${profile.id}`}>
-                      <TalentPortrait profile={profile} />
+                      <TalentPortrait profile={profile} videoPoster={videoPosters[String(profile.id)]} />
                       <div className="p-4 pb-5 sm:px-5">
                         <h2 className="break-words font-display text-2xl leading-tight tracking-[-.02em] text-white" data-testid={`text-talent-name-${profile.id}`}>{profile.name}</h2>
                         <div className="mt-2 flex min-h-5 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/45">

@@ -3008,6 +3008,47 @@ export async function registerRoutes(
     }
   });
 
+  // Video stills for directory cards whose artist has no photo. Kept separate from
+  // the Firestore-backed listing so the page renders first and posters fill in after.
+  app.get("/api/public/talent-directory/video-posters", async (_req, res) => {
+    try {
+      const posters = await getCachedPublicResponse("public-talent-directory-posters:v1", 6 * 60 * 60_000, async () => {
+        const allProfiles = await storage.getAllTalentProfiles();
+        const candidates = allProfiles.filter((profile) =>
+          String(profile.role || "").toLowerCase() === "talent"
+          && !(Array.isArray(profile.imageUrls) && profile.imageUrls[0]));
+        const result: Record<string, string> = {};
+        for (let start = 0; start < candidates.length; start += 8) {
+          await Promise.all(candidates.slice(start, start + 8).map(async (profile) => {
+            const uris = [
+              ...Object.values(profile.competitionVideoUris || {}),
+              ...(profile.videoUrls || []),
+            ].filter((value): value is string => typeof value === "string" && value.length > 0);
+            for (const uri of uris) {
+              const videoId = extractVimeoVideoId(uri);
+              if (!videoId) continue;
+              try {
+                const poster = await resolveVideoThumbnail(await getVideoById(videoId), 640);
+                if (poster) {
+                  result[String(profile.id)] = poster;
+                  return;
+                }
+              } catch {
+                // Try the artist's next video.
+              }
+            }
+          }));
+        }
+        return result;
+      });
+      setPublicCacheHeaders(res, 600);
+      res.json(posters);
+    } catch (error) {
+      console.error("Talent directory poster error:", error);
+      res.json({});
+    }
+  });
+
   app.get("/api/public/talent-directory", async (_req, res) => {
     try {
       const directory = await getCachedPublicResponse(
@@ -5632,8 +5673,12 @@ export async function registerRoutes(
                listTalentVideos(comp.title, talentName, comp.vimeoFolderUrl).catch(() => []),
                listLegacyQuestTalentVideos(comp.title, talentName).catch(() => []),
              ]);
+             // The entry's saved video is authoritative; folder name matching alone misses most of them.
+             const savedUri = (profile as any).competitionVideoUris?.[String(comp.id)];
+             const savedVideoId = typeof savedUri === "string" ? extractVimeoVideoId(savedUri) : null;
+             const savedVideo = savedVideoId ? await getVideoById(savedVideoId).catch(() => null) : null;
              const seen = new Set<string>();
-             return [...chronicVideos, ...legacyVideos]
+             return [...(savedVideo?.uri ? [savedVideo] : []), ...chronicVideos, ...legacyVideos]
                .filter((video) => {
                  if (seen.has(video.uri)) return false;
                  seen.add(video.uri);

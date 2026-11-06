@@ -227,6 +227,7 @@ interface TalentUser {
   imageUrls: string[] | null;
   role: string;
   email?: string | null;
+  competitionVideoUris?: Record<string, string> | null;
 }
 
 function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: string }) {
@@ -3928,6 +3929,11 @@ export default function AdminDashboard({ user }: { user: any }) {
                               <div className="flex flex-wrap items-center gap-2">
                                 {u.stageName && <span className="text-xs text-white/40">{u.stageName}</span>}
                                 {u.category && <Badge className="bg-orange-500/10 text-orange-400/80 border-0 text-xs">{u.category}</Badge>}
+                                {Object.values(u.competitionVideoUris || {}).filter(Boolean).length > 0 && (
+                                  <Badge className="bg-emerald-500/15 text-emerald-300 border-0 text-xs" data-testid={`user-videos-${u.id}`}>
+                                    {Object.values(u.competitionVideoUris || {}).filter(Boolean).length} video{Object.values(u.competitionVideoUris || {}).filter(Boolean).length === 1 ? "" : "s"}
+                                  </Badge>
+                                )}
                                 <Badge className={`border-0 text-xs ${u.role === "admin" ? "bg-red-500/20 text-red-400" : u.role === "host" ? "bg-purple-500/20 text-purple-300" : u.role === "talent" ? "bg-blue-500/20 text-blue-400" : "bg-white/10 text-white/50"}`}>
                                   {u.role === "admin" ? "Admin" : u.role === "host" ? "Host" : u.role === "talent" ? "Talent" : "Viewer"}
                                 </Badge>
