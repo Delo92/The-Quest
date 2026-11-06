@@ -226,6 +226,7 @@ interface TalentUser {
   category: string | null;
   imageUrls: string[] | null;
   role: string;
+  email?: string | null;
 }
 
 function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: string }) {
@@ -1567,15 +1568,19 @@ export default function AdminDashboard({ user }: { user: any }) {
 
   const pending = allContestants?.filter((c) => c.applicationStatus === "pending") || [];
 
-  const filteredUsers = talentUsers?.filter((u) => {
-    if (!userSearch) return true;
-    const q = userSearch.toLowerCase();
-    return (
-      u.displayName?.toLowerCase().includes(q) ||
-      u.stageName?.toLowerCase().includes(q) ||
-      u.category?.toLowerCase().includes(q)
-    );
-  });
+  const userSortName = (u: TalentUser) => (u.displayName || "").replace(/^[^\p{L}\p{N}]+/u, "");
+  const filteredUsers = talentUsers
+    ?.filter((u) => {
+      if (!userSearch) return true;
+      const q = userSearch.trim().toLowerCase();
+      return (
+        u.displayName?.toLowerCase().includes(q) ||
+        u.stageName?.toLowerCase().includes(q) ||
+        u.category?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => userSortName(a).localeCompare(userSortName(b), undefined, { sensitivity: "base", numeric: true }));
 
   const totalUserPages = Math.max(1, Math.ceil((filteredUsers?.length || 0) / USERS_PER_PAGE));
   const paginatedUsers = useMemo(() => {
@@ -3891,7 +3896,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     <Input
                       value={userSearch}
                       onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }}
-                      placeholder="Search by name, stage name, or category..."
+                      placeholder="Search by name, email, stage name, or category..."
                       className="bg-white/5 border-white/10 text-white pl-10"
                       data-testid="input-user-search"
                     />
@@ -3919,6 +3924,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                             </Avatar>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-medium" data-testid={`user-name-${u.id}`}>{u.displayName}</h4>
+                              {u.email && <p className="truncate text-xs text-white/45" data-testid={`user-email-${u.id}`}>{u.email}</p>}
                               <div className="flex flex-wrap items-center gap-2">
                                 {u.stageName && <span className="text-xs text-white/40">{u.stageName}</span>}
                                 {u.category && <Badge className="bg-orange-500/10 text-orange-400/80 border-0 text-xs">{u.category}</Badge>}

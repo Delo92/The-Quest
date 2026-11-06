@@ -4261,13 +4261,15 @@ export async function registerRoutes(
       const enriched = await Promise.all(profiles.map(async (p) => {
         try {
           const fsUser = await getFirestoreUser(p.userId);
+          const email = fsUser?.email || null;
           const level = fsUser?.level;
           if (level && roleMap[level] && roleMap[level] !== p.role) {
             await storage.updateTalentProfile(p.userId, { role: roleMap[level] as any });
-            return { ...p, role: roleMap[level] };
+            return { ...p, role: roleMap[level], email };
           }
+          return { ...p, email };
         } catch (_) {}
-        return p;
+        return { ...p, email: null };
       }));
       res.json(enriched);
     } catch (error: any) {
