@@ -228,6 +228,7 @@ interface TalentUser {
   role: string;
   email?: string | null;
   competitionVideoUris?: Record<string, string> | null;
+  profileMissing?: boolean;
 }
 
 function ExpandedHostComps({ hostUid, hostName }: { hostUid: string; hostName: string }) {
@@ -3912,8 +3913,8 @@ export default function AdminDashboard({ user }: { user: any }) {
                       {paginatedUsers.map((u) => (
                         <div
                           key={u.id}
-                          className="rounded-md bg-white/5 border border-white/5 p-4 cursor-pointer transition-colors hover:bg-white/[0.08]"
-                          onClick={() => setUserDetailId(u.id)}
+                          className={`rounded-md bg-white/5 border border-white/5 p-4 transition-colors ${u.profileMissing ? "" : "cursor-pointer hover:bg-white/[0.08]"}`}
+                          onClick={() => { if (!u.profileMissing) setUserDetailId(u.id); }}
                           data-testid={`user-row-${u.id}`}
                         >
                           <div className="flex items-center gap-3">
@@ -3934,6 +3935,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                                     {Object.values(u.competitionVideoUris || {}).filter(Boolean).length} video{Object.values(u.competitionVideoUris || {}).filter(Boolean).length === 1 ? "" : "s"}
                                   </Badge>
                                 )}
+                                {u.profileMissing && <Badge className="bg-white/10 text-white/60 border-0 text-xs">No profile yet</Badge>}
                                 <Badge className={`border-0 text-xs ${u.role === "admin" ? "bg-red-500/20 text-red-400" : u.role === "host" ? "bg-purple-500/20 text-purple-300" : u.role === "talent" ? "bg-blue-500/20 text-blue-400" : "bg-white/10 text-white/50"}`}>
                                   {u.role === "admin" ? "Admin" : u.role === "host" ? "Host" : u.role === "talent" ? "Talent" : "Viewer"}
                                 </Badge>

@@ -50,6 +50,7 @@ import {
   uploadToFirebaseStorage,
   deleteFromFirebaseStorage,
   listFirebaseStorageFiles,
+  getAllFirestoreUsers,
 } from "./firebase-admin";
 import { createQuestStripeIntent, assertQuestStripePayment } from "./quest-stripe-checkout";
 import {
@@ -4312,7 +4313,25 @@ export async function registerRoutes(
         } catch (_) {}
         return { ...p, email: null };
       }));
-      res.json(enriched);
+      // Accounts with no talent profile yet (for example a fresh invitee) would
+      // otherwise be invisible here, so list them too.
+      const profiledUids = new Set(profiles.map((p) => p.userId));
+      const accountsWithoutProfile = (await getAllFirestoreUsers())
+        .filter((account) => account.uid && !profiledUids.has(account.uid))
+        .map((account, index) => ({
+          id: -(index + 1),
+          userId: account.uid,
+          displayName: (account as any).displayName || account.email || "Unnamed account",
+          stageName: null,
+          bio: null,
+          category: null,
+          imageUrls: null,
+          role: roleMap[account.level as number] || "viewer",
+          email: account.email || null,
+          competitionVideoUris: null,
+          profileMissing: true,
+        }));
+      res.json([...enriched, ...accountsWithoutProfile]);
     } catch (error: any) {
       console.error("Get users error:", error);
       res.status(500).json({ message: "Failed to get users" });
