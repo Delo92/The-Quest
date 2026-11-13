@@ -1249,7 +1249,7 @@ export default function HostDashboard({ user, demoMode = false }: { user: any; d
                             <div className="flex items-center justify-between rounded-md bg-white/[0.04] border border-white/10 px-3 py-2.5">
                               <div>
                                 <Label className="text-white/70 text-xs font-medium">In-Person Only Event</Label>
-                                <p className="text-[10px] text-white/30 mt-0.5">When enabled, only QR code votes are accepted. Online voting is disabled.</p>
+                                <p className="text-[10px] text-white/55 mt-0.5">Only event QR votes are accepted; card checkout still runs online.</p>
                               </div>
                               <Switch
                                 checked={editForm.inPersonOnly || false}

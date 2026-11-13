@@ -71,6 +71,22 @@ interface CompDetailResponse {
   }[];
 }
 
+interface VoteSourceContestant {
+  contestantId: number;
+  displayName: string;
+  stageName?: string | null;
+  online: number;
+  inPerson: number;
+  total: number;
+}
+
+function getVoteSourceLeader(contestants: VoteSourceContestant[], source: "online" | "inPerson") {
+  const countFor = (contestant: VoteSourceContestant) => source === "online" ? contestant.online : contestant.inPerson;
+  const count = contestants.reduce((highest, contestant) => Math.max(highest, countFor(contestant)), 0);
+  const leaders = count > 0 ? contestants.filter((contestant) => countFor(contestant) === count) : [];
+  return { count, names: leaders.map((contestant) => contestant.stageName || contestant.displayName) };
+}
+
 interface ContestantProfileDetail {
   profile: {
     displayName: string;
@@ -123,8 +139,18 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
     queryKey: ["/api/competitions", compId, "detail"],
   });
 
-  const { data: breakdown } = useQuery<{ online: number; inPerson: number; total: number; onlineVoteWeight: number; inPersonOnly: boolean }>({
+  const { data: breakdown } = useQuery<{
+    online: number;
+    inPerson: number;
+    total: number;
+    onlineVoteWeight: number;
+    inPersonOnly: boolean;
+    contestants: VoteSourceContestant[];
+  }>({
     queryKey: ["/api/competitions", compId, "vote-breakdown"],
+    staleTime: 0,
+    refetchInterval: 5_000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: platformSettings } = useQuery<any>({
@@ -1068,8 +1094,11 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                 <div className="rounded-xl bg-zinc-900 border border-white/10 p-5" data-testid="comp-detail-vote-breakdown">
                   <h3 className="text-sm font-semibold text-white/90 mb-4">Voting Methods</h3>
 
-                  {breakdown && (breakdown.online > 0 || breakdown.inPerson > 0) ? (
+                  {breakdown ? (
                     <div className="space-y-5">
+                      {breakdown.total === 0 && (
+                        <p className="text-xs text-white/50">No votes recorded yet. Online and in-person leaders will appear here as votes arrive.</p>
+                      )}
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between text-sm">
                           <span className="flex items-center gap-2 text-white/70"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Online Votes</span>
@@ -1097,6 +1126,51 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                           </div>
                         </div>
                       )}
+
+                      <section className="space-y-4 border-t border-white/10 pt-4" aria-labelledby="vote-source-leaders-title" data-testid="vote-source-leaders">
+                        <div>
+                          <h4 id="vote-source-leaders-title" className="text-xs font-semibold uppercase tracking-wider text-white/75">Separate source leaders</h4>
+                          <p className="mt-1 text-xs text-white/50">Online and in-person totals stay separate; each leader is based on raw votes from that source.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {([
+                            { key: "online" as const, title: "Online leader", noun: "online votes", accent: "text-blue-300" },
+                            { key: "inPerson" as const, title: "In-person leader", noun: "in-person votes", accent: "text-orange-300" },
+                          ]).map(({ key, title, noun, accent }) => {
+                            const leader = getVoteSourceLeader(breakdown.contestants || [], key);
+                            return (
+                              <div key={key} className="min-w-0 border border-white/10 bg-black/20 p-3" data-testid={`vote-source-leader-${key}`}>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/55">{title}</p>
+                                <p className="mt-1 break-words text-sm font-semibold text-white/90">
+                                  {leader.names.length > 1 ? `Tie: ${leader.names.join(", ")}` : leader.names[0] || "No votes yet"}
+                                </p>
+                                <p className={`mt-1 font-mono text-xs tabular-nums ${accent}`}>{leader.count.toLocaleString()} {noun}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {breakdown.contestants?.length > 0 && (
+                          <div className="max-h-64 overflow-y-auto border-y border-white/10" data-testid="vote-source-contestant-list">
+                            <div className="sticky top-0 grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] gap-2 bg-zinc-900 px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/50 sm:grid-cols-[minmax(0,1fr)_6rem_6rem]">
+                              <span>Contestant</span>
+                              <span className="text-right">Online</span>
+                              <span className="text-right">In person</span>
+                            </div>
+                            {[...breakdown.contestants]
+                              .sort((a, b) => (b.online + b.inPerson) - (a.online + a.inPerson))
+                              .map((contestant) => (
+                                <div
+                                  key={contestant.contestantId}
+                                  className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] gap-2 border-t border-white/5 px-2 py-2.5 text-xs sm:grid-cols-[minmax(0,1fr)_6rem_6rem]"
+                                >
+                                  <span className="truncate text-white/80">{contestant.stageName || contestant.displayName}</span>
+                                  <span className="text-right font-mono tabular-nums text-blue-200">{contestant.online.toLocaleString()}</span>
+                                  <span className="text-right font-mono tabular-nums text-orange-200">{contestant.inPerson.toLocaleString()}</span>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </section>
                     </div>
                   ) : (
                     <div className="py-6 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-lg">
@@ -1111,7 +1185,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                   <div className="flex items-center justify-between group">
                     <div className="pr-4">
                       <p className="text-sm font-semibold text-white/90">In-Person Only Mode</p>
-                      <p className="text-xs text-white/40 mt-0.5">Disable online voting globally</p>
+                      <p className="text-xs text-white/55 mt-0.5">Accept event QR votes only; card checkout still runs online.</p>
                     </div>
                     <Switch
                       checked={breakdown?.inPersonOnly || false}

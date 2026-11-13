@@ -140,6 +140,17 @@ test("promo codes and their server quote are bound to the Stripe intent", () => 
   );
 });
 
+test("in-person versus online vote source is bound to the Stripe intent", () => {
+  const inPersonOrder: StripeOrder = { ...order, source: "in_person" };
+  assert.notEqual(stripeOrderFingerprint(order), stripeOrderFingerprint(inPersonOrder));
+  const f = fixture();
+  assert.throws(() => assertQuestStripePayment(f.intent, {
+    idempotencyKey: input.idempotencyKey,
+    amountCents: input.amountCents,
+    order: inPersonOrder,
+  }));
+});
+
 test("host, join, and nomination promo and referral values bind to the Stripe intent", () => {
   for (const purpose of ["host", "join", "nominate"] as const) {
     const base: StripeOrder = {

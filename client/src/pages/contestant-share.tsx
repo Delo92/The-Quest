@@ -39,6 +39,7 @@ interface ResolvedData {
     themeColor?: string | null;
     status: string;
     voteCost: number;
+    inPersonOnly?: boolean;
     maxVotesPerDay: number;
     startDate: string | null;
     endDate: string | null;
@@ -116,6 +117,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const [, navigate] = useLocation();
   const { getImage } = useLivery();
   const { user } = useAuth();
+  const voteSource = new URLSearchParams(window.location.search).get("source") === "in_person" ? "in_person" : "online";
   const { toast } = useToast();
   const [voteAuthOpen, setVoteAuthOpen] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -257,8 +259,10 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
     if (!c) return;
     const slug = slugifyWithId(c.talentProfile.stageName || c.talentProfile.displayName, c.talentProfile.id);
     // Navigate relative to the wouter base (/thequest is already the base)
-    navigate(`/${categorySlug}/${compSlug}/${slug}${preserveReferralQuery(window.location.search)}`);
-  }, [navigate, categorySlug, compSlug]);
+    const referralQuery = preserveReferralQuery(window.location.search);
+    const sourceQuery = voteSource === "in_person" ? `${referralQuery ? "&" : "?"}source=in_person` : "";
+    navigate(`/${categorySlug}/${compSlug}/${slug}${referralQuery}${sourceQuery}`);
+  }, [navigate, categorySlug, compSlug, voteSource]);
 
   // Keyboard arrow navigation
   useEffect(() => {
@@ -345,6 +349,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
       const refCode = localStorage.getItem("hfc_ref") || undefined;
       await apiRequest("POST", `/api/competitions/${data.competition.id}/vote`, {
         contestantId: data.contestant.id,
+        source: voteSource,
         refCode,
       });
     },
@@ -453,10 +458,13 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
     ? profile.imageCropPositions?.[0] ?? DEFAULT_TALENT_IMAGE_CROP_POSITION
     : DEFAULT_TALENT_IMAGE_CROP_POSITION;
   const isVotingOpen = competition.status === "active" || competition.status === "voting";
+  const canVoteFromThisPage = isVotingOpen && (!competition.inPersonOnly || voteSource === "in_person");
+  const checkoutQuery = voteSource === "in_person" ? "?source=in_person" : "";
+  const competitionHref = `/${slugify(competition.category)}/${competitionSlug(competition)}${checkoutQuery}`;
   const votePercentage = totalVotes > 0 ? Math.round((contestant.voteCount / totalVotes) * 100) : 0;
 
   const getShareData = () => {
-    const shareUrl = `${window.location.origin}/thequest/${categorySlug}/${compSlug}/${talentSlug}?ref=${talentSlug}`;
+    const shareUrl = `${window.location.origin}/thequest/${categorySlug}/${compSlug}/${talentSlug}?ref=${talentSlug}${voteSource === "in_person" ? "&source=in_person" : ""}`;
     const contestantName = profile.stageName || profile.displayName;
     const hasVideo = Boolean(seoShareVideo || currentVideo);
     const shareKind = hasVideo ? "Contestant profile + video" : "Contestant profile";
@@ -581,7 +589,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                 {profile.stageName || profile.displayName} wants your vote
               </p>
               <div className="flex items-stretch border-t border-white/10">
-                {isVotingOpen && (
+                {canVoteFromThisPage && (
                   <button
                     onClick={handleVoteClick}
                     disabled={voteMutation.isPending}
@@ -603,8 +611,8 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                     <ChevronRight className="h-4 w-4 opacity-60" />
                   </button>
                 )}
-                {!nextContestant && !isVotingOpen && (
-                  <Link href={`/${slugify(competition.category)}/${competitionSlug(competition)}`}>
+                {!nextContestant && !canVoteFromThisPage && (
+                  <Link href={competitionHref}>
                     <span className="flex-1 flex items-center justify-center gap-2 py-4 text-sm font-bold uppercase text-white/70 transition-colors hover:bg-white/5 hover:text-white px-6"
                       style={{ letterSpacing: "2px" }}>
                       View Competition
@@ -731,7 +739,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                 </ProfileScrollDepthCard>
               </div>
             )}
-            {isVotingOpen && (
+            {canVoteFromThisPage && (
               <div className="mt-6">
                 <p className="mb-3 text-center text-xs uppercase text-white/50" style={{ letterSpacing: "3px" }}>
                   Vote for {profile.stageName || profile.displayName}
@@ -747,17 +755,20 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   <Heart className="mr-2 h-4 w-4" />
                   {voteMutation.isPending ? "Voting..." : "Vote Free"}
                 </button>
-                <Link
-                  href={`/checkout/${competition.id}/${contestant.id}`}
+                {(!competition.inPersonOnly || voteSource === "in_person") && <Link
+                  href={`/checkout/${competition.id}/${contestant.id}${checkoutQuery}`}
                   className="inline-flex min-h-12 items-center rounded-full border px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:brightness-110"
                   style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
                   data-testid="button-donate-votes"
                 >
                   <Heart className="mr-2 h-4 w-4" />
                   Donate &amp; Vote
-                </Link>
+                </Link>}
               </div>
               </div>
+            )}
+            {isVotingOpen && competition.inPersonOnly && voteSource !== "in_person" && (
+              <p className="mt-6 text-center text-sm text-white/70">In-person-only voting is active. Scan the event QR code to vote.</p>
             )}
             {otherVideos.length > 0 && (
               <div className="mt-8" data-testid="other-competition-video-wheel">
@@ -824,7 +835,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
 
         <div className="mx-auto max-w-4xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
 
-          {videos.length === 0 && otherVideos.length === 0 && isVotingOpen && (
+          {videos.length === 0 && otherVideos.length === 0 && canVoteFromThisPage && (
             <div className="mb-10" data-testid="voting-actions-wrap">
               <div className="flex flex-wrap items-center justify-center gap-3" data-testid="voting-actions-no-video">
                 <button
@@ -837,17 +848,20 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
                   <Heart className="mr-2 h-4 w-4" />
                   {voteMutation.isPending ? "Voting..." : "Vote Free"}
                 </button>
-                <Link
-                  href={`/checkout/${competition.id}/${contestant.id}`}
+                {(!competition.inPersonOnly || voteSource === "in_person") && <Link
+                  href={`/checkout/${competition.id}/${contestant.id}${checkoutQuery}`}
                   className="inline-flex min-h-12 items-center rounded-full border px-8 text-sm font-bold uppercase text-white transition-all duration-500 hover:brightness-110"
                   style={{ letterSpacing: "2px", backgroundColor: accentColor, borderColor: accentColor }}
                   data-testid="button-donate-votes"
                 >
                   <Heart className="mr-2 h-4 w-4" />
                   Donate &amp; Vote
-                </Link>
+                </Link>}
               </div>
             </div>
+          )}
+          {videos.length === 0 && otherVideos.length === 0 && isVotingOpen && competition.inPersonOnly && voteSource !== "in_person" && (
+            <p className="mb-10 text-center text-sm text-white/70">In-person-only voting is active. Scan the event QR code to vote.</p>
           )}
 
           {/* Bio */}
@@ -920,7 +934,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
 
           {/* Bottom nav */}
           {!demoMode && <div className="flex flex-wrap items-center justify-center gap-4 pb-10">
-            <Link href={`/${slugify(competition.category)}/${competitionSlug(competition)}`}>
+            <Link href={competitionHref}>
               <span
                 className="inline-block bg-transparent text-white font-bold text-base capitalize px-8 leading-[47px] min-w-[212px] rounded-full border border-white transition-all duration-500 hover:bg-white hover:text-black cursor-pointer text-center"
                 data-testid="button-back-competition"

@@ -651,6 +651,12 @@ export default function CheckoutPage() {
           </div>
         </div>
 
+        {voteSource === "in_person" && (
+          <div className="mb-6 border border-[#FF5A09]/35 bg-[#FF5A09]/[0.08] px-4 py-3 text-sm text-white/80" data-testid="in-person-checkout-notice">
+            This vote came from the event QR code. Checkout is processed online, and the votes will be counted as in-person.
+          </div>
+        )}
+
         <div className="mb-8 border border-emerald-300/35 bg-emerald-950/35 p-4 text-sm leading-relaxed text-emerald-50/85" data-testid="vote-nonprofit-disclosure">
           <p className="font-semibold text-emerald-100">Your vote donation is received by The Quest.</p>
           <p className="mt-2">

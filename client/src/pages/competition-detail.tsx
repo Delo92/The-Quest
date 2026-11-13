@@ -169,6 +169,7 @@ interface CompetitionDetail {
   endDateTbd?: boolean;
   votingStartDate?: string | null;
   votingEndDate?: string | null;
+  inPersonOnly?: boolean;
   contestants: ContestantWithProfile[];
   totalVotes: number;
   hostedBy?: string | null;
@@ -390,7 +391,7 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
   const isVotingOpen = (competition.status === "voting" || competition.status === "active")
     && competitionPhase !== "upcoming"
     && competitionPhase !== "ended";
-  const isInPersonOnlyEvent = (competition as any).inPersonOnly === true;
+  const isInPersonOnlyEvent = competition.inPersonOnly === true;
   const canVote = (selectedStage ? isStageVotingOpen(selectedStage) : isVotingOpen)
     && (!isInPersonOnlyEvent || isInPersonVoting);
   const sorted = [...(competition.contestants || [])].sort(

@@ -261,6 +261,7 @@ export interface FirestoreVotePurchase {
   competitionId: number;
   contestantId: number;
   stageId?: string | null;
+  source?: "online" | "in_person";
   voteCount: number;
   amount: number;
   transactionId: string | null;

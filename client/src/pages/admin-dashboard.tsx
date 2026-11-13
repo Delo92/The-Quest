@@ -1931,7 +1931,7 @@ export default function AdminDashboard({ user }: { user: any }) {
                     <div className="flex items-center justify-between rounded-md bg-white/[0.04] border border-white/10 px-4 py-3">
                       <div>
                         <Label className="text-white/70 text-sm font-medium">In-Person Only Event</Label>
-                        <p className="text-white/30 text-xs mt-0.5">When enabled, only QR code votes are accepted. Online voting is disabled.</p>
+                        <p className="text-white/55 text-xs mt-0.5">Only event QR votes are accepted; card checkout still runs online.</p>
                       </div>
                       <Switch
                         checked={inPersonOnly}

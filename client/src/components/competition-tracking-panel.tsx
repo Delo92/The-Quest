@@ -189,6 +189,17 @@ export default function CompetitionTrackingPanel({
 
   const leader = rankedContestants[0];
   const leaderName = leader?.stageName || leader?.displayName;
+  const sourceLeaders = (["online", "inPerson"] as const).map((source) => {
+    const count = contestants.reduce((highest, contestant) => Math.max(highest, contestant[source]), 0);
+    const leaders = count > 0
+      ? contestants.filter((contestant) => contestant[source] === count)
+      : [];
+    return {
+      source,
+      count,
+      names: leaders.map((contestant) => contestant.stageName || contestant.displayName),
+    };
+  });
   const sourceTotal = onlineVotes + inPersonVotes;
   const freshnessLabel = isRefreshing ? "Refreshing standings" : getFreshnessLabel(lastUpdated);
 
@@ -417,8 +428,32 @@ export default function CompetitionTrackingPanel({
                   <MetricBar label="Online" value={onlineVotes} total={totalVotes} icon={<Wifi className="h-3.5 w-3.5 text-[#db6d2f]" aria-hidden="true" />} />
                   <MetricBar label="In person" value={inPersonVotes} total={totalVotes} icon={<Users className="h-3.5 w-3.5 text-[#db6d2f]" aria-hidden="true" />} />
                 </div>
+                <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/[0.08] pt-4 sm:grid-cols-2" aria-label="Leaders by vote source">
+                  {sourceLeaders.map((sourceLeader) => {
+                    const online = sourceLeader.source === "online";
+                    const label = online ? "Online winner" : "In-person winner";
+                    const voteLabel = online ? "online votes" : "in-person votes";
+                    return (
+                      <div
+                        key={sourceLeader.source}
+                        className="min-w-0 border border-white/[0.08] bg-black/15 p-3"
+                        data-testid={`tracking-source-winner-${sourceLeader.source}`}
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/65">{label}</p>
+                        <p className="mt-1 break-words text-sm font-semibold text-white/90">
+                          {sourceLeader.names.length > 1
+                            ? `Tie: ${sourceLeader.names.join(", ")}`
+                            : sourceLeader.names[0] || "No votes yet"}
+                        </p>
+                        <p className={`mt-1 font-mono text-xs tabular-nums ${online ? "text-blue-200" : "text-orange-200"}`}>
+                          {formatCount(sourceLeader.count)} {voteLabel}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
                 <p className="mt-6 border-t border-white/[0.08] pt-4 text-sm leading-6 text-white/75">
-                  Source totals may briefly lag while new votes are being verified.
+                  Source winners are ranked separately. Totals may briefly lag while new votes are being verified.
                 </p>
               </div>
             </aside>

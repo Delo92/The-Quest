@@ -2677,6 +2677,7 @@ export async function registerRoutes(
           return {
             contestantId: c.id,
             displayName: c.talentProfile.displayName,
+            stageName: c.talentProfile.stageName || null,
             ...cb,
           };
         })
@@ -8370,6 +8371,7 @@ export async function registerRoutes(
         competitionId,
         contestantId,
         stageId: stageId || null,
+        source: parsed.data.source || "online",
         voteCount: totalVotes,
         amount: Math.round(amountInDollars * 100),
         transactionId: chargeResult.transactionId,
@@ -8385,7 +8387,7 @@ export async function registerRoutes(
         userId: viewerId || `guest_${purchase.id}`,
         purchaseId: purchase.id,
         voteCount: totalVotes,
-          source: parsed.data.source || "online",
+        source: parsed.data.source || "online",
         refCode: resolvedRefCode,
       });
       invalidatePublicResponseCache("stats:total-votes");
@@ -10651,6 +10653,7 @@ export async function registerRoutes(
             userId: purchaseData.viewerId || `guest_${purchaseData.id}`,
             purchaseId: purchaseData.id,
             voteCount: purchaseData.voteCount,
+            source: purchaseData.source || "online",
             refCode: purchaseData.refCode || null,
           });
           invalidatePublicResponseCache("stats:total-votes");
