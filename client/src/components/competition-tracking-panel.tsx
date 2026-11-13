@@ -431,7 +431,7 @@ export default function CompetitionTrackingPanel({
                 <div className="mt-6 grid grid-cols-1 gap-3 border-t border-white/[0.08] pt-4 sm:grid-cols-2" aria-label="Leaders by vote source">
                   {sourceLeaders.map((sourceLeader) => {
                     const online = sourceLeader.source === "online";
-                    const label = online ? "Online winner" : "In-person winner";
+                    const label = online ? "Online leader" : "In-person leader";
                     const voteLabel = online ? "online votes" : "in-person votes";
                     return (
                       <div
@@ -453,7 +453,7 @@ export default function CompetitionTrackingPanel({
                   })}
                 </div>
                 <p className="mt-6 border-t border-white/[0.08] pt-4 text-sm leading-6 text-white/75">
-                  Source winners are ranked separately. Totals may briefly lag while new votes are being verified.
+                  Source leaders are ranked separately. Totals may briefly lag while new votes are being verified.
                 </p>
               </div>
             </aside>
