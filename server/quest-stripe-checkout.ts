@@ -15,6 +15,7 @@ export type StripeOrder = {
   promoCode?: unknown;
   promoDiscountAmountCents?: unknown;
   referralCode?: unknown;
+  source?: unknown;
 };
 
 export function stripeOrderFingerprint(order: StripeOrder): string {
@@ -23,6 +24,9 @@ export function stripeOrderFingerprint(order: StripeOrder): string {
     : order.purpose === "nominate" ? ["purpose", "competitionId", "promoCode"]
     : order.purpose === "join" ? ["purpose", "competitionId"]
     : ["purpose", "competitionId", "contestantId", "stageId", "packageId", "packageIndex", "individualVoteCount"];
+  if (order.purpose === "vote" && order.source !== undefined && order.source !== null) {
+    fields = [...fields, "source"];
+  }
   if (order.promoCode || Number(order.promoDiscountAmountCents) > 0) {
     for (const field of ["promoCode", "promoDiscountAmountCents"] as const) {
       if (!fields.includes(field)) fields.push(field);

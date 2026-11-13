@@ -7506,6 +7506,7 @@ export async function registerRoutes(
     competitionId: z.number().int().positive(),
     contestantId: z.number().int().positive(),
     stageId: z.string().trim().min(1).optional(),
+    source: z.enum(["online", "in_person"]).optional(),
     packageId: z.string().min(1, "Package is required"),
     packageIndex: z.number().int().min(0).optional(),
     individualVoteCount: z.number().int().min(1).max(10000).optional(),
@@ -7539,6 +7540,7 @@ export async function registerRoutes(
     competitionId: z.number().int().positive(),
     contestantId: z.number().int().positive(),
     stageId: z.string().trim().min(1).optional(),
+    source: z.enum(["online", "in_person"]).optional(),
     packageId: z.string().min(1),
     packageIndex: z.number().int().min(0).optional(),
     individualVoteCount: z.number().int().min(1).max(10000).optional(),
@@ -7550,6 +7552,7 @@ export async function registerRoutes(
     competitionId: z.number().int().positive().optional(),
     contestantId: z.number().int().positive().optional(),
     stageId: z.string().trim().min(1).optional(),
+    source: z.enum(["online", "in_person"]).optional(),
     packageId: z.string().min(1).optional(),
     packageIndex: z.number().int().min(0).optional(),
     individualVoteCount: z.number().int().min(1).max(10000).optional(),
@@ -7619,10 +7622,16 @@ export async function registerRoutes(
     packageIndex?: number;
     individualVoteCount?: number;
     promoCode?: string | null;
+    source?: "online" | "in_person";
+    enforceInPersonOnly?: boolean;
   }) {
     const { competitionId, contestantId, stageId, packageId, packageIndex, individualVoteCount } = input;
     const comp = await storage.getCompetition(competitionId);
     if (!comp) throw Object.assign(new Error("Competition not found"), { status: 404 });
+    const source = input.source === "in_person" ? "in_person" : "online";
+    if (input.enforceInPersonOnly !== false && (comp as any).inPersonOnly && source !== "in_person") {
+      throw Object.assign(new Error("This competition is in-person only. Scan the event QR code to vote."), { status: 400 });
+    }
     if (comp.status !== "voting" && comp.status !== "active") {
       throw Object.assign(new Error("Voting is not open for this competition"), { status: 400 });
     }
@@ -7696,6 +7705,7 @@ export async function registerRoutes(
     individualVoteCount?: number;
     contestantId?: number;
     stageId?: string;
+    source?: "online" | "in_person";
   }) {
     if (input.purpose === "vote") {
       if (!input.competitionId || !input.contestantId || !input.packageId) {
@@ -7709,6 +7719,7 @@ export async function registerRoutes(
         packageIndex: input.packageIndex,
         individualVoteCount: input.individualVoteCount,
         promoCode: input.promoCode,
+        source: input.source,
       });
       return {
         amountCents: charge.amountCents,
@@ -7799,6 +7810,7 @@ export async function registerRoutes(
         packageId: input.packageId,
         packageIndex: input.packageIndex,
         individualVoteCount: input.individualVoteCount,
+        source: input.source,
       });
       amountCents = voteCharge.amountCents;
       subtotalCents = voteCharge.subtotalCents;
@@ -8202,6 +8214,11 @@ export async function registerRoutes(
         packageId,
         packageIndex,
         individualVoteCount,
+        source: parsed.data.source,
+        // The setup endpoint checks the source before redirecting to an external
+        // processor. Once payment is authorized, do not reject fulfillment if
+        // the host toggled in-person-only while the buyer was completing checkout.
+        enforceInPersonOnly: !(stripePaymentIntentId || paypalOrderId || checkoutOcPaymentId),
       });
       let { comp, stage, pkg, totalVotes, subtotalDollars, discountedSubtotalDollars, salesTaxPercent, taxAmount, amountInDollars } = chargeData;
       const useChargeData = (nextChargeData: typeof chargeData) => {
@@ -8368,6 +8385,7 @@ export async function registerRoutes(
         userId: viewerId || `guest_${purchase.id}`,
         purchaseId: purchase.id,
         voteCount: totalVotes,
+          source: parsed.data.source || "online",
         refCode: resolvedRefCode,
       });
       invalidatePublicResponseCache("stats:total-votes");

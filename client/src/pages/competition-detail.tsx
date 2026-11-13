@@ -415,6 +415,13 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
     })),
   ];
   const nominationHref = `/nominate?competition=${competition.id}${preserveReferralQuery(window.location.search).replace(/^\?/, "&")}`;
+  const checkoutHref = (contestantId: number) => {
+    const params = new URLSearchParams();
+    if (selectedStage) params.set("stageId", selectedStage.id);
+    if (isInPersonVoting) params.set("source", "in_person");
+    const query = params.toString();
+    return `/checkout/${competition.id}/${contestantId}${query ? `?${query}` : ""}`;
+  };
   const selectStage = (stageId: string) => {
     setSelectedStageId(stageId);
     setActiveSection("contestants");
@@ -904,7 +911,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                 ? [competition.coverImage, genericContestantFallback]
                 : cardImageCandidates.slice(2);
               const referralQuery = preserveReferralQuery(window.location.search);
-              const href = `/${slugify(competition.category)}/${competitionSlug(competition)}/${slugifyWithId(name, contestant.talentProfile.id)}${referralQuery}`;
+              const sourceQuery = isInPersonVoting ? `${referralQuery ? "&" : "?"}source=in_person` : "";
+              const href = `/${slugify(competition.category)}/${competitionSlug(competition)}/${slugifyWithId(name, contestant.talentProfile.id)}${referralQuery}${sourceQuery}`;
               return (
                 <li key={contestant.id} data-testid={`card-contestant-compact-${contestant.id}`}>
                   <Link
@@ -982,7 +990,8 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                const cardImageFallbacks = cardImageCandidates.slice(2);
                const showVideoPreview = videos.length > 0;
     const referralQuery = preserveReferralQuery(window.location.search);
-    const contestantHref = `/${slugify(competition.category)}/${competitionSlug(competition)}/${slugifyWithId(contestant.talentProfile.stageName || contestant.talentProfile.displayName, contestant.talentProfile.id)}${referralQuery}`;
+    const sourceQuery = isInPersonVoting ? `${referralQuery ? "&" : "?"}source=in_person` : "";
+    const contestantHref = `/${slugify(competition.category)}/${competitionSlug(competition)}/${slugifyWithId(contestant.talentProfile.stageName || contestant.talentProfile.displayName, contestant.talentProfile.id)}${referralQuery}${sourceQuery}`;
 
               return (
                 <div
@@ -1182,9 +1191,9 @@ export default function CompetitionDetailPage({ demoMode = false }: { demoMode?:
                             <Heart className="h-3.5 w-3.5 flex-shrink-0" />
                             {voteMutation.isPending ? "Voting..." : "Vote Free"}
                           </button>
-                          {!isInPersonOnlyEvent && (
+                           {(!isInPersonOnlyEvent || isInPersonVoting) && (
                             <Link
-                               href={`/checkout/${competition.id}/${contestant.id}${selectedStage ? `?stageId=${encodeURIComponent(selectedStage.id)}` : ""}`}
+                                href={checkoutHref(contestant.id)}
                                className="flex min-h-11 flex-1 min-w-[120px] items-center justify-center gap-1.5 rounded-full border px-4 py-2.5 text-sm font-semibold transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                                style={{ backgroundColor: accentBg, color: accentText, borderColor: accentBg, outlineColor: accent }}
                               onClick={(e) => e.stopPropagation()}

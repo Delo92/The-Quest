@@ -104,7 +104,9 @@ export default function CheckoutPage() {
   const params = useParams<{ competitionId: string; contestantId: string }>();
   const competitionId = params?.competitionId ? parseInt(params.competitionId) : null;
   const contestantId = params?.contestantId ? parseInt(params.contestantId) : null;
-  const stageId = new URLSearchParams(window.location.search).get("stageId");
+  const checkoutParams = new URLSearchParams(window.location.search);
+  const stageId = checkoutParams.get("stageId");
+  const voteSource = checkoutParams.get("source") === "in_person" ? "in_person" : "online";
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user: authUser, isLoading: authLoading } = useAuth();
@@ -286,6 +288,7 @@ export default function CheckoutPage() {
         competitionId,
         contestantId,
         stageId: stageId || undefined,
+        source: voteSource,
         packageId: selectedPackage,
         packageIndex: isIndividual ? undefined : pkgIndex,
         individualVoteCount: isIndividual ? individualVoteCount : undefined,
@@ -384,6 +387,7 @@ export default function CheckoutPage() {
       competitionId,
       contestantId,
       stageId: stageId || undefined,
+      source: voteSource,
       packageId: selectedPackage,
       packageIndex: isIndividual ? undefined : pkgIndex,
       createAccount,
@@ -485,7 +489,7 @@ export default function CheckoutPage() {
         setProcessing(false);
       }
     });
-  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, activeAppliedCode, noPaymentDue, stageId, stripeCard]);
+  }, [name, email, selectedPackage, cardNumber, expMonth, expYear, cvv, billingAddress, paymentConfig, competitionId, contestantId, createAccount, toast, isIndividual, individualVoteCount, activeAppliedCode, noPaymentDue, stageId, stripeCard, voteSource]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
