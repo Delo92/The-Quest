@@ -7606,27 +7606,36 @@ export async function registerRoutes(
     return resolveStripePromoDiscount(await getStripeBuyerClient(), code, subtotalCents);
   }
 
-  async function resolveReferralTrackingCode(rawCode: unknown): Promise<string | null> {
+  async function resolveReferralTrackingCode(rawCode: unknown, competitionId?: number): Promise<string | null> {
     const code = typeof rawCode === "string" ? rawCode.trim().toUpperCase() : "";
     if (!code) return null;
     const internal = await firestoreReferrals.resolveCode(code);
     if (internal) return internal.code.trim().toUpperCase();
     const external = await lookupCodeRegistry(code);
     if (external.found) return external.code?.trim().toUpperCase() || code;
-    return resolveProfileSlugReferralCode(rawCode);
+    return resolveProfileSlugReferralCode(rawCode, competitionId);
   }
 
   // A contestant's page address (e.g. haley-brooke-41) resolves to that person's registered referral code.
-  async function resolveProfileSlugReferralCode(rawCode: unknown): Promise<string | null> {
+  async function resolveProfileSlugReferralCode(rawCode: unknown, competitionId?: number): Promise<string | null> {
     const slug = typeof rawCode === "string" ? rawCode.trim().toLowerCase() : "";
     const { baseSlug, id } = extractIdFromSlug(slug);
     if (!id) return null;
     const profile = await storage.getTalentProfile(id);
-    if (!profile?.userId) return null;
+    if (!profile) return null;
     const names = [profile.stageName, profile.displayName].filter(Boolean).map((n) => slugify(String(n)));
     if (!names.includes(baseSlug)) return null;
-    const owned = await firestoreReferrals.getCodeByOwner(profile.userId);
-    return owned ? (await firestoreReferrals.resolveCode(owned.code))?.code.trim().toUpperCase() || owned.code.trim().toUpperCase() : null;
+    if (profile.userId) {
+      const owned = await firestoreReferrals.getCodeByOwner(profile.userId);
+      if (owned) return (await firestoreReferrals.resolveCode(owned.code))?.code.trim().toUpperCase() || owned.code.trim().toUpperCase();
+    }
+    // No personal code: use the competition's own code, same as the contestant's share link.
+    if (!competitionId) return null;
+    const entry = (await storage.getContestantsByTalent(profile.id))
+      .find((c) => c.competitionId === competitionId && c.applicationStatus === "approved");
+    const competition = entry ? await storage.getCompetition(competitionId) : null;
+    const competitionReferral = competition ? await getOrCreateCompetitionReferralCode(competition) : null;
+    return competitionReferral?.code.trim().toUpperCase() || null;
   }
 
   async function resolveGuestVoteCharge(input: {
@@ -7853,7 +7862,7 @@ export async function registerRoutes(
       };
     }
 
-    const referralCode = await resolveReferralTrackingCode(code);
+    const referralCode = await resolveReferralTrackingCode(code, input.competitionId);
     if (referralCode) {
       return {
         valid: true,
@@ -8211,7 +8220,7 @@ export async function registerRoutes(
       if (referralCode) {
         try {
           const resolved = await firestoreReferrals.resolveCode(referralCode);
-          resolvedRefCode = resolved?.code || await resolveReferralTrackingCode(referralCode) || referralCode;
+          resolvedRefCode = resolved?.code || await resolveReferralTrackingCode(referralCode, competitionId) || referralCode;
         } catch (e) {
           console.error("Referral resolve error in checkout:", e);
         }
