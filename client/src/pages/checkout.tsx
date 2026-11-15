@@ -298,8 +298,14 @@ export default function CheckoutPage() {
       if (requestId !== codeValidationRequestId.current || orderKey !== currentCodeOrderKeyRef.current) return;
       if (!data.valid) {
         setAppliedCheckoutCode(null);
-        setCodeError(data.message || "That code is not an active discount or referral code.");
         localStorage.removeItem("hfc_ref");
+        if (codeOverride !== undefined) {
+          // A code carried in from a shared link, not typed by the buyer: drop it quietly.
+          setReferralCode("");
+          setCodeError("");
+        } else {
+          setCodeError(data.message || "That code is not an active discount or referral code.");
+        }
         return;
       }
 
