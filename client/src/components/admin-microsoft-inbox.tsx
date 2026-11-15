@@ -27,6 +27,13 @@ type InboxStatus = {
   mailboxAddress: string;
   mailboxAccessGranted: boolean;
 };
+type ForwardingStatus = {
+  enabled: boolean;
+  recipients: string[];
+  lastScanAt: string | null;
+  lastScanCounts: { forwarded: number; ignored: number; failed: number } | null;
+  baselineEstablishedAt: string | null;
+};
 type InboxItem = {
   id: string;
   subject: string;
@@ -48,6 +55,7 @@ type MessageDetail = {
 
 const STATUS_KEY = ["/api/admin/microsoft-email/status"];
 const INBOX_KEY = ["/api/admin/microsoft-email/inbox"];
+const FORWARDING_KEY = ["/api/admin/microsoft-email/forwarding"];
 
 function errorText(error: unknown) {
   const message = error instanceof Error ? error.message : "The request could not be completed.";
@@ -123,6 +131,10 @@ export default function AdminMicrosoftInbox() {
     queryKey: STATUS_KEY,
     queryFn: async () => (await apiRequest("GET", "/api/admin/microsoft-email/status")).json(),
   });
+  const forwardingQuery = useQuery<ForwardingStatus>({
+    queryKey: FORWARDING_KEY,
+    queryFn: async () => (await apiRequest("GET", "/api/admin/microsoft-email/forwarding")).json(),
+  });
   const canReadInbox = Boolean(statusQuery.data?.active && statusQuery.data.mailboxAccessGranted);
   const inboxQuery = useQuery<InboxResponse>({
     queryKey: INBOX_KEY,
@@ -162,6 +174,28 @@ export default function AdminMicrosoftInbox() {
     onError: (error: Error) => {
       toast({
         title: "Reply could not be sent",
+        description: errorText(error),
+        variant: "destructive",
+      });
+    },
+  });
+  const forwardingMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const response = await apiRequest("PUT", "/api/admin/microsoft-email/forwarding", { enabled });
+      return response.json() as Promise<ForwardingStatus>;
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: FORWARDING_KEY });
+      toast({
+        title: result.enabled ? "Automatic forwarding enabled" : "Automatic forwarding paused",
+        description: result.enabled
+          ? "New messages matching a Quest user will be sent to both routing inboxes."
+          : "New messages will not be forwarded until you enable routing again.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Forwarding setting could not be changed",
         description: errorText(error),
         variant: "destructive",
       });
@@ -216,6 +250,46 @@ export default function AdminMicrosoftInbox() {
           </Button>
         )}
       </header>
+
+      <div className="flex flex-col gap-3 rounded-md border border-orange-400/20 bg-orange-400/[0.05] px-4 py-3 sm:flex-row sm:items-center sm:justify-between" data-testid="microsoft-inbox-forwarding-policy">
+        <div className="min-w-0 text-sm leading-relaxed text-white/65">
+          <p>
+            <span className="font-medium text-orange-200">
+              {forwardingQuery.data?.enabled === false ? "Automatic routing paused:" : "Automatic message routing:"}
+            </span>{" "}
+            new emails matching a Quest user by email, name, phone number, profile ID, or contestant ID
+            are forwarded from info@cbpublishing.live to{" "}
+            {forwardingQuery.data?.recipients.join(" and ") || "the configured team inboxes"}.
+          </p>
+          <p className="mt-1 text-xs text-white/45">
+            Only new messages are checked. In production, scans run about every 90 seconds.
+            {forwardingQuery.data?.lastScanAt
+              ? ` Last scan: ${formatDate(forwardingQuery.data.lastScanAt)}.`
+              : " Existing messages are not forwarded."}
+          </p>
+          {forwardingQuery.data?.lastScanCounts && (
+            <p className="mt-1 text-xs text-white/45">
+              Last scan: {forwardingQuery.data.lastScanCounts.forwarded} forwarded,{" "}
+              {forwardingQuery.data.lastScanCounts.ignored} not matched,{" "}
+              {forwardingQuery.data.lastScanCounts.failed} failed.
+            </p>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => forwardingMutation.mutate(forwardingQuery.data?.enabled === false)}
+          disabled={forwardingQuery.isLoading || forwardingMutation.isPending || forwardingQuery.isError}
+          className="min-h-10 w-full shrink-0 border-white/15 bg-white/[0.03] text-white hover:bg-white/[0.08] sm:w-auto"
+          data-testid="button-toggle-microsoft-forwarding"
+        >
+          {forwardingMutation.isPending
+            ? "Saving…"
+            : forwardingQuery.data?.enabled === false
+              ? "Enable forwarding"
+              : "Pause forwarding"}
+        </Button>
+      </div>
 
       {statusQuery.isLoading ? (
         <div className="rounded-md border border-white/10 bg-zinc-900/60 p-5" aria-label="Checking mailbox access" aria-busy="true">

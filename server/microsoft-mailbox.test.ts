@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  forwardMicrosoftInboxMessage,
   getMicrosoftInboxMessage,
   listMicrosoftInboxMessages,
+  readMicrosoftInboxDelta,
   replyToMicrosoftInboxMessage,
 } from "./microsoft-mailbox";
+import { findMatchingUserIdentity, type ForwardableMessage, type UserIdentity } from "./microsoft-email-forwarding";
 
 const accessToken = async () => "graph-access-token";
 
@@ -91,4 +94,91 @@ test("blank replies are rejected before calling Microsoft", async () => {
     /Enter a reply/,
   );
   assert.equal(requested, false);
+});
+
+test("inbox delta follows Microsoft paging and keeps the final cursor", async () => {
+  const requests: string[] = [];
+  const result = await readMicrosoftInboxDelta(undefined, {
+    getAccessToken: accessToken,
+    fetch: (async (input) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.includes("/delta?")) {
+        return new Response(JSON.stringify({
+          value: [{ id: "message-1" }],
+          "@odata.nextLink": "https://graph.microsoft.com/v1.0/next-page",
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        value: [{ id: "message-2" }, { id: "deleted", "@removed": { reason: "deleted" } }],
+        "@odata.deltaLink": "https://graph.microsoft.com/v1.0/delta-token",
+      }), { status: 200 });
+    }) as typeof fetch,
+  });
+
+  assert.equal(requests.length, 2);
+  assert.deepEqual(result.messages.map((message) => message.id), ["message-1", "message-2"]);
+  assert.equal(result.deltaLink, "https://graph.microsoft.com/v1.0/delta-token");
+});
+
+test("forward uses the connected mailbox and sends to the requested recipients", async () => {
+  let request: { url: string; method: string; body: string | null } | null = null;
+  await forwardMicrosoftInboxMessage("message/with/slash", ["nbadelo@gmail.com", "jobs@hivestaffing.com"], {
+    getAccessToken: accessToken,
+    fetch: (async (input, init) => {
+      request = {
+        url: String(input),
+        method: init?.method || "GET",
+        body: typeof init?.body === "string" ? init.body : null,
+      };
+      return new Response(null, { status: 202 });
+    }) as typeof fetch,
+  });
+
+  assert.ok(request);
+  assert.match(request.url, /\/me\/messages\/message%2Fwith%2Fslash\/forward$/);
+  assert.equal(request.method, "POST");
+  assert.deepEqual(JSON.parse(request.body || "{}"), {
+    toRecipients: [
+      { emailAddress: { address: "nbadelo@gmail.com" } },
+      { emailAddress: { address: "jobs@hivestaffing.com" } },
+    ],
+  });
+});
+
+test("forward rejects invalid destinations before contacting Microsoft", async () => {
+  let requested = false;
+  await assert.rejects(
+    forwardMicrosoftInboxMessage("message-1", ["not-an-email"], {
+      getAccessToken: accessToken,
+      fetch: (async () => {
+        requested = true;
+        return new Response(null, { status: 202 });
+      }) as typeof fetch,
+    }),
+    /valid forwarding address/,
+  );
+  assert.equal(requested, false);
+});
+
+test("email triage matches known email, name, phone, and explicit profile ID", () => {
+  const identity: UserIdentity = {
+    names: ["Alex Rivera"],
+    emails: ["alex@example.com"],
+    phones: ["(555) 123-4567"],
+    profileIds: [41],
+    contestantIds: [12],
+  };
+  const makeMessage = (body: string, sender = "someone@example.net"): ForwardableMessage => ({
+    id: "message-1",
+    subject: "Question",
+    body,
+    sender,
+  });
+
+  assert.ok(findMatchingUserIdentity(makeMessage("Can Alex Rivera help?"), [identity]));
+  assert.ok(findMatchingUserIdentity(makeMessage("Please call (555) 123-4567"), [identity]));
+  assert.ok(findMatchingUserIdentity(makeMessage("What is profile ID 41?"), [identity]));
+  assert.ok(findMatchingUserIdentity(makeMessage("Following up", "alex@example.com"), [identity]));
+  assert.equal(findMatchingUserIdentity(makeMessage("Can you help me?"), [identity]), null);
 });

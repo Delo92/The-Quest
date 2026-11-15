@@ -130,6 +130,10 @@ import {
   listMicrosoftInboxMessages,
   replyToMicrosoftInboxMessage,
 } from "./microsoft-mailbox";
+import {
+  getMicrosoftEmailForwardingStatus,
+  setMicrosoftEmailForwardingEnabled,
+} from "./microsoft-email-forwarding";
 import { logEmailDiagnostic } from "./email-diagnostics";
 import { notifyHostOfCompetitionSignup } from "./host-notifications";
 import {
@@ -4016,6 +4020,25 @@ export async function registerRoutes(
         return res.status(400).json({ error: error.message });
       }
       res.status(502).json({ error: "Could not send the reply through Microsoft 365." });
+    }
+  });
+
+  app.get("/api/admin/microsoft-email/forwarding", firebaseAuth, requireAdmin, async (_req, res) => {
+    try {
+      res.json(await getMicrosoftEmailForwardingStatus());
+    } catch {
+      res.status(502).json({ error: "Could not load automatic forwarding status." });
+    }
+  });
+
+  app.put("/api/admin/microsoft-email/forwarding", firebaseAuth, requireAdmin, async (req, res) => {
+    if (typeof req.body?.enabled !== "boolean") {
+      return res.status(400).json({ error: "Choose whether automatic forwarding should be enabled." });
+    }
+    try {
+      res.json(await setMicrosoftEmailForwardingEnabled(req.body.enabled));
+    } catch {
+      res.status(502).json({ error: "Could not update automatic forwarding." });
     }
   });
 

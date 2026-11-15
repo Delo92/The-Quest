@@ -21,6 +21,12 @@ The admin Email tab should prioritize daily inbox work over connection setup.
 
 **How to apply:** Keep connection settings available through a compact, initially collapsed chevron disclosure, while leaving sender status visible.
 
+New Outlook messages that match a Quest user by email, name, phone number, profile ID, or contestant ID should be forwarded to the owner-designated support inboxes. Use app-record matching rather than sending private inbox content to an AI classifier unless the owner explicitly approves that separately.
+
+**Why:** The owner specified identity matching as the forwarding rule and asked that matches be delivered to the selected team inboxes.
+
+**How to apply:** Use the authorized Microsoft Graph read/send access, process only new messages, prevent duplicates, and provide an admin pause control. Do not forward existing mail during the initial scan.
+
 The Microsoft mailbox is also the public support contact, not just an automated sender.
 
 **Why:** The owner wants visitors to know how to email the team directly.

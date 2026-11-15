@@ -9,6 +9,7 @@ import { warmVimeoPlayUrlCache } from "./vimeo";
 import { startArtistProfileReminderJob } from "./invitation-reminder-job";
 import { startHostCompetitionStatsJob } from "./host-notifications";
 import { startStalledPaymentSweep } from "./services/paymentTelemetry";
+import { startMicrosoftEmailForwardingJob } from "./microsoft-email-forwarding";
 
 const app = express();
 const httpServer = createServer(app);
@@ -146,6 +147,7 @@ app.use((req, res, next) => {
       startArtistProfileReminderJob();
       startHostCompetitionStatsJob();
       startStalledPaymentSweep();
+      startMicrosoftEmailForwardingJob();
     },
   );
 })();

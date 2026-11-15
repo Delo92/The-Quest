@@ -18,6 +18,7 @@ type GraphMessage = {
   bodyPreview?: string;
   body?: { content?: string; contentType?: string };
   webLink?: string;
+  "@removed"?: { reason?: string };
 };
 
 type MicrosoftMailboxDependencies = Partial<{
@@ -50,7 +51,8 @@ async function graphRequest(
 ): Promise<any> {
   const token = await (dependencies.getAccessToken ?? getMicrosoftGraphAccessToken)();
   const fetcher = dependencies.fetch ?? fetch;
-  const response = await fetcher(`${GRAPH_API}${path}`, {
+  const requestUrl = path.startsWith(`${GRAPH_API}/`) ? path : `${GRAPH_API}${path}`;
+  const response = await fetcher(requestUrl, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -73,6 +75,33 @@ async function graphRequest(
     throw error;
   }
   return response.status === 202 || response.status === 204 ? null : response.json();
+}
+
+export async function readMicrosoftInboxDelta(
+  deltaLink?: string | null,
+  dependencies: MicrosoftMailboxDependencies = {},
+) {
+  const messages: GraphMessage[] = [];
+  let nextUrl = deltaLink || `${GRAPH_API}/me/mailFolders/inbox/messages/delta?$select=id,subject,from,receivedDateTime,bodyPreview,webLink`;
+  let nextDeltaLink: string | null = null;
+
+  while (nextUrl) {
+    if (!nextUrl.startsWith(`${GRAPH_API}/`)) {
+      throw new Error("Microsoft returned an invalid inbox delta URL.");
+    }
+    const page = await graphRequest(nextUrl, {}, dependencies) as {
+      value?: GraphMessage[];
+      "@odata.nextLink"?: string;
+      "@odata.deltaLink"?: string;
+    };
+    if (Array.isArray(page.value)) {
+      messages.push(...page.value.filter((message) => message.id && !message["@removed"]));
+    }
+    nextUrl = page["@odata.nextLink"] || "";
+    nextDeltaLink = page["@odata.deltaLink"] || nextDeltaLink;
+  }
+
+  return { messages, deltaLink: nextDeltaLink };
 }
 
 export async function listMicrosoftInboxMessages(dependencies: MicrosoftMailboxDependencies = {}) {
@@ -130,6 +159,28 @@ export async function replyToMicrosoftInboxMessage(
   await graphRequest(`/me/mailFolders/inbox/messages/${encodeURIComponent(messageId)}/reply`, {
     method: "POST",
     body: JSON.stringify({ comment: normalizedComment }),
+  }, dependencies);
+  return { success: true as const };
+}
+
+export async function forwardMicrosoftInboxMessage(
+  messageId: string,
+  recipients: string[],
+  dependencies: MicrosoftMailboxDependencies = {},
+) {
+  if (!messageId || messageId.length > 2048) {
+    throw new Error("Invalid Microsoft message ID.");
+  }
+  const normalizedRecipients = [...new Set(recipients.map((recipient) => recipient.trim().toLowerCase()))]
+    .filter((recipient) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient));
+  if (!normalizedRecipients.length || normalizedRecipients.length !== recipients.length) {
+    throw new Error("At least one valid forwarding address is required.");
+  }
+  await graphRequest(`/me/messages/${encodeURIComponent(messageId)}/forward`, {
+    method: "POST",
+    body: JSON.stringify({
+      toRecipients: normalizedRecipients.map((address) => ({ emailAddress: { address } })),
+    }),
   }, dependencies);
   return { success: true as const };
 }
