@@ -154,19 +154,6 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
     staleTime: 30_000,
   });
 
-  // Registered referral code for this contestant; share links must carry this, not the profile slug.
-  const bundleCompetitionId = bundleData?.competition?.id;
-  const bundleContestantId = bundleData?.contestant?.id;
-  const { data: contestantReferral } = useQuery<{ code: string | null }>({
-    queryKey: ["/api/competitions", bundleCompetitionId, "contestants", bundleContestantId, "referral-code"],
-    queryFn: () => fetchPublicJson(
-      `/api/competitions/${bundleCompetitionId}/contestants/${bundleContestantId}/referral-code`,
-      "Referral code could not be loaded",
-    ),
-    enabled: !demoMode && !!bundleCompetitionId && !!bundleContestantId,
-    staleTime: 5 * 60_000,
-  });
-
   // iPhone/Android app only: ask the server for ready-to-play HLS streams for
   // this contestant and the next few, so playback starts without a lookup.
   const nativeApp = isNativeApp();
@@ -477,11 +464,7 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const votePercentage = totalVotes > 0 ? Math.round((contestant.voteCount / totalVotes) * 100) : 0;
 
   const getShareData = () => {
-    const shareParams = [
-      contestantReferral?.code ? `ref=${encodeURIComponent(contestantReferral.code)}` : "",
-      voteSource === "in_person" ? "source=in_person" : "",
-    ].filter(Boolean).join("&");
-    const shareUrl = `${window.location.origin}/thequest/${categorySlug}/${compSlug}/${talentSlug}${shareParams ? `?${shareParams}` : ""}`;
+    const shareUrl = `${window.location.origin}/thequest/${categorySlug}/${compSlug}/${talentSlug}?ref=${talentSlug}${voteSource === "in_person" ? "&source=in_person" : ""}`;
     const contestantName = profile.stageName || profile.displayName;
     const hasVideo = Boolean(seoShareVideo || currentVideo);
     const shareKind = hasVideo ? "Contestant profile + video" : "Contestant profile";

@@ -7629,13 +7629,22 @@ export async function registerRoutes(
       const owned = await firestoreReferrals.getCodeByOwner(profile.userId);
       if (owned) return (await firestoreReferrals.resolveCode(owned.code))?.code.trim().toUpperCase() || owned.code.trim().toUpperCase();
     }
-    // No personal code: use the competition's own code, same as the contestant's share link.
-    if (!competitionId) return null;
-    const entry = (await storage.getContestantsByTalent(profile.id))
-      .find((c) => c.competitionId === competitionId && c.applicationStatus === "approved");
-    const competition = entry ? await storage.getCompetition(competitionId) : null;
-    const competitionReferral = competition ? await getOrCreateCompetitionReferralCode(competition) : null;
-    return competitionReferral?.code.trim().toUpperCase() || null;
+    // No personal code: the contestant's page address is their default code, created on first use
+    // so referrals are credited to the contestant and not to the competition.
+    const entries = (await storage.getContestantsByTalent(profile.id))
+      .filter((c) => c.applicationStatus === "approved");
+    if (!entries.length) return null;
+    const defaultCode = slug.toUpperCase();
+    const existing = await firestoreReferrals.getCodeByCode(defaultCode);
+    if (existing) return existing.code.trim().toUpperCase();
+    const created = await firestoreReferrals.generateCode(
+      profile.userId || `profile-${profile.id}`,
+      "talent",
+      profile.stageName || profile.displayName,
+      profile.id,
+      { customCode: defaultCode, skipDuplicateCheck: true, contestantId: entries[0].id },
+    );
+    return created.code.trim().toUpperCase();
   }
 
   async function resolveGuestVoteCharge(input: {
