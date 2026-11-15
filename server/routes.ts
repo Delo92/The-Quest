@@ -7612,7 +7612,21 @@ export async function registerRoutes(
     const internal = await firestoreReferrals.resolveCode(code);
     if (internal) return internal.code.trim().toUpperCase();
     const external = await lookupCodeRegistry(code);
-    return external.found ? external.code?.trim().toUpperCase() || code : null;
+    if (external.found) return external.code?.trim().toUpperCase() || code;
+    return resolveProfileSlugReferralCode(rawCode);
+  }
+
+  // A contestant's page address (e.g. haley-brooke-41) resolves to that person's registered referral code.
+  async function resolveProfileSlugReferralCode(rawCode: unknown): Promise<string | null> {
+    const slug = typeof rawCode === "string" ? rawCode.trim().toLowerCase() : "";
+    const { baseSlug, id } = extractIdFromSlug(slug);
+    if (!id) return null;
+    const profile = await storage.getTalentProfile(id);
+    if (!profile?.userId) return null;
+    const names = [profile.stageName, profile.displayName].filter(Boolean).map((n) => slugify(String(n)));
+    if (!names.includes(baseSlug)) return null;
+    const owned = await firestoreReferrals.getCodeByOwner(profile.userId);
+    return owned ? (await firestoreReferrals.resolveCode(owned.code))?.code.trim().toUpperCase() || owned.code.trim().toUpperCase() : null;
   }
 
   async function resolveGuestVoteCharge(input: {
@@ -8197,7 +8211,7 @@ export async function registerRoutes(
       if (referralCode) {
         try {
           const resolved = await firestoreReferrals.resolveCode(referralCode);
-          resolvedRefCode = resolved?.code || referralCode;
+          resolvedRefCode = resolved?.code || await resolveReferralTrackingCode(referralCode) || referralCode;
         } catch (e) {
           console.error("Referral resolve error in checkout:", e);
         }
