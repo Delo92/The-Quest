@@ -1318,9 +1318,15 @@ export async function registerRoutes(
 
         matchedCompetition = allComps.find((c: any) => {
           const titleNorm = (c.title || "").toLowerCase().replace(/\s+/g, "");
-          return titleNorm === searchTitle || titleNorm.includes(searchTitle) || searchTitle.includes(titleNorm);
+          const status = getEffectiveCompetitionStatus(c);
+          return status !== "completed"
+            && status !== "cancelled"
+            && (titleNorm === searchTitle || titleNorm.includes(searchTitle) || searchTitle.includes(titleNorm));
         }) || allComps.find((c: any) => {
-          return (c.category || "").toLowerCase() === searchCat && c.status !== "completed";
+          const status = getEffectiveCompetitionStatus(c);
+          return (c.category || "").toLowerCase() === searchCat
+            && status !== "completed"
+            && status !== "cancelled";
         });
       }
 
@@ -3083,12 +3089,13 @@ export async function registerRoutes(
             if (entry.applicationStatus !== "approved") continue;
             const competition = competitionsById.get(entry.competitionId);
             if (!competition || competition.status === "draft") continue;
+            const status = getEffectiveCompetitionStatus(competition);
             const profileEntries = entriesByProfile.get(entry.talentProfileId) || [];
             profileEntries.push({
               id: competition.id,
               title: competition.title,
               category: competition.category || null,
-              status: competition.status,
+              status,
             });
             entriesByProfile.set(entry.talentProfileId, profileEntries);
           }
@@ -3182,7 +3189,7 @@ export async function registerRoutes(
         title: c.title,
         slug: c.slug || null,
         category: c.category || null,
-        status: c.status,
+        status: getEffectiveCompetitionStatus(c),
         coverImage: c.coverImage || null,
         themeColor: c.themeColor || null,
       })));
@@ -4154,7 +4161,7 @@ export async function registerRoutes(
           id: comp.id,
           title: comp.title,
           category: comp.category,
-          status: comp.status,
+          status: getEffectiveCompetitionStatus(comp),
           totalVotes: compVotes,
           totalContestants: compContestants.length,
           pendingApplications: compContestants.filter(c => c.applicationStatus === "pending").length,
@@ -4164,7 +4171,8 @@ export async function registerRoutes(
 
       const statusCounts: Record<string, number> = {};
       for (const comp of comps) {
-        statusCounts[comp.status] = (statusCounts[comp.status] || 0) + 1;
+        const status = getEffectiveCompetitionStatus(comp);
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
       }
 
       const categoryCounts: Record<string, number> = {};
@@ -9789,6 +9797,10 @@ export async function registerRoutes(
 
       const user = await storage.getUser(host.userId);
       const hostComps = (await storage.getCompetitionsByCreator(host.userId))
+        .map((competition) => ({
+          ...competition,
+          status: getEffectiveCompetitionStatus(competition),
+        }))
         .filter((competition) => competition.status !== "draft")
         .map((competition) => ({
           id: competition.id,

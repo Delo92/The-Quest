@@ -199,7 +199,7 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
       >
         <div className="cursor-pointer">
           <div className="overflow-hidden relative h-52 border-b border-white/10 bg-[#080808]">
-            {competition.isFeatured && (
+            {competition.isFeatured && competition.status !== "completed" && competition.status !== "cancelled" && (
               <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-[#FF5A09]/60 bg-black/85 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#FF5A09] shadow-lg">
                 <Star className="h-3 w-3 fill-current" />
                 Featured
@@ -309,6 +309,10 @@ function CompetitionCard({ competition }: { competition: CompetitionExt }) {
          {competition.status === "draft" ? (
            <span className="inline-flex items-center gap-2 text-white/45 text-xs uppercase tracking-[2px]" data-testid={`status-schedule-pending-${competition.id}`}>
              <Clock3 className="h-3.5 w-3.5" /> Schedule pending
+           </span>
+         ) : competition.status === "completed" || competition.status === "cancelled" ? (
+           <span className="inline-flex min-h-10 items-center justify-center text-white/50 text-xs uppercase tracking-[2px]" data-testid={`status-ended-${competition.id}`}>
+             {competition.status === "cancelled" ? "Competition cancelled" : "Competition ended"}
            </span>
          ) : (
            <Link
