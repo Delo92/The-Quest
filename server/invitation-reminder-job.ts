@@ -9,6 +9,7 @@ import { getAllFirestoreUsers } from "./firebase-admin";
 import { storage } from "./storage";
 import { isEmailConfigured, sendInviteEmail } from "./email";
 import { hasDailyScanPassed, nextDailyScanAt } from "./reminder-schedule";
+import { isCompetitionClosed } from "./competition-lifecycle";
 
 function hasPhoto(profile: FirestoreTalentProfile | null): boolean {
   return Boolean(profile?.imageUrls?.some((url) => typeof url === "string" && url.trim()));
@@ -88,7 +89,7 @@ export function startArtistProfileReminderJob(): void {
       const profilesByUserId = new Map(profiles.map((profile) => [profile.userId, profile]));
       const competitionsById = new Map(competitions.map((competition) => [competition.id, competition]));
       const tasksByStateKey = new Map<string, ReminderTask>();
-      const activeProfileIds = new Set<number>();
+      const competitionProfileIds = new Set<number>();
       const pendingInviteEmails = new Set<string>();
       const now = new Date();
 
@@ -96,11 +97,12 @@ export function startArtistProfileReminderJob(): void {
         if (contestant.applicationStatus !== "approved" && contestant.applicationStatus !== "pending") continue;
         const profile = profilesById.get(contestant.talentProfileId);
         if (!profile || profile.role?.toLowerCase() !== "talent") continue;
-        activeProfileIds.add(profile.id);
+        competitionProfileIds.add(profile.id);
         const email = (profile.email || usersById.get(profile.userId)?.email || "").trim();
         if (!email) continue;
 
         const competition = competitionsById.get(contestant.competitionId);
+        if (isCompetitionClosed(competition, now.getTime())) continue;
         const competitionName = competition?.title;
         const stateKey = `profile:${profile.userId}:competition:${contestant.competitionId}`;
         if (profileIsComplete(profile, contestant.competitionId)) continue;
@@ -121,6 +123,11 @@ export function startArtistProfileReminderJob(): void {
         if (invitation.targetLevel !== 2 || invitation.status === "expired") continue;
         if (invitation.status === "accepted" && invitation.acceptedBy) {
           const profile = profilesByUserId.get(invitation.acceptedBy) || null;
+          if (profile && invitation.competitionId != null) competitionProfileIds.add(profile.id);
+          const competition = invitation.competitionId
+            ? competitionsById.get(invitation.competitionId)
+            : null;
+          if (isCompetitionClosed(competition, now.getTime())) continue;
           if (profile && profileIsComplete(profile, invitation.competitionId)) {
             await firestoreInvitations.markRemindersCompleted(invitation.id, now.toISOString());
             continue;
@@ -129,9 +136,6 @@ export function startArtistProfileReminderJob(): void {
           const email = (profile.email || usersById.get(profile.userId)?.email || "").trim();
           if (!email) continue;
           const stateKey = `profile:${profile.userId}:competition:${invitation.competitionId ?? "profile"}`;
-          const competition = invitation.competitionId
-            ? competitionsById.get(invitation.competitionId)
-            : null;
           const existingTask = tasksByStateKey.get(stateKey);
           if (existingTask) {
             existingTask.invitation ||= invitation;
@@ -159,6 +163,7 @@ export function startArtistProfileReminderJob(): void {
         const competition = invitation.competitionId
           ? competitionsById.get(invitation.competitionId)
           : null;
+        if (isCompetitionClosed(competition, now.getTime())) continue;
         const stateKey = `invitation:${invitation.id}`;
         tasksByStateKey.set(stateKey, {
           stateKey,
@@ -176,9 +181,9 @@ export function startArtistProfileReminderJob(): void {
 
       // Keep the existing reminder behavior for talent accounts that have not
       // joined a competition yet, without sending a second generic email to
-      // profiles that already have active competition entries.
+      // profiles that have already joined or been invited to a competition.
       for (const profile of profiles) {
-        if (profile.role?.toLowerCase() !== "talent" || activeProfileIds.has(profile.id)) continue;
+        if (profile.role?.toLowerCase() !== "talent" || competitionProfileIds.has(profile.id)) continue;
         const email = (profile.email || usersById.get(profile.userId)?.email || "").trim();
         if (!email || pendingInviteEmails.has(normalizeEmail(email)) || profileIsComplete(profile)) continue;
         const stateKey = `profile:${profile.userId}:profile`;

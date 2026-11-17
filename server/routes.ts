@@ -37,6 +37,7 @@ import { getCompetitionShareVideo, getContestantShareVideo, registerShareVideoRo
 import { parseCustomPublicLinks, parsePublicLinks, safeExternalHttpUrl } from "../shared/public-links";
 import { trackChronicBrandsPromo, lookupCodeRegistry } from "./chronic-brands";
 import { firebaseAuth, requireAdmin, requireHost, requireTalent } from "./auth-middleware";
+import { getEffectiveCompetitionStatus } from "./competition-lifecycle";
 import {
   verifyFirebaseToken,
   createFirebaseUser,
@@ -1879,16 +1880,16 @@ export async function registerRoutes(
       const { category, status } = req.query;
       const cacheKey = `competitions:${String(category || "")}:${String(status || "")}`;
       const enriched = await getCachedPublicResponse(cacheKey, 15_000, async () => {
-        let comps;
-        if (category && status) {
-          comps = await storage.getCompetitionsByCategoryAndStatus(String(category), String(status));
-        } else if (category) {
-          comps = await storage.getCompetitionsByCategory(String(category));
-        } else if (status) {
-          comps = await storage.getCompetitionsByStatus(String(status));
-        } else {
-          comps = await storage.getCompetitions();
-        }
+        const now = Date.now();
+        const comps = (await storage.getCompetitions())
+          .map((competition) => ({
+            ...competition,
+            status: getEffectiveCompetitionStatus(competition, now),
+          }))
+          .filter((competition) =>
+            (!category || competition.category === String(category))
+            && (!status || competition.status === String(status)),
+          );
         return Promise.all(comps.map(async (c: any) => {
           const [contestants, creatorProfile] = await Promise.all([
             storage.getContestantsByCompetition(c.id),
@@ -1935,7 +1936,8 @@ export async function registerRoutes(
         return Promise.all(
           activeCategories.map(async (cat: any) => {
           const catComps = competitions.filter(c =>
-            c.status !== "completed" &&
+            getEffectiveCompetitionStatus(c) !== "completed" &&
+            c.status !== "cancelled" &&
             c.category === cat.name
           );
 
@@ -2116,7 +2118,12 @@ export async function registerRoutes(
       const featured = await getCachedPublicResponse("competitions:featured", 30_000, async () => {
         const now = new Date();
         const all = await storage.getCompetitions();
-        const nonDraft = all.filter(c => c.status !== "draft");
+        const nonDraft = all
+          .map((competition) => ({
+            ...competition,
+            status: getEffectiveCompetitionStatus(competition, now.getTime()),
+          }))
+          .filter(c => c.status !== "draft");
 
         const explicitly = nonDraft.find(c =>
           (c as any).isFeatured &&
@@ -3320,7 +3327,11 @@ export async function registerRoutes(
 
   app.get("/api/host/competitions", firebaseAuth, requireHost, async (req, res) => {
     const { uid } = req.firebaseUser!;
-    const competitions = await storage.getCompetitionsByCreator(uid);
+    const now = Date.now();
+    const competitions = (await storage.getCompetitionsByCreator(uid)).map((competition) => ({
+      ...competition,
+      status: getEffectiveCompetitionStatus(competition, now),
+    }));
     res.json(competitions);
   });
 
@@ -9711,10 +9722,11 @@ export async function registerRoutes(
       const competitions = await storage.getCompetitions();
       const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
       if (!comp) return res.status(404).json({ message: "Competition not found" });
+      const effectiveStatus = getEffectiveCompetitionStatus(comp);
 
       const contestantsData = await storage.getContestantsByCompetition(comp.id);
       const totalVotes = await storage.getTotalVotesByCompetition(comp.id);
-      const shareVideo = comp.status === "draft"
+      const shareVideo = effectiveStatus === "draft"
         ? null
         : await getCompetitionShareVideo(comp, getPublicOrigin());
 
@@ -9747,6 +9759,7 @@ export async function registerRoutes(
 
       res.json({
         ...comp,
+        status: effectiveStatus,
         description: getCompetitionPublicDescription(comp),
         contestantDivisions: getContestantDivisionOptions(comp),
         contestants: enrichedContestants,
