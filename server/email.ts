@@ -413,9 +413,11 @@ export async function sendInviteEmail(opts: {
       ${opts.isReminder && opts.reminderStopUrl ? `<p class="fallback-link"><a href="${escapeHtml(opts.reminderStopUrl)}">Stop these reminders</a></p>` : ""}
     `);
 
+    const senderAddress = await getEmailSenderAddress();
     const sendResult = await transporter.sendMail({
-      from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
+      from: `"${DISPLAY_NAME}" <${senderAddress}>`,
       to: opts.to,
+      replyTo: senderAddress,
       subject: (opts.isReminder
         ? opts.inviteToken
           ? `Reminder: finish your ${opts.competitionName || "The Quest"} invitation`
