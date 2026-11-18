@@ -26,7 +26,7 @@
 - [Vote count freshness](vote-count-freshness.md) — successful vote purchases should refresh the displayed total immediately and other viewers within a short polling window
 - [Express route params](express-route-params.md) — this project’s Express 5 typings require auth middleware to use ParamsFlatDictionary for string route parameters
 - [Contestant invitation links](contestant-invitation-links.md) — contestant invites use /thequest/login with token-backed competition metadata and login-time acceptance
-- [Artist profile reminders](artist-profile-reminders.md) — daily unlimited reminders cover invitations, direct artist registrations, and nominees across competitions
+- [Artist profile reminders](artist-profile-reminders.md) — reminders cover all artist entries without exposing inviters' personal emails
 - [Firestore REST index deployment](firestore-index-deployment.md) — composite index creates are asynchronous and live listings must be filtered by collection group
 - [Chronic Brands promotion rules](chronic-brands-promotion.md) — per-event ticket URLs override the global fallback; preserve contestant tracking and separate host referrals
 - [Nomination promo visibility](nomination-promo-visibility.md) — show the nomination promo field whenever fees apply, independently of whether a redeemable code is configured

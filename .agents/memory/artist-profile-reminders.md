@@ -8,3 +8,9 @@ Artist reminders cover talent invitations, direct artist registrations, and nomi
 **Why:** The user clarified that an artist in multiple competitions needs a separate reminder for each incomplete competition, regardless of how or when the account was created.
 
 **How to apply:** Key completion and daily claims by artist account plus competition, using Central calendar dates rather than a rolling 24-hour window. A photo is account-level; a video must satisfy that specific competition when competition-scoped uploads exist. Catch up after a post-9 a.m. restart, and keep invitation acceptance and recipient-controlled stop links.
+
+Invitation reminder emails must not expose an inviter's personal email address in `Reply-To`; replies should go to the platform sender.
+
+**Why:** The user explicitly said inviters' personal emails must not be shared with strangers receiving reminders.
+
+**How to apply:** Do not set `Reply-To` from invitation records or other user profile data in reminder messages.

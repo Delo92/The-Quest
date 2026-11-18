@@ -51,7 +51,6 @@ interface ReminderTask {
   name: string;
   invitation?: FirestoreInvitation;
   inviterName: string;
-  replyTo?: string;
   needsLogin: boolean;
 }
 
@@ -149,7 +148,6 @@ export function startArtistProfileReminderJob(): void {
               name: profile.stageName || profile.displayName || invitation.invitedName || email.split("@")[0],
               invitation,
               inviterName: invitation.invitedByName || "The Quest team",
-              replyTo: invitation.invitedByEmail || undefined,
               needsLogin: false,
             });
           }
@@ -174,7 +172,6 @@ export function startArtistProfileReminderJob(): void {
           name: invitation.invitedName || email.split("@")[0],
           invitation,
           inviterName: invitation.invitedByName || "The Quest team",
-          replyTo: invitation.invitedByEmail || undefined,
           needsLogin: true,
         });
       }
@@ -224,7 +221,6 @@ export function startArtistProfileReminderJob(): void {
             siteUrl,
             nomineeName: task.name,
             competitionName: task.competitionName,
-            replyTo: task.replyTo,
             isReminder: true,
             needsLogin: task.needsLogin,
             needsAccountSetup: false,

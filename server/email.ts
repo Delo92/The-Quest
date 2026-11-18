@@ -281,7 +281,6 @@ export async function sendInviteEmail(opts: {
   needsProfilePhoto?: boolean;
   needsVideo?: boolean;
   reminderStopUrl?: string;
-  replyTo?: string;
   trackDelivery?: boolean;
 }): Promise<boolean> {
   let activityId: string | null = null;
@@ -417,7 +416,6 @@ export async function sendInviteEmail(opts: {
     const sendResult = await transporter.sendMail({
       from: `"${DISPLAY_NAME}" <${await getEmailSenderAddress()}>`,
       to: opts.to,
-      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
       subject: (opts.isReminder
         ? opts.inviteToken
           ? `Reminder: finish your ${opts.competitionName || "The Quest"} invitation`
