@@ -205,6 +205,9 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [apiBase, profileId, "detail"] });
       queryClient.invalidateQueries({ queryKey: [apiBase] });
+      if (scope === "admin") {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/hosts"] });
+      }
       toast({ title: "User level updated" });
     },
     onError: (err: Error) => {
@@ -717,6 +720,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
         </div>
       )}
 
+      {data.profile.role !== "host" && data.profile.role !== "admin" && (
       <div className="rounded-md bg-white/5 border border-white/5 p-4" data-testid="user-detail-assign">
         <h3 className="text-xs uppercase tracking-widest text-orange-400 font-bold mb-3">Assign to Competition</h3>
         <div className="flex items-center gap-3">
@@ -740,6 +744,7 @@ export default function TalentDetailModal({ profileId, competitions, scope = "ad
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -463,6 +463,7 @@ export function CreateUserDialog() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/hosts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
       setEmail("");
       setPassword("");
