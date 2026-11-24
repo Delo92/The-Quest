@@ -305,8 +305,18 @@ export async function listTalentVideos(
       ? await getVimeoFolderFromUrl(folderUrl)
       : await getChronicTVEventVimeoFolder(competitionName);
     const videosUri = folder.metadata?.connections?.videos?.uri || `${folder.uri}/videos`;
-    const data = await vimeoRequest(`${videosUri}?per_page=50&sort=date&direction=desc`);
-    return (data.data || []).filter(isTalentVideo);
+    const videos: VimeoVideo[] = [];
+    let next: string | null = `${videosUri}?per_page=100&sort=date&direction=desc`;
+    const visited = new Set<string>();
+    while (next && !visited.has(next)) {
+      visited.add(next);
+      const data = await vimeoRequest(next);
+      videos.push(...(data.data || []).filter(isTalentVideo));
+      const nextPage = data.paging?.next;
+      // Vimeo paging is API-local; never send credentials to an arbitrary URL.
+      next = typeof nextPage === "string" && nextPage.startsWith("/") ? nextPage : null;
+    }
+    return videos;
   } catch {
     // Public entry/share media must never fall back to a same-name video
     // from a different competition when this folder is unavailable.

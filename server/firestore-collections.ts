@@ -159,6 +159,7 @@ export interface FirestoreTalentProfile {
   imageCropPositions?: Array<{ x: number; y: number; zoom?: number }>;
   videoUrls: string[];
   competitionVideoUris?: Record<string, string>;
+  competitionVideoLibraryUris?: Record<string, string[]>;
   socialLinks: string | null;
   profileColor?: string | null;
   profileBgImage?: string | null;

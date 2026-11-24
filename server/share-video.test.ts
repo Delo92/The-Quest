@@ -40,12 +40,54 @@ const play: VimeoPlayUrls = {
   expiresAt: Date.now() + 3600_000,
 };
 
-test("video selection uses only the chosen competition map entry, not the profile-wide list", async () => {
+test("video selection preserves the featured map entry when its competition folder is unavailable", async () => {
   const selected = await getCompetitionScopedTalentVideos(profile, competition, profile.displayName, {
     getVideoById: async (id) => { assert.equal(id, "123456"); return video; },
     listTalentVideos: async () => { throw new Error("Should not enumerate when mapped"); },
   });
   assert.equal(selected[0], video);
+  assert.equal(selected.length, 1);
+});
+
+test("competition library includes all artist clips, deduplicates the featured clip, and preserves hashes", async () => {
+  const extra = { ...video, uri: "/videos/222222", player_embed_url: "https://player.vimeo.com/video/222222?h=secondhash" };
+  const hidden = { ...video, uri: "/videos/333333" };
+  const result = await getCompetitionScopedTalentVideos({ ...profile, hiddenVideoUris: [hidden.uri] }, competition, profile.displayName, {
+    getVideoById: async (id) => { assert.equal(id, "123456"); return video; },
+    listTalentVideos: async (title, name, folder, options) => {
+      assert.equal(title, competition.title);
+      assert.equal(name, profile.displayName);
+      assert.equal(folder, competition.vimeoFolderUrl);
+      assert.equal(options?.competitionOnly, true);
+      return [extra, video, hidden];
+    },
+  });
+  assert.deepEqual(result.map((v) => v.uri), [video.uri, extra.uri]);
+  assert.equal(result[1].player_embed_url, extra.player_embed_url);
+  assert.ok(!result.some((v) => v.uri === profile.competitionVideoUris["72"]));
+});
+
+test("folder fallback returns every visible artist video rather than just the newest", async () => {
+  const extra = { ...video, uri: "/videos/222222", created_time: "2026-10-20T00:00:00Z" };
+  const result = await getCompetitionScopedTalentVideos({}, competition, profile.displayName, {
+    listTalentVideos: async () => [video, extra],
+  });
+  assert.deepEqual(result.map((v) => v.uri), [extra.uri, video.uri]);
+});
+
+test("saved competition library retains both clips when Vimeo folder discovery fails", async () => {
+  const extra = { ...video, uri: "/videos/222222", player_embed_url: "https://player.vimeo.com/video/222222?h=secondhash" };
+  const result = await getCompetitionScopedTalentVideos({
+    ...profile,
+    competitionVideoLibraryUris: { "71": [video.uri, extra.uri], "72": ["/videos/987654"] },
+  }, competition, profile.displayName, {
+    getVideoById: async (id) => {
+      assert.ok(["123456", "222222"].includes(id));
+      return id === "123456" ? video : extra;
+    },
+    listTalentVideos: async () => { throw new Error("Folder temporarily unavailable"); },
+  });
+  assert.deepEqual(result.map((v) => v.uri), [video.uri, extra.uri]);
 });
 
 test("legacy video lookup stays inside the selected competition and excludes hidden videos", async () => {

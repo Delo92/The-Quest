@@ -5946,8 +5946,19 @@ export async function registerRoutes(
       await storage.updateTalentProfile(profile.userId, {
         videoUrls: Array.from(new Set([...existingUris, videoUri])),
         competitionVideoUris,
+        competitionVideoLibraryUris: {
+          ...(profile.competitionVideoLibraryUris || {}),
+          [String(competition.id)]: Array.from(new Set([
+            ...(profile.competitionVideoLibraryUris?.[String(competition.id)] || []),
+            ...(profile.competitionVideoUris?.[String(competition.id)] ? [profile.competitionVideoUris[String(competition.id)]] : []),
+            videoUri,
+          ])),
+        },
         hiddenVideoUris: hiddenVideoUris.filter((uri) => uri !== videoUri),
       } as any);
+      for (const key of publicResponseCache.keys()) {
+        if (key.startsWith("resolve-videos:") || key.startsWith("resolve-profile-videos:")) publicResponseCache.delete(key);
+      }
       await requestRef.set({ status: "finalized", updatedAt: Date.now() }, { merge: true });
 
       prewarmVideoPlayUrl(videoUri);
@@ -9839,8 +9850,8 @@ export async function registerRoutes(
     try {
       const { categorySlug, compSlug, talentSlug } = req.params;
       const media = await getCachedPublicResponse(
-        `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
-        60_000,
+        `resolve-videos:library:${categorySlug}:${compSlug}:${talentSlug}`,
+        10_000,
         async () => {
           const competitions = await storage.getCompetitions();
           const comp = findCompetitionByRouteSlug(competitions, categorySlug, compSlug);
@@ -9876,7 +9887,7 @@ export async function registerRoutes(
         },
       );
       if (!media) return res.status(404).json({ message: "Contestant not found" });
-      setPublicCacheHeaders(res, 60);
+      res.setHeader("Cache-Control", "no-store");
       res.json(media);
     } catch (error: any) {
       console.error("Contestant video resolution error:", error);
@@ -9910,7 +9921,10 @@ export async function registerRoutes(
       const current = contestants[index];
       const hidden = new Set<string>(current.talentProfile.hiddenVideoUris || []);
       const currentUri = current.talentProfile.competitionVideoUris?.[String(comp.id)];
-      const ownUris = [currentUri, ...Object.values(current.talentProfile.competitionVideoUris || {})]
+      const ownVideos = await getCompetitionScopedTalentVideos(
+        current.talentProfile, comp, current.talentProfile.stageName || current.talentProfile.displayName,
+      );
+      const ownUris = [currentUri, ...ownVideos.map((video) => video.uri), ...Object.values(current.talentProfile.competitionVideoUris || {})]
         .filter((uri): uri is string => typeof uri === "string" && !!uri && !hidden.has(uri));
       targets.push({ contestantId: current.id, uris: Array.from(new Set(ownUris)) });
       for (let step = 1; step <= requested && step < contestants.length; step += 1) {
@@ -9976,8 +9990,8 @@ export async function registerRoutes(
       const [totalVotes, media, hostedByProfile, otherCompetitionVideos] = await Promise.all([
         storage.getTotalVotesByCompetition(comp.id),
         getCachedPublicResponse(
-          `resolve-videos:${categorySlug}:${compSlug}:${talentSlug}`,
-          60_000,
+          `resolve-videos:library:${categorySlug}:${compSlug}:${talentSlug}`,
+          10_000,
           async () => {
             const talentName = (contestant.talentProfile.stageName || contestant.talentProfile.displayName).trim();
             const talentVideos = await getCompetitionScopedTalentVideos(contestant.talentProfile, comp, talentName);
@@ -10038,7 +10052,7 @@ export async function registerRoutes(
         ),
       ]);
 
-      setPublicCacheHeaders(res, 30);
+      res.setHeader("Cache-Control", "no-store");
       res.json({
         competition: {
           ...comp,

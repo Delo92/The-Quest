@@ -25,6 +25,7 @@ import { formatVideoTitle } from "@/lib/media-utils";
 import { buildVimeoSrc } from "@/lib/media-utils";
 import { DEFAULT_TALENT_IMAGE_CROP_POSITION } from "@shared/image-crop";
 import ContestantVideoWheel from "@/components/contestant-video-wheel";
+import CompetitionVideoGallery from "@/components/competition-video-gallery";
 import ProfileScrollDepthCard from "@/components/profile-scroll-depth-card";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 
@@ -141,17 +142,19 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
   const { data: bundleData, isLoading, error } = useQuery<
     ResolvedData & { contestants: CompetitionContestant[] }
   >({
-    queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "bundle"],
+    queryKey: ["/api/resolve", categorySlug, compSlug, talentSlug, "bundle", "video-library"],
     queryFn: async () => {
       return fetchPublicJson(
-        `/api/resolve/${categorySlug}/${compSlug}/${talentSlug}/bundle`,
+        `/api/resolve/${categorySlug}/${compSlug}/${talentSlug}/bundle?media=library`,
         "Contestant page could not be loaded",
       );
     },
     retry: shouldRetryRequest,
     retryDelay,
     enabled: !!categorySlug && !!compSlug && !!talentSlug,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchInterval: 15_000,
   });
 
   // iPhone/Android app only: ask the server for ready-to-play HLS streams for
@@ -808,7 +811,14 @@ export default function ContestantSharePage({ demoMode = false }: { demoMode?: b
           </section>
         )}
 
-        {/* Profile photos follow the current-competition video and cross-competition wheel. */}
+        <CompetitionVideoGallery
+          key={`${competition.id}:${profile.id}`}
+          videos={videos}
+          competitionTitle={competition.title}
+          playbackFor={playbackFor}
+        />
+
+        {/* All current-competition videos are shown alongside the profile photos. */}
         {profile.imageUrls && profile.imageUrls.length > 0 && (
           <section className="mx-auto mb-8 w-full max-w-5xl px-4" aria-label="Contestant photo gallery" data-testid="contestant-photo-gallery">
             <div className="mb-5 text-center">
