@@ -1151,7 +1151,7 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                         </div>
                         {breakdown.contestants?.length > 0 && (
                           <div className="max-h-64 overflow-y-auto border-y border-white/10" data-testid="vote-source-contestant-list">
-                            <div className="sticky top-0 grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] gap-2 bg-zinc-900 px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/50 sm:grid-cols-[minmax(0,1fr)_6rem_6rem]">
+                            <div className="sticky top-0 grid grid-cols-[minmax(0,1fr)_3.5rem_3.5rem] gap-1.5 bg-zinc-900 px-2 py-2 text-[9px] font-semibold uppercase tracking-wider leading-tight text-white/50 sm:grid-cols-[minmax(0,1fr)_6rem_6rem] sm:gap-2 sm:text-[10px]">
                               <span>Contestant</span>
                               <span className="text-right">Online</span>
                               <span className="text-right">In person</span>
@@ -1161,9 +1161,11 @@ export function CompetitionDetailModal({ compId }: { compId: number }) {
                               .map((contestant) => (
                                 <div
                                   key={contestant.contestantId}
-                                  className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] gap-2 border-t border-white/5 px-2 py-2.5 text-xs sm:grid-cols-[minmax(0,1fr)_6rem_6rem]"
+                                  className="grid grid-cols-[minmax(0,1fr)_3.5rem_3.5rem] gap-1.5 border-t border-white/5 px-2 py-2.5 text-xs sm:grid-cols-[minmax(0,1fr)_6rem_6rem] sm:gap-2"
                                 >
-                                  <span className="truncate text-white/80">{contestant.stageName || contestant.displayName}</span>
+                                  <span className="min-w-0 whitespace-normal break-words leading-snug text-white/80" title={contestant.stageName || contestant.displayName}>
+                                    {contestant.stageName || contestant.displayName}
+                                  </span>
                                   <span className="text-right font-mono tabular-nums text-blue-200">{contestant.online.toLocaleString()}</span>
                                   <span className="text-right font-mono tabular-nums text-orange-200">{contestant.inPerson.toLocaleString()}</span>
                                 </div>
